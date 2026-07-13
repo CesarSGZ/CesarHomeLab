@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#071015">
+  <meta name="robots" content="noindex,nofollow,noarchive">
+  <title>CSG Mission Control</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="control.css?v=20260713a">
+</head>
+<body>
+  <canvas id="control-grid" aria-hidden="true"></canvas>
+  <div class="noise" aria-hidden="true"></div>
+
+  <aside class="sidebar">
+    <a class="control-brand" href="/" aria-label="Return to public portfolio"><span>CSG</span><i></i></a>
+    <div class="system-label"><small>PRIVATE SYSTEM</small><strong>Mission<br>Control</strong></div>
+    <nav aria-label="Control panel sections">
+      <button class="nav-item active" data-view="overview"><span>01</span>Overview</button>
+      <button class="nav-item" data-view="infrastructure"><span>02</span>Infrastructure</button>
+      <button class="nav-item" data-view="revenue"><span>03</span>Revenue</button>
+      <button class="nav-item" data-view="projects"><span>04</span>Projects</button>
+      <button class="nav-item" data-view="analytics"><span>05</span>Analytics</button>
+      <button class="nav-item" data-view="notes"><span>06</span>Notes</button>
+    </nav>
+    <div class="sidebar-foot"><span><i></i> Secure session</span><a href="/cdn-cgi/access/logout">Sign out ↗</a></div>
+  </aside>
+
+  <main>
+    <header class="topbar">
+      <button class="menu-toggle" type="button" aria-label="Toggle navigation" aria-expanded="false">MENU</button>
+      <div><small>CSG / PERSONAL OPERATING SYSTEM</small><p id="view-code">OVERVIEW · 01</p></div>
+      <div class="session"><span>OWNER</span><b>CS</b></div>
+    </header>
+
+    <section class="view active" id="overview" data-title="Overview" data-code="01">
+      <div class="view-heading">
+        <div><p class="eyebrow"><span></span> Personal command centre</p><h1>Good to see you,<br><em>César.</em></h1></div>
+        <p>This is the empty framework for your private systems. Each module is ready to be connected to real data when you decide what matters.</p>
+      </div>
+      <div class="status-strip"><span><i></i> SYSTEM READY</span><span>0 CONNECTED SOURCES</span><span id="system-time">--:--:-- CET</span></div>
+      <div class="dashboard-grid">
+        <article class="module module-wide" data-accent="cyan"><header><span>INFRASTRUCTURE</span><small>MODULE / 01</small></header><div class="empty-state"><i class="radar-icon"></i><strong>No server connected</strong><p>Minecraft status, uptime and players will appear here.</p><button data-open="infrastructure">Configure later →</button></div></article>
+        <article class="module" data-accent="acid"><header><span>REVENUE</span><small>MODULE / 02</small></header><div class="empty-state"><strong>€ —</strong><p>Connect a project, payment platform or manual ledger.</p><button data-open="revenue">Configure later →</button></div></article>
+        <article class="module" data-accent="violet"><header><span>PROJECTS</span><small>MODULE / 03</small></header><div class="empty-state"><strong>0 active</strong><p>Your projects, milestones and next actions will live here.</p><button data-open="projects">Configure later →</button></div></article>
+        <article class="module module-wide" data-accent="blue"><header><span>PERSONAL SIGNAL</span><small>MODULE / 04</small></header><div class="signal-placeholder"><span>NO DATA</span><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><p class="module-note">A flexible space for the metric you care about most.</p></article>
+      </div>
+    </section>
+
+    <section class="view" id="infrastructure" data-title="Infrastructure" data-code="02">
+      <div class="simple-heading"><p class="eyebrow"><span></span> Infrastructure</p><h2>Servers & services.</h2><p>Reserved for Minecraft, websites, APIs and anything that should stay online.</p></div>
+      <div class="empty-canvas"><div class="orbit-placeholder"><i></i><i></i><b>+</b></div><strong>No infrastructure connected</strong><p>We can add your first service whenever it exists.</p><div class="future-fields"><span>STATUS</span><span>UPTIME</span><span>LATENCY</span><span>USERS</span></div></div>
+    </section>
+
+    <section class="view" id="revenue" data-title="Revenue" data-code="03">
+      <div class="simple-heading"><p class="eyebrow"><span></span> Revenue</p><h2>Money with context.</h2><p>A private view of income, recurring revenue, costs and project performance.</p></div>
+      <div class="empty-canvas"><div class="axis-placeholder"><i></i><i></i><i></i><i></i><i></i></div><strong>No financial source connected</strong><p>Future options: manual entries, Google Sheets, Stripe or another platform.</p></div>
+    </section>
+
+    <section class="view" id="projects" data-title="Projects" data-code="04">
+      <div class="simple-heading"><p class="eyebrow"><span></span> Projects</p><h2>What is moving.</h2><p>One place for objectives, milestones, progress and the next meaningful action.</p></div>
+      <div class="project-columns"><article><header>BACKLOG <span>0</span></header><div>Drop future ideas here.</div></article><article><header>IN FLIGHT <span>0</span></header><div>Active work will appear here.</div></article><article><header>COMPLETE <span>0</span></header><div>Finished missions will land here.</div></article></div>
+    </section>
+
+    <section class="view" id="analytics" data-title="Analytics" data-code="05">
+      <div class="simple-heading"><p class="eyebrow"><span></span> Analytics</p><h2>Signals, not noise.</h2><p>Prepared for portfolio visits, traffic sources and whichever indicators become useful.</p></div>
+      <div class="metric-placeholders"><article><small>VISITORS</small><strong>—</strong></article><article><small>ENGAGEMENT</small><strong>—</strong></article><article><small>TOP SOURCE</small><strong>—</strong></article></div>
+      <div class="empty-canvas compact"><strong>No analytics source connected</strong><p>The layout is ready; tracking remains deliberately disabled.</p></div>
+    </section>
+
+    <section class="view" id="notes" data-title="Notes" data-code="06">
+      <div class="simple-heading"><p class="eyebrow"><span></span> Private notes</p><h2>A quiet workspace.</h2><p>Later, this can hold decisions, ideas, objectives or a private operating log.</p></div>
+      <div class="notes-placeholder"><span>UNTITLED / EMPTY</span><p>Start with a thought when this module becomes useful.</p><div></div></div>
+    </section>
+  </main>
+  <script src="control.js?v=20260713a"></script>
+</body>
+</html>
