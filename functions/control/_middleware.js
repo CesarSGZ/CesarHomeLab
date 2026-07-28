@@ -2,6 +2,7 @@ import { currentSession } from "../_lib/auth.js";
 import { json } from "../_lib/http.js";
 
 const PUBLIC_PATHS = new Set([
+  "/control/login",
   "/control/login.html",
   "/control/login.css",
   "/control/login.js",
@@ -21,7 +22,7 @@ export async function onRequest(context) {
     if (
       session &&
       !session.user.mustChangePassword &&
-      url.pathname === "/control/login.html"
+      (url.pathname === "/control/login" || url.pathname === "/control/login.html")
     ) {
       return Response.redirect(`${url.origin}/control/`, 302);
     }
@@ -32,7 +33,7 @@ export async function onRequest(context) {
     if (isApi) {
       return json({ ok: false, error: "not_authenticated" }, { status: 401 });
     }
-    return Response.redirect(`${url.origin}/control/login.html`, 302);
+    return Response.redirect(`${url.origin}/control/login`, 302);
   }
 
   if (
@@ -43,7 +44,7 @@ export async function onRequest(context) {
     if (isApi) {
       return json({ ok: false, error: "password_change_required" }, { status: 403 });
     }
-    return Response.redirect(`${url.origin}/control/login.html?change=required`, 302);
+    return Response.redirect(`${url.origin}/control/login?change=required`, 302);
   }
 
   return context.next();

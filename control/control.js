@@ -47,7 +47,7 @@ function relativeTime(timestamp){
 async function loadSession(){
   try{
     const response=await fetch('/control/api/session',{credentials:'same-origin',headers:{accept:'application/json'}});
-    if(response.status===401){location.replace('/control/login.html');return}
+    if(response.status===401){location.replace('/control/login');return}
     if(!response.ok)return;
     const data=await response.json();
     if(!data.ok)return;
@@ -152,7 +152,7 @@ document.getElementById('sign-out').addEventListener('click',async()=>{
       headers:{'x-csrf-token':csrfToken}
     });
   }finally{
-    location.replace('/control/login.html');
+    location.replace('/control/login');
   }
 });
 
