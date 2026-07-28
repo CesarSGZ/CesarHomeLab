@@ -1,0 +1,13 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "cesar-solla",
+  "pages_build_output_dir": ".",
+  "compatibility_date": "2026-07-28",
+  "d1_databases": [
+    {
+      "binding": "CONTROL_DB",
+      "database_name": "cesar-mission-control",
+      "database_id": "799a8dfb-7cea-47a9-9e47-79b767013be4"
+    }
+  ]
+}

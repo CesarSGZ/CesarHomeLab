@@ -1,0 +1,6 @@
+.git
+.github
+migrations
+server-agent
+wrangler.jsonc
+README.md

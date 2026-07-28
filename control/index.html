@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="control.css?v=20260713a">
+  <link rel="stylesheet" href="control.css?v=20260728a">
 </head>
 <body>
   <canvas id="control-grid" aria-hidden="true"></canvas>
@@ -33,17 +33,28 @@
     <header class="topbar">
       <button class="menu-toggle" type="button" aria-label="Toggle navigation" aria-expanded="false">MENU</button>
       <div><small>CSG / PERSONAL OPERATING SYSTEM</small><p id="view-code">OVERVIEW · 01</p></div>
-      <div class="session"><span>OWNER</span><b>CS</b></div>
+      <div class="session"><span id="session-role">SECURE</span><b id="session-avatar">CV</b></div>
     </header>
 
     <section class="view active" id="overview" data-title="Overview" data-code="01">
       <div class="view-heading">
-        <div><p class="eyebrow"><span></span> Personal command centre</p><h1>Good to see you,<br><em>César.</em></h1></div>
+        <div><p class="eyebrow"><span></span> Personal command centre</p><h1>Good to see you,<br><em id="session-name">César.</em></h1></div>
         <p>This is the empty framework for your private systems. Each module is ready to be connected to real data when you decide what matters.</p>
       </div>
       <div class="status-strip"><span><i></i> SYSTEM READY</span><span>0 CONNECTED SOURCES</span><span id="system-time">--:--:-- CET</span></div>
       <div class="dashboard-grid">
-        <article class="module module-wide" data-accent="cyan"><header><span>INFRASTRUCTURE</span><small>MODULE / 01</small></header><div class="empty-state"><i class="radar-icon"></i><strong>No server connected</strong><p>Minecraft status, uptime and players will appear here.</p><button data-open="infrastructure">Configure later →</button></div></article>
+        <article class="module module-wide minecraft-summary" data-accent="cyan">
+          <header><span>MINECRAFT SERVER</span><small>MODULE / 01</small></header>
+          <div class="server-summary">
+            <div class="server-orb" data-server-orb><i></i><b>MC</b></div>
+            <div>
+              <p class="server-kicker"><span data-agent-dot></span><span data-agent-label>AGENT OFFLINE</span></p>
+              <strong data-server-status>Waiting for server agent</strong>
+              <p data-server-meta>The secure command channel is ready to be paired.</p>
+            </div>
+            <button class="module-action" data-open="infrastructure">Open controls →</button>
+          </div>
+        </article>
         <article class="module" data-accent="acid"><header><span>REVENUE</span><small>MODULE / 02</small></header><div class="empty-state"><strong>€ —</strong><p>Connect a project, payment platform or manual ledger.</p><button data-open="revenue">Configure later →</button></div></article>
         <article class="module" data-accent="violet"><header><span>PROJECTS</span><small>MODULE / 03</small></header><div class="empty-state"><strong>0 active</strong><p>Your projects, milestones and next actions will live here.</p><button data-open="projects">Configure later →</button></div></article>
         <article class="module module-wide" data-accent="blue"><header><span>PERSONAL SIGNAL</span><small>MODULE / 04</small></header><div class="signal-placeholder"><span>NO DATA</span><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><p class="module-note">A flexible space for the metric you care about most.</p></article>
@@ -52,7 +63,37 @@
 
     <section class="view" id="infrastructure" data-title="Infrastructure" data-code="02">
       <div class="simple-heading"><p class="eyebrow"><span></span> Infrastructure</p><h2>Servers & services.</h2><p>Reserved for Minecraft, websites, APIs and anything that should stay online.</p></div>
-      <div class="empty-canvas"><div class="orbit-placeholder"><i></i><i></i><b>+</b></div><strong>No infrastructure connected</strong><p>We can add your first service whenever it exists.</p><div class="future-fields"><span>STATUS</span><span>UPTIME</span><span>LATENCY</span><span>USERS</span></div></div>
+      <div class="server-console">
+        <article class="server-card">
+          <header>
+            <div><small>NODE / MC-01</small><h3>Minecraft Server</h3></div>
+            <span class="connection-pill" data-connection-pill>OFFLINE</span>
+          </header>
+          <div class="server-readout">
+            <div><small>SERVER</small><strong data-detail-status>UNKNOWN</strong></div>
+            <div><small>PLAYERS</small><strong data-detail-players>— / —</strong></div>
+            <div><small>VERSION</small><strong data-detail-version>—</strong></div>
+            <div><small>LAST SIGNAL</small><strong data-detail-seen>NEVER</strong></div>
+          </div>
+          <div class="server-actions">
+            <div>
+              <small>RESTRICTED ACTION</small>
+              <p>Restart requests are queued securely and executed only by the paired server agent.</p>
+            </div>
+            <button class="restart-button" id="restart-server" type="button" disabled>
+              <span>↻</span> Restart server
+            </button>
+          </div>
+          <p class="command-feedback" id="command-feedback" role="status" aria-live="polite">Agent pairing required.</p>
+        </article>
+        <aside class="security-card">
+          <small>ACCESS CONTROL</small>
+          <h3>Two-person operations.</h3>
+          <div class="operator-row active"><b>CV</b><span><strong>CesarVapor</strong><small>OWNER · ACTIVE</small></span></div>
+          <div class="operator-row pending"><b>S8</b><span><strong>Supersanti86</strong><small>AWAITING VERIFIED EMAIL</small></span></div>
+          <p>No passwords are stored here. Authentication is delegated to Cloudflare Access and each operator’s own secured account.</p>
+        </aside>
+      </div>
     </section>
 
     <section class="view" id="revenue" data-title="Revenue" data-code="03">
@@ -76,6 +117,6 @@
       <div class="notes-placeholder"><span>UNTITLED / EMPTY</span><p>Start with a thought when this module becomes useful.</p><div></div></div>
     </section>
   </main>
-  <script src="control.js?v=20260713a"></script>
+  <script src="control.js?v=20260728a"></script>
 </body>
 </html>

@@ -1,0 +1,8 @@
+{
+  "version": 1,
+  "include": [
+    "/control/api/*",
+    "/api/agent/*"
+  ],
+  "exclude": []
+}
