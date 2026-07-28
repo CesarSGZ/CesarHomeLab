@@ -1,4 +1,3 @@
-import { requireUser } from "../../../_lib/auth.js";
 import { json, methodNotAllowed } from "../../../_lib/http.js";
 
 const OFFLINE_AFTER_MS = 30_000;
@@ -6,8 +5,9 @@ const OFFLINE_AFTER_MS = 30_000;
 export async function onRequest(context) {
   if (context.request.method !== "GET") return methodNotAllowed(["GET"]);
 
-  const auth = requireUser(context.request, context.env);
-  if (auth.response) return auth.response;
+  if (!context.data.session) {
+    return json({ ok: false, error: "not_authenticated" }, { status: 401 });
+  }
 
   const state = await context.env.CONTROL_DB
     .prepare("SELECT * FROM agent_state WHERE id = 1")

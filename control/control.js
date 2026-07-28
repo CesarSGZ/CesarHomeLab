@@ -29,6 +29,7 @@ addEventListener('resize',drawGrid);drawGrid();
 const restartButton=document.getElementById('restart-server');
 const commandFeedback=document.getElementById('command-feedback');
 let minecraftState=null;
+let csrfToken='';
 
 function setText(selector,value){
   document.querySelectorAll(selector).forEach(element=>{element.textContent=value});
@@ -46,12 +47,14 @@ function relativeTime(timestamp){
 async function loadSession(){
   try{
     const response=await fetch('/control/api/session',{credentials:'same-origin',headers:{accept:'application/json'}});
+    if(response.status===401){location.replace('/control/login.html');return}
     if(!response.ok)return;
     const data=await response.json();
     if(!data.ok)return;
+    csrfToken=data.csrfToken||'';
     document.getElementById('session-name').textContent=`${data.user.username}.`;
     document.getElementById('session-role').textContent=data.user.role.toUpperCase();
-    document.getElementById('session-avatar').textContent=data.user.username==='Supersanti86'?'S8':'CV';
+    document.getElementById('session-avatar').textContent=data.user.username.toLowerCase()==='supersanti86'?'S8':'CV';
   }catch{}
 }
 
@@ -123,7 +126,8 @@ restartButton.addEventListener('click',async()=>{
       credentials:'same-origin',
       headers:{
         'content-type':'application/json',
-        'idempotency-key':crypto.randomUUID()
+        'idempotency-key':crypto.randomUUID(),
+        'x-csrf-token':csrfToken
       },
       body:'{}'
     });
@@ -137,6 +141,18 @@ restartButton.addEventListener('click',async()=>{
       ?'SERVER AGENT IS OFFLINE'
       :'RESTART REQUEST FAILED';
     restartButton.disabled=false;
+  }
+});
+
+document.getElementById('sign-out').addEventListener('click',async()=>{
+  try{
+    await fetch('/control/api/auth/logout',{
+      method:'POST',
+      credentials:'same-origin',
+      headers:{'x-csrf-token':csrfToken}
+    });
+  }finally{
+    location.replace('/control/login.html');
   }
 });
 

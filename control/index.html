@@ -10,6 +10,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="control.css?v=20260728a">
+  <link rel="stylesheet" href="auth-overrides.css?v=20260728a">
 </head>
 <body>
   <canvas id="control-grid" aria-hidden="true"></canvas>
@@ -26,7 +27,7 @@
       <button class="nav-item" data-view="analytics"><span>05</span>Analytics</button>
       <button class="nav-item" data-view="notes"><span>06</span>Notes</button>
     </nav>
-    <div class="sidebar-foot"><span><i></i> Secure session</span><a href="/cdn-cgi/access/logout">Sign out ↗</a></div>
+    <div class="sidebar-foot"><span><i></i> Secure session</span><button id="sign-out" type="button">Sign out ↗</button></div>
   </aside>
 
   <main>
@@ -90,8 +91,8 @@
           <small>ACCESS CONTROL</small>
           <h3>Two-person operations.</h3>
           <div class="operator-row active"><b>CV</b><span><strong>CesarVapor</strong><small>OWNER · ACTIVE</small></span></div>
-          <div class="operator-row pending"><b>S8</b><span><strong>Supersanti86</strong><small>AWAITING VERIFIED EMAIL</small></span></div>
-          <p>No passwords are stored here. Authentication is delegated to Cloudflare Access and each operator’s own secured account.</p>
+          <div class="operator-row active"><b>S8</b><span><strong>SuperSanti86</strong><small>OPERATOR · ACTIVE</small></span></div>
+          <p>Each operator has an independent account. Passwords are protected using one-way hashing and secure, expiring sessions.</p>
         </aside>
       </div>
     </section>

@@ -1,0 +1,12 @@
+.sidebar-foot button {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+}
+
+.sidebar-foot button:hover {
+  color: var(--ink);
+}

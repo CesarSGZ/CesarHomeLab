@@ -1,4 +1,4 @@
-import { requireUser } from "../../../_lib/auth.js";
+import { validCsrf } from "../../../_lib/auth.js";
 import { json, methodNotAllowed } from "../../../_lib/http.js";
 
 const COMMAND_COOLDOWN_MS = 90_000;
@@ -6,8 +6,11 @@ const COMMAND_COOLDOWN_MS = 90_000;
 export async function onRequest(context) {
   if (context.request.method !== "POST") return methodNotAllowed(["POST"]);
 
-  const auth = requireUser(context.request, context.env);
-  if (auth.response) return auth.response;
+  const session = context.data.session;
+  if (!session) return json({ ok: false, error: "not_authenticated" }, { status: 401 });
+  if (!validCsrf(context.request, session)) {
+    return json({ ok: false, error: "invalid_csrf" }, { status: 403 });
+  }
 
   const contentType = context.request.headers.get("content-type") || "";
   if (!contentType.toLowerCase().startsWith("application/json")) {
@@ -44,7 +47,7 @@ export async function onRequest(context) {
       .prepare(
         "INSERT INTO commands (id, type, status, requested_by, requested_at, idempotency_key) VALUES (?, 'restart', 'queued', ?, ?, ?)",
       )
-      .bind(id, auth.user.email, now, idempotencyKey)
+      .bind(id, session.user.username, now, idempotencyKey)
       .run();
   } catch (error) {
     if (String(error).includes("UNIQUE")) {

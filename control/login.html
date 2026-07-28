@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#071015">
+  <meta name="robots" content="noindex,nofollow,noarchive">
+  <title>Sign in · CSG Mission Control</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="login.css?v=20260728a">
+</head>
+<body>
+  <div class="grid" aria-hidden="true"></div>
+  <div class="glow" aria-hidden="true"></div>
+  <main>
+    <a class="brand" href="/" aria-label="Return to public portfolio"><span>CSG</span><i></i></a>
+    <section class="login-copy">
+      <p class="eyebrow"><i></i> PRIVATE SYSTEM / AUTHENTICATION</p>
+      <h1>Your command<br>centre awaits<span>.</span></h1>
+      <p>Personal systems, infrastructure and projects in one private operating layer.</p>
+      <div class="security-signal"><i></i><span>ENCRYPTED SESSION</span><b>01 / 01</b></div>
+    </section>
+    <section class="auth-panel">
+      <div class="panel-index">AUTH / 01</div>
+      <form id="login-form">
+        <header><p>IDENTITY CHECK</p><h2>Sign in.</h2><span>Use your personal Mission Control credentials.</span></header>
+        <label><span>USERNAME</span><input name="username" autocomplete="username" maxlength="48" required autofocus></label>
+        <label><span>PASSWORD</span><input name="password" type="password" autocomplete="current-password" maxlength="128" required></label>
+        <button type="submit"><span>Enter Mission Control</span><b>→</b></button>
+        <p class="feedback" id="login-feedback" role="status" aria-live="polite"></p>
+      </form>
+      <form id="change-form" hidden>
+        <header><p>FIRST ACCESS</p><h2>Secure your account.</h2><span>Replace the temporary password before entering the panel.</span></header>
+        <label><span>NEW PASSWORD</span><input name="password" type="password" autocomplete="new-password" minlength="14" maxlength="128" required></label>
+        <label><span>CONFIRM PASSWORD</span><input name="confirmation" type="password" autocomplete="new-password" minlength="14" maxlength="128" required></label>
+        <p class="requirements">14+ characters · must not contain your username</p>
+        <button type="submit"><span>Save & enter</span><b>→</b></button>
+        <p class="feedback" id="change-feedback" role="status" aria-live="polite"></p>
+      </form>
+    </section>
+  </main>
+  <script src="login.js?v=20260728a"></script>
+</body>
+</html>
