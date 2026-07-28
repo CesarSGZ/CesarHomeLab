@@ -37,11 +37,23 @@ export async function onRequest(context) {
     return json({ ok: false, error: "invalid_credentials" }, { status: 401 });
   }
 
-  const suppliedHash = await hashPassword(
-    password,
-    user.password_salt,
-    context.env.AUTH_PEPPER,
-  );
+  let suppliedHash;
+  try {
+    suppliedHash = await hashPassword(
+      password,
+      user.password_salt,
+      context.env.AUTH_PEPPER,
+    );
+  } catch (error) {
+    return json(
+      {
+        ok: false,
+        error: "authentication_unavailable",
+        diagnostic: String(error?.message || error).slice(0, 120),
+      },
+      { status: 503 },
+    );
+  }
   if (!constantTimeEqual(suppliedHash, user.password_hash)) {
     const attempts = Number(user.failed_attempts || 0) + 1;
     const lockedUntil = attempts >= MAX_FAILED_ATTEMPTS ? now + LOCKOUT_MS : null;
