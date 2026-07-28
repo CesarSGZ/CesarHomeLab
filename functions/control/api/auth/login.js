@@ -46,11 +46,7 @@ export async function onRequest(context) {
     );
   } catch (error) {
     return json(
-      {
-        ok: false,
-        error: "authentication_unavailable",
-        diagnostic: String(error?.message || error).slice(0, 120),
-      },
+      { ok: false, error: "authentication_unavailable" },
       { status: 503 },
     );
   }

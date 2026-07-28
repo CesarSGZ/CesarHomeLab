@@ -1,6 +1,6 @@
 const SESSION_COOKIE = "mc_session";
 const SESSION_TTL_MS = 12 * 60 * 60 * 1000;
-const PBKDF2_ITERATIONS = 310_000;
+const PBKDF2_ITERATIONS = 100_000;
 
 const encoder = new TextEncoder();
 
