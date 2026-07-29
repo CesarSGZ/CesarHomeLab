@@ -58,10 +58,28 @@ function Test-LocalPort {
 function Stop-TargetTree {
     param([Parameter(Mandatory)] $Config)
 
-    $targets = @(Get-TargetProcesses -Config $Config)
+    $targets = @(Get-TargetProcesses -Config $Config) | Sort-Object @{
+        Expression = {
+            if ($_.Name -ieq $Config.ProcessName) { 1 } else { 0 }
+        }
+    }
     foreach ($target in $targets) {
-        & "$env:SystemRoot\System32\taskkill.exe" `
-            /PID $target.ProcessId /T /F 2>&1 | Out-Null
+        if (-not (Get-Process -Id $target.ProcessId -ErrorAction SilentlyContinue)) {
+            continue
+        }
+
+        # Killing a launcher tree can remove the Java child before its turn in
+        # this snapshot. taskkill reports that harmless race on stderr, which
+        # must not abort the restart while ErrorActionPreference is Stop.
+        $previousErrorActionPreference = $ErrorActionPreference
+        try {
+            $ErrorActionPreference = 'SilentlyContinue'
+            & "$env:SystemRoot\System32\taskkill.exe" `
+                /PID $target.ProcessId /T /F 2>$null | Out-Null
+        }
+        finally {
+            $ErrorActionPreference = $previousErrorActionPreference
+        }
     }
 
     $deadline = (Get-Date).AddSeconds(
@@ -84,6 +102,18 @@ function Stop-TargetTree {
 
 function Start-MinecraftServer {
     param([Parameter(Mandatory)] $Config)
+
+    $interactiveTaskName = [string]$Config.InteractiveLaunchTaskName
+    if (-not [string]::IsNullOrWhiteSpace($interactiveTaskName)) {
+        $interactiveTask = Get-ScheduledTask `
+            -TaskName $interactiveTaskName `
+            -ErrorAction SilentlyContinue
+        if (-not $interactiveTask) {
+            throw "Interactive launch task not found: $interactiveTaskName"
+        }
+        Start-ScheduledTask -TaskName $interactiveTaskName
+        return
+    }
 
     $launchScript = [IO.Path]::GetFullPath([string]$Config.LaunchScript)
     $workingDirectory = [IO.Path]::GetFullPath(

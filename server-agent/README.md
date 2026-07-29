@@ -19,6 +19,10 @@ and the final result to Mission Control.
    reports the agent as online.
 4. When verified, run `install-agent-task.ps1` as Administrator.
 
+To make the Minecraft console visible in the logged-in server desktop, also
+run `install-visible-launch-task.ps1`. The main agent remains a SYSTEM task,
+while Minecraft is launched in the configured user's interactive session.
+
 The scheduled task runs as `SYSTEM`, starts with Windows and is restarted if it
 fails. The token is encrypted using machine-scoped Windows DPAPI and is only
 decryptable on that computer. Do not copy `agent-token.enc` to another machine.

@@ -140,10 +140,12 @@ function Invoke-Restart {
         }
 
         $output = if (Test-Path -LiteralPath $outputPath) {
-            (Get-Content -Raw -LiteralPath $outputPath).Trim()
+            $rawOutput = Get-Content -Raw -LiteralPath $outputPath
+            if ($null -eq $rawOutput) { '' } else { $rawOutput.Trim() }
         } else { '' }
         $errors = if (Test-Path -LiteralPath $errorPath) {
-            (Get-Content -Raw -LiteralPath $errorPath).Trim()
+            $rawErrors = Get-Content -Raw -LiteralPath $errorPath
+            if ($null -eq $rawErrors) { '' } else { $rawErrors.Trim() }
         } else { '' }
         Remove-Item -LiteralPath $outputPath, $errorPath -Force -ErrorAction SilentlyContinue
 
