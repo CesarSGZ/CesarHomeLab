@@ -15,9 +15,11 @@ $action = New-ScheduledTaskAction `
     -Argument "-NoLogo -NoProfile -ExecutionPolicy Bypass -File `"$agentScript`""
 $trigger = New-ScheduledTaskTrigger -AtStartup
 $settings = New-ScheduledTaskSettingsSet `
-    -RestartCount 5 `
+    -RestartCount 99 `
     -RestartInterval (New-TimeSpan -Minutes 1) `
-    -StartWhenAvailable
+    -StartWhenAvailable `
+    -ExecutionTimeLimit ([TimeSpan]::Zero) `
+    -MultipleInstances IgnoreNew
 
 Register-ScheduledTask `
     -TaskName 'CSG Mission Control Agent' `
@@ -25,7 +27,7 @@ Register-ScheduledTask `
     -Action $action `
     -Trigger $trigger `
     -Settings $settings `
-    -User $env:USERNAME `
+    -User 'SYSTEM' `
     -RunLevel Highest `
     -Force
 

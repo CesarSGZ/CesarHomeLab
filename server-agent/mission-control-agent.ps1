@@ -11,14 +11,16 @@ function Read-AgentToken {
         throw "Missing agent-token.enc. Run setup-agent.ps1 first."
     }
 
-    $secure = Get-Content -Raw -LiteralPath $encryptedPath | ConvertTo-SecureString
-    $pointer = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secure)
-    try {
-        return [Runtime.InteropServices.Marshal]::PtrToStringBSTR($pointer)
-    }
-    finally {
-        [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($pointer)
-    }
+    $encrypted = [Convert]::FromBase64String(
+        (Get-Content -Raw -LiteralPath $encryptedPath).Trim()
+    )
+    $entropy = [Text.Encoding]::UTF8.GetBytes('CSG-Mission-Control-Agent-v1')
+    $plain = [Security.Cryptography.ProtectedData]::Unprotect(
+        $encrypted,
+        $entropy,
+        [Security.Cryptography.DataProtectionScope]::LocalMachine
+    )
+    return [Text.Encoding]::UTF8.GetString($plain)
 }
 
 function Invoke-ControlApi {
@@ -45,8 +47,9 @@ function Get-MinecraftState {
     } | Select-Object -First 1
 
     if ($match) {
+        $portOpen = Test-LocalPort -Port ([int]$script:Config.ServerPort)
         return @{
-            serverStatus = 'online'
+            serverStatus = $(if ($portOpen) { 'online' } else { 'starting' })
             playersOnline = $null
             playersMax = $null
             version = $script:Config.ServerLabel
@@ -58,6 +61,23 @@ function Get-MinecraftState {
         playersOnline = $null
         playersMax = $null
         version = $script:Config.ServerLabel
+    }
+}
+
+function Test-LocalPort {
+    param([Parameter(Mandatory)] [int]$Port)
+    $client = [Net.Sockets.TcpClient]::new()
+    try {
+        $attempt = $client.BeginConnect('127.0.0.1', $Port, $null, $null)
+        if (-not $attempt.AsyncWaitHandle.WaitOne(700)) { return $false }
+        $client.EndConnect($attempt)
+        return $client.Connected
+    }
+    catch {
+        return $false
+    }
+    finally {
+        $client.Dispose()
     }
 }
 
@@ -91,10 +111,50 @@ function Invoke-Restart {
             throw "RestartScript must point to a PowerShell .ps1 file."
         }
 
-        & $restartScript
-        if (-not $?) { throw "Restart script returned a failure status." }
+        $stamp = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
+        $outputPath = Join-Path $env:TEMP "csg-mc-restart-$stamp.out"
+        $errorPath = Join-Path $env:TEMP "csg-mc-restart-$stamp.err"
+        $restart = Start-Process -FilePath 'powershell.exe' `
+            -ArgumentList @(
+                '-NoLogo',
+                '-NoProfile',
+                '-ExecutionPolicy', 'Bypass',
+                '-File', "`"$restartScript`"",
+                '-ConfigPath', "`"$ConfigPath`""
+            ) `
+            -WindowStyle Hidden `
+            -RedirectStandardOutput $outputPath `
+            -RedirectStandardError $errorPath `
+            -PassThru
 
-        Complete-Command -Id $CommandId -Succeeded $true -Result 'Restart script completed.'
+        while (-not $restart.HasExited) {
+            Invoke-ControlApi -Path '/api/agent/heartbeat' -Body @{
+                serverStatus = 'starting'
+                playersOnline = $null
+                playersMax = $null
+                version = $script:Config.ServerLabel
+            } | Out-Null
+            Start-Sleep -Seconds $pollSeconds
+            $restart.Refresh()
+        }
+
+        $output = if (Test-Path -LiteralPath $outputPath) {
+            (Get-Content -Raw -LiteralPath $outputPath).Trim()
+        } else { '' }
+        $errors = if (Test-Path -LiteralPath $errorPath) {
+            (Get-Content -Raw -LiteralPath $errorPath).Trim()
+        } else { '' }
+        Remove-Item -LiteralPath $outputPath, $errorPath -Force -ErrorAction SilentlyContinue
+
+        if ($restart.ExitCode -ne 0) {
+            throw $(if ($errors) { $errors } elseif ($output) { $output } else {
+                "Restart script exited with code $($restart.ExitCode)."
+            })
+        }
+
+        $result = if ($output) { $output } else { 'Hard restart completed.' }
+        Complete-Command -Id $CommandId -Succeeded $true -Result $result
+        Send-Heartbeat
     }
     catch {
         Complete-Command -Id $CommandId -Succeeded $false -Result $_.Exception.Message
