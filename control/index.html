@@ -9,10 +9,10 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="control.css?v=20260728a">
+  <link rel="stylesheet" href="control.css?v=20260729b">
   <link rel="stylesheet" href="auth-overrides.css?v=20260728a">
 </head>
-<body>
+<body class="access-pending">
   <canvas id="control-grid" aria-hidden="true"></canvas>
   <div class="noise" aria-hidden="true"></div>
 
@@ -21,7 +21,7 @@
     <div class="system-label"><small>PRIVATE SYSTEM</small><strong>Mission<br>Control</strong></div>
     <nav aria-label="Control panel sections">
       <button class="nav-item active" data-view="overview"><span>01</span>Overview</button>
-      <button class="nav-item" data-view="infrastructure"><span>02</span>Infrastructure</button>
+      <button class="nav-item" data-view="infrastructure"><span>02</span><b id="infrastructure-nav-label">Infrastructure</b></button>
       <button class="nav-item" data-view="revenue"><span>03</span>Revenue</button>
       <button class="nav-item" data-view="projects"><span>04</span>Projects</button>
       <button class="nav-item" data-view="analytics"><span>05</span>Analytics</button>
@@ -40,11 +40,19 @@
     <section class="view active" id="overview" data-title="Overview" data-code="01">
       <div class="view-heading">
         <div><p class="eyebrow"><span></span> Personal command centre</p><h1>Good to see you,<br><em id="session-name">César.</em></h1></div>
-        <p>This is the empty framework for your private systems. Each module is ready to be connected to real data when you decide what matters.</p>
+        <p id="overview-intro">This is the empty framework for your private systems. Each module is ready to be connected to real data when you decide what matters.</p>
       </div>
-      <div class="status-strip"><span><i></i> SYSTEM READY</span><span>0 CONNECTED SOURCES</span><span id="system-time">--:--:-- CET</span></div>
+      <div class="status-strip"><span><i></i> SYSTEM READY</span><span id="access-summary">PERSONAL VIEW</span><span id="system-time">--:--:-- CET</span></div>
       <div class="dashboard-grid">
-        <article class="module module-wide minecraft-summary" data-accent="cyan">
+        <article class="module module-wide standard-welcome" data-standard-only data-accent="cyan">
+          <header><span>WELCOME</span><small>HOME / 01</small></header>
+          <div class="welcome-state">
+            <strong>Your space is ready.</strong>
+            <p>This is your starting point. Shared tools and useful modules will appear here as the workspace grows.</p>
+            <span>AUTHORISED SESSION</span>
+          </div>
+        </article>
+        <article class="module module-wide minecraft-summary" data-requires="minecraft:read" data-accent="cyan">
           <header><span>MINECRAFT SERVER</span><small>MODULE / 01</small></header>
           <div class="server-summary">
             <div class="server-orb" data-server-orb><i></i><b>MC</b></div>
@@ -56,14 +64,14 @@
             <button class="module-action" data-open="infrastructure">Open controls →</button>
           </div>
         </article>
-        <article class="module" data-accent="acid"><header><span>REVENUE</span><small>MODULE / 02</small></header><div class="empty-state"><strong>€ —</strong><p>Connect a project, payment platform or manual ledger.</p><button data-open="revenue">Configure later →</button></div></article>
-        <article class="module" data-accent="violet"><header><span>PROJECTS</span><small>MODULE / 03</small></header><div class="empty-state"><strong>0 active</strong><p>Your projects, milestones and next actions will live here.</p><button data-open="projects">Configure later →</button></div></article>
-        <article class="module module-wide" data-accent="blue"><header><span>PERSONAL SIGNAL</span><small>MODULE / 04</small></header><div class="signal-placeholder"><span>NO DATA</span><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><p class="module-note">A flexible space for the metric you care about most.</p></article>
+        <article class="module" data-owner-only data-accent="acid"><header><span>REVENUE</span><small>MODULE / 02</small></header><div class="empty-state"><strong>€ —</strong><p>Connect a project, payment platform or manual ledger.</p><button data-open="revenue">Configure later →</button></div></article>
+        <article class="module" data-owner-only data-accent="violet"><header><span>PROJECTS</span><small>MODULE / 03</small></header><div class="empty-state"><strong>0 active</strong><p>Your projects, milestones and next actions will live here.</p><button data-open="projects">Configure later →</button></div></article>
+        <article class="module module-wide" data-owner-only data-accent="blue"><header><span>PERSONAL SIGNAL</span><small>MODULE / 04</small></header><div class="signal-placeholder"><span>NO DATA</span><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><p class="module-note">A flexible space for the metric you care about most.</p></article>
       </div>
     </section>
 
     <section class="view" id="infrastructure" data-title="Infrastructure" data-code="02">
-      <div class="simple-heading"><p class="eyebrow"><span></span> Infrastructure</p><h2>Servers & services.</h2><p>Reserved for Minecraft, websites, APIs and anything that should stay online.</p></div>
+      <div class="simple-heading"><p class="eyebrow"><span></span> <b id="infrastructure-eyebrow">Infrastructure</b></p><h2 id="infrastructure-title">Servers & services.</h2><p id="infrastructure-intro">Reserved for Minecraft, websites, APIs and anything that should stay online.</p></div>
       <div class="server-console">
         <article class="server-card">
           <header>
@@ -118,6 +126,6 @@
       <div class="notes-placeholder"><span>UNTITLED / EMPTY</span><p>Start with a thought when this module becomes useful.</p><div></div></div>
     </section>
   </main>
-  <script src="control.js?v=20260728a"></script>
+  <script src="control.js?v=20260729b"></script>
 </body>
 </html>

@@ -1,3 +1,4 @@
+import { userCan } from "../../../_lib/auth.js";
 import { json, methodNotAllowed } from "../../../_lib/http.js";
 
 const OFFLINE_AFTER_MS = 30_000;
@@ -5,8 +6,12 @@ const OFFLINE_AFTER_MS = 30_000;
 export async function onRequest(context) {
   if (context.request.method !== "GET") return methodNotAllowed(["GET"]);
 
-  if (!context.data.session) {
+  const session = context.data.session;
+  if (!session) {
     return json({ ok: false, error: "not_authenticated" }, { status: 401 });
+  }
+  if (!userCan(session.user, "minecraft:read")) {
+    return json({ ok: false, error: "minecraft_not_authorized" }, { status: 403 });
   }
 
   const state = await context.env.CONTROL_DB

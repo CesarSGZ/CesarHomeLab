@@ -1,15 +1,14 @@
-import { validCsrf } from "../../../_lib/auth.js";
+import { userCan, validCsrf } from "../../../_lib/auth.js";
 import { json, methodNotAllowed } from "../../../_lib/http.js";
 
 const COMMAND_COOLDOWN_MS = 90_000;
-const RESTART_OPERATORS = new Set(["cesarvapor", "supersanti86"]);
 
 export async function onRequest(context) {
   if (context.request.method !== "POST") return methodNotAllowed(["POST"]);
 
   const session = context.data.session;
   if (!session) return json({ ok: false, error: "not_authenticated" }, { status: 401 });
-  if (!RESTART_OPERATORS.has(String(session.user.username || "").toLowerCase())) {
+  if (!userCan(session.user, "minecraft:restart")) {
     return json({ ok: false, error: "restart_not_authorized" }, { status: 403 });
   }
   if (!validCsrf(context.request, session)) {

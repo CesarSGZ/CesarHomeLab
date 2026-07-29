@@ -2,9 +2,13 @@ const navItems=[...document.querySelectorAll('.nav-item')];
 const views=[...document.querySelectorAll('.view')];
 const sidebar=document.querySelector('.sidebar');
 const menu=document.querySelector('.menu-toggle');
+let allowedViews=new Set(['overview']);
+let capabilities=new Set();
+let accessProfile='standard';
 
 function showView(id,push=true){
-  const next=document.getElementById(id)||document.getElementById('overview');
+  const requested=allowedViews.has(id)?id:'overview';
+  const next=document.getElementById(requested)||document.getElementById('overview');
   views.forEach(view=>view.classList.toggle('active',view===next));
   navItems.forEach(item=>item.classList.toggle('active',item.dataset.view===next.id));
   document.getElementById('view-code').textContent=`${next.dataset.title.toUpperCase()} · ${next.dataset.code}`;
@@ -16,7 +20,6 @@ function showView(id,push=true){
 navItems.forEach(item=>item.addEventListener('click',()=>showView(item.dataset.view)));
 document.querySelectorAll('[data-open]').forEach(button=>button.addEventListener('click',()=>showView(button.dataset.open)));
 menu.addEventListener('click',()=>{const open=sidebar.classList.toggle('open');menu.setAttribute('aria-expanded',String(open))});
-showView(location.hash.slice(1)||'overview',false);
 
 const clock=document.getElementById('system-time');
 function tick(){clock.textContent=new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/Madrid',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).format(new Date())+' CET'}
@@ -47,15 +50,66 @@ function relativeTime(timestamp){
 async function loadSession(){
   try{
     const response=await fetch('/control/api/session',{credentials:'same-origin',headers:{accept:'application/json'}});
-    if(response.status===401){location.replace('/control/login');return}
-    if(!response.ok)return;
+    if(response.status===401){location.replace('/control/login');return null}
+    if(!response.ok)return null;
     const data=await response.json();
-    if(!data.ok)return;
-    csrfToken=data.csrfToken||'';
-    document.getElementById('session-name').textContent=`${data.user.username}.`;
-    document.getElementById('session-role').textContent=data.user.role.toUpperCase();
-    document.getElementById('session-avatar').textContent=data.user.username.toLowerCase()==='supersanti86'?'S8':'CV';
-  }catch{}
+    return data.ok?data:null;
+  }catch{return null}
+}
+
+function hasCapability(capability){
+  return capabilities.has(capability);
+}
+
+function applyAccess(data){
+  csrfToken=data.csrfToken||'';
+  allowedViews=new Set(data.access?.views||['overview']);
+  capabilities=new Set(data.access?.capabilities||[]);
+  accessProfile=data.access?.profile||'standard';
+  const owner=accessProfile==='owner';
+  const minecraftOperator=accessProfile==='minecraft-operator';
+  const username=data.user.username;
+
+  navItems.forEach(item=>{item.hidden=!allowedViews.has(item.dataset.view)});
+  views.forEach(view=>{view.hidden=!allowedViews.has(view.id)});
+  document.querySelectorAll('[data-owner-only]').forEach(element=>{element.hidden=!owner});
+  document.querySelectorAll('[data-standard-only]').forEach(element=>{element.hidden=owner});
+  document.querySelectorAll('[data-requires]').forEach(element=>{
+    element.hidden=!hasCapability(element.dataset.requires);
+  });
+
+  document.getElementById('session-name').textContent=`${username}.`;
+  document.getElementById('session-role').textContent=data.user.role.toUpperCase();
+  document.getElementById('session-avatar').textContent=username
+    .split(/[^a-z0-9]+/i)
+    .filter(Boolean)
+    .map(part=>part[0])
+    .join('')
+    .slice(0,2)
+    .toUpperCase()||'US';
+
+  const overviewIntro=document.getElementById('overview-intro');
+  const accessSummary=document.getElementById('access-summary');
+  if(owner){
+    overviewIntro.textContent='Your complete private operating system. Every personal module is available and ready to be connected to real data.';
+    accessSummary.textContent='FULL ACCESS · 6 MODULES';
+  }else if(minecraftOperator){
+    overviewIntro.textContent='A focused home for shared tools. Your account currently includes Minecraft server operations.';
+    accessSummary.textContent='STANDARD ACCESS · MINECRAFT ENABLED';
+  }else{
+    overviewIntro.textContent='A simple, focused home. Shared tools will appear here when they are assigned to your account.';
+    accessSummary.textContent='STANDARD ACCESS';
+  }
+
+  if(minecraftOperator){
+    document.getElementById('infrastructure-nav-label').textContent='Minecraft Server';
+    document.getElementById('infrastructure').dataset.title='Minecraft Server';
+    document.getElementById('infrastructure-eyebrow').textContent='Minecraft operations';
+    document.getElementById('infrastructure-title').textContent='Server control.';
+    document.getElementById('infrastructure-intro').textContent='Live status and authorised recovery controls for the shared Minecraft server.';
+  }
+
+  document.body.classList.remove('access-pending');
 }
 
 function renderMinecraft(data){
@@ -156,6 +210,18 @@ document.getElementById('sign-out').addEventListener('click',async()=>{
   }
 });
 
-loadSession();
-refreshMinecraft();
-setInterval(refreshMinecraft,10000);
+async function initialiseControl(){
+  const session=await loadSession();
+  if(!session){
+    document.body.classList.remove('access-pending');
+    return;
+  }
+  applyAccess(session);
+  showView(location.hash.slice(1)||'overview',false);
+  if(hasCapability('minecraft:read')){
+    await refreshMinecraft();
+    setInterval(refreshMinecraft,10000);
+  }
+}
+
+initialiseControl();

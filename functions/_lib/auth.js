@@ -3,6 +3,23 @@ const SESSION_TTL_MS = 12 * 60 * 60 * 1000;
 const PBKDF2_ITERATIONS = 100_000;
 
 const encoder = new TextEncoder();
+const STANDARD_ACCESS = Object.freeze({
+  profile: "standard",
+  views: ["overview"],
+  capabilities: [],
+});
+const USER_ACCESS = Object.freeze({
+  cesarvapor: Object.freeze({
+    profile: "owner",
+    views: ["overview", "infrastructure", "revenue", "projects", "analytics", "notes"],
+    capabilities: ["minecraft:read", "minecraft:restart"],
+  }),
+  supersanti86: Object.freeze({
+    profile: "minecraft-operator",
+    views: ["overview", "infrastructure"],
+    capabilities: ["minecraft:read", "minecraft:restart"],
+  }),
+});
 
 function bytesToBase64(bytes) {
   let binary = "";
@@ -37,6 +54,19 @@ function getCookie(request, name) {
 
 export function normaliseUsername(value) {
   return String(value || "").trim().toLowerCase();
+}
+
+export function accessForUser(user) {
+  const configured = USER_ACCESS[normaliseUsername(user?.username)] || STANDARD_ACCESS;
+  return {
+    profile: configured.profile,
+    views: [...configured.views],
+    capabilities: [...configured.capabilities],
+  };
+}
+
+export function userCan(user, capability) {
+  return accessForUser(user).capabilities.includes(capability);
 }
 
 export async function sha256(value) {

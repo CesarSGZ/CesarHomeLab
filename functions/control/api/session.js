@@ -1,3 +1,4 @@
+import { accessForUser } from "../../_lib/auth.js";
 import { json, methodNotAllowed } from "../../_lib/http.js";
 
 export async function onRequest(context) {
@@ -8,6 +9,7 @@ export async function onRequest(context) {
   return json({
     ok: true,
     user: session.user,
+    access: accessForUser(session.user),
     csrfToken: session.csrfToken,
     expiresAt: session.expiresAt,
   });
