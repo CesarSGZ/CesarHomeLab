@@ -213,7 +213,7 @@ document.getElementById('sign-out').addEventListener('click',async()=>{
 async function initialiseControl(){
   const session=await loadSession();
   if(!session){
-    document.body.classList.remove('access-pending');
+    location.replace('/control/login');
     return;
   }
   applyAccess(session);
