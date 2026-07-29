@@ -127,6 +127,9 @@ function Invoke-Restart {
             -RedirectStandardOutput $outputPath `
             -RedirectStandardError $errorPath `
             -PassThru
+        # Windows PowerShell can return a null ExitCode after the child exits
+        # unless its native process handle is retained while it is running.
+        $null = $restart.Handle
 
         while (-not $restart.HasExited) {
             Invoke-ControlApi -Path '/api/agent/heartbeat' -Body @{
@@ -138,6 +141,9 @@ function Invoke-Restart {
             Start-Sleep -Seconds $pollSeconds
             $restart.Refresh()
         }
+        $restart.WaitForExit()
+        $restart.Refresh()
+        $restartExitCode = $restart.ExitCode
 
         $output = if (Test-Path -LiteralPath $outputPath) {
             $rawOutput = Get-Content -Raw -LiteralPath $outputPath
@@ -149,9 +155,9 @@ function Invoke-Restart {
         } else { '' }
         Remove-Item -LiteralPath $outputPath, $errorPath -Force -ErrorAction SilentlyContinue
 
-        if ($restart.ExitCode -ne 0) {
+        if ($restartExitCode -ne 0) {
             throw $(if ($errors) { $errors } elseif ($output) { $output } else {
-                "Restart script exited with code $($restart.ExitCode)."
+                "Restart script exited with code $restartExitCode."
             })
         }
 
