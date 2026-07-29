@@ -48,11 +48,14 @@ function Get-MinecraftState {
     } | Select-Object -First 1
 
     if ($match) {
-        $portOpen = Test-LocalPort -Port ([int]$script:Config.ServerPort)
+        $ping = Get-MinecraftStatusPing -Port ([int]$script:Config.ServerPort)
+        $portOpen = $null -ne $ping -or (
+            Test-LocalPort -Port ([int]$script:Config.ServerPort)
+        )
         return @{
             serverStatus = $(if ($portOpen) { 'online' } else { 'starting' })
-            playersOnline = $null
-            playersMax = $null
+            playersOnline = $(if ($ping) { $ping.PlayersOnline } else { $null })
+            playersMax = $(if ($ping) { $ping.PlayersMax } else { $null })
             version = $script:Config.ServerLabel
         }
     }
@@ -76,6 +79,113 @@ function Test-LocalPort {
     }
     catch {
         return $false
+    }
+    finally {
+        $client.Dispose()
+    }
+}
+
+function ConvertTo-VarIntBytes {
+    param([Parameter(Mandatory)] [int]$Value)
+
+    $bytes = [Collections.Generic.List[byte]]::new()
+    [uint32]$remaining = $Value
+    do {
+        [byte]$current = $remaining -band 0x7F
+        $remaining = $remaining -shr 7
+        if ($remaining -ne 0) { $current = $current -bor 0x80 }
+        $bytes.Add($current)
+    } while ($remaining -ne 0)
+    return $bytes.ToArray()
+}
+
+function Read-VarInt {
+    param([Parameter(Mandatory)] [IO.Stream]$Stream)
+
+    $result = 0
+    $numRead = 0
+    do {
+        $read = $Stream.ReadByte()
+        if ($read -lt 0) {
+            throw 'Unexpected end of Minecraft status response.'
+        }
+        $result = $result -bor (($read -band 0x7F) -shl (7 * $numRead))
+        $numRead += 1
+        if ($numRead -gt 5) { throw 'Minecraft VarInt is too large.' }
+    } while (($read -band 0x80) -ne 0)
+    return $result
+}
+
+function Get-MinecraftStatusPing {
+    param([Parameter(Mandatory)] [int]$Port)
+
+    $client = [Net.Sockets.TcpClient]::new()
+    try {
+        $attempt = $client.BeginConnect('127.0.0.1', $Port, $null, $null)
+        if (-not $attempt.AsyncWaitHandle.WaitOne(1500)) { return $null }
+        $client.EndConnect($attempt)
+        $stream = $client.GetStream()
+        $stream.ReadTimeout = 2000
+        $stream.WriteTimeout = 2000
+
+        $payload = [Collections.Generic.List[byte]]::new()
+        $payload.AddRange([byte[]](ConvertTo-VarIntBytes -Value 0))
+        $payload.AddRange([byte[]](ConvertTo-VarIntBytes -Value 767))
+        $hostBytes = [Text.Encoding]::UTF8.GetBytes('127.0.0.1')
+        $payload.AddRange([byte[]](
+            ConvertTo-VarIntBytes -Value $hostBytes.Length
+        ))
+        $payload.AddRange($hostBytes)
+        $payload.Add([byte](($Port -shr 8) -band 0xFF))
+        $payload.Add([byte]($Port -band 0xFF))
+        $payload.AddRange([byte[]](ConvertTo-VarIntBytes -Value 1))
+
+        $packet = [Collections.Generic.List[byte]]::new()
+        $packet.AddRange([byte[]](
+            ConvertTo-VarIntBytes -Value $payload.Count
+        ))
+        $packet.AddRange($payload.ToArray())
+        $wire = $packet.ToArray()
+        $stream.Write($wire, 0, $wire.Length)
+
+        $request = [byte[]](1, 0)
+        $stream.Write($request, 0, $request.Length)
+        $stream.Flush()
+
+        $packetLength = Read-VarInt -Stream $stream
+        $packetId = Read-VarInt -Stream $stream
+        if ($packetId -ne 0) {
+            throw "Unexpected Minecraft status packet ID: $packetId"
+        }
+        $jsonLength = Read-VarInt -Stream $stream
+        if ($jsonLength -lt 2 -or
+            $jsonLength -gt 1048576 -or
+            $jsonLength -gt $packetLength) {
+            throw 'Invalid Minecraft status response length.'
+        }
+
+        $buffer = New-Object byte[] $jsonLength
+        $offset = 0
+        while ($offset -lt $jsonLength) {
+            $read = $stream.Read($buffer, $offset, $jsonLength - $offset)
+            if ($read -le 0) {
+                throw 'Incomplete Minecraft status response.'
+            }
+            $offset += $read
+        }
+        $status = [Text.Encoding]::UTF8.GetString($buffer) |
+            ConvertFrom-Json
+        if ($null -eq $status.players.online -or
+            $null -eq $status.players.max) {
+            return $null
+        }
+        return [pscustomobject]@{
+            PlayersOnline = [int]$status.players.online
+            PlayersMax = [int]$status.players.max
+        }
+    }
+    catch {
+        return $null
     }
     finally {
         $client.Dispose()
