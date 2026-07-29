@@ -2,6 +2,7 @@
 param()
 
 $ErrorActionPreference = 'Stop'
+Add-Type -AssemblyName System.Security
 
 $siteBaseUrl = 'https://cesar-solla.pages.dev'
 $serverDirectory = Read-Host 'Full path to the Minecraft server folder'

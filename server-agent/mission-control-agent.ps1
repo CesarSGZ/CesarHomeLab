@@ -4,6 +4,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+Add-Type -AssemblyName System.Security
 
 function Read-AgentToken {
     $encryptedPath = Join-Path $PSScriptRoot 'agent-token.enc'

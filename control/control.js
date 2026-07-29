@@ -113,12 +113,12 @@ async function refreshMinecraft(){
 
 restartButton.addEventListener('click',async()=>{
   if(!minecraftState?.agent?.connected)return;
-  const approved=window.confirm('Restart the Minecraft server now? Connected players may be disconnected.');
+  const approved=window.confirm('Force restart the Minecraft server now? The Java process will be terminated immediately. Connected players will be disconnected and unsaved data may be lost.');
   if(!approved)return;
 
   restartButton.disabled=true;
   commandFeedback.className='command-feedback';
-  commandFeedback.textContent='QUEUEING SIGNED RESTART REQUEST…';
+  commandFeedback.textContent='QUEUEING HARD RESTART REQUEST…';
 
   try{
     const response=await fetch('/control/api/minecraft/restart',{
