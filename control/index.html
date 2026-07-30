@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="control.css?v=20260729b">
+  <link rel="stylesheet" href="control.css?v=20260730a">
   <link rel="stylesheet" href="auth-overrides.css?v=20260728a">
 </head>
 <body class="access-pending">
@@ -22,10 +22,11 @@
     <nav aria-label="Control panel sections">
       <button class="nav-item active" data-view="overview"><span>01</span>Overview</button>
       <button class="nav-item" data-view="infrastructure"><span>02</span><b id="infrastructure-nav-label">Infrastructure</b></button>
-      <button class="nav-item" data-view="revenue"><span>03</span>Revenue</button>
-      <button class="nav-item" data-view="projects"><span>04</span>Projects</button>
-      <button class="nav-item" data-view="analytics"><span>05</span>Analytics</button>
-      <button class="nav-item" data-view="notes"><span>06</span>Notes</button>
+      <button class="nav-item" data-view="portfolio"><span>03</span>Portfolio</button>
+      <button class="nav-item" data-view="revenue"><span>04</span>Revenue</button>
+      <button class="nav-item" data-view="projects"><span>05</span>Projects</button>
+      <button class="nav-item" data-view="analytics"><span>06</span>Analytics</button>
+      <button class="nav-item" data-view="notes"><span>07</span>Notes</button>
     </nav>
     <div class="sidebar-foot"><span><i></i> Secure session</span><button id="sign-out" type="button">Sign out ↗</button></div>
   </aside>
@@ -62,6 +63,22 @@
               <p data-server-meta>The secure command channel is ready to be paired.</p>
             </div>
             <button class="module-action" data-open="infrastructure">Open controls →</button>
+          </div>
+        </article>
+        <article class="module module-wide portfolio-summary-module" data-requires="portfolio:read" data-accent="acid">
+          <header><span>INVESTMENT PORTFOLIO</span><small>LIVE / PRIVATE</small></header>
+          <div class="portfolio-overview-state">
+            <div>
+              <p><i data-portfolio-pulse></i><span data-overview-portfolio-source>CONNECTING TO GOOGLE DRIVE</span></p>
+              <strong data-overview-total>€ —</strong>
+              <span data-overview-change>Retrieving current positions and market prices…</span>
+            </div>
+            <div class="portfolio-overview-mini">
+              <span><small>POSITIONS</small><b data-overview-positions>—</b></span>
+              <span><small>INVESTED</small><b data-overview-invested>€ —</b></span>
+              <span><small>CASH</small><b data-overview-cash>€ —</b></span>
+            </div>
+            <button class="module-action" data-open="portfolio">Open portfolio →</button>
           </div>
         </article>
         <article class="module" data-owner-only data-accent="acid"><header><span>REVENUE</span><small>MODULE / 02</small></header><div class="empty-state"><strong>€ —</strong><p>Connect a project, payment platform or manual ledger.</p><button data-open="revenue">Configure later →</button></div></article>
@@ -105,27 +122,111 @@
       </div>
     </section>
 
-    <section class="view" id="revenue" data-title="Revenue" data-code="03">
+    <section class="view" id="portfolio" data-title="Portfolio" data-code="03">
+      <div class="portfolio-heading">
+        <div class="simple-heading">
+          <p class="eyebrow"><span></span> Private wealth</p>
+          <h2>Capital,<br>clearly.</h2>
+          <p>Your Portfolio Performance ledger, enriched with recent market prices and converted into one current EUR view.</p>
+        </div>
+        <button class="portfolio-refresh" id="portfolio-refresh" type="button"><span>↻</span> Refresh from Drive</button>
+      </div>
+
+      <div class="portfolio-shell" id="portfolio-shell" aria-live="polite">
+        <div class="portfolio-loading" id="portfolio-loading">
+          <span></span>
+          <strong>Building your financial picture</strong>
+          <p>Reading the private ledger, market prices and exchange rates.</p>
+        </div>
+
+        <div class="portfolio-error" id="portfolio-error" hidden>
+          <small>DATA LINK / INTERRUPTED</small>
+          <strong>Portfolio data is temporarily unavailable.</strong>
+          <p id="portfolio-error-copy">The previous information remains untouched. Try refreshing the source.</p>
+          <button type="button" data-portfolio-retry>Try again</button>
+        </div>
+
+        <div class="portfolio-content" id="portfolio-content" hidden>
+          <div class="wealth-hero">
+            <article class="wealth-total">
+              <div class="wealth-total-top">
+                <span><i data-portfolio-pulse></i><b id="portfolio-source-state">LIVE DATA</b></span>
+                <small id="portfolio-freshness">UPDATED —</small>
+              </div>
+              <p>TOTAL WEALTH</p>
+              <strong id="portfolio-total">€ —</strong>
+              <div class="wealth-change">
+                <span id="portfolio-day-change">€ — today</span>
+                <span id="portfolio-total-result">€ — all time</span>
+              </div>
+              <div class="wealth-scale" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+            </article>
+            <div class="wealth-metrics">
+              <article><small>MARKET VALUE</small><strong id="portfolio-invested">€ —</strong><span id="portfolio-count">— positions</span></article>
+              <article><small>AVAILABLE CASH</small><strong id="portfolio-cash">€ —</strong><span>Included in total wealth</span></article>
+              <article><small>UNREALISED RESULT</small><strong id="portfolio-unrealised">€ —</strong><span id="portfolio-unrealised-percent">—%</span></article>
+              <article><small>NET CONTRIBUTIONS</small><strong id="portfolio-contributions">€ —</strong><span>Deposits minus withdrawals</span></article>
+            </div>
+          </div>
+
+          <div class="portfolio-grid">
+            <article class="allocation-card">
+              <header><div><small>ALLOCATION</small><h3>Where capital lives.</h3></div><span id="allocation-count">— ASSETS</span></header>
+              <div class="allocation-visual">
+                <div class="allocation-donut" id="allocation-donut"><span><small>INVESTED</small><b id="allocation-total">€ —</b></span></div>
+                <div class="allocation-legend" id="allocation-legend"></div>
+              </div>
+              <div class="category-strip" id="category-strip"></div>
+            </article>
+
+            <article class="positions-card">
+              <header><div><small>POSITIONS</small><h3>Current holdings.</h3></div><span>VALUE / EUR</span></header>
+              <div class="positions-table">
+                <div class="position-row position-head"><span>ASSET</span><span>PRICE</span><span>RESULT</span><span>VALUE</span></div>
+                <div id="positions-list"></div>
+              </div>
+            </article>
+          </div>
+
+          <div class="portfolio-lower-grid">
+            <article class="activity-card">
+              <header><div><small>LEDGER</small><h3>Recent activity.</h3></div><span>PORTFOLIO PERFORMANCE</span></header>
+              <div id="portfolio-activity"></div>
+            </article>
+            <aside class="source-card">
+              <small>SOURCE HEALTH</small>
+              <h3>A transparent data chain.</h3>
+              <div class="source-step active"><b>01</b><span><strong>Google Drive</strong><small id="source-drive-state">FILE CONNECTED</small></span></div>
+              <div class="source-step active"><b>02</b><span><strong>Portfolio Performance</strong><small id="source-ledger-state">LEDGER READY</small></span></div>
+              <div class="source-step active"><b>03</b><span><strong>Market enrichment</strong><small id="source-market-state">— LIVE QUOTES</small></span></div>
+              <p id="source-disclaimer">Values are informational and read-only. No MyInvestor credentials are stored or used.</p>
+            </aside>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="view" id="revenue" data-title="Revenue" data-code="04">
       <div class="simple-heading"><p class="eyebrow"><span></span> Revenue</p><h2>Money with context.</h2><p>A private view of income, recurring revenue, costs and project performance.</p></div>
       <div class="empty-canvas"><div class="axis-placeholder"><i></i><i></i><i></i><i></i><i></i></div><strong>No financial source connected</strong><p>Future options: manual entries, Google Sheets, Stripe or another platform.</p></div>
     </section>
 
-    <section class="view" id="projects" data-title="Projects" data-code="04">
+    <section class="view" id="projects" data-title="Projects" data-code="05">
       <div class="simple-heading"><p class="eyebrow"><span></span> Projects</p><h2>What is moving.</h2><p>One place for objectives, milestones, progress and the next meaningful action.</p></div>
       <div class="project-columns"><article><header>BACKLOG <span>0</span></header><div>Drop future ideas here.</div></article><article><header>IN FLIGHT <span>0</span></header><div>Active work will appear here.</div></article><article><header>COMPLETE <span>0</span></header><div>Finished missions will land here.</div></article></div>
     </section>
 
-    <section class="view" id="analytics" data-title="Analytics" data-code="05">
+    <section class="view" id="analytics" data-title="Analytics" data-code="06">
       <div class="simple-heading"><p class="eyebrow"><span></span> Analytics</p><h2>Signals, not noise.</h2><p>Prepared for portfolio visits, traffic sources and whichever indicators become useful.</p></div>
       <div class="metric-placeholders"><article><small>VISITORS</small><strong>—</strong></article><article><small>ENGAGEMENT</small><strong>—</strong></article><article><small>TOP SOURCE</small><strong>—</strong></article></div>
       <div class="empty-canvas compact"><strong>No analytics source connected</strong><p>The layout is ready; tracking remains deliberately disabled.</p></div>
     </section>
 
-    <section class="view" id="notes" data-title="Notes" data-code="06">
+    <section class="view" id="notes" data-title="Notes" data-code="07">
       <div class="simple-heading"><p class="eyebrow"><span></span> Private notes</p><h2>A quiet workspace.</h2><p>Later, this can hold decisions, ideas, objectives or a private operating log.</p></div>
       <div class="notes-placeholder"><span>UNTITLED / EMPTY</span><p>Start with a thought when this module becomes useful.</p><div></div></div>
     </section>
   </main>
-  <script src="control.js?v=20260729c"></script>
+  <script src="control.js?v=20260730a"></script>
 </body>
 </html>
