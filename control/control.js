@@ -91,8 +91,8 @@ function applyAccess(data){
   const overviewIntro=document.getElementById('overview-intro');
   const accessSummary=document.getElementById('access-summary');
   if(owner){
-    overviewIntro.textContent='Your complete private operating system. Every personal module is available and ready to be connected to real data.';
-    accessSummary.textContent='FULL ACCESS · 6 MODULES';
+    overviewIntro.textContent='Your private home for the tools currently enabled: a focused overview and infrastructure operations.';
+    accessSummary.textContent='OWNER ACCESS · 2 MODULES';
   }else if(minecraftOperator){
     overviewIntro.textContent='A focused home for shared tools. Your account currently includes Minecraft server operations.';
     accessSummary.textContent='STANDARD ACCESS · MINECRAFT ENABLED';
