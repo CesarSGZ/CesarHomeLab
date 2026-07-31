@@ -49,10 +49,14 @@ function placeSkillNode(node,x,y,index){
   node.style.setProperty('--star-x',`${Math.max(.035,Math.min(.965,x))*100}%`);
   node.style.setProperty('--star-y',`${Math.max(.055,Math.min(.92,y))*100}%`);
   node.style.setProperty('--star-size',`${10+(index%7===0?6:index%3===0?3:0)}px`);
-  node.style.setProperty('--star-z',`${-24+(index*29)%78}px`);
-  node.style.setProperty('--depth-scale',`${.9+((index*17)%28)/100}`);
+  const starDepth=-24+(index*29)%78;
+  const depthScale=.9+((index*17)%28)/100;
+  node.style.setProperty('--star-z',`${starDepth}px`);
+  node.style.setProperty('--star-z-active',`${starDepth+46}px`);
+  node.style.setProperty('--depth-scale',depthScale.toFixed(2));
+  node.style.setProperty('--depth-scale-active',(depthScale+.24).toFixed(2));
   node.classList.toggle('major',index%5===0);
-  node.classList.remove('label-east','label-west','label-north','label-south');
+  node.classList.remove('label-east','label-west','label-north','label-south','label-ne','label-nw','label-se','label-sw');
   const labelDirection=x<.16?'label-east':x>.84?'label-west':index%2?'label-north':'label-south';
   node.classList.add(labelDirection);
   node.dataset.constellationIndex=index;
@@ -93,6 +97,7 @@ function layoutConstellation(filter=constellationFilter){
   function redrawWhileMoving(now){
     drawConstellation();
     if(now-animationStarted<820)requestAnimationFrame(redrawWhileMoving);
+    else resolveLabelCollisions();
   }
   requestAnimationFrame(redrawWhileMoving);
 }
@@ -156,6 +161,45 @@ function drawConstellation(){
   skillContext.globalAlpha=1;
 }
 
+const labelDirections=['label-north','label-south','label-east','label-west','label-ne','label-nw','label-se','label-sw'];
+function overlapArea(a,b,padding=5){
+  const width=Math.min(a.right+padding,b.right+padding)-Math.max(a.left-padding,b.left-padding);
+  const height=Math.min(a.bottom+padding,b.bottom+padding)-Math.max(a.top-padding,b.top-padding);
+  return width>0&&height>0?width*height:0;
+}
+
+function resolveLabelCollisions(){
+  if(!skillMap)return;
+  const visible=skillNodes.filter(node=>!node.classList.contains('hide'));
+  const boundary=skillField.getBoundingClientRect();
+  const fixedObstacles=[...visible.map(node=>node.getBoundingClientRect())];
+  const core=$('.map-core',skillMap);
+  if(core&&getComputedStyle(core).display!=='none')fixedObstacles.push(core.getBoundingClientRect());
+  $$('.constellation-label:not(.dim)',skillMap).forEach(label=>fixedObstacles.push(label.getBoundingClientRect()));
+  const placed=[];
+  skillMap.classList.add('resolving-labels');
+
+  [...visible].sort((a,b)=>b.querySelector('strong').textContent.length-a.querySelector('strong').textContent.length).forEach(node=>{
+    const current=labelDirections.find(direction=>node.classList.contains(direction))||'label-south';
+    const candidates=[current,...labelDirections.filter(direction=>direction!==current)];
+    let bestDirection=current,bestPenalty=Infinity;
+    candidates.forEach(direction=>{
+      node.classList.remove(...labelDirections);
+      node.classList.add(direction);
+      const rect=node.querySelector('strong').getBoundingClientRect();
+      const overflow=Math.max(0,boundary.left+8-rect.left)+Math.max(0,rect.right-boundary.right+8)+Math.max(0,boundary.top+8-rect.top)+Math.max(0,rect.bottom-boundary.bottom+8);
+      const labelCollision=placed.reduce((sum,other)=>sum+overlapArea(rect,other,7),0);
+      const obstacleCollision=fixedObstacles.reduce((sum,other)=>sum+overlapArea(rect,other,2),0);
+      const penalty=overflow*1200+labelCollision*12+obstacleCollision*4;
+      if(penalty<bestPenalty){bestPenalty=penalty;bestDirection=direction}
+    });
+    node.classList.remove(...labelDirections);
+    node.classList.add(bestDirection);
+    placed.push(node.querySelector('strong').getBoundingClientRect());
+  });
+  skillMap.classList.remove('resolving-labels');
+}
+
 function setConstellationFilter(filter){
   constellationFilter=filter;
   $$('.filter').forEach(button=>{
@@ -197,7 +241,7 @@ skillNodes.forEach(node=>{
     $('#node-code').textContent=`${node.dataset.code} / ${node.dataset.category.toUpperCase()}`;
     $('#node-title').textContent=node.querySelector('strong').textContent;
     $('#node-detail').textContent=node.dataset.detail;
-    requestAnimationFrame(drawConstellation);
+    requestAnimationFrame(()=>{resolveLabelCollisions();drawConstellation()});
   });
 });
 
