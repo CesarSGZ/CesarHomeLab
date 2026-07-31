@@ -241,7 +241,8 @@
   white-space:normal;
   text-align:center;
   opacity:.92;
-  pointer-events:none;
+  pointer-events:auto;
+  cursor:pointer;
   transition:.22s;
 }
 .cap-node.major strong{
