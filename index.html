@@ -14,7 +14,7 @@
   <link rel="stylesheet" href="enhancements.css">
   <link rel="stylesheet" href="trajectory.css?v=20260713g">
   <link rel="stylesheet" href="polish.css?v=20260713g">
-  <link rel="stylesheet" href="constellation.css?v=20260731a">
+  <link rel="stylesheet" href="constellation.css?v=20260731b">
 </head>
 <body>
   <canvas id="stars" aria-hidden="true"></canvas>
@@ -80,6 +80,9 @@
       <div class="filters reveal" role="group" aria-label="Filter skills"><button class="filter active" data-filter="all">All systems</button><button class="filter" data-filter="programme">Programme</button><button class="filter" data-filter="engineering">Engineering</button><button class="filter" data-filter="data">Data & tools</button></div>
       <div class="capability-map reveal" id="skill-constellation">
         <canvas class="constellation-lines" id="constellation-lines" aria-hidden="true"></canvas>
+        <div class="constellation-orbit orbit-programme" aria-hidden="true"></div>
+        <div class="constellation-orbit orbit-engineering" aria-hidden="true"></div>
+        <div class="constellation-orbit orbit-data" aria-hidden="true"></div>
         <span class="constellation-label label-programme" aria-hidden="true">ORCHESTRATE / PROGRAMME</span>
         <span class="constellation-label label-engineering" aria-hidden="true">ENGINEER / SYSTEMS</span>
         <span class="constellation-label label-data" aria-hidden="true">ILLUMINATE / DATA</span>
@@ -156,6 +159,6 @@
     </section>
   </main>
   <div class="contact-toast" id="contact-toast" role="status" aria-live="polite">Email copied to clipboard</div>
-  <script src="script.js?v=20260731a"></script>
+  <script src="script.js?v=20260731b"></script>
 </body>
 </html>

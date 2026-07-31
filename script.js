@@ -48,28 +48,47 @@ function placeSkillNode(node,x,y,index){
   }
   node.style.setProperty('--star-x',`${Math.max(.035,Math.min(.965,x))*100}%`);
   node.style.setProperty('--star-y',`${Math.max(.055,Math.min(.92,y))*100}%`);
-  node.style.setProperty('--star-size',`${8+(index%7===0?5:index%3===0?2:0)}px`);
+  node.style.setProperty('--star-size',`${10+(index%7===0?6:index%3===0?3:0)}px`);
+  node.style.setProperty('--star-z',`${-24+(index*29)%78}px`);
+  node.style.setProperty('--depth-scale',`${.9+((index*17)%28)/100}`);
   node.classList.toggle('major',index%5===0);
+  node.classList.remove('label-east','label-west','label-north','label-south');
+  const labelDirection=x<.16?'label-east':x>.84?'label-west':index%2?'label-north':'label-south';
+  node.classList.add(labelDirection);
   node.dataset.constellationIndex=index;
 }
 
 function layoutConstellation(filter=constellationFilter){
   if(!skillMap)return;
   const visible=skillNodes.filter(node=>filter==='all'||node.dataset.category===filter);
-  const groups=filter==='all'
-    ? [
-        ['programme',skillNodes.filter(node=>node.dataset.category==='programme'),.245,.39,.22,.30,-1.48],
-        ['engineering',skillNodes.filter(node=>node.dataset.category==='engineering'),.735,.30,.215,.22,-.65],
-        ['data',skillNodes.filter(node=>node.dataset.category==='data'),.70,.69,.225,.19,.45]
-      ]
-    : [[filter,visible,.50,.43,.435,.34,-1.28]];
-  groups.forEach(([,nodes,cx,cy,rx,ry,phase])=>{
-    nodes.forEach((node,index)=>{
-      const radius=.22+.78*Math.sqrt((index+1)/nodes.length);
-      const angle=phase+index*2.3999632297;
-      placeSkillNode(node,cx+Math.cos(angle)*rx*radius,cy+Math.sin(angle)*ry*radius,index);
+  const allPositions={
+    programme:[[.07,.14],[.20,.08],[.34,.13],[.13,.27],[.29,.25],[.41,.30],[.06,.42],[.20,.42],[.36,.44],[.10,.59],[.25,.57],[.41,.60],[.08,.76],[.23,.73],[.38,.78]],
+    engineering:[[.58,.10],[.70,.07],[.83,.10],[.94,.15],[.62,.23],[.75,.21],[.87,.25],[.96,.31],[.57,.39],[.70,.38],[.83,.41],[.94,.46],[.65,.52],[.82,.53]],
+    data:[[.56,.64],[.69,.60],[.82,.63],[.94,.59],[.61,.76],[.74,.74],[.87,.77],[.96,.72],[.67,.87],[.82,.87],[.93,.86]]
+  };
+  if(skillMap.clientWidth<900){
+    const compactNodes=filter==='all'
+      ? ['programme','engineering','data'].flatMap(category=>skillNodes.filter(node=>node.dataset.category===category))
+      : visible;
+    const rows=Math.ceil(compactNodes.length/2);
+    compactNodes.forEach((node,index)=>{
+      const column=index%2,row=Math.floor(index/2);
+      placeSkillNode(node,column?.86:.14,.055+row*(.86/Math.max(rows-1,1)),index);
     });
-  });
+  }else if(filter==='all'){
+    Object.entries(allPositions).forEach(([category,positions])=>{
+      skillNodes.filter(node=>node.dataset.category===category).forEach((node,index)=>placeSkillNode(node,...positions[index],index));
+    });
+  }else{
+    visible.forEach((node,index)=>{
+      const columns=Math.min(5,Math.ceil(Math.sqrt(visible.length*1.5)));
+      const row=Math.floor(index/columns),column=index%columns;
+      const rows=Math.ceil(visible.length/columns);
+      const x=.09+column*(.82/Math.max(columns-1,1))+(row%2?.025:-.015);
+      const y=.12+row*(.72/Math.max(rows-1,1));
+      placeSkillNode(node,x,y,index);
+    });
+  }
   const animationStarted=performance.now();
   function redrawWhileMoving(now){
     drawConstellation();
@@ -158,6 +177,7 @@ function setConstellationFilter(filter){
     const category=label.classList.contains('label-programme')?'programme':label.classList.contains('label-engineering')?'engineering':'data';
     label.classList.toggle('dim',filter!=='all'&&filter!==category);
   });
+  skillMap.dataset.activeConstellation=filter;
   skillMap.style.setProperty('--readout-color',filter==='all'?'var(--acid)':skillColors[filter]);
   $('#node-code').textContent=filter==='all'?'SYSTEM MAP':`${filter.toUpperCase()} / CONSTELLATION`;
   $('#node-title').textContent=filter==='all'?`${skillNodes.length} connected capabilities`:`${skillNodes.filter(node=>node.dataset.category===filter).length} ${filter} capabilities`;
@@ -186,15 +206,26 @@ if(skillMap&&!matchMedia('(prefers-reduced-motion: reduce)').matches){
     const rect=skillMap.getBoundingClientRect();
     skillField.style.setProperty('--parallax-x',`${((event.clientX-rect.left)/rect.width-.5)*-7}px`);
     skillField.style.setProperty('--parallax-y',`${((event.clientY-rect.top)/rect.height-.5)*-5}px`);
+    skillField.style.setProperty('--tilt-x',`${((event.clientY-rect.top)/rect.height-.5)*-3.2}deg`);
+    skillField.style.setProperty('--tilt-y',`${((event.clientX-rect.left)/rect.width-.5)*4.2}deg`);
     requestAnimationFrame(drawConstellation);
   });
   skillMap.addEventListener('pointerleave',()=>{
     skillField.style.setProperty('--parallax-x','0px');
     skillField.style.setProperty('--parallax-y','0px');
+    skillField.style.setProperty('--tilt-x','0deg');
+    skillField.style.setProperty('--tilt-y','0deg');
     requestAnimationFrame(drawConstellation);
   });
 }
-new ResizeObserver(()=>requestAnimationFrame(drawConstellation)).observe(skillMap);
+let constellationWidth=skillMap.clientWidth;
+new ResizeObserver(()=>{
+  const nextWidth=skillMap.clientWidth;
+  if(Math.abs(nextWidth-constellationWidth)>2){
+    constellationWidth=nextWidth;
+    layoutConstellation();
+  }else requestAnimationFrame(drawConstellation);
+}).observe(skillMap);
 setConstellationFilter('all');
 
 // Keep company tenure and role progression readable without inventing hidden LinkedIn dates.

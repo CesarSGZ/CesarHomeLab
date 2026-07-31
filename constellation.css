@@ -3,7 +3,7 @@
   --readout-color:var(--acid);
   position:relative;
   display:block;
-  min-height:860px;
+  min-height:1030px;
   padding:0;
   border:1px solid var(--line);
   background:
@@ -13,6 +13,7 @@
     #081217;
   overflow:hidden;
   isolation:isolate;
+  perspective:1100px;
 }
 .capability-map::before{
   content:"";
@@ -40,18 +41,54 @@
 .constellation-lines{
   position:absolute;
   z-index:1;
-  inset:0 0 165px;
+  inset:0 0 175px;
   width:100%;
-  height:calc(100% - 165px);
+  height:calc(100% - 175px);
   pointer-events:none;
 }
 .node-field{
   position:absolute;
   z-index:3;
-  inset:0 0 165px;
+  inset:0 0 175px;
   display:block;
-  transform:translate(var(--parallax-x,0),var(--parallax-y,0));
-  transition:transform .6s cubic-bezier(.2,.8,.2,1);
+  transform:translate(var(--parallax-x,0),var(--parallax-y,0)) rotateX(var(--tilt-x,0deg)) rotateY(var(--tilt-y,0deg));
+  transform-style:preserve-3d;
+  transition:transform .4s cubic-bezier(.2,.8,.2,1);
+}
+.constellation-orbit{
+  position:absolute;
+  z-index:0;
+  border:1px solid var(--orbit-color);
+  border-radius:50%;
+  opacity:.2;
+  box-shadow:inset 0 0 45px color-mix(in srgb,var(--orbit-color) 10%,transparent),0 0 35px color-mix(in srgb,var(--orbit-color) 7%,transparent);
+  transform-style:preserve-3d;
+  transition:inset .8s cubic-bezier(.2,.8,.2,1),width .8s,height .8s,opacity .4s;
+  pointer-events:none;
+}
+.constellation-orbit::before,.constellation-orbit::after{
+  content:"";
+  position:absolute;
+  inset:11%;
+  border:1px dashed color-mix(in srgb,var(--orbit-color) 70%,transparent);
+  border-radius:50%;
+}
+.constellation-orbit::after{inset:27%;opacity:.55}
+.orbit-programme{--orbit-color:var(--acid);left:1%;top:6%;width:46%;height:69%;transform:rotateX(62deg) rotateZ(-9deg)}
+.orbit-engineering{--orbit-color:var(--cyan);right:1%;top:3%;width:45%;height:50%;transform:rotateX(64deg) rotateZ(8deg)}
+.orbit-data{--orbit-color:#ba8cff;right:2%;top:49%;width:44%;height:38%;transform:rotateX(61deg) rotateZ(-6deg)}
+.capability-map[data-active-constellation="programme"] .constellation-orbit:not(.orbit-programme),
+.capability-map[data-active-constellation="engineering"] .constellation-orbit:not(.orbit-engineering),
+.capability-map[data-active-constellation="data"] .constellation-orbit:not(.orbit-data){opacity:0}
+.capability-map[data-active-constellation="programme"] .orbit-programme,
+.capability-map[data-active-constellation="engineering"] .orbit-engineering,
+.capability-map[data-active-constellation="data"] .orbit-data{
+  left:4%;
+  right:auto;
+  top:5%;
+  width:92%;
+  height:76%;
+  opacity:.24;
 }
 .map-core{
   position:absolute;
@@ -105,7 +142,7 @@
   align-items:center;
   gap:8px;
   color:var(--constellation-color);
-  font:8px DM Mono;
+  font:9px DM Mono;
   letter-spacing:.16em;
   opacity:.7;
   pointer-events:none;
@@ -130,12 +167,13 @@
   left:var(--star-x,50%);
   top:var(--star-y,50%);
   display:block;
-  width:34px;
-  height:34px;
+  width:42px;
+  height:42px;
   min-height:0;
   padding:0;
   overflow:visible;
-  transform:translate(-50%,-50%);
+  transform:translate(-50%,-50%) translateZ(var(--star-z,0px)) scale(var(--depth-scale,1));
+  transform-style:preserve-3d;
   border:0;
   border-radius:50%;
   background:transparent;
@@ -188,36 +226,32 @@
   position:absolute;
   z-index:8;
   left:50%;
-  top:calc(100% + 7px);
+  top:calc(100% + 9px);
   display:block;
   width:max-content;
-  max-width:185px;
+  max-width:210px;
   margin:0;
-  padding:8px 10px;
-  transform:translate(-50%,5px);
-  border:1px solid color-mix(in srgb,var(--star-color) 35%,transparent);
-  background:rgba(7,16,21,.94);
-  box-shadow:0 12px 30px rgba(0,0,0,.28);
-  color:var(--ink);
-  font:500 10px/1.25 DM Mono;
+  padding:5px 8px;
+  transform:translate(-50%,0);
+  border:1px solid color-mix(in srgb,var(--star-color) 24%,transparent);
+  background:color-mix(in srgb,var(--star-color) 7%,rgba(7,16,21,.88));
+  box-shadow:0 8px 24px rgba(0,0,0,.2);
+  color:color-mix(in srgb,var(--star-color) 72%,white);
+  font:500 11px/1.25 DM Mono;
   white-space:normal;
   text-align:center;
-  opacity:0;
+  opacity:.92;
   pointer-events:none;
   transition:.22s;
 }
 .cap-node.major strong{
-  padding:4px 7px;
-  transform:translate(-50%,0);
-  border-color:transparent;
-  background:rgba(7,16,21,.68);
-  box-shadow:none;
-  color:color-mix(in srgb,var(--star-color) 72%,white);
-  font-size:8px;
-  opacity:.78;
+  border-color:color-mix(in srgb,var(--star-color) 42%,transparent);
+  color:color-mix(in srgb,var(--star-color) 55%,white);
+  font-weight:700;
+  opacity:1;
 }
 .cap-node small{display:none}
-.cap-node:hover,.cap-node:focus-visible,.cap-node.selected{z-index:12;transform:translate(-50%,-50%) scale(1.12);outline:none}
+.cap-node:hover,.cap-node:focus-visible,.cap-node.selected{z-index:12;transform:translate(-50%,-50%) translateZ(calc(var(--star-z,0px) + 38px)) scale(calc(var(--depth-scale,1) + .12));outline:none}
 .cap-node:hover::before,.cap-node:focus-visible::before,.cap-node.selected::before{
   width:calc(var(--star-size) * 5.2);
   height:calc(var(--star-size) * 5.2);
@@ -234,13 +268,21 @@
   border-color:color-mix(in srgb,var(--star-color) 55%,transparent);
   background:rgba(7,16,21,.97);
   color:var(--ink);
-  font-size:10px;
+  font-size:12px;
   opacity:1;
 }
+.cap-node.label-east strong{left:calc(50% + 17px);right:auto;top:50%;transform:translate(0,-50%);text-align:left}
+.cap-node.label-west strong{left:auto;right:calc(50% + 17px);top:50%;transform:translate(0,-50%);text-align:right}
+.cap-node.label-north strong{left:50%;top:auto;bottom:calc(50% + 17px);transform:translate(-50%,0)}
+.cap-node.label-south strong{left:50%;top:calc(50% + 17px);transform:translate(-50%,0)}
+.cap-node.label-east:hover strong,.cap-node.label-east:focus-visible strong,.cap-node.label-east.selected strong,
+.cap-node.label-west:hover strong,.cap-node.label-west:focus-visible strong,.cap-node.label-west.selected strong{transform:translate(0,-50%)}
+.cap-node.label-north:hover strong,.cap-node.label-north:focus-visible strong,.cap-node.label-north.selected strong,
+.cap-node.label-south:hover strong,.cap-node.label-south:focus-visible strong,.cap-node.label-south.selected strong{transform:translate(-50%,0)}
 .cap-node.hide{
   display:block;
   opacity:0;
-  transform:translate(-50%,-50%) scale(.15);
+  transform:translate(-50%,-50%) translateZ(-180px) scale(.15);
   pointer-events:none;
 }
 .node-readout{
@@ -275,30 +317,31 @@
 .node-readout p{max-width:920px;margin:0;color:var(--muted);font-size:13px;line-height:1.55}
 
 @media(max-width:900px){
-  .capability-map{min-height:780px}
-  .map-core{width:145px;top:39%}
+  .capability-map{min-height:1500px}
+  .map-core{display:none}
   .map-core::before{inset:-20px}
   .map-core::after{inset:-45px}
   .map-core strong{font-size:19px}
   .constellation-label{font-size:7px}
+  .constellation-orbit{opacity:.08}
   .node-readout{left:14px;right:14px;bottom:14px;padding:20px 20px 19px;min-height:130px}
   .node-readout::before{display:none}
-  .cap-node.major strong{display:none}
+  .cap-node.major strong{display:block}
   .cap-node:hover strong,.cap-node:focus-visible strong,.cap-node.selected strong{display:block}
 }
 @media(max-width:600px){
-  .capability-map{min-height:720px}
+  .capability-map{min-height:1500px}
   .capability-map::after{inset:24px 10px 176px}
   .constellation-lines,.node-field{bottom:170px}
-  .map-core{width:118px;top:38%}
+  .map-core{display:none}
   .map-core small{display:none}
   .map-core strong{font-size:16px;margin:8px 0}
   .map-core span{font-size:7px}
   .constellation-label{font-size:0}
   .constellation-label::before{width:7px;height:7px}
   .label-programme{left:4%}.label-engineering{right:4%}.label-data{right:4%;top:58%}
-  .cap-node{width:28px;height:28px}
-  .cap-node strong{max-width:145px;font-size:9px}
+  .cap-node{width:34px;height:34px}
+  .cap-node strong{max-width:155px;font-size:10px}
   .node-readout h3{padding-right:0;font-size:18px}
   .node-readout p{font-size:11px}
 }
