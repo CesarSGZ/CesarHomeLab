@@ -14,6 +14,7 @@
   <link rel="stylesheet" href="enhancements.css">
   <link rel="stylesheet" href="trajectory.css?v=20260713g">
   <link rel="stylesheet" href="polish.css?v=20260713g">
+  <link rel="stylesheet" href="constellation.css?v=20260731a">
 </head>
 <body>
   <canvas id="stars" aria-hidden="true"></canvas>
@@ -77,7 +78,11 @@
     <section class="systems section" id="systems">
       <div class="section-head reveal"><p class="eyebrow">03 / Systems map</p><h2>Choose a frequency.<br><em>See what I bring.</em></h2></div>
       <div class="filters reveal" role="group" aria-label="Filter skills"><button class="filter active" data-filter="all">All systems</button><button class="filter" data-filter="programme">Programme</button><button class="filter" data-filter="engineering">Engineering</button><button class="filter" data-filter="data">Data & tools</button></div>
-      <div class="capability-map reveal">
+      <div class="capability-map reveal" id="skill-constellation">
+        <canvas class="constellation-lines" id="constellation-lines" aria-hidden="true"></canvas>
+        <span class="constellation-label label-programme" aria-hidden="true">ORCHESTRATE / PROGRAMME</span>
+        <span class="constellation-label label-engineering" aria-hidden="true">ENGINEER / SYSTEMS</span>
+        <span class="constellation-label label-data" aria-hidden="true">ILLUMINATE / DATA</span>
         <div class="map-core"><small>CSG / OPERATING SYSTEM</small><strong>Complexity<br>→ clarity</strong><span>Select a node</span></div>
         <div class="node-field">
           <button class="cap-node programme" data-category="programme" data-code="PM.01" data-detail="Budgeting, cost control, finance and business-case development across aerospace projects."><i></i><strong>Budget & Cost</strong><small>PM.01</small></button>
@@ -121,7 +126,7 @@
           <button class="cap-node engineering" data-category="engineering" data-code="SE.14" data-detail="Programme exposure to connectivity, electronic warfare and SIGINT topics within military-aircraft strategic programme portfolios."><i></i><strong>EW & SIGINT</strong><small>SE.14</small></button>
           <button class="cap-node data" data-category="data" data-code="DT.11" data-detail="Practical use of AI and ChatGPT across Airbus work and engineering education to accelerate analysis, drafting and structured problem solving."><i></i><strong>AI-assisted Work</strong><small>DT.11</small></button>
         </div>
-        <aside class="node-readout"><span id="node-code">SYSTEM MAP</span><h3 id="node-title">32 connected capabilities</h3><p id="node-detail">Select any node to see what the skill means, where it was applied and how it contributes to César's operating system.</p></aside>
+        <aside class="node-readout" aria-live="polite"><span id="node-code">SYSTEM MAP</span><h3 id="node-title">40 connected capabilities</h3><p id="node-detail">Select any star to see what the skill means, where it was applied and how it contributes to César's operating system.</p></aside>
       </div>
       <div class="tool-marquee" id="capability-index" aria-label="Complete capability index"><div class="tool-marquee-track"></div></div>
     </section>
@@ -151,6 +156,6 @@
     </section>
   </main>
   <div class="contact-toast" id="contact-toast" role="status" aria-live="polite">Email copied to clipboard</div>
-  <script src="script.js?v=20260713g"></script>
+  <script src="script.js?v=20260731a"></script>
 </body>
 </html>

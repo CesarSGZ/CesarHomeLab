@@ -29,21 +29,173 @@ function updateTrajectoryState(){
 addEventListener('scroll',updateTrajectoryState,{passive:true});
 addEventListener('resize',updateTrajectoryState);
 
-$$('.filter').forEach(btn=>btn.addEventListener('click',()=>{
-  $$('.filter').forEach(b=>b.classList.remove('active'));btn.classList.add('active');
-  const f=btn.dataset.filter;
-  $$('.cap-node').forEach(node=>node.classList.toggle('hide',f!=='all'&&node.dataset.category!==f));
-  $('#node-code').textContent=f==='all'?'SYSTEM MAP':f.toUpperCase()+' / NETWORK';
-  $('#node-title').textContent=f==='all'?`${$$('.cap-node').length} connected capabilities`:`${$$('.cap-node').filter(n=>n.dataset.category===f).length} ${f} capabilities`;
-  $('#node-detail').textContent='Select any visible node to inspect how it contributes to César\'s operating system.';
-}));
+// The capability map behaves like a navigable star chart rather than a card grid.
+const skillMap=$('#skill-constellation');
+const skillField=$('.node-field',skillMap);
+const skillCanvas=$('#constellation-lines');
+const skillContext=skillCanvas?.getContext('2d');
+const skillNodes=$$('.cap-node',skillMap);
+const skillColors={programme:'#c9ff3d',engineering:'#52d9ff',data:'#ba8cff'};
+let constellationFilter='all';
 
-$$('.cap-node').forEach(node=>node.addEventListener('click',()=>{
-  $$('.cap-node').forEach(n=>n.classList.remove('selected'));node.classList.add('selected');
-  $('#node-code').textContent=node.dataset.code;
-  $('#node-title').textContent=node.querySelector('strong').textContent;
-  $('#node-detail').textContent=node.dataset.detail;
-}));
+function placeSkillNode(node,x,y,index){
+  // Keep the central mission core readable by pushing nearby stars to its orbit.
+  const dx=x-.5,dy=y-.41,coreDistance=Math.sqrt((dx/.145)**2+(dy/.175)**2);
+  if(coreDistance<1){
+    const scale=1.12/Math.max(coreDistance,.12);
+    x=.5+dx*scale;
+    y=.41+dy*scale;
+  }
+  node.style.setProperty('--star-x',`${Math.max(.035,Math.min(.965,x))*100}%`);
+  node.style.setProperty('--star-y',`${Math.max(.055,Math.min(.92,y))*100}%`);
+  node.style.setProperty('--star-size',`${8+(index%7===0?5:index%3===0?2:0)}px`);
+  node.classList.toggle('major',index%5===0);
+  node.dataset.constellationIndex=index;
+}
+
+function layoutConstellation(filter=constellationFilter){
+  if(!skillMap)return;
+  const visible=skillNodes.filter(node=>filter==='all'||node.dataset.category===filter);
+  const groups=filter==='all'
+    ? [
+        ['programme',skillNodes.filter(node=>node.dataset.category==='programme'),.245,.39,.22,.30,-1.48],
+        ['engineering',skillNodes.filter(node=>node.dataset.category==='engineering'),.735,.30,.215,.22,-.65],
+        ['data',skillNodes.filter(node=>node.dataset.category==='data'),.70,.69,.225,.19,.45]
+      ]
+    : [[filter,visible,.50,.43,.435,.34,-1.28]];
+  groups.forEach(([,nodes,cx,cy,rx,ry,phase])=>{
+    nodes.forEach((node,index)=>{
+      const radius=.22+.78*Math.sqrt((index+1)/nodes.length);
+      const angle=phase+index*2.3999632297;
+      placeSkillNode(node,cx+Math.cos(angle)*rx*radius,cy+Math.sin(angle)*ry*radius,index);
+    });
+  });
+  const animationStarted=performance.now();
+  function redrawWhileMoving(now){
+    drawConstellation();
+    if(now-animationStarted<820)requestAnimationFrame(redrawWhileMoving);
+  }
+  requestAnimationFrame(redrawWhileMoving);
+}
+
+function skillPoint(node,canvasRect){
+  const box=node.getBoundingClientRect();
+  return {x:box.left+box.width/2-canvasRect.left,y:box.top+box.height/2-canvasRect.top};
+}
+
+function strokeConnection(a,b,color,alpha=.18,width=.8){
+  skillContext.beginPath();
+  skillContext.moveTo(a.x,a.y);
+  skillContext.lineTo(b.x,b.y);
+  skillContext.strokeStyle=color;
+  skillContext.globalAlpha=alpha;
+  skillContext.lineWidth=width;
+  skillContext.stroke();
+}
+
+function drawConstellation(){
+  if(!skillCanvas||!skillContext)return;
+  const rect=skillCanvas.getBoundingClientRect();
+  if(!rect.width||!rect.height)return;
+  const ratio=Math.min(devicePixelRatio||1,2);
+  skillCanvas.width=Math.round(rect.width*ratio);
+  skillCanvas.height=Math.round(rect.height*ratio);
+  skillContext.setTransform(ratio,0,0,ratio,0,0);
+  skillContext.clearRect(0,0,rect.width,rect.height);
+  skillContext.lineCap='round';
+
+  Object.keys(skillColors).forEach(category=>{
+    const nodes=skillNodes.filter(node=>!node.classList.contains('hide')&&node.dataset.category===category);
+    const points=nodes.map(node=>({node,...skillPoint(node,rect)}));
+    const edges=new Set();
+    points.forEach((point,index)=>{
+      points
+        .map((other,otherIndex)=>({other,otherIndex,distance:Math.hypot(point.x-other.x,point.y-other.y)}))
+        .filter(item=>item.otherIndex!==index)
+        .sort((a,b)=>a.distance-b.distance)
+        .slice(0,2)
+        .forEach(({other,otherIndex})=>{
+          const key=[index,otherIndex].sort((a,b)=>a-b).join(':');
+          if(!edges.has(key)){
+            edges.add(key);
+            strokeConnection(point,other,skillColors[category],.17,.75);
+          }
+        });
+    });
+  });
+
+  const selected=skillNodes.find(node=>node.classList.contains('selected')&&!node.classList.contains('hide'));
+  if(selected){
+    const origin=skillPoint(selected,rect);
+    skillNodes
+      .filter(node=>node!==selected&&!node.classList.contains('hide'))
+      .map(node=>({point:skillPoint(node,rect)}))
+      .sort((a,b)=>Math.hypot(origin.x-a.point.x,origin.y-a.point.y)-Math.hypot(origin.x-b.point.x,origin.y-b.point.y))
+      .slice(0,5)
+      .forEach(({point})=>strokeConnection(origin,point,skillColors[selected.dataset.category],.62,1.15));
+  }
+  skillContext.globalAlpha=1;
+}
+
+function setConstellationFilter(filter){
+  constellationFilter=filter;
+  $$('.filter').forEach(button=>{
+    const active=button.dataset.filter===filter;
+    button.classList.toggle('active',active);
+    button.setAttribute('aria-pressed',active);
+  });
+  skillNodes.forEach(node=>{
+    const hidden=filter!=='all'&&node.dataset.category!==filter;
+    node.classList.toggle('hide',hidden);
+    node.setAttribute('aria-hidden',hidden);
+    node.tabIndex=hidden?-1:0;
+    if(hidden){
+      node.classList.remove('selected');
+      node.setAttribute('aria-pressed','false');
+    }
+  });
+  $$('.constellation-label',skillMap).forEach(label=>{
+    const category=label.classList.contains('label-programme')?'programme':label.classList.contains('label-engineering')?'engineering':'data';
+    label.classList.toggle('dim',filter!=='all'&&filter!==category);
+  });
+  skillMap.style.setProperty('--readout-color',filter==='all'?'var(--acid)':skillColors[filter]);
+  $('#node-code').textContent=filter==='all'?'SYSTEM MAP':`${filter.toUpperCase()} / CONSTELLATION`;
+  $('#node-title').textContent=filter==='all'?`${skillNodes.length} connected capabilities`:`${skillNodes.filter(node=>node.dataset.category===filter).length} ${filter} capabilities`;
+  $('#node-detail').textContent='Select any visible star to inspect where this capability has been applied.';
+  layoutConstellation(filter);
+}
+
+$$('.filter').forEach(btn=>btn.addEventListener('click',()=>setConstellationFilter(btn.dataset.filter)));
+
+skillNodes.forEach(node=>{
+  node.setAttribute('aria-pressed','false');
+  node.addEventListener('click',()=>{
+    skillNodes.forEach(item=>{item.classList.remove('selected');item.setAttribute('aria-pressed','false')});
+    node.classList.add('selected');
+    node.setAttribute('aria-pressed','true');
+    skillMap.style.setProperty('--readout-color',skillColors[node.dataset.category]);
+    $('#node-code').textContent=`${node.dataset.code} / ${node.dataset.category.toUpperCase()}`;
+    $('#node-title').textContent=node.querySelector('strong').textContent;
+    $('#node-detail').textContent=node.dataset.detail;
+    requestAnimationFrame(drawConstellation);
+  });
+});
+
+if(skillMap&&!matchMedia('(prefers-reduced-motion: reduce)').matches){
+  skillMap.addEventListener('pointermove',event=>{
+    const rect=skillMap.getBoundingClientRect();
+    skillField.style.setProperty('--parallax-x',`${((event.clientX-rect.left)/rect.width-.5)*-7}px`);
+    skillField.style.setProperty('--parallax-y',`${((event.clientY-rect.top)/rect.height-.5)*-5}px`);
+    requestAnimationFrame(drawConstellation);
+  });
+  skillMap.addEventListener('pointerleave',()=>{
+    skillField.style.setProperty('--parallax-x','0px');
+    skillField.style.setProperty('--parallax-y','0px');
+    requestAnimationFrame(drawConstellation);
+  });
+}
+new ResizeObserver(()=>requestAnimationFrame(drawConstellation)).observe(skillMap);
+setConstellationFilter('all');
 
 // Keep company tenure and role progression readable without inventing hidden LinkedIn dates.
 const tenureLabels=[
@@ -133,7 +285,10 @@ const capabilityContext={
   'DT.05':'Agile delivery with JIRA and Scrum at Deloitte, combined with structured Waterfall governance in complex aerospace programmes.',
   'DT.06':'Advanced Microsoft Office and Google Workspace usage for analysis, plans, reporting, collaboration and automation across roles.'
 };
-$$('.cap-node').forEach(node=>{if(capabilityContext[node.dataset.code]) node.dataset.detail=capabilityContext[node.dataset.code]});
+$$('.cap-node').forEach(node=>{
+  if(capabilityContext[node.dataset.code])node.dataset.detail=capabilityContext[node.dataset.code];
+  node.setAttribute('aria-label',`${node.querySelector('strong').textContent}. ${node.dataset.detail}`);
+});
 
 // Magnetic call-to-action movement, intentionally restrained.
 $$('.button').forEach(b=>{b.addEventListener('pointermove',e=>{const r=b.getBoundingClientRect();b.style.transform=`translate(${(e.clientX-r.left-r.width/2)*.08}px,${(e.clientY-r.top-r.height/2)*.12}px)`});b.addEventListener('pointerleave',()=>b.style.transform='')});
