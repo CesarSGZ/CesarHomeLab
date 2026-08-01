@@ -231,18 +231,35 @@ function setConstellationFilter(filter){
 
 $$('.filter').forEach(btn=>btn.addEventListener('click',()=>setConstellationFilter(btn.dataset.filter)));
 
-skillNodes.forEach(node=>{
-  node.setAttribute('aria-pressed','false');
-  node.addEventListener('click',()=>{
-    skillNodes.forEach(item=>{item.classList.remove('selected');item.setAttribute('aria-pressed','false')});
-    node.classList.add('selected');
-    node.setAttribute('aria-pressed','true');
-    skillMap.style.setProperty('--readout-color',skillColors[node.dataset.category]);
-    $('#node-code').textContent=`${node.dataset.code} / ${node.dataset.category.toUpperCase()}`;
-    $('#node-title').textContent=node.querySelector('strong').textContent;
-    $('#node-detail').textContent=node.dataset.detail;
-    requestAnimationFrame(()=>{resolveLabelCollisions();drawConstellation()});
-  });
+function selectSkillNode(node){
+  if(!node||node.classList.contains('hide'))return;
+  skillNodes.forEach(item=>{item.classList.remove('selected');item.setAttribute('aria-pressed','false')});
+  node.classList.add('selected');
+  node.setAttribute('aria-pressed','true');
+  skillMap.style.setProperty('--readout-color',skillColors[node.dataset.category]);
+  $('#node-code').textContent=`${node.dataset.code} / ${node.dataset.category.toUpperCase()}`;
+  $('#node-title').textContent=node.querySelector('strong').textContent;
+  $('#node-detail').textContent=node.dataset.detail;
+  requestAnimationFrame(()=>{resolveLabelCollisions();drawConstellation()});
+}
+
+skillNodes.forEach(node=>node.setAttribute('aria-pressed','false'));
+skillMap.addEventListener('click',event=>{
+  if(event.target.closest('.node-readout'))return;
+  let node=event.target.closest('.cap-node');
+  if(!node){
+    const x=event.clientX,y=event.clientY;
+    node=skillNodes
+      .filter(item=>!item.classList.contains('hide'))
+      .map(item=>{
+        const star=item.querySelector('i').getBoundingClientRect(),label=item.querySelector('strong').getBoundingClientRect();
+        const inside=rect=>x>=rect.left-8&&x<=rect.right+8&&y>=rect.top-8&&y<=rect.bottom+8;
+        return {item,hit:inside(star)||inside(label),distance:Math.hypot(x-(star.left+star.width/2),y-(star.top+star.height/2))};
+      })
+      .filter(candidate=>candidate.hit)
+      .sort((a,b)=>a.distance-b.distance)[0]?.item;
+  }
+  selectSkillNode(node);
 });
 
 if(skillMap&&!matchMedia('(prefers-reduced-motion: reduce)').matches){
@@ -338,30 +355,7 @@ function copyContactEmail(event){
 }
 $$('[data-copy-email]').forEach(link=>link.addEventListener('click',copyContactEmail));
 
-const capabilityContext={
-  'PM.01':'Budgeting, cost control and business-case development used in Airbus aerospace projects to connect scope, resources and financial impact.',
-  'PM.02':'Risk identification, assessment, mitigation and senior communication applied across R&D, testing, obsolescence and strategic Airbus initiatives.',
-  'PM.03':'Integrated planning from offer phase through execution, using Microsoft Project, BigPicture and comparable planning environments.',
-  'PM.04':'Stakeholder management and negotiation with clients, suppliers, cross-functional engineering teams and senior management in defence programmes.',
-  'PM.05':'RFI, RFP and PTS analysis plus bidding and contract support, developed in programme-management and consulting environments.',
-  'PM.06':'Technical and executive reporting used to turn complex programme status, plans and risks into clear management decisions.',
-  'PM.07':'Lifecycle thinking from concept and certification to market introduction, applied across aerospace systems and product strategy work.',
-  'SE.01':'Requirements definition, traceability and management with Excel, DOORS and CAMEO during Airbus powerplant systems engineering.',
-  'SE.02':'Validation and Verification of Eurodrone certification requirements, ensuring every requirement connects to defensible evidence.',
-  'SE.03':'ARP4754A and ISO 15288 systems-engineering principles applied to complex aerospace development, reviews and verification activity.',
-  'SE.04':'Certification compliance involving CS-23, DO-160, safety, fire protection, electrical, avionics and structural domains.',
-  'SE.05':'Definition and execution of nacelle integration, bird-strike, icing and equipment test plans for Eurodrone propulsion systems.',
-  'SE.06':'Participation in SRR, PDR and CDR design reviews, together with quality and programme maturity gates at Airbus.',
-  'SE.07':'Technical selection and coordination of equipment and test-bench suppliers, bridging engineering requirements and external delivery.',
-  'DT.01':'SAP BW modelling with transformations, ADSOs, DataSources, DTPs and process chains for Airbus procurement and supply-chain reporting.',
-  'DT.02':'KPI storytelling with SAP Analytics Cloud, Analysis for Office, Tableau and Qlik Sense for operational and executive audiences.',
-  'DT.03':'Python, C, VBA and Google Apps Script used to process data, automate repetitive work and improve reporting efficiency.',
-  'DT.04':'Salesforce administration and functional development on Stellantis’ C1ST platform at Deloitte, translating user needs into configuration.',
-  'DT.05':'Agile delivery with JIRA and Scrum at Deloitte, combined with structured Waterfall governance in complex aerospace programmes.',
-  'DT.06':'Advanced Microsoft Office and Google Workspace usage for analysis, plans, reporting, collaboration and automation across roles.'
-};
 $$('.cap-node').forEach(node=>{
-  if(capabilityContext[node.dataset.code])node.dataset.detail=capabilityContext[node.dataset.code];
   node.setAttribute('aria-label',`${node.querySelector('strong').textContent}. ${node.dataset.detail}`);
 });
 
