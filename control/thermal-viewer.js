@@ -191,7 +191,7 @@ function addComponent(root, component, color, selectable) {
     MOTHERBOARD: [0.15, 0, 1.0],
     CPU_COOLER_ENVELOPE: [0.3, 0.05, 1.65],
     PSU_REFERENCE: [-0.25, 0.05, 1.35],
-    BOTTOM_FAN: [-2.2, -0.12, 1.8],
+    BOTTOM_FAN: [-3.0, -0.12, 2.5],
     TOP_CUSTOM_FAN: [0, 1.15, 0],
     CABLE_ZONE: [-0.1, 0.35, 0.75],
   };
