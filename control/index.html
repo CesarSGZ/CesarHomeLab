@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="control.css?v=20260729b">
+  <link rel="stylesheet" href="control.css?v=20260804a">
   <link rel="stylesheet" href="auth-overrides.css?v=20260728a">
 </head>
 <body class="access-pending">
@@ -26,6 +26,7 @@
       <button class="nav-item" data-view="projects"><span>04</span>Projects</button>
       <button class="nav-item" data-view="analytics"><span>05</span>Analytics</button>
       <button class="nav-item" data-view="notes"><span>06</span>Notes</button>
+      <button class="nav-item" data-view="thermal"><span>07</span>Thermal Lab</button>
     </nav>
     <div class="sidebar-foot"><span><i></i> Secure session</span><button id="sign-out" type="button">Sign out ↗</button></div>
   </aside>
@@ -62,6 +63,18 @@
               <p data-server-meta>The secure command channel is ready to be paired.</p>
             </div>
             <button class="module-action" data-open="infrastructure">Open controls →</button>
+          </div>
+        </article>
+        <article class="module module-wide thermal-summary" data-requires="thermal:read" data-accent="violet">
+          <header><span>TERRA POWERPLANT LAB</span><small>MODULE / 02</small></header>
+          <div class="thermal-summary-body">
+            <div class="thermal-mark"><i></i><i></i><i></i><b>TL</b></div>
+            <div>
+              <p>MODEL STATUS · GPU VALIDATED</p>
+              <strong>357 W integrated thermal test point</strong>
+              <small>Fractal Terra · spine 3 · CPU/GPU transient modelling</small>
+            </div>
+            <button class="module-action" data-open="thermal">Open laboratory →</button>
           </div>
         </article>
       </div>
@@ -122,7 +135,66 @@
       <div class="simple-heading"><p class="eyebrow"><span></span> Private notes</p><h2>A quiet workspace.</h2><p>Later, this can hold decisions, ideas, objectives or a private operating log.</p></div>
       <div class="notes-placeholder"><span>UNTITLED / EMPTY</span><p>Start with a thought when this module becomes useful.</p><div></div></div>
     </section>
+
+    <section class="view" id="thermal" data-title="Thermal Lab" data-code="07">
+      <div class="simple-heading thermal-heading">
+        <p class="eyebrow"><span></span> Propulsion integration analogue</p>
+        <h2>Terra Powerplant Lab.</h2>
+        <p>A compact-PC demonstrator for transient thermal modelling, system integration, configuration control and evidence-led airflow decisions.</p>
+      </div>
+
+      <div class="thermal-status">
+        <span><i></i> DATASET LOADED</span>
+        <span id="thermal-config">CFG-000 · SPINE 3</span>
+        <span id="thermal-ambient">26.5 °C AMBIENT</span>
+      </div>
+
+      <div class="thermal-metrics" aria-label="Measured thermal headline metrics">
+        <article><small>CPU-ONLY MEAN</small><strong id="thermal-cpu">—</strong><span id="thermal-cpu-power">—</span></article>
+        <article><small>GPU-ONLY MEAN</small><strong id="thermal-gpu">—</strong><span id="thermal-gpu-power">—</span></article>
+        <article><small>FULL CHIP POWER</small><strong id="thermal-power">—</strong><span>CPU + GPU concurrent</span></article>
+        <article><small>VRM PEAK</small><strong id="thermal-vrm">—</strong><span>Motherboard secondary state</span></article>
+      </div>
+
+      <div class="thermal-grid">
+        <article class="thermal-panel thermal-geometry-panel">
+          <header><span>GEOMETRY / SPINE 3</span><small>REDUCED-ORDER MODEL</small></header>
+          <div class="thermal-view-controls" aria-label="Geometry views">
+            <button type="button" class="active" data-thermal-view="gpu" aria-pressed="true">GPU side</button>
+            <button type="button" data-thermal-view="board" aria-pressed="false">Board side</button>
+            <button type="button" data-thermal-view="top" aria-pressed="false">Top view</button>
+          </div>
+          <div class="terra-diagram" role="img" aria-label="Simplified component geometry of the Fractal Terra">
+            <div class="terra-view active" data-thermal-panel="gpu">
+              <div class="gpu-card"><div class="gpu-fan"></div><div class="gpu-fan"></div><div class="gpu-fan"></div><span>RTX 5070 Ti · 304.4 mm</span></div>
+              <b>3 × 90 mm · horizontal row</b>
+            </div>
+            <div class="terra-view" data-thermal-panel="board">
+              <div class="motherboard"><span>B850I · 170 × 170</span><div class="cpu-cooler">CPU</div></div>
+              <div class="psu-block">PSU</div><div class="cable-zone">CABLES</div>
+            </div>
+            <div class="terra-view" data-thermal-panel="top">
+              <div class="top-gpu">GPU</div><div class="terra-spine">SPINE 3</div><div class="top-board">BOARD + COOLER</div><div class="top-psu">PSU</div>
+            </div>
+          </div>
+          <p class="thermal-caption">Official dimensions, fit-bounded inference and uncertain envelopes remain explicitly separated.</p>
+        </article>
+
+        <article class="thermal-panel">
+          <header><span>CONFIGURATION SCREENING</span><small>GPU PEAK RANGE</small></header>
+          <div class="scenario-list" id="thermal-scenarios"><p>Loading model output…</p></div>
+          <p class="thermal-caption">Screening intervals guide A/B tests. They are not CFD predictions.</p>
+        </article>
+      </div>
+
+      <div class="model-assurance">
+        <article><small>GPU PHYSICAL MODEL</small><strong id="thermal-gpu-fit">—</strong><span>Independent transient validation</span></article>
+        <article><small>CPU PHYSICAL MODEL</small><strong id="thermal-cpu-fit">—</strong><span>Conservative prototype</span></article>
+        <article><small>COUPLED MIMO</small><strong>DIAGNOSTIC</strong><span>Not accepted for prediction</span></article>
+        <article><small>NEXT GATE</small><strong>CFD PREP</strong><span>Mass and energy balance</span></article>
+      </div>
+    </section>
   </main>
-  <script src="control.js?v=20260729c"></script>
+  <script src="control.js?v=20260804a"></script>
 </body>
 </html>

@@ -18,3 +18,12 @@ Every push to the `main` branch is automatically deployed to Cloudflare Pages by
 - `styles.css`, `enhancements.css`, `trajectory.css`, `polish.css`, `mobile.css` — design, responsive layout and animations
 - `script.js` — interactive effects, timeline and capability filtering
 - `assets/` — public portfolio images
+- `control/` — authenticated Mission Control, including the Terra Powerplant Lab
+- `control/data/terra-thermal-summary.json` — generated thermal-model contract
+
+## Terra Powerplant Lab data
+
+The Mission Control module reads a static, versioned export produced by the
+engineering repository. Refresh it with the Terra lab exporter before publishing
+new measurements or model results; the UI does not duplicate engineering values
+inside JavaScript.

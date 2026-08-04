@@ -1,0 +1,566 @@
+{
+  "schema_version": "1.2.0",
+  "generated_at": "2026-08-04T17:42:21.053954+00:00",
+  "project": {
+    "id": "terra-powerplant-lab",
+    "title": "Terra Powerplant Lab",
+    "configuration_id": "CFG-000",
+    "ambient_C": 26.5
+  },
+  "configuration": {
+    "configuration_id": "CFG-000",
+    "name": "baseline_2026-08-04",
+    "date_created": "2026-08-04",
+    "case": {
+      "model": "Fractal Design Terra",
+      "spine_position": 3,
+      "orientation": "vertical_normal",
+      "side_panels": "installed",
+      "nominal_internal_volume_L": 10.4,
+      "official_fan_mounts": "1x120 mm bottom",
+      "notes": "Spine position 3 confirmed by the user. Official clearances: CPU cooler 67 mm; GPU thickness 53 mm up to 131 mm GPU height or 43 mm up to 145 mm. The top fan is external/custom because Terra has no official top mount."
+    },
+    "environment": {
+      "ambient_temperature_C": 26.5,
+      "source": "user-provided ambient reference retained as a fixed boundary condition; no external probes are used in the present campaign",
+      "uncertainty_C": 0.5
+    },
+    "cpu": {
+      "model": "AMD Ryzen 7 9800X3D",
+      "cooler": "unknown",
+      "cooler_airflow": "intake from side into CPU cooler"
+    },
+    "gpu": {
+      "model": "ZOTAC NVIDIA GeForce RTX 5070 Ti 16 GB",
+      "pci_subsystem_id": "0x276519DA",
+      "variant": "inferred ZOTAC SOLID SFF family; exact SKU not exposed by telemetry",
+      "inferred_dimensions_mm": [
+        304.4,
+        115.8,
+        41.6
+      ],
+      "dimension_confidence": "high: the 55.7 mm SOLID CORE cannot fit the official 53 mm position-3 envelope, while the 41.6 mm SOLID SFF can",
+      "fans": 3,
+      "airflow": "intake from side through GPU heatsink"
+    },
+    "psu": {
+      "model": "unknown",
+      "airflow": "intake from side; PSU exhaust leaves its own duct/opening"
+    },
+    "fans": [
+      {
+        "id": "GPU-01",
+        "group": "GPU",
+        "location": "GPU side",
+        "orientation": "intake",
+        "telemetry": "GPU channel A"
+      },
+      {
+        "id": "GPU-02",
+        "group": "GPU",
+        "location": "GPU side",
+        "orientation": "intake",
+        "telemetry": "GPU channel A or B; mapping unknown"
+      },
+      {
+        "id": "GPU-03",
+        "group": "GPU",
+        "location": "GPU side",
+        "orientation": "intake",
+        "telemetry": "GPU channel B"
+      },
+      {
+        "id": "CPU-01",
+        "group": "CPU",
+        "location": "CPU side",
+        "orientation": "intake",
+        "telemetry": "HWiNFO channel to identify"
+      },
+      {
+        "id": "PSU-01",
+        "group": "PSU",
+        "location": "PSU",
+        "orientation": "intake",
+        "telemetry": "probably unavailable unless PSU exposes digital telemetry"
+      },
+      {
+        "id": "TOP-01",
+        "group": "case",
+        "location": "top, external/custom position",
+        "orientation": "exhaust",
+        "telemetry": "HWiNFO channel to identify"
+      },
+      {
+        "id": "BOTTOM-01",
+        "group": "case",
+        "location": "bottom; exact internal/external position unknown",
+        "orientation": "exhaust",
+        "telemetry": "HWiNFO channel to identify"
+      }
+    ],
+    "cabling_notes": "Current cabling is represented as a bounded porous obstruction rather than invented cable-by-cable geometry. Cable shortening/rerouting changes pressure loss, not heat generation.",
+    "air_guides": [
+      {
+        "location": "CPU fan",
+        "status": "present",
+        "geometry": "unknown"
+      }
+    ],
+    "photo_references": [],
+    "open_items": [
+      "CPU cooler model and fan model",
+      "PSU model",
+      "top and bottom fan models, dimensions, RPM and exact mounting positions",
+      "photos or measurements of cable obstruction and custom top-fan clearance"
+    ]
+  },
+  "geometry": {
+    "schema_version": "1.0.0",
+    "coordinate_system": {
+      "origin": "rear-bottom-GPU-side corner of the nominal chassis body",
+      "x": "rear to front",
+      "y": "GPU side to CPU/PSU side",
+      "z": "bottom to top",
+      "units": "mm"
+    },
+    "case": {
+      "outer_body_mm": [
+        343,
+        153,
+        198
+      ],
+      "overall_with_feet_mm": [
+        343,
+        153,
+        218
+      ],
+      "volume_L": 10.4,
+      "source_status": "official"
+    },
+    "spine": {
+      "position": 3,
+      "cpu_cooler_clearance_mm": 67,
+      "gpu_thickness_clearance_mm": {
+        "up_to_131_mm_height": 53,
+        "up_to_145_mm_height": 43
+      },
+      "source_status": "official",
+      "note": "The exact sheet-metal plane is simplified; clearance envelopes are authoritative for fit checks."
+    },
+    "components": [
+      {
+        "id": "GPU",
+        "label": "ZOTAC RTX 5070 Ti SOLID SFF family",
+        "box": {
+          "min": [
+            8,
+            5,
+            42
+          ],
+          "size": [
+            304.4,
+            41.6,
+            115.8
+          ]
+        },
+        "status": "high-confidence inference",
+        "uncertainty_mm": [
+          3,
+          2,
+          3
+        ],
+        "basis": "telemetry identifies ZOTAC and 300 W; position-3 fit excludes the 55.7 mm SOLID CORE family",
+        "cooling_fans": {
+          "count": 3,
+          "nominal_diameter_mm": 90,
+          "arrangement": "horizontal row along the rear-to-front x axis",
+          "axis": "+y intake from the GPU side panel toward the spine",
+          "approximate_centres_local_mm": [
+            [
+              60,
+              0,
+              58
+            ],
+            [
+              152,
+              0,
+              58
+            ],
+            [
+              244,
+              0,
+              58
+            ]
+          ],
+          "status": "official family fan size; centres simplified for reduced-order geometry"
+        }
+      },
+      {
+        "id": "MOTHERBOARD",
+        "label": "Gigabyte B850I AORUS PRO",
+        "box": {
+          "min": [
+            8,
+            75,
+            16
+          ],
+          "size": [
+            170,
+            8,
+            170
+          ]
+        },
+        "status": "official size, inferred placement",
+        "uncertainty_mm": [
+          5,
+          4,
+          5
+        ]
+      },
+      {
+        "id": "CPU_COOLER_ENVELOPE",
+        "label": "CPU cooler and intake guide",
+        "box": {
+          "min": [
+            33,
+            83,
+            42
+          ],
+          "size": [
+            120,
+            65,
+            120
+          ]
+        },
+        "status": "clearance-bounded envelope; model unknown",
+        "uncertainty_mm": [
+          15,
+          2,
+          15
+        ]
+      },
+      {
+        "id": "PSU_REFERENCE",
+        "label": "SFX reference envelope",
+        "box": {
+          "min": [
+            198,
+            84,
+            48
+          ],
+          "size": [
+            100,
+            63.5,
+            125
+          ]
+        },
+        "status": "standard-envelope assumption; PSU model unknown",
+        "uncertainty_mm": [
+          15,
+          5,
+          10
+        ],
+        "note": "If the installed unit is SFX-L, front-rear depth becomes approximately 130 mm."
+      },
+      {
+        "id": "BOTTOM_FAN",
+        "label": "Official bottom 120 mm position",
+        "box": {
+          "min": [
+            183,
+            17,
+            2
+          ],
+          "size": [
+            120,
+            120,
+            15
+          ]
+        },
+        "status": "official mount, slim-fan thickness assumed",
+        "uncertainty_mm": [
+          8,
+          8,
+          10
+        ]
+      },
+      {
+        "id": "TOP_CUSTOM_FAN",
+        "label": "Custom external top exhaust",
+        "box": {
+          "min": [
+            183,
+            17,
+            198
+          ],
+          "size": [
+            120,
+            120,
+            25
+          ]
+        },
+        "status": "user-confirmed function; size and exact placement assumed",
+        "uncertainty_mm": [
+          20,
+          20,
+          10
+        ]
+      },
+      {
+        "id": "CABLE_ZONE",
+        "label": "Cable obstruction zone",
+        "box": {
+          "min": [
+            162,
+            66,
+            24
+          ],
+          "size": [
+            58,
+            72,
+            92
+          ]
+        },
+        "status": "porous-zone abstraction",
+        "uncertainty_mm": [
+          25,
+          20,
+          25
+        ]
+      }
+    ],
+    "flow_boundaries": [
+      {
+        "id": "GPU_SIDE_INTAKE",
+        "normal": [
+          0,
+          1,
+          0
+        ],
+        "driven_by": "three GPU fans"
+      },
+      {
+        "id": "CPU_SIDE_INTAKE",
+        "normal": [
+          0,
+          -1,
+          0
+        ],
+        "driven_by": "CPU cooler fan"
+      },
+      {
+        "id": "PSU_SIDE_INTAKE",
+        "normal": [
+          0,
+          -1,
+          0
+        ],
+        "driven_by": "PSU fan; separate exhaust path"
+      },
+      {
+        "id": "BOTTOM_EXHAUST",
+        "normal": [
+          0,
+          0,
+          -1
+        ],
+        "driven_by": "case fan"
+      },
+      {
+        "id": "TOP_EXHAUST",
+        "normal": [
+          0,
+          0,
+          1
+        ],
+        "driven_by": "custom external fan"
+      }
+    ],
+    "modelling_rule": "Known dimensions, fit-bounded inferences and assumptions are kept separate. This is a reduced-order/CFD-preparation geometry, not a manufacturing CAD model."
+  },
+  "headline_metrics": {
+    "cpu_only": {
+      "mean_temperature_C": 81.927,
+      "peak_temperature_C": 86.1,
+      "mean_power_W": 90.168,
+      "peak_power_W": 102.214
+    },
+    "gpu_only": {
+      "mean_temperature_C": 77.877,
+      "peak_temperature_C": 80.4,
+      "mean_power_W": 285.572,
+      "peak_power_W": 297.921
+    },
+    "full_combined": {
+      "cpu_mean_temperature_C": 83.5,
+      "cpu_peak_temperature_C": 86.0,
+      "gpu_mean_temperature_C": 67.275,
+      "gpu_peak_temperature_C": 74.6,
+      "mean_chip_power_W": 357.202,
+      "vrm_peak_C": 58.0
+    }
+  },
+  "motherboard_telemetry": {
+    "model": "Gigabyte B850I AORUS PRO",
+    "official_form_factor_mm": [
+      170,
+      170
+    ],
+    "cpu_only": {
+      "vrm_idle_peak_C": 54.0,
+      "vrm_load_peak_C": 57.0,
+      "vrm_peak_delta_C": 3.0
+    },
+    "gpu_only": {
+      "vrm_idle_mean_C": 55.312,
+      "vrm_load_mean_C": 55.682,
+      "vrm_mean_delta_C": 0.37,
+      "pch_idle_mean_C": 55.0,
+      "pch_load_mean_C": 55.0,
+      "system_idle_mean_C": 49.0,
+      "system_load_mean_C": 49.0
+    },
+    "full_combined": {
+      "vrm_idle_peak_C": 55.0,
+      "vrm_load_peak_C": 58.0,
+      "vrm_peak_delta_C": 3.0
+    },
+    "interpretation": "measured secondary thermal state; no separate predictive board model accepted"
+  },
+  "airflow_sensitivity": [
+    {
+      "conductance_factor": 0.75,
+      "interpretation": "25% worse rejection",
+      "gpu_peak_C": 85.417,
+      "gpu_end_of_load_C": 84.53,
+      "status": "model_sensitivity_not_location_prediction"
+    },
+    {
+      "conductance_factor": 1.0,
+      "interpretation": "measured baseline equivalent",
+      "gpu_peak_C": 80.314,
+      "gpu_end_of_load_C": 78.552,
+      "status": "model_sensitivity_not_location_prediction"
+    },
+    {
+      "conductance_factor": 1.15,
+      "interpretation": "15% better rejection",
+      "gpu_peak_C": 78.09,
+      "gpu_end_of_load_C": 75.902,
+      "status": "model_sensitivity_not_location_prediction"
+    },
+    {
+      "conductance_factor": 1.3,
+      "interpretation": "30% better rejection",
+      "gpu_peak_C": 76.515,
+      "gpu_end_of_load_C": 73.755,
+      "status": "model_sensitivity_not_location_prediction"
+    }
+  ],
+  "configuration_screening": [
+    {
+      "configuration_id": "CFG-040",
+      "physical_change": "Booster lateral GPU con separador",
+      "gpu_conductance_factor_low": 1.08,
+      "gpu_conductance_factor_high": 1.25,
+      "gpu_peak_model_low_C": 77.04,
+      "gpu_peak_model_high_C": 79.13,
+      "evidence_confidence": "medium",
+      "status": "screening interval; requires A/B validation"
+    },
+    {
+      "configuration_id": "CFG-090",
+      "physical_change": "Guía sellada para intake GPU",
+      "gpu_conductance_factor_low": 1.04,
+      "gpu_conductance_factor_high": 1.14,
+      "gpu_peak_model_low_C": 78.24,
+      "gpu_peak_model_high_C": 79.72,
+      "evidence_confidence": "medium",
+      "status": "screening interval; requires A/B validation"
+    },
+    {
+      "configuration_id": "CFG-020",
+      "physical_change": "Dos extractores exteriores arriba",
+      "gpu_conductance_factor_low": 1.03,
+      "gpu_conductance_factor_high": 1.15,
+      "gpu_peak_model_low_C": 78.09,
+      "gpu_peak_model_high_C": 79.87,
+      "evidence_confidence": "medium",
+      "status": "screening interval; requires A/B validation"
+    },
+    {
+      "configuration_id": "CFG-030",
+      "physical_change": "Dos intakes exteriores abajo",
+      "gpu_conductance_factor_low": 1.0,
+      "gpu_conductance_factor_high": 1.14,
+      "gpu_peak_model_low_C": 78.24,
+      "gpu_peak_model_high_C": 80.31,
+      "evidence_confidence": "medium-low",
+      "status": "screening interval; requires A/B validation"
+    },
+    {
+      "configuration_id": "CFG-080",
+      "physical_change": "Cables cortos y despejados",
+      "gpu_conductance_factor_low": 1.01,
+      "gpu_conductance_factor_high": 1.08,
+      "gpu_peak_model_low_C": 79.13,
+      "gpu_peak_model_high_C": 80.17,
+      "evidence_confidence": "medium-low",
+      "status": "screening interval; requires A/B validation"
+    },
+    {
+      "configuration_id": "CFG-010",
+      "physical_change": "Ventilador inferior como intake",
+      "gpu_conductance_factor_low": 0.98,
+      "gpu_conductance_factor_high": 1.08,
+      "gpu_peak_model_low_C": 79.13,
+      "gpu_peak_model_high_C": 80.72,
+      "evidence_confidence": "medium",
+      "status": "screening interval; requires A/B validation"
+    },
+    {
+      "configuration_id": "CFG-050",
+      "physical_change": "Booster lateral CPU con separador",
+      "gpu_conductance_factor_low": 0.98,
+      "gpu_conductance_factor_high": 1.04,
+      "gpu_peak_model_low_C": 79.72,
+      "gpu_peak_model_high_C": 80.72,
+      "evidence_confidence": "low for GPU; useful CPU experiment",
+      "status": "screening interval; requires A/B validation"
+    },
+    {
+      "configuration_id": "CFG-000",
+      "physical_change": "Configuración medida",
+      "gpu_conductance_factor_low": 1.0,
+      "gpu_conductance_factor_high": 1.0,
+      "gpu_peak_model_low_C": 80.31,
+      "gpu_peak_model_high_C": 80.31,
+      "evidence_confidence": "reference",
+      "status": "screening interval; requires A/B validation"
+    }
+  ],
+  "model_quality": {
+    "gpu_physical": {
+      "validation_fit_pct": 80.4,
+      "validation_rmse_C": 2.98,
+      "status": "validated_on_independent_gpu_step"
+    },
+    "cpu_physical": {
+      "full_validation_fit_pct": 37.3,
+      "full_validation_rmse_C": 4.51,
+      "status": "conservative_prototype_needs_more_observability"
+    },
+    "coupled_mimo": {
+      "cpu_validation_fit_pct": 47.1,
+      "gpu_validation_fit_pct": 9.6,
+      "status": "diagnostic_not_accepted_for_prediction"
+    }
+  },
+  "warnings": [
+    "Fan-location scenarios are screening intervals, not physically validated predictions.",
+    "System 2 RPM is considered invalid or incorrectly scaled.",
+    "No external temperature probes are used; shared-air behaviour remains inside the uncertainty bounds.",
+    "Unknown cooler, PSU and custom-fan dimensions are represented as bounded envelopes, never as exact CAD.",
+    "Raw logs remain the authoritative source for traceability."
+  ]
+}

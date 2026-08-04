@@ -91,8 +91,8 @@ function applyAccess(data){
   const overviewIntro=document.getElementById('overview-intro');
   const accessSummary=document.getElementById('access-summary');
   if(owner){
-    overviewIntro.textContent='Your private home for the tools currently enabled: a focused overview and infrastructure operations.';
-    accessSummary.textContent='OWNER ACCESS · 2 MODULES';
+    overviewIntro.textContent='Your private home for live infrastructure and engineering systems, from server operations to thermal integration.';
+    accessSummary.textContent='OWNER ACCESS · 3 MODULES';
   }else if(minecraftOperator){
     overviewIntro.textContent='A focused home for shared tools. Your account currently includes Minecraft server operations.';
     accessSummary.textContent='STANDARD ACCESS · MINECRAFT ENABLED';
@@ -165,6 +165,64 @@ async function refreshMinecraft(){
   }
 }
 
+function formatTemperature(value){return `${Number(value).toFixed(1)} °C`}
+function formatPower(value){return `${Number(value).toFixed(0)} W`}
+
+function renderThermalLab(data){
+  const headline=data.headline_metrics;
+  const board=data.motherboard_telemetry;
+  document.getElementById('thermal-config').textContent=`${data.project.configuration_id} · SPINE ${data.configuration.case.spine_position}`;
+  document.getElementById('thermal-ambient').textContent=`${data.project.ambient_C.toFixed(1)} °C AMBIENT`;
+  document.getElementById('thermal-cpu').textContent=formatTemperature(headline.cpu_only.mean_temperature_C);
+  document.getElementById('thermal-cpu-power').textContent=`${formatPower(headline.cpu_only.mean_power_W)} mean package`;
+  document.getElementById('thermal-gpu').textContent=formatTemperature(headline.gpu_only.mean_temperature_C);
+  document.getElementById('thermal-gpu-power').textContent=`${formatPower(headline.gpu_only.mean_power_W)} mean board`;
+  document.getElementById('thermal-power').textContent=formatPower(headline.full_combined.mean_chip_power_W);
+  document.getElementById('thermal-vrm').textContent=formatTemperature(board.full_combined.vrm_load_peak_C);
+  document.getElementById('thermal-gpu-fit').textContent=`${data.model_quality.gpu_physical.validation_fit_pct.toFixed(1)}% FIT`;
+  document.getElementById('thermal-cpu-fit').textContent=`${data.model_quality.cpu_physical.full_validation_fit_pct.toFixed(1)}% FIT`;
+
+  const scenarios=document.getElementById('thermal-scenarios');
+  scenarios.replaceChildren();
+  data.configuration_screening.slice(0,6).forEach((scenario,index)=>{
+    const row=document.createElement('div');
+    row.className='scenario-row';
+    const label=document.createElement('div');
+    const code=document.createElement('small');
+    code.textContent=scenario.configuration_id;
+    const name=document.createElement('strong');
+    name.textContent=scenario.physical_change;
+    label.append(code,name);
+    const range=document.createElement('span');
+    range.textContent=scenario.gpu_peak_model_low_C===scenario.gpu_peak_model_high_C
+      ?formatTemperature(scenario.gpu_peak_model_low_C)
+      :`${scenario.gpu_peak_model_low_C.toFixed(1)}–${scenario.gpu_peak_model_high_C.toFixed(1)} °C`;
+    const track=document.createElement('i');
+    track.style.setProperty('--scenario-score',`${Math.max(12,100-index*12)}%`);
+    row.append(label,range,track);
+    scenarios.append(row);
+  });
+}
+
+async function loadThermalLab(){
+  try{
+    const response=await fetch('/control/data/terra-thermal-summary.json',{credentials:'same-origin',headers:{accept:'application/json'}});
+    if(!response.ok)throw new Error('thermal_data_unavailable');
+    renderThermalLab(await response.json());
+  }catch{
+    document.getElementById('thermal-scenarios').textContent='Thermal dataset unavailable.';
+  }
+}
+
+document.querySelectorAll('[data-thermal-view]').forEach(button=>button.addEventListener('click',()=>{
+  document.querySelectorAll('[data-thermal-view]').forEach(peer=>{
+    const active=peer===button;
+    peer.classList.toggle('active',active);
+    peer.setAttribute('aria-pressed',String(active));
+  });
+  document.querySelectorAll('[data-thermal-panel]').forEach(panel=>panel.classList.toggle('active',panel.dataset.thermalPanel===button.dataset.thermalView));
+}));
+
 restartButton.addEventListener('click',async()=>{
   if(!minecraftState?.agent?.connected)return;
   const approved=window.confirm('Force restart the Minecraft server now? The Java process will be terminated immediately. Connected players will be disconnected and unsaved data may be lost.');
@@ -222,6 +280,7 @@ async function initialiseControl(){
     await refreshMinecraft();
     setInterval(refreshMinecraft,10000);
   }
+  if(hasCapability('thermal:read'))await loadThermalLab();
 }
 
 initialiseControl();
