@@ -159,25 +159,27 @@
       <div class="thermal-grid">
         <article class="thermal-panel thermal-geometry-panel">
           <header><span>GEOMETRY / SPINE 3</span><small>REDUCED-ORDER MODEL</small></header>
-          <div class="thermal-view-controls" aria-label="Geometry views">
-            <button type="button" class="active" data-thermal-view="gpu" aria-pressed="true">GPU side</button>
-            <button type="button" data-thermal-view="board" aria-pressed="false">Board side</button>
-            <button type="button" data-thermal-view="top" aria-pressed="false">Top view</button>
+          <div class="thermal-view-controls" aria-label="3D camera views">
+            <button type="button" class="active" data-thermal-camera="iso" aria-pressed="true">Isometric</button>
+            <button type="button" data-thermal-camera="gpu" aria-pressed="false">GPU side</button>
+            <button type="button" data-thermal-camera="board" aria-pressed="false">Board side</button>
+            <button type="button" data-thermal-camera="top" aria-pressed="false">Top</button>
+            <button type="button" data-thermal-explode aria-pressed="false">Explode</button>
           </div>
-          <div class="terra-diagram" role="img" aria-label="Simplified component geometry of the Fractal Terra">
-            <div class="terra-view active" data-thermal-panel="gpu">
-              <div class="gpu-card"><div class="gpu-fan"></div><div class="gpu-fan"></div><div class="gpu-fan"></div><span>RTX 5070 Ti · 304.4 mm</span></div>
-              <b>3 × 90 mm · horizontal row</b>
+          <div class="thermal-3d-shell" id="thermal-3d-shell">
+            <canvas id="thermal-3d-canvas" aria-label="Interactive 3D reduced-order geometry of the Fractal Terra"></canvas>
+            <div class="thermal-3d-badge">343 × 153 × 198 MM · SPINE 3</div>
+            <div class="thermal-3d-legend" aria-label="Geometry confidence legend">
+              <span><i class="known"></i>Measured / official</span>
+              <span><i class="inferred"></i>Fit-bounded</span>
+              <span><i class="assumed"></i>Assumed envelope</span>
             </div>
-            <div class="terra-view" data-thermal-panel="board">
-              <div class="motherboard"><span>B850I · 170 × 170</span><div class="cpu-cooler">CPU</div></div>
-              <div class="psu-block">PSU</div><div class="cable-zone">CABLES</div>
+            <div class="thermal-component-readout" id="thermal-component-readout" aria-live="polite">
+              <small>SELECT COMPONENT</small><strong>Drag to orbit · wheel to zoom</strong>
             </div>
-            <div class="terra-view" data-thermal-panel="top">
-              <div class="top-gpu">GPU</div><div class="terra-spine">SPINE 3</div><div class="top-board">BOARD + COOLER</div><div class="top-psu">PSU</div>
-            </div>
+            <p class="thermal-3d-fallback" id="thermal-3d-fallback" hidden>WebGL is unavailable. The engineering data remains accessible in the panels alongside the viewer.</p>
           </div>
-          <p class="thermal-caption">Official dimensions, fit-bounded inference and uncertain envelopes remain explicitly separated.</p>
+          <p class="thermal-caption">Photo-corrected layout: internal top exhaust beneath its grille, three horizontal GPU fans and a 20 mm bottom desk plenum. Static airflow arrows show direction, not solved velocity.</p>
         </article>
 
         <article class="thermal-panel">
@@ -195,6 +197,8 @@
       </div>
     </section>
   </main>
-  <script src="control.js?v=20260804a"></script>
+  <script src="control.js?v=20260804b"></script>
+  <script type="importmap">{"imports":{"three":"./vendor/three.module.min.js"}}</script>
+  <script type="module" src="thermal-viewer.js?v=20260804b"></script>
 </body>
 </html>

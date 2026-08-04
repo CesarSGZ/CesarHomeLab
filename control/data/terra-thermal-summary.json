@@ -1,6 +1,6 @@
 {
   "schema_version": "1.2.0",
-  "generated_at": "2026-08-04T17:42:21.053954+00:00",
+  "generated_at": "2026-08-04T18:33:07.593599+00:00",
   "project": {
     "id": "terra-powerplant-lab",
     "title": "Terra Powerplant Lab",
@@ -18,7 +18,7 @@
       "side_panels": "installed",
       "nominal_internal_volume_L": 10.4,
       "official_fan_mounts": "1x120 mm bottom",
-      "notes": "Spine position 3 confirmed by the user. Official clearances: CPU cooler 67 mm; GPU thickness 53 mm up to 131 mm GPU height or 43 mm up to 145 mm. The top fan is external/custom because Terra has no official top mount."
+      "notes": "Spine position 3 confirmed by the user. Official clearances: CPU cooler 67 mm; GPU thickness 53 mm up to 131 mm GPU height or 43 mm up to 145 mm. Photos confirm the custom top fan is inside the case beneath the installed slotted grille; Terra has no official top mount. The bottom exhaust discharges into the approximately 20 mm foot gap above a solid desk."
     },
     "environment": {
       "ambient_temperature_C": 26.5,
@@ -86,14 +86,14 @@
       {
         "id": "TOP-01",
         "group": "case",
-        "location": "top, external/custom position",
+        "location": "internal custom position beneath top grille, cable-tied",
         "orientation": "exhaust",
         "telemetry": "HWiNFO channel to identify"
       },
       {
         "id": "BOTTOM-01",
         "group": "case",
-        "location": "bottom; exact internal/external position unknown",
+        "location": "bottom, exhausting into approximately 20 mm desk plenum",
         "orientation": "exhaust",
         "telemetry": "HWiNFO channel to identify"
       }
@@ -106,16 +106,21 @@
         "geometry": "unknown"
       }
     ],
-    "photo_references": [],
+    "photo_references": [
+      "Photo 1: installed panels, feet and desk placement",
+      "Photo 2: internal white-bladed top fan beneath grille",
+      "Photo 3: slotted GPU-side panel and horizontal GPU fan row",
+      "Photo 4: slotted CPU-side panel and low-profile CPU cooler"
+    ],
     "open_items": [
       "CPU cooler model and fan model",
       "PSU model",
-      "top and bottom fan models, dimensions, RPM and exact mounting positions",
-      "photos or measurements of cable obstruction and custom top-fan clearance"
+      "top and bottom fan models, dimensions and RPM",
+      "measurements of cable obstruction and custom top-fan clearance"
     ]
   },
   "geometry": {
-    "schema_version": "1.0.0",
+    "schema_version": "1.1.0",
     "coordinate_system": {
       "origin": "rear-bottom-GPU-side corner of the nominal chassis body",
       "x": "rear to front",
@@ -134,8 +139,12 @@
         153,
         218
       ],
+      "nominal_bottom_plenum_mm": 20,
       "volume_L": 10.4,
-      "source_status": "official"
+      "finish": "jade green",
+      "support_surface": "solid desk",
+      "source_status": "official dimensions; finish, installed panels and desk placement photo-confirmed",
+      "boundary_note": "The slotted top and side panels are porous-resistance boundaries. The feet leave an approximately 20 mm discharge plenum between the chassis body and desk."
     },
     "spine": {
       "position": 3,
@@ -286,25 +295,26 @@
       },
       {
         "id": "TOP_CUSTOM_FAN",
-        "label": "Custom external top exhaust",
+        "label": "Custom internal top exhaust beneath grille",
         "box": {
           "min": [
-            183,
+            190,
             17,
-            198
+            183
           ],
           "size": [
             120,
             120,
-            25
+            15
           ]
         },
-        "status": "user-confirmed function; size and exact placement assumed",
+        "status": "photo-confirmed internal and cable-tied; 120 x 15 mm envelope assumed",
         "uncertainty_mm": [
-          20,
-          20,
-          10
-        ]
+          12,
+          10,
+          4
+        ],
+        "note": "The installed slotted top panel remains above the fan and adds flow resistance."
       },
       {
         "id": "CABLE_ZONE",
@@ -364,7 +374,7 @@
           0,
           -1
         ],
-        "driven_by": "case fan"
+        "driven_by": "case fan into approximately 20 mm desk plenum"
       },
       {
         "id": "TOP_EXHAUST",
@@ -373,7 +383,25 @@
           0,
           1
         ],
-        "driven_by": "custom external fan"
+        "driven_by": "custom internal fan beneath slotted top grille"
+      }
+    ],
+    "photo_evidence": [
+      {
+        "reference": "Photo 1",
+        "observation": "Top and both side panels installed; chassis sits on its standard feet over a solid desk."
+      },
+      {
+        "reference": "Photo 2",
+        "observation": "White-bladed top fan is inside the chassis beneath the top grille and retained with black cable ties."
+      },
+      {
+        "reference": "Photo 3",
+        "observation": "GPU-side panel is highly slotted and covers the full three-fan horizontal GPU row."
+      },
+      {
+        "reference": "Photo 4",
+        "observation": "CPU-side panel is highly slotted; low-profile CPU cooler fan is visible behind it."
       }
     ],
     "modelling_rule": "Known dimensions, fit-bounded inferences and assumptions are kept separate. This is a reduced-order/CFD-preparation geometry, not a manufacturing CAD model."
