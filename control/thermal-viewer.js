@@ -85,7 +85,7 @@ async function initViewer() {
   addCaseFan(root, parts.get('TOP_CUSTOM_FAN'), 0xff7d66, selectable);
   addCaseFan(root, parts.get('BOTTOM_FAN'), 0xffb347, selectable);
   addCpuFan(root, parts.get('CPU_COOLER_ENVELOPE'), selectable);
-  addAirflow(root);
+  addAirflow(root, parts);
 
   const raycaster = new THREE.Raycaster();
   const pointer = new THREE.Vector2();
@@ -330,21 +330,48 @@ function makeFan(radius, depth, color, component, selectable) {
   return group;
 }
 
-function addAirflow(root) {
-  const arrows = [
-    [[-0.95, 0.15, -1.2], [0, 0, 1], 0x52d9ff, 0.65],
-    [[0.05, 0.2, 1.2], [0, 0, -1], 0x67e8c4, 0.65],
-    [[0.75, 0.75, 0.25], [0, 1, 0], 0xff7d66, 0.55],
-    [[0.65, -0.78, 0.15], [0, -1, 0], 0xffb347, 0.55],
-  ];
+function addAirflow(root, parts) {
+  const arrows = [];
+  const gpu = parts.get('GPU');
+  if (gpu?.cooling_fans) {
+    for (const [localX, , localZ] of gpu.cooling_fans.approximate_centres_local_mm) {
+      arrows.push([
+        [
+          (gpu.box.min[0] + localX - CASE.x / 2) * SCALE,
+          (gpu.box.min[2] + localZ - CASE.z / 2) * SCALE,
+          -1.06,
+        ],
+        [0, 0, 1], 0x52d9ff, 0.24,
+      ]);
+    }
+  }
+
+  for (const id of ['CPU_COOLER_ENVELOPE', 'PSU_REFERENCE']) {
+    const component = parts.get(id);
+    if (!component) continue;
+    const { center } = worldBox(component.box);
+    arrows.push([[center.x, center.y, 1.03], [0, 0, -1], 0x52d9ff, 0.24]);
+  }
+
+  const top = parts.get('TOP_CUSTOM_FAN');
+  const bottom = parts.get('BOTTOM_FAN');
+  if (top) {
+    const { center } = worldBox(top.box);
+    arrows.push([[center.x, 0.84, center.z], [0, 1, 0], 0xff7d66, 0.36]);
+  }
+  if (bottom) {
+    const { center } = worldBox(bottom.box);
+    arrows.push([[center.x, -0.84, center.z], [0, -1, 0], 0xffb347, 0.31]);
+  }
+
   for (const [origin, direction, color, length] of arrows) {
     root.add(new THREE.ArrowHelper(
       new THREE.Vector3(...direction),
       new THREE.Vector3(...origin),
       length,
       color,
-      0.12,
-      0.06,
+      0.075,
+      0.038,
     ));
   }
 }

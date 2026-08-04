@@ -184,7 +184,17 @@ function renderThermalLab(data){
 
   const scenarios=document.getElementById('thermal-scenarios');
   scenarios.replaceChildren();
-  data.configuration_screening.slice(0,6).forEach((scenario,index)=>{
+  const baselineScenario=data.configuration_screening.find(scenario=>scenario.configuration_id==='CFG-000');
+  const baselinePeak=baselineScenario
+    ?(baselineScenario.gpu_peak_model_low_C+baselineScenario.gpu_peak_model_high_C)/2
+    :80.31;
+  const confidenceLabels={
+    medium:'media',
+    'medium-low':'media-baja',
+    reference:'referencia',
+    'low for GPU; useful CPU experiment':'baja para GPU'
+  };
+  data.configuration_screening.filter(scenario=>scenario.configuration_id!=='CFG-000').slice(0,6).forEach(scenario=>{
     const row=document.createElement('div');
     row.className='scenario-row';
     const label=document.createElement('div');
@@ -192,14 +202,22 @@ function renderThermalLab(data){
     code.textContent=scenario.configuration_id;
     const name=document.createElement('strong');
     name.textContent=scenario.physical_change;
-    label.append(code,name);
+    const hypothesis=document.createElement('p');
+    hypothesis.textContent=scenario.hypothesis||'Hipótesis pendiente de ensayo físico.';
+    const midpoint=(scenario.gpu_peak_model_low_C+scenario.gpu_peak_model_high_C)/2;
+    const gain=Math.max(0,baselinePeak-midpoint);
+    const meta=document.createElement('em');
+    meta.textContent=`Confianza ${confidenceLabels[scenario.evidence_confidence]||scenario.evidence_confidence} · mejora central estimada ${gain.toFixed(1)} °C`;
+    const risk=document.createElement('p');
+    risk.className='scenario-risk';
+    risk.textContent=`Riesgo: ${scenario.main_risk||'requiere validación A/B'}`;
+    label.append(code,name,hypothesis,meta,risk);
     const range=document.createElement('span');
     range.textContent=scenario.gpu_peak_model_low_C===scenario.gpu_peak_model_high_C
       ?formatTemperature(scenario.gpu_peak_model_low_C)
       :`${scenario.gpu_peak_model_low_C.toFixed(1)}–${scenario.gpu_peak_model_high_C.toFixed(1)} °C`;
-    const track=document.createElement('i');
-    track.style.setProperty('--scenario-score',`${Math.max(12,100-index*12)}%`);
-    row.append(label,range,track);
+    range.setAttribute('aria-label','Intervalo modelado de temperatura máxima GPU');
+    row.append(label,range);
     scenarios.append(row);
   });
 }

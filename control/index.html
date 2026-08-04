@@ -149,55 +149,81 @@
         <span id="thermal-ambient">26.5 °C AMBIENT</span>
       </div>
 
+      <div class="thermal-guide" aria-label="Cómo leer el laboratorio térmico">
+        <header><span>CÓMO LEER ESTA PÁGINA</span><small>MEDIDA → MODELO → DECISIÓN</small></header>
+        <div>
+          <article><b>01</b><strong>Medimos</strong><p>Los CSV registran temperaturas, potencia y ventiladores durante cargas controladas.</p></article>
+          <article><b>02</b><strong>Ajustamos un modelo</strong><p>El modelo aprende la respuesta térmica real del equipo, incluido cuánto tarda en calentarse y enfriarse.</p></article>
+          <article><b>03</b><strong>Cribamos ideas</strong><p>Estimamos qué modificaciones merece la pena probar físicamente antes de desmontar la caja.</p></article>
+          <article><b>04</b><strong>Validamos</strong><p>Una predicción solo se acepta cuando un ensayo A/B independiente confirma su dirección y magnitud.</p></article>
+        </div>
+      </div>
+
       <div class="thermal-metrics" aria-label="Measured thermal headline metrics">
-        <article><small>CPU-ONLY MEAN</small><strong id="thermal-cpu">—</strong><span id="thermal-cpu-power">—</span></article>
-        <article><small>GPU-ONLY MEAN</small><strong id="thermal-gpu">—</strong><span id="thermal-gpu-power">—</span></article>
-        <article><small>FULL CHIP POWER</small><strong id="thermal-power">—</strong><span>CPU + GPU concurrent</span></article>
-        <article><small>VRM PEAK</small><strong id="thermal-vrm">—</strong><span>Motherboard secondary state</span></article>
+        <article><small>CPU · MEDIA EN CARGA AISLADA</small><strong id="thermal-cpu">—</strong><span id="thermal-cpu-power">—</span><p>Temperatura media del procesador durante el tramo en el que solo cargamos la CPU.</p></article>
+        <article><small>GPU · MEDIA EN CARGA AISLADA</small><strong id="thermal-gpu">—</strong><span id="thermal-gpu-power">—</span><p>Temperatura media de la gráfica durante su ensayo individual. No es el pico.</p></article>
+        <article><small>POTENCIA · CARGA COMBINADA</small><strong id="thermal-power">—</strong><span>CPU + GPU simultáneas</span><p>Potencia media conjunta disipada como calor durante el ensayo más exigente.</p></article>
+        <article><small>VRM · TEMPERATURA MÁXIMA</small><strong id="thermal-vrm">—</strong><span>Sensor de alimentación de placa</span><p>Máximo medido en los reguladores que suministran energía al procesador.</p></article>
       </div>
 
       <div class="thermal-grid">
         <article class="thermal-panel thermal-geometry-panel">
-          <header><span>GEOMETRY / SPINE 3</span><small>REDUCED-ORDER MODEL</small></header>
+          <header><span>GEOMETRÍA / SPINE 3</span><small>MODELO SIMPLIFICADO</small></header>
           <div class="thermal-view-controls" aria-label="3D camera views">
-            <button type="button" class="active" data-thermal-camera="iso" aria-pressed="true">Isometric</button>
-            <button type="button" data-thermal-camera="gpu" aria-pressed="false">GPU side</button>
-            <button type="button" data-thermal-camera="board" aria-pressed="false">Board side</button>
-            <button type="button" data-thermal-camera="top" aria-pressed="false">Top</button>
-            <button type="button" data-thermal-explode aria-pressed="false">Explode</button>
+            <button type="button" class="active" data-thermal-camera="iso" aria-pressed="true">Isométrica</button>
+            <button type="button" data-thermal-camera="gpu" aria-pressed="false">Lado GPU</button>
+            <button type="button" data-thermal-camera="board" aria-pressed="false">Lado placa</button>
+            <button type="button" data-thermal-camera="top" aria-pressed="false">Superior</button>
+            <button type="button" data-thermal-explode aria-pressed="false">Separar piezas</button>
           </div>
           <div class="thermal-3d-shell" id="thermal-3d-shell">
             <canvas id="thermal-3d-canvas" aria-label="Interactive 3D reduced-order geometry of the Fractal Terra"></canvas>
             <div class="thermal-3d-badge">343 × 153 × 198 MM · SPINE 3</div>
             <div class="thermal-3d-legend" aria-label="Geometry confidence legend">
-              <span><i class="known"></i>Measured / official</span>
-              <span><i class="inferred"></i>Fit-bounded</span>
-              <span><i class="assumed"></i>Assumed envelope</span>
+              <span><i class="known"></i>Oficial / medido</span>
+              <span><i class="inferred"></i>Inferido por encaje</span>
+              <span><i class="assumed"></i>Envolvente supuesta</span>
             </div>
+            <div class="thermal-flow-key" aria-label="Leyenda de flujo de aire"><span><i></i>ENTRADA DE AIRE</span><span><i></i>SALIDA DE AIRE</span></div>
             <div class="thermal-component-readout" id="thermal-component-readout" aria-live="polite">
-              <small>SELECT COMPONENT</small><strong>Drag to orbit · wheel to zoom</strong>
+              <small>SELECCIONA UN COMPONENTE</small><strong>Arrastra para girar · rueda para acercar</strong>
             </div>
             <p class="thermal-3d-fallback" id="thermal-3d-fallback" hidden>WebGL is unavailable. The engineering data remains accessible in the panels alongside the viewer.</p>
           </div>
-          <p class="thermal-caption">Photo-corrected layout: internal top exhaust beneath its grille, three horizontal GPU fans and a 20 mm bottom desk plenum. Static airflow arrows show direction, not solved velocity.</p>
+          <p class="thermal-caption"><b>Cómo leerlo:</b> cian = entrada lateral; naranja/rojo = extracción superior e inferior. Las flechas indican dirección y están centradas en cada ventilador, pero no representan velocidad calculada por CFD.</p>
         </article>
 
         <article class="thermal-panel">
-          <header><span>CONFIGURATION SCREENING</span><small>GPU PEAK RANGE</small></header>
+          <header><span>CRIBA DE CONFIGURACIONES</span><small>PICO GPU ESTIMADO · MENOR ES MEJOR</small></header>
+          <div class="screening-explainer">
+            <strong>¿Qué significa “screening”?</strong>
+            <p>Es una preselección para evitar desmontar la caja a ciegas. El modelo GPU calcula un <b>intervalo plausible de temperatura máxima</b> para cada cambio. Un rango como 77.0–79.1 °C significa que esperamos que el pico quede dentro de ese intervalo si la mejora de flujo asumida es real.</p>
+            <p><b>Referencia:</b> el modelo reproduce 80.3 °C para la configuración actual. Estos números todavía no son mediciones de las configuraciones nuevas ni resultados CFD.</p>
+          </div>
           <div class="scenario-list" id="thermal-scenarios"><p>Loading model output…</p></div>
-          <p class="thermal-caption">Screening intervals guide A/B tests. They are not CFD predictions.</p>
+          <p class="thermal-caption"><b>CFG-xxx</b> es el identificador trazable de cada montaje. “Confianza” valora la solidez de la hipótesis, no la precisión decimal de la temperatura.</p>
         </article>
       </div>
 
       <div class="model-assurance">
-        <article><small>GPU PHYSICAL MODEL</small><strong id="thermal-gpu-fit">—</strong><span>Independent transient validation</span></article>
-        <article><small>CPU PHYSICAL MODEL</small><strong id="thermal-cpu-fit">—</strong><span>Conservative prototype</span></article>
-        <article><small>COUPLED MIMO</small><strong>DIAGNOSTIC</strong><span>Not accepted for prediction</span></article>
-        <article><small>NEXT GATE</small><strong>CFD PREP</strong><span>Mass and energy balance</span></article>
+        <article><small>MODELO FÍSICO GPU</small><strong id="thermal-gpu-fit">—</strong><span>Validación transitoria independiente</span><p>El FIT indica cuánto de la forma de la curva real reproduce el modelo. 100% sería coincidencia perfecta; no equivale a “80% de precisión”.</p></article>
+        <article><small>MODELO FÍSICO CPU</small><strong id="thermal-cpu-fit">—</strong><span>Prototipo conservador</span><p>37.3% reproduce parte de la dinámica, pero aún no es suficientemente fiable para ordenar modificaciones de CPU.</p></article>
+        <article><small>MODELO ACOPLADO MIMO</small><strong>DIAGNÓSTICO</strong><span>No aceptado para predicción</span><p>Intentó representar CPU, GPU y aire compartido a la vez. Sirvió para aprender, pero falló la validación GPU.</p></article>
+        <article><small>SIGUIENTE PUERTA</small><strong>PREPARAR CFD</strong><span>Balance de masa y energía</span><p>Convertiremos la geometría y los caudales medidos en condiciones de contorno antes de resolver el campo de aire.</p></article>
       </div>
+
+      <section class="thermal-roadmap" aria-labelledby="thermal-roadmap-title">
+        <header><span id="thermal-roadmap-title">SIGUIENTES PASOS</span><small>DE DEMOSTRADOR A ESTUDIO DE INTEGRACIÓN</small></header>
+        <ol>
+          <li><b>01</b><div><strong>Cerrar geometría y baseline</strong><p>Incorporar estas posiciones corregidas y comprobar repetibilidad de las mediciones actuales.</p></div></li>
+          <li><b>02</b><div><strong>Ensayo A/B de bajo esfuerzo</strong><p>Probar primero cables despejados o una guía temporal sin desmontajes irreversibles; comparar temperatura, potencia y ruido.</p></div></li>
+          <li><b>03</b><div><strong>Recalibrar y decidir</strong><p>Actualizar el modelo con el ensayo real y comprobar si el intervalo de screening contenía el resultado.</p></div></li>
+          <li><b>04</b><div><strong>Preparación CFD</strong><p>Definir entradas, salidas, pérdidas de las rejillas y fuentes térmicas; después estudiar ventiladores exteriores y recirculación.</p></div></li>
+        </ol>
+      </section>
     </section>
   </main>
-  <script src="control.js?v=20260804b"></script>
-  <script src="thermal-viewer.bundle.js?v=20260805a"></script>
+  <script src="control.js?v=20260805b"></script>
+  <script src="thermal-viewer.bundle.js?v=20260805b"></script>
 </body>
 </html>
