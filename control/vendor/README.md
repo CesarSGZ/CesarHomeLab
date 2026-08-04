@@ -6,4 +6,7 @@
 - `THREE-LICENSE.txt`: upstream MIT license
 
 These files are served locally so Mission Control does not contact a CDN at
-runtime. Update them together from the official `three` npm package.
+runtime. `../thermal-viewer.bundle.js` packages these dependencies into one
+classic browser script so authentication and MIME handling cannot interrupt a
+module dependency chain. Update the source files together from the official
+`three` npm package, then rebuild the bundle.
