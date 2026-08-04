@@ -361,9 +361,9 @@ function addAirflow(componentGroups, parts) {
         [
           (gpu.box.min[0] + localX - CASE.x / 2) * SCALE,
           (gpu.box.min[2] + localZ - CASE.z / 2) * SCALE,
-          -1.19,
+          -1.38,
         ],
-        [0, 0, 1], 0x52d9ff, 0.43,
+        [0, 0, 1], 0x52d9ff, 0.48,
       ]);
     }
   }
@@ -372,7 +372,7 @@ function addAirflow(componentGroups, parts) {
     const component = parts.get(id);
     if (!component) continue;
     const { center } = worldBox(component.box);
-    arrows.push([id, [center.x, center.y, 1.19], [0, 0, -1], 0x52d9ff, 0.43]);
+    arrows.push([id, [center.x, center.y, 1.38], [0, 0, -1], 0x52d9ff, 0.48]);
   }
 
   const top = parts.get('TOP_CUSTOM_FAN');
