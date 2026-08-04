@@ -67,25 +67,28 @@ async function initViewer() {
   const selectable = [];
   const movable = [];
   const parts = new Map(model.components.map((component) => [component.id, component]));
+  const componentGroups = new Map();
   const palette = {
     GPU: 0x52d9ff,
     MOTHERBOARD: 0xc9ff3d,
     CPU_COOLER_ENVELOPE: 0x67e8c4,
     PSU_REFERENCE: 0xa98be0,
-    BOTTOM_FAN: 0xffb347,
-    TOP_CUSTOM_FAN: 0xff7d66,
+    BOTTOM_FAN: 0xff8f66,
+    TOP_CUSTOM_FAN: 0xff8f66,
     CABLE_ZONE: 0x9aa8ad,
   };
 
   for (const component of model.components) {
     const group = addComponent(root, component, palette[component.id] || 0xffffff, selectable);
+    componentGroups.set(component.id, group);
     movable.push(group);
   }
-  addGpuFans(root, parts.get('GPU'), selectable);
-  addCaseFan(root, parts.get('TOP_CUSTOM_FAN'), 0xff7d66, selectable);
-  addCaseFan(root, parts.get('BOTTOM_FAN'), 0xffb347, selectable);
-  addCpuFan(root, parts.get('CPU_COOLER_ENVELOPE'), selectable);
-  addAirflow(root, parts);
+  addGpuFans(componentGroups.get('GPU'), parts.get('GPU'), selectable);
+  addCaseFan(componentGroups.get('TOP_CUSTOM_FAN'), parts.get('TOP_CUSTOM_FAN'), 0xff8f66, selectable);
+  addCaseFan(componentGroups.get('BOTTOM_FAN'), parts.get('BOTTOM_FAN'), 0xff8f66, selectable);
+  addCpuFan(componentGroups.get('CPU_COOLER_ENVELOPE'), parts.get('CPU_COOLER_ENVELOPE'), selectable);
+  addPsuFan(componentGroups.get('PSU_REFERENCE'), parts.get('PSU_REFERENCE'), selectable);
+  addAirflow(componentGroups, parts);
 
   const raycaster = new THREE.Raycaster();
   const pointer = new THREE.Vector2();
@@ -182,11 +185,16 @@ function addComponent(root, component, color, selectable) {
   const group = new THREE.Group();
   group.position.copy(center);
   group.userData.basePosition = center.clone();
-  group.userData.explodeDirection = new THREE.Vector3(
-    0,
-    component.id === 'TOP_CUSTOM_FAN' ? 0.55 : component.id === 'BOTTOM_FAN' ? -0.45 : 0,
-    center.z < 0 ? -0.55 : 0.55,
-  );
+  const explodeOffsets = {
+    GPU: [0, 0, -1.15],
+    MOTHERBOARD: [0.15, 0, 1.0],
+    CPU_COOLER_ENVELOPE: [0.3, 0.05, 1.65],
+    PSU_REFERENCE: [-0.25, 0.05, 1.35],
+    BOTTOM_FAN: [0, -1.05, 0],
+    TOP_CUSTOM_FAN: [0, 1.15, 0],
+    CABLE_ZONE: [-0.1, 0.35, 0.75],
+  };
+  group.userData.explodeDirection = new THREE.Vector3(...(explodeOffsets[component.id] || [0, 0, 0.8]));
 
   const isCable = component.id === 'CABLE_ZONE';
   const material = new THREE.MeshStandardMaterial({
@@ -268,37 +276,47 @@ function addDeskAndFeet(root) {
   }
 }
 
-function addGpuFans(root, gpu, selectable) {
-  if (!gpu?.cooling_fans) return;
+function addGpuFans(parent, gpu, selectable) {
+  if (!parent || !gpu?.cooling_fans) return;
   const color = 0x52d9ff;
+  const gpuWorld = worldBox(gpu.box).center;
   for (const [localX, , localZ] of gpu.cooling_fans.approximate_centres_local_mm) {
     const component = { ...gpu, label: `${gpu.label} · 90 mm intake fan` };
     const group = makeFan(0.45, 0.055, color, component, selectable);
     group.rotation.x = Math.PI / 2;
-    group.position.set(
+    const worldPosition = new THREE.Vector3(
       (gpu.box.min[0] + localX - CASE.x / 2) * SCALE,
       (gpu.box.min[2] + localZ - CASE.z / 2) * SCALE,
       (gpu.box.min[1] - CASE.y / 2 - 2) * SCALE,
     );
-    root.add(group);
+    group.position.copy(worldPosition.sub(gpuWorld));
+    parent.add(group);
   }
 }
 
-function addCaseFan(root, component, color, selectable) {
-  if (!component) return;
-  const { center } = worldBox(component.box);
+function addCaseFan(parent, component, color, selectable) {
+  if (!parent || !component) return;
   const fan = makeFan(0.58, component.box.size[2] * SCALE * 0.45, color, component, selectable);
-  fan.position.copy(center);
-  root.add(fan);
+  parent.add(fan);
 }
 
-function addCpuFan(root, cooler, selectable) {
-  if (!cooler) return;
+function addCpuFan(parent, cooler, selectable) {
+  if (!parent || !cooler) return;
   const { center } = worldBox(cooler.box);
   const fan = makeFan(0.57, 0.055, 0x67e8c4, { ...cooler, label: 'CPU side intake fan and guide' }, selectable);
   fan.rotation.x = Math.PI / 2;
-  fan.position.set(center.x, center.y, 0.73);
-  root.add(fan);
+  fan.position.set(0, 0, 0.73 - center.z);
+  parent.add(fan);
+}
+
+function addPsuFan(parent, psu, selectable) {
+  if (!parent || !psu) return;
+  const { center } = worldBox(psu.box);
+  const component = { ...psu, label: 'PSU side intake fan · 92 mm assumed' };
+  const fan = makeFan(0.44, 0.05, 0x52d9ff, component, selectable);
+  fan.rotation.x = Math.PI / 2;
+  fan.position.set(0, 0, 0.73 - center.z);
+  parent.add(fan);
 }
 
 function makeFan(radius, depth, color, component, selectable) {
@@ -319,29 +337,33 @@ function makeFan(radius, depth, color, component, selectable) {
   selectable.push(hub);
   group.add(hub);
   for (let i = 0; i < 7; i += 1) {
+    const pivot = new THREE.Group();
+    pivot.rotation.y = i * Math.PI * 2 / 7;
     const blade = new THREE.Mesh(
-      new THREE.BoxGeometry(radius * 0.62, 0.018, radius * 0.11),
+      new THREE.BoxGeometry(radius * 0.56, 0.018, radius * 0.12),
       new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.55 }),
     );
-    blade.position.x = radius * 0.32;
-    blade.rotation.y = i * Math.PI * 2 / 7 + 0.22;
-    group.add(blade);
+    blade.position.x = radius * 0.31;
+    blade.rotation.y = 0.28;
+    pivot.add(blade);
+    group.add(pivot);
   }
   return group;
 }
 
-function addAirflow(root, parts) {
+function addAirflow(componentGroups, parts) {
   const arrows = [];
   const gpu = parts.get('GPU');
   if (gpu?.cooling_fans) {
     for (const [localX, , localZ] of gpu.cooling_fans.approximate_centres_local_mm) {
       arrows.push([
+        'GPU',
         [
           (gpu.box.min[0] + localX - CASE.x / 2) * SCALE,
           (gpu.box.min[2] + localZ - CASE.z / 2) * SCALE,
-          -1.06,
+          -1.19,
         ],
-        [0, 0, 1], 0x52d9ff, 0.24,
+        [0, 0, 1], 0x52d9ff, 0.43,
       ]);
     }
   }
@@ -350,28 +372,31 @@ function addAirflow(root, parts) {
     const component = parts.get(id);
     if (!component) continue;
     const { center } = worldBox(component.box);
-    arrows.push([[center.x, center.y, 1.03], [0, 0, -1], 0x52d9ff, 0.24]);
+    arrows.push([id, [center.x, center.y, 1.19], [0, 0, -1], 0x52d9ff, 0.43]);
   }
 
   const top = parts.get('TOP_CUSTOM_FAN');
   const bottom = parts.get('BOTTOM_FAN');
   if (top) {
     const { center } = worldBox(top.box);
-    arrows.push([[center.x, 0.84, center.z], [0, 1, 0], 0xff7d66, 0.36]);
+    arrows.push(['TOP_CUSTOM_FAN', [center.x, 0.78, center.z], [0, 1, 0], 0xff8f66, 0.52]);
   }
   if (bottom) {
     const { center } = worldBox(bottom.box);
-    arrows.push([[center.x, -0.84, center.z], [0, -1, 0], 0xffb347, 0.31]);
+    arrows.push(['BOTTOM_FAN', [center.x, -0.78, center.z], [0, -1, 0], 0xff8f66, 0.52]);
   }
 
-  for (const [origin, direction, color, length] of arrows) {
-    root.add(new THREE.ArrowHelper(
+  for (const [componentId, origin, direction, color, length] of arrows) {
+    const parent = componentGroups.get(componentId);
+    if (!parent) continue;
+    const localOrigin = new THREE.Vector3(...origin).sub(parent.userData.basePosition);
+    parent.add(new THREE.ArrowHelper(
       new THREE.Vector3(...direction),
-      new THREE.Vector3(...origin),
+      localOrigin,
       length,
       color,
-      0.075,
-      0.038,
+      0.12,
+      0.06,
     ));
   }
 }
