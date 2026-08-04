@@ -190,8 +190,8 @@ function addComponent(root, component, color, selectable) {
     MOTHERBOARD: [0.15, 0, 1.0],
     CPU_COOLER_ENVELOPE: [0.3, 0.05, 1.65],
     PSU_REFERENCE: [-0.25, 0.05, 1.35],
-    BOTTOM_FAN: [0, -1.05, 0],
-    TOP_CUSTOM_FAN: [0, 1.15, 0],
+    BOTTOM_FAN: [-0.55, -0.15, -1.55],
+    TOP_CUSTOM_FAN: [0, 0.75, 0],
     CABLE_ZONE: [-0.1, 0.35, 0.75],
   };
   group.userData.explodeDirection = new THREE.Vector3(...(explodeOffsets[component.id] || [0, 0, 0.8]));
