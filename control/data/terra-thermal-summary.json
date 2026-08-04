@@ -1,6 +1,6 @@
 {
   "schema_version": "1.2.0",
-  "generated_at": "2026-08-04T23:34:00.355797+00:00",
+  "generated_at": "2026-08-04T23:48:29.255727+00:00",
   "project": {
     "id": "terra-powerplant-lab",
     "title": "Terra Powerplant Lab",
@@ -28,7 +28,7 @@
     "cpu": {
       "model": "AMD Ryzen 7 9800X3D",
       "cooler": "unknown",
-      "cooler_airflow": "intake from side into CPU cooler"
+      "cooler_airflow": "intake from the side grille through the existing fan-to-grille flow-straightening guide and into the CPU cooler"
     },
     "gpu": {
       "model": "ZOTAC NVIDIA GeForce RTX 5070 Ti 16 GB",
@@ -101,9 +101,11 @@
     "cabling_notes": "Current cabling is represented as a bounded porous obstruction rather than invented cable-by-cable geometry. Cable shortening/rerouting changes pressure loss, not heat generation.",
     "air_guides": [
       {
-        "location": "CPU fan",
-        "status": "present",
-        "geometry": "unknown"
+        "location": "between CPU fan and CPU-side grille",
+        "status": "present during every recorded baseline test; user-confirmed",
+        "function": "reduces lateral bypass/recirculation and straightens the incoming stream before the CPU fan",
+        "geometry": "exact inlet shape, length, fan clearance and sealing remain to be measured",
+        "modelling_note": "treated as baseline hardware, not as a later configuration improvement; flow straightening does not imply fully laminar fan flow"
       }
     ],
     "photo_references": [
@@ -114,6 +116,7 @@
     ],
     "open_items": [
       "CPU cooler model and fan model",
+      "CPU intake-guide inlet shape, length, fan gap and degree of sealing to the side grille",
       "PSU model",
       "top and bottom fan models, dimensions and RPM",
       "measurements of cable obstruction and custom top-fan clearance"
@@ -228,7 +231,7 @@
       },
       {
         "id": "CPU_COOLER_ENVELOPE",
-        "label": "CPU cooler and intake guide",
+        "label": "CPU cooler with existing intake guide",
         "box": {
           "min": [
             190,
@@ -241,12 +244,19 @@
             120
           ]
         },
-        "status": "clearance-bounded envelope; user-corrected placement; model unknown",
+        "status": "clearance-bounded envelope; user-corrected placement; guide user-confirmed; cooler model unknown",
         "uncertainty_mm": [
           15,
           2,
           15
-        ]
+        ],
+        "intake_guide": {
+          "path": "CPU-side grille to CPU fan inlet",
+          "status": "installed during all recorded tests",
+          "function": "flow straightening and reduction of lateral inlet bypass/recirculation",
+          "geometry_status": "unmeasured; visual envelope only",
+          "physics_note": "do not assume fully laminar flow without velocity and turbulence measurements"
+        }
       },
       {
         "id": "PSU_REFERENCE",
@@ -356,7 +366,7 @@
           -1,
           0
         ],
-        "driven_by": "CPU cooler fan"
+        "driven_by": "CPU cooler fan through the installed fan-to-grille intake guide"
       },
       {
         "id": "PSU_SIDE_INTAKE",

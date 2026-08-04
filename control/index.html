@@ -190,7 +190,7 @@
             </div>
             <p class="thermal-3d-fallback" id="thermal-3d-fallback" hidden>WebGL is unavailable. The engineering data remains accessible in the panels alongside the viewer.</p>
           </div>
-          <p class="thermal-caption"><b>How to read it:</b> cyan marks every intake; orange marks every exhaust. Each physical fan has one centred arrow. Arrow size indicates direction only, not CFD velocity or mass flow.</p>
+          <p class="thermal-caption"><b>How to read it:</b> cyan marks every intake; orange marks every exhaust. Each physical fan has one centred arrow. The translucent cyan duct at the CPU inlet is the existing fan-to-grille flow-straightening guide. Arrow size indicates direction only, not CFD velocity or mass flow.</p>
         </article>
 
         <article class="thermal-panel">
@@ -216,7 +216,7 @@
         <article>
           <header><span>WHY THE CPU MODEL IS NOT ACCEPTED YET</span><small>37.3% FIT · 4.51 °C RMSE</small></header>
           <p>The CPU-only step identified a fast silicon response and a slower cooler/case response. Under combined load, however, the GPU changes the shared-air temperature while the motherboard fan controls also move. With no measured internal-air state, the model cannot distinguish all of those effects.</p>
-          <p><b>What it taught us:</b> CPU power alone is not a sufficient input. We need independent CPU-fan excitation, a repeated combined test and—later—one intake-air or case-air temperature channel to make the shared thermal state observable.</p>
+          <p><b>What it taught us:</b> CPU power alone is not a sufficient input. The existing CPU fan-to-grille guide was installed throughout every recorded test, so its effect is already embedded in the baseline and cannot be isolated from these data. We need independent CPU-fan excitation, a repeated combined test and—later—one intake-air or case-air temperature channel to make the shared thermal state observable.</p>
         </article>
         <article>
           <header><span>WHAT THE MIMO MODEL TAUGHT US</span><small>CPU 47.1% FIT · GPU 9.6% FIT</small></header>
@@ -228,7 +228,7 @@
       <section class="thermal-roadmap" aria-labelledby="thermal-roadmap-title">
         <header><span id="thermal-roadmap-title">NEXT STEPS</span><small>FROM DEMONSTRATOR TO INTEGRATION STUDY</small></header>
         <ol>
-          <li><b>01</b><div><strong>Close the geometry</strong><p>Measure the exact PSU and cooler models, fan diameters/thicknesses, fan-to-panel gaps, GPU clearances, cable blockage, grille open area and the real desk plenum.</p></div></li>
+          <li><b>01</b><div><strong>Close the geometry</strong><p>Measure the exact PSU and cooler models, fan diameters/thicknesses, fan-to-panel gaps, CPU-guide inlet/length/sealing, GPU clearances, cable blockage, grille open area and the real desk plenum.</p></div></li>
           <li><b>02</b><div><strong>Qualify the baseline</strong><p>Run at least three baseline repetitions with identical idle, load and cool-down phases. Record power, every valid RPM channel and the 26.5 °C ambient assumption.</p></div></li>
           <li><b>03</b><div><strong>Run the most informative test</strong><p>First step GPU fan command at near-constant GPU power; then run baseline → removable sealed GPU guide → baseline, ideally three repetitions per state.</p></div></li>
           <li><b>04</b><div><strong>Re-identify and validate</strong><p>Refit without using the validation runs. Confirm that measured peaks, time constants and the A/B temperature change fall inside the predicted interval.</p></div></li>
@@ -242,7 +242,7 @@
       </section>
     </section>
   </main>
-  <script src="control.js?v=20260805f"></script>
-  <script src="thermal-viewer.bundle.js?v=20260805f"></script>
+  <script src="control.js?v=20260805g"></script>
+  <script src="thermal-viewer.bundle.js?v=20260805g"></script>
 </body>
 </html>

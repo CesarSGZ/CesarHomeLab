@@ -87,6 +87,7 @@ async function initViewer() {
   addCaseFan(componentGroups.get('TOP_CUSTOM_FAN'), parts.get('TOP_CUSTOM_FAN'), 0xff8f66, selectable);
   addCaseFan(componentGroups.get('BOTTOM_FAN'), parts.get('BOTTOM_FAN'), 0xff8f66, selectable);
   addCpuFan(componentGroups.get('CPU_COOLER_ENVELOPE'), parts.get('CPU_COOLER_ENVELOPE'), selectable);
+  addCpuIntakeGuide(componentGroups.get('CPU_COOLER_ENVELOPE'), parts.get('CPU_COOLER_ENVELOPE'), selectable);
   addPsuFan(componentGroups.get('PSU_REFERENCE'), parts.get('PSU_REFERENCE'), selectable);
   addAirflow(componentGroups, parts);
 
@@ -190,8 +191,8 @@ function addComponent(root, component, color, selectable) {
     MOTHERBOARD: [0.15, 0, 1.0],
     CPU_COOLER_ENVELOPE: [0.3, 0.05, 1.65],
     PSU_REFERENCE: [-0.25, 0.05, 1.35],
-    BOTTOM_FAN: [-0.55, -0.15, -1.55],
-    TOP_CUSTOM_FAN: [0, 0.75, 0],
+    BOTTOM_FAN: [0, -1.15, 0],
+    TOP_CUSTOM_FAN: [0, 1.15, 0],
     CABLE_ZONE: [-0.1, 0.35, 0.75],
   };
   group.userData.explodeDirection = new THREE.Vector3(...(explodeOffsets[component.id] || [0, 0, 0.8]));
@@ -307,6 +308,42 @@ function addCpuFan(parent, cooler, selectable) {
   fan.rotation.x = Math.PI / 2;
   fan.position.set(0, 0, 0.73 - center.z);
   parent.add(fan);
+}
+
+function addCpuIntakeGuide(parent, cooler, selectable) {
+  if (!parent || !cooler) return;
+  const component = {
+    ...cooler,
+    label: 'Existing CPU intake flow-straightening guide',
+    status: 'user-confirmed baseline hardware; exact dimensions pending',
+  };
+  const material = new THREE.MeshStandardMaterial({
+    color: 0x67e8c4,
+    transparent: true,
+    opacity: 0.2,
+    roughness: 0.35,
+    metalness: 0,
+    side: THREE.DoubleSide,
+    depthWrite: false,
+  });
+  const duct = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.62, 0.57, 0.12, 36, 1, true),
+    material,
+  );
+  duct.rotation.x = Math.PI / 2;
+  duct.position.set(0, 0, 0.40);
+  duct.userData.component = component;
+  selectable.push(duct);
+  parent.add(duct);
+
+  const outerRim = new THREE.Mesh(
+    new THREE.TorusGeometry(0.62, 0.018, 8, 40),
+    new THREE.MeshBasicMaterial({ color: 0x67e8c4, transparent: true, opacity: 0.8 }),
+  );
+  outerRim.position.set(0, 0, 0.46);
+  outerRim.userData.component = component;
+  selectable.push(outerRim);
+  parent.add(outerRim);
 }
 
 function addPsuFan(parent, psu, selectable) {
