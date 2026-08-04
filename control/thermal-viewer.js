@@ -420,7 +420,7 @@ function addAirflow(componentGroups, parts) {
   }
   if (bottom) {
     const { center } = worldBox(bottom.box);
-    arrows.push(['BOTTOM_FAN', [center.x, -0.78, center.z], [0, -1, 0], 0xff8f66, 0.52]);
+    arrows.push(['BOTTOM_FAN', [center.x, -0.68, center.z], [0, -1, 0], 0xff8f66, 0.35]);
   }
 
   for (const [componentId, origin, direction, color, length] of arrows) {
