@@ -390,15 +390,23 @@ function addAirflow(componentGroups, parts) {
     const parent = componentGroups.get(componentId);
     if (!parent) continue;
     const localOrigin = new THREE.Vector3(...origin).sub(parent.userData.basePosition);
-    parent.add(new THREE.ArrowHelper(
-      new THREE.Vector3(...direction),
-      localOrigin,
-      length,
-      color,
-      0.12,
-      0.06,
-    ));
+    parent.add(makeFlowArrow(localOrigin, new THREE.Vector3(...direction), length, color));
   }
+}
+
+function makeFlowArrow(origin, direction, length, color) {
+  const arrow = new THREE.Group();
+  const headLength = 0.14;
+  const shaftLength = Math.max(0.05, length - headLength);
+  const material = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.95 });
+  const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, shaftLength, 10), material);
+  shaft.position.y = shaftLength / 2;
+  const head = new THREE.Mesh(new THREE.ConeGeometry(0.065, headLength, 14), material);
+  head.position.y = shaftLength + headLength / 2;
+  arrow.add(shaft, head);
+  arrow.position.copy(origin);
+  arrow.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), direction.clone().normalize());
+  return arrow;
 }
 
 function showComponent(component) {
