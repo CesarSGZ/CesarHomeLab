@@ -205,6 +205,28 @@
         </article>
       </div>
 
+      <section class="thermal-provenance" aria-labelledby="thermal-provenance-title">
+        <header>
+          <span id="thermal-provenance-title">EXPERIMENT → MODEL → DECISION</span>
+          <small>TRACEABLE EVIDENCE CHAIN</small>
+        </header>
+        <div class="evidence-primer">
+          <article><b>01</b><strong>Calibration</strong><p>One declared dataset is used to estimate model parameters. Good calibration fit only proves that the model can reproduce data it has already seen.</p></article>
+          <article><b>02</b><strong>Verification</strong><p>We check that the implementation behaves as intended: stable equations, positive thermal parameters, correct units, synchronisation and no accidental use of reserved data.</p></article>
+          <article><b>03</b><strong>Validation</strong><p>A different physical experiment is predicted without refitting. FIT scores curve shape; RMSE reports the typical temperature error in degrees Celsius.</p></article>
+          <article><b>04</b><strong>Authority</strong><p>The validation result determines what the model may be used for: prediction, preliminary screening or diagnosis only.</p></article>
+        </div>
+        <div class="experiment-ledger-wrap">
+          <div class="provenance-subhead"><span>EXPERIMENT LEDGER</span><small>WHAT WAS RUN AND WHY</small></div>
+          <div class="experiment-ledger" id="thermal-experiment-ledger"><p>Loading experiment traceability…</p></div>
+        </div>
+        <div class="model-lineage-wrap">
+          <div class="provenance-subhead"><span>MODEL LINEAGE</span><small>WHAT EACH DATASET CREATED OR TESTED</small></div>
+          <div class="model-lineage" id="thermal-model-lineage"><p>Loading model lineage…</p></div>
+        </div>
+        <p class="thermal-caption"><b>Important:</b> a rejected model is not a failed project. It is a documented engineering result that prevents an unsupported prediction and specifies the next informative experiment.</p>
+      </section>
+
       <div class="model-assurance">
         <article><small>GPU PHYSICAL MODEL</small><strong id="thermal-gpu-fit">—</strong><span>Independent transient validation</span><p>FIT measures how much of the measured curve shape is reproduced. 100% is a perfect match; 80.4% does not mean “80.4% accurate”.</p></article>
         <article><small>CPU PHYSICAL MODEL</small><strong id="thermal-cpu-fit">—</strong><span>Conservative prototype</span><p>It captures part of the CPU dynamics but does not yet generalise reliably from CPU-only to combined load.</p></article>
@@ -242,7 +264,7 @@
       </section>
     </section>
   </main>
-  <script src="control.js?v=20260805n"></script>
-  <script src="thermal-viewer.bundle.js?v=20260805n"></script>
+  <script src="control.js?v=20260805o"></script>
+  <script src="thermal-viewer.bundle.js?v=20260805o"></script>
 </body>
 </html>

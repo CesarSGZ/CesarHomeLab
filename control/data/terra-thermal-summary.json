@@ -1,6 +1,6 @@
 {
   "schema_version": "1.2.0",
-  "generated_at": "2026-08-04T23:48:29.255727+00:00",
+  "generated_at": "2026-08-05T00:06:28.845399+00:00",
   "project": {
     "id": "terra-powerplant-lab",
     "title": "Terra Powerplant Lab",
@@ -593,20 +593,259 @@
       "status": "screening interval; requires A/B validation"
     }
   ],
+  "experimental_campaign": [
+    {
+      "id": "EXP-20260804-165651-GPU-STEP",
+      "profile": "20 s idle → 90 s GPU load → 90 s cool-down",
+      "instrumentation": "nvidia-smi + LibreHardwareMonitor",
+      "measured_channels": [
+        "GPU core temperature",
+        "GPU board power",
+        "GPU fan command",
+        "GPU fan RPM"
+      ],
+      "role": "GPU model calibration",
+      "key_result": "285.0 W mean load; 81.0 °C peak",
+      "used_by": [
+        "GPU empirical two-state",
+        "GPU physical two-node"
+      ]
+    },
+    {
+      "id": "EXP-20260804-170204-GPU-STEP",
+      "profile": "15 s idle → 45 s GPU load → 60 s cool-down",
+      "instrumentation": "nvidia-smi + LibreHardwareMonitor",
+      "measured_channels": [
+        "GPU core temperature",
+        "GPU board power",
+        "GPU fan command",
+        "GPU fan RPM"
+      ],
+      "role": "Held-out GPU validation; never used by the optimiser",
+      "key_result": "295.0 W peak; 79.0 °C peak",
+      "used_by": [
+        "GPU empirical two-state",
+        "GPU physical two-node"
+      ]
+    },
+    {
+      "id": "EXP-HWINFO-BASELINE",
+      "profile": "164.2 s instrumentation baseline; not a pure idle test",
+      "instrumentation": "HWiNFO sensor log",
+      "measured_channels": [
+        "CPU/GPU temperatures and power",
+        "CPU/GPU/system RPM",
+        "VRM",
+        "PCH",
+        "SSD"
+      ],
+      "role": "Channel discovery and instrumentation qualification",
+      "key_result": "System 2 RPM rejected as physically implausible",
+      "used_by": [
+        "Sensor acceptance rules"
+      ]
+    },
+    {
+      "id": "EXP-20260804-183700-CPU-STEP",
+      "profile": "30 s idle → 30 s CPU load → 90 s cool-down",
+      "instrumentation": "MATLAB workload + synchronised HWiNFO",
+      "measured_channels": [
+        "CPU Tctl/Tdie",
+        "CPU package power",
+        "CPU fan RPM",
+        "VRM",
+        "GPU temperature"
+      ],
+      "role": "CPU physical-model calibration and MIMO calibration",
+      "key_result": "90.17 W mean load; 86.2 °C peak",
+      "used_by": [
+        "CPU physical two-node",
+        "Coupled CPU–GPU MIMO"
+      ]
+    },
+    {
+      "id": "EXP-20260804-184339-COMBINED-STEP",
+      "profile": "30 s idle → 15 s alternating CPU/GPU load → 120 s cool-down",
+      "instrumentation": "MATLAB workload + synchronised HWiNFO",
+      "measured_channels": [
+        "CPU/GPU temperatures",
+        "CPU/GPU power",
+        "CPU/GPU fan RPM",
+        "VRM"
+      ],
+      "role": "Commissioning diagnostic; excluded from formal validation",
+      "key_result": "178.52 W joint mean; exposed a non-concurrent workload",
+      "used_by": [
+        "Test-procedure correction"
+      ]
+    },
+    {
+      "id": "EXP-20260804-185229-FULL-COMBINED",
+      "profile": "30 s idle → 15 s concurrent CPU+GPU load → 120 s cool-down",
+      "instrumentation": "Parallel MATLAB CPU/GPU workload + synchronised HWiNFO",
+      "measured_channels": [
+        "CPU/GPU temperatures",
+        "CPU/GPU power",
+        "CPU/GPU fan RPM",
+        "VRM"
+      ],
+      "role": "Held-out CPU and coupled-model validation",
+      "key_result": "357.20 W joint mean; CPU 86.0 °C; GPU 74.6 °C peaks",
+      "used_by": [
+        "CPU physical two-node",
+        "Coupled CPU–GPU MIMO"
+      ]
+    },
+    {
+      "id": "EXP-20260804-185922-GPU-STEP",
+      "profile": "30 s idle → 45 s GPU load → 90 s cool-down",
+      "instrumentation": "MATLAB GPU workload + synchronised HWiNFO",
+      "measured_channels": [
+        "CPU/GPU temperatures and power",
+        "CPU/GPU fan RPM",
+        "VRM",
+        "PCH",
+        "System"
+      ],
+      "role": "MIMO calibration and GPU→CPU coupling diagnostic",
+      "key_result": "285.57 W GPU mean; no positive CPU coupling resolved",
+      "used_by": [
+        "Coupled CPU–GPU MIMO",
+        "Coupling uncertainty bound"
+      ]
+    }
+  ],
+  "model_lineage": [
+    {
+      "id": "MDL-GPU-EMP-02",
+      "name": "GPU empirical two-state model",
+      "family": "linear black-box state-space (N4SID)",
+      "inputs": [
+        "Δ GPU power",
+        "Δ GPU fan command"
+      ],
+      "states": "2 mathematical states",
+      "outputs": [
+        "Δ GPU core temperature"
+      ],
+      "calibration_source": "EXP-20260804-165651-GPU-STEP",
+      "validation_source": "EXP-20260804-170204-GPU-STEP",
+      "calibration_fit_pct": 75.3,
+      "calibration_rmse_C": 4.24,
+      "validation_fit_pct": 71.2,
+      "validation_rmse_C": 4.39,
+      "validation_plot": null,
+      "verification": "Stable state-space system; uniform 1 s resampling; calibration and validation files kept separate.",
+      "decision": "SUPERSEDED",
+      "authority": "Useful learning baseline; replaced by the grey-box GPU network."
+    },
+    {
+      "id": "MDL-GPU-PHY-02",
+      "name": "GPU physical two-node model",
+      "family": "nonlinear grey-box thermal network",
+      "inputs": [
+        "GPU power",
+        "GPU fan command",
+        "26.5 °C ambient"
+      ],
+      "states": "GPU junction + equivalent cooler/near-air temperature",
+      "outputs": [
+        "GPU core temperature"
+      ],
+      "calibration_source": "EXP-20260804-165651-GPU-STEP",
+      "validation_source": "EXP-20260804-170204-GPU-STEP",
+      "calibration_fit_pct": 88.2,
+      "calibration_rmse_C": 2.03,
+      "validation_fit_pct": 80.4,
+      "validation_rmse_C": 2.98,
+      "validation_plot": "/control/assets/thermal/gpu_physical_two_node_validation.png",
+      "verification": "Positive bounded R/C parameters and independent simulation; Jacobian condition 4.01×10⁹ flags weak internal identifiability.",
+      "decision": "ACCEPTED FOR SCREENING",
+      "authority": "May screen effective heat-rejection changes; cannot yet assign a conductance change to a specific fan geometry."
+    },
+    {
+      "id": "MDL-CPU-PHY-02",
+      "name": "CPU physical two-node model",
+      "family": "fan-dependent grey-box thermal network",
+      "inputs": [
+        "CPU package power",
+        "CPU fan RPM",
+        "26.5 °C ambient"
+      ],
+      "states": "CPU junction + equivalent cooler/case temperature",
+      "outputs": [
+        "CPU Tctl/Tdie"
+      ],
+      "calibration_source": "EXP-20260804-183700-CPU-STEP",
+      "validation_source": "EXP-20260804-185229-FULL-COMBINED",
+      "calibration_fit_pct": 72.6,
+      "calibration_rmse_C": 2.54,
+      "validation_fit_pct": 37.3,
+      "validation_rmse_C": 4.51,
+      "validation_plot": "/control/assets/thermal/cpu_physical_two_node_validation.png",
+      "verification": "Positive bounded R/C parameters; validation run excluded from optimisation; full-load mean residual −3.02 °C.",
+      "decision": "REJECTED FOR PREDICTION",
+      "authority": "Diagnostic only; it demonstrates missing shared-air/control observability."
+    },
+    {
+      "id": "MDL-SYS-MIMO-02",
+      "name": "Coupled CPU–GPU MIMO model",
+      "family": "two-state empirical MIMO state-space (N4SID)",
+      "inputs": [
+        "Δ CPU power",
+        "Δ GPU power"
+      ],
+      "states": "2 coupled mathematical states",
+      "outputs": [
+        "Δ CPU temperature",
+        "Δ GPU temperature"
+      ],
+      "calibration_source": "CPU-only + GPU-only HWiNFO experiments",
+      "validation_source": "EXP-20260804-185229-FULL-COMBINED",
+      "calibration_fit_pct": null,
+      "calibration_rmse_C": null,
+      "validation_fit_pct": [
+        47.1,
+        9.6
+      ],
+      "validation_rmse_C": [
+        3.81,
+        8.0
+      ],
+      "validation_plot": "/control/assets/thermal/coupled_cpu_gpu_validation.png",
+      "verification": "Reduced power-only version is stable; RPM-input version was rejected as unstable because of feedback and collinearity.",
+      "decision": "REJECTED FOR PREDICTION",
+      "authority": "Negative but useful result: defines the independent excitation and shared-air measurements required next."
+    }
+  ],
   "model_quality": {
+    "gpu_empirical": {
+      "calibration_fit_pct": 75.3,
+      "calibration_rmse_C": 4.24,
+      "validation_fit_pct": 71.2,
+      "validation_rmse_C": 4.39,
+      "status": "stable_learning_baseline_superseded"
+    },
     "gpu_physical": {
+      "calibration_fit_pct": 88.2,
+      "calibration_rmse_C": 2.03,
       "validation_fit_pct": 80.4,
       "validation_rmse_C": 2.98,
       "status": "validated_on_independent_gpu_step"
     },
     "cpu_physical": {
+      "calibration_fit_pct": 72.6,
+      "calibration_rmse_C": 2.54,
       "full_validation_fit_pct": 37.3,
       "full_validation_rmse_C": 4.51,
+      "full_load_mean_residual_C": -3.02,
       "status": "conservative_prototype_needs_more_observability"
     },
     "coupled_mimo": {
       "cpu_validation_fit_pct": 47.1,
+      "cpu_validation_rmse_C": 3.81,
       "gpu_validation_fit_pct": 9.6,
+      "gpu_validation_rmse_C": 8.0,
       "status": "diagnostic_not_accepted_for_prediction"
     }
   },

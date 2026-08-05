@@ -168,6 +168,123 @@ async function refreshMinecraft(){
 function formatTemperature(value){return `${Number(value).toFixed(1)} °C`}
 function formatPower(value){return `${Number(value).toFixed(0)} W`}
 
+function makeElement(tag,className,text){
+  const element=document.createElement(tag);
+  if(className)element.className=className;
+  if(text!==undefined)element.textContent=text;
+  return element;
+}
+
+function renderExperimentLedger(experiments){
+  const ledger=document.getElementById('thermal-experiment-ledger');
+  ledger.replaceChildren();
+  experiments.forEach((experiment,index)=>{
+    const row=makeElement('article','experiment-row');
+    const heading=makeElement('header');
+    const sequence=makeElement('b',null,String(index+1).padStart(2,'0'));
+    const title=makeElement('div');
+    title.append(
+      makeElement('strong',null,experiment.id),
+      makeElement('span',null,experiment.role)
+    );
+    heading.append(sequence,title);
+
+    const profile=makeElement('div','experiment-profile');
+    profile.append(
+      makeElement('small',null,'LOAD PROFILE'),
+      makeElement('p',null,experiment.profile),
+      makeElement('small',null,'INSTRUMENTATION'),
+      makeElement('p',null,experiment.instrumentation)
+    );
+
+    const channels=makeElement('div','experiment-channels');
+    channels.append(makeElement('small',null,'MEASURED CHANNELS'));
+    const channelList=makeElement('ul');
+    experiment.measured_channels.forEach(channel=>channelList.append(makeElement('li',null,channel)));
+    channels.append(channelList);
+
+    const outcome=makeElement('div','experiment-outcome');
+    outcome.append(
+      makeElement('small',null,'KEY RESULT'),
+      makeElement('strong',null,experiment.key_result),
+      makeElement('small',null,'FEEDS'),
+      makeElement('p',null,experiment.used_by.join(' · '))
+    );
+    row.append(heading,profile,channels,outcome);
+    ledger.append(row);
+  });
+}
+
+function formatLineageMetric(value,unit){
+  if(value===null||value===undefined)return 'NOT REPORTED';
+  const decimals=unit.includes('°C')?2:1;
+  if(Array.isArray(value))return `CPU ${value[0].toFixed(decimals)}${unit} · GPU ${value[1].toFixed(decimals)}${unit}`;
+  return `${Number(value).toFixed(decimals)}${unit}`;
+}
+
+function renderModelLineage(models){
+  const lineage=document.getElementById('thermal-model-lineage');
+  lineage.replaceChildren();
+  models.forEach(model=>{
+    const card=makeElement('article','lineage-card');
+    const heading=makeElement('header');
+    heading.append(
+      makeElement('span',null,model.id),
+      makeElement('b',model.decision.startsWith('ACCEPTED')?'accepted':model.decision==='SUPERSEDED'?'superseded':'rejected',model.decision)
+    );
+    const name=makeElement('strong','lineage-name',model.name);
+    const family=makeElement('p','lineage-family',model.family);
+
+    const flow=makeElement('div','lineage-flow');
+    const input=makeElement('div');
+    input.append(makeElement('small',null,'INPUTS'),makeElement('span',null,model.inputs.join(' + ')));
+    const states=makeElement('div');
+    states.append(makeElement('small',null,'MODEL / STATES'),makeElement('span',null,model.states));
+    const output=makeElement('div');
+    output.append(makeElement('small',null,'OUTPUTS'),makeElement('span',null,model.outputs.join(' + ')));
+    flow.append(input,makeElement('i',null,'→'),states,makeElement('i',null,'→'),output);
+
+    const sources=makeElement('div','lineage-sources');
+    const calibration=makeElement('p');
+    calibration.append(makeElement('b',null,'CALIBRATION · '),document.createTextNode(model.calibration_source));
+    const validation=makeElement('p');
+    validation.append(makeElement('b',null,'HELD-OUT VALIDATION · '),document.createTextNode(model.validation_source));
+    sources.append(calibration,validation);
+
+    let plot=null;
+    if(model.validation_plot){
+      plot=makeElement('figure','lineage-plot');
+      const plotImage=makeElement('img');
+      plotImage.src=model.validation_plot;
+      plotImage.alt=`Measured and modelled calibration/validation curves for ${model.name}`;
+      plotImage.loading='lazy';
+      const plotCaption=makeElement('figcaption',null,'MEASURED CURVE VS MODEL OUTPUT');
+      plot.append(plotImage,plotCaption);
+    }
+
+    const metrics=makeElement('div','lineage-metrics');
+    [
+      ['CAL FIT',formatLineageMetric(model.calibration_fit_pct,'%')],
+      ['CAL RMSE',formatLineageMetric(model.calibration_rmse_C,' °C')],
+      ['VAL FIT',formatLineageMetric(model.validation_fit_pct,'%')],
+      ['VAL RMSE',formatLineageMetric(model.validation_rmse_C,' °C')]
+    ].forEach(([label,value])=>{
+      const metric=makeElement('div');
+      metric.append(makeElement('small',null,label),makeElement('strong',null,value));
+      metrics.append(metric);
+    });
+
+    const verification=makeElement('p','lineage-verification');
+    verification.append(makeElement('b',null,'VERIFICATION · '),document.createTextNode(model.verification));
+    const authority=makeElement('p','lineage-authority');
+    authority.append(makeElement('b',null,'PERMITTED USE · '),document.createTextNode(model.authority));
+    card.append(heading,name,family,flow,sources);
+    if(plot)card.append(plot);
+    card.append(metrics,verification,authority);
+    lineage.append(card);
+  });
+}
+
 function renderThermalLab(data){
   const headline=data.headline_metrics;
   const board=data.motherboard_telemetry;
@@ -220,11 +337,13 @@ function renderThermalLab(data){
     row.append(label,range);
     scenarios.append(row);
   });
+  renderExperimentLedger(data.experimental_campaign||[]);
+  renderModelLineage(data.model_lineage||[]);
 }
 
 async function loadThermalLab(){
   try{
-    const response=await fetch('/control/data/terra-thermal-summary.json',{credentials:'same-origin',headers:{accept:'application/json'}});
+    const response=await fetch('/control/data/terra-thermal-summary.json?v=20260805o',{credentials:'same-origin',headers:{accept:'application/json'}});
     if(!response.ok)throw new Error('thermal_data_unavailable');
     renderThermalLab(await response.json());
   }catch{
