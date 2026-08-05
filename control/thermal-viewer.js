@@ -405,11 +405,15 @@ function addAirflow(componentGroups, parts) {
     }
   }
 
-  for (const id of ['CPU_COOLER_ENVELOPE', 'PSU_REFERENCE']) {
-    const component = parts.get(id);
-    if (!component) continue;
-    const { center } = worldBox(component.box);
-    arrows.push([id, [center.x, center.y, 1.38], [0, 0, -1], 0x52d9ff, 0.48]);
+  const cpu = parts.get('CPU_COOLER_ENVELOPE');
+  if (cpu) {
+    const { center } = worldBox(cpu.box);
+    arrows.push(['CPU_COOLER_ENVELOPE', [center.x, center.y, 1.38], [0, 0, -1], 0x52d9ff, 0.48]);
+  }
+  const psu = parts.get('PSU_REFERENCE');
+  if (psu) {
+    const { center } = worldBox(psu.box);
+    arrows.push(['PSU_REFERENCE', [center.x, center.y, 1.08], [0, 0, -1], 0x52d9ff, 0.38]);
   }
 
   const top = parts.get('TOP_CUSTOM_FAN');
