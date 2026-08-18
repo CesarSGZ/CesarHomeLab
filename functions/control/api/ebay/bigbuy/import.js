@@ -61,17 +61,19 @@ export async function onRequest(context) {
       `INSERT INTO ebay_opportunities
         (id, provider_id, supplier_sku, ean, title, brand, category, supplier_cost_cents, shipping_cost_cents,
          estimated_sale_cents, estimated_fee_cents, estimated_profit_cents, roi_basis_points, match_confidence,
-         stock_quantity, status, created_at, updated_at)
-       VALUES (?, 'provider-bigbuy-demo', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)
+         stock_quantity, status, created_at, updated_at, data_source, source_reference, verified_at)
+       VALUES (?, 'provider-bigbuy-demo', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, 'bigbuy_manual', ?, ?)
        ON CONFLICT(id) DO UPDATE SET ean=excluded.ean, title=excluded.title, brand=excluded.brand,
          category=excluded.category, supplier_cost_cents=excluded.supplier_cost_cents,
          shipping_cost_cents=excluded.shipping_cost_cents, estimated_sale_cents=excluded.estimated_sale_cents,
          estimated_fee_cents=excluded.estimated_fee_cents, estimated_profit_cents=excluded.estimated_profit_cents,
          roi_basis_points=excluded.roi_basis_points, match_confidence=excluded.match_confidence,
-         stock_quantity=excluded.stock_quantity, status='pending', updated_at=excluded.updated_at`,
+         stock_quantity=excluded.stock_quantity, status='pending', updated_at=excluded.updated_at,
+         data_source=excluded.data_source, source_reference=excluded.source_reference, verified_at=excluded.verified_at`,
     ).bind(
       id, sku, ean || null, title, safeText(row.brand, 100) || null, safeText(row.category, 100) || "BigBuy manual import",
       supplierCostCents, shippingCents, saleCents, feeCents, profitCents, roiBasisPoints, ean ? 80 : 55, stock, now, now,
+      `BigBuy SKU ${sku}`, now,
     ));
     statements.push(context.env.CONTROL_DB.prepare(
       "UPDATE ebay_listings SET quantity = ?, monitored_at = ? WHERE opportunity_id = ? AND listing_status IN ('ready_to_publish', 'active')",

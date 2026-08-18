@@ -24,12 +24,16 @@ export async function onRequest(context) {
   const credentialRows = asRows(credentials);
   const connected = Boolean(storedToken) && credentialRows.find((credential) => credential.service === "ebay_sell_api")?.connection_status === "connected";
   const openOrders = orderRows.filter((order) => ["paid", "processing", "shipped"].includes(order.order_status));
-  const pnl = orderRows.reduce((total, order) => total + Number(order.sale_cents) - Number(order.fee_cents) - Number(order.product_cost_cents) - Number(order.shipping_cost_cents), 0);
-  const lastSync = [...asRows(providers)].flatMap((provider) => [provider.stock_sync_at, provider.price_sync_at]).filter(Boolean).sort((a, b) => b - a)[0] || null;
+  const realisedOrders = orderRows.filter((order) => order.financial_status === "reconciled" && order.costs_confirmed_at);
+  const pnl = realisedOrders.reduce((total, order) => total + Number(order.ebay_earnings_cents || 0) - Number(order.product_cost_cents) - Number(order.shipping_cost_cents), 0);
+  const lastSync = [
+    ...asRows(providers).flatMap((provider) => [provider.stock_sync_at, provider.price_sync_at]),
+    ...orderRows.map((order) => order.last_synced_at),
+  ].filter(Boolean).sort((a, b) => b - a)[0] || null;
 
   return json({
     ok: true,
-    mode: connected ? "live-ready" : "simulation",
+    mode: connected ? "live-ready" : "setup",
     connection: {
       ebayConnected: connected,
       publishingEnabled: connected && String(context.env.EBAY_LIVE_PUBLISHING || "").toLowerCase() === "true" && asRows(marketplaceSettings).find((row) => row.setting_key === "live_publish_enabled")?.setting_value === "true",
@@ -44,6 +48,8 @@ export async function onRequest(context) {
       activeListings: listingRows.filter((item) => item.listing_status === "active").length,
       openOrders: openOrders.length,
       netProfitCents: pnl,
+      realisedOrders: realisedOrders.length,
+      pendingReconciliation: orderRows.length - realisedOrders.length,
     },
     opportunities: opportunityRows,
     listings: listingRows,

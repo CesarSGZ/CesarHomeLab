@@ -20,7 +20,8 @@ Every push to the `main` branch is automatically deployed to Cloudflare Pages by
 - `assets/` — public portfolio images
 - `control/` — authenticated Mission Control, including the Terra Powerplant Lab
 - `control/data/terra-thermal-summary.json` — generated thermal-model contract
-- `migrations/0003_ebay_store.sql` — eBay Store data model and safe seed data
+- `migrations/0003_ebay_store.sql` — original eBay Store data model
+- `migrations/0005_real_marketplace_data.sql` — real-data-only cleanup and financial reconciliation fields
 
 ## Terra Powerplant Lab data
 
@@ -32,14 +33,17 @@ inside JavaScript.
 ## eBay Store MVP
 
 The owner account (`cesarvapor`) has an eBay Store area in Mission Control. It is
-deliberately in simulation mode until its external connections are configured:
+deliberately in setup mode until its external connections are approved and configured:
 
 - opportunities are ranked and require a manual approve/reject decision;
 - approved products can generate local listing drafts;
 - publishing is blocked server-side unless an eBay Sell API connection is marked
   as connected and both independent live-publishing switches are enabled;
-- listing, order, P&L, monitoring and supplier/credential views use seed rows
-  from `0003_ebay_store.sql` until real feeds are connected.
+- migration `0005_real_marketplace_data.sql` removes all illustrative opportunities,
+  listings and orders; empty states show zero rather than synthetic commerce;
+- orders come from eBay Fulfillment, while gross earnings and deductions come
+  from eBay Finances. Supplier costs are manually confirmed in free BigBuy mode;
+  only fully reconciled orders are included in realised P&L.
 
 The BigBuy free-account path does not require a subscription or API key. An
 authenticated owner can copy a product's SKU, EAN, distributor price, expected
