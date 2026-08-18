@@ -575,6 +575,7 @@ document.getElementById('ebay-listings').addEventListener('click',async event=>{
 });
 document.getElementById('ebay-settings').addEventListener('click',async event=>{
   const button=event.target.closest('[data-ebay-action]');if(!button)return;button.disabled=true;
+  if(button.dataset.ebayAction==='manual-import'){button.disabled=false;return}
   try{
     if(button.dataset.ebayAction==='connect-ebay'){
       const result=await ebayRequest('/control/api/ebay/oauth/start');
