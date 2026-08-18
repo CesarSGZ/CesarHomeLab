@@ -554,10 +554,10 @@ function renderEbay(data){
 
 async function loadEbay(){
   try{
-    const response=await fetch('/control/api/ebay/status',{credentials:'same-origin',headers:{accept:'application/json'}});if(!response.ok)throw new Error('status_unavailable');renderEbay(await response.json());
+    const response=await fetch('/control/api/ebay/status',{credentials:'same-origin',headers:{accept:'application/json'}});const data=await response.json();if(!response.ok)throw new Error(data.detail||data.error||'status_unavailable');renderEbay(data);
     const result=new URLSearchParams(location.search).get('ebay_connection');
     if(result){ebayFeedback.textContent=result==='connected'?'eBay seller connection completed.':'eBay connection did not complete: '+result.replaceAll('-',' ');ebayFeedback.className=result==='connected'?'ebay-feedback success':'ebay-feedback error'}
-  }catch{ebayFeedback.textContent='eBay data is unavailable. Apply the marketplace database migration and refresh.';ebayFeedback.className='ebay-feedback error'}
+  }catch(error){ebayFeedback.textContent=`eBay data is unavailable: ${error.message}`;ebayFeedback.className='ebay-feedback error'}
 }
 
 async function ebayRequest(url,body){
