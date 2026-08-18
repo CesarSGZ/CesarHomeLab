@@ -18,6 +18,14 @@ async function addMissingColumns(db, table, definitions) {
   }
 }
 
+async function runSchemaStep(label, statement) {
+  try {
+    await statement.run();
+  } catch (error) {
+    throw new Error(`${label}: ${String(error.message || error)}`);
+  }
+}
+
 export async function ensureRealMarketplaceSchema(db) {
   await addMissingColumns(db, "ebay_opportunities", [
     ["data_source", "TEXT NOT NULL DEFAULT 'manual'"],
@@ -36,11 +44,11 @@ export async function ensureRealMarketplaceSchema(db) {
 
   // Keep FK-sensitive cleanup sequential. D1 batches are transactional, but
   // production can validate constraints before all dependent deletes settle.
-  await db.prepare("DELETE FROM ebay_orders WHERE id IN ('order-demo-01', 'order-demo-02', 'order-demo-03')").run();
-  await db.prepare("DELETE FROM ebay_listings WHERE id IN ('listing-organiser', 'listing-stand')").run();
-  await db.prepare("DELETE FROM ebay_opportunities WHERE id IN ('opp-heatpad', 'opp-dock', 'opp-lamp', 'opp-organiser', 'opp-stand')").run();
-  await db.prepare("DELETE FROM ebay_activity_log WHERE entity_id IN ('order-demo-01', 'order-demo-02', 'order-demo-03', 'listing-organiser', 'listing-stand', 'opp-heatpad', 'opp-dock', 'opp-lamp', 'opp-organiser', 'opp-stand', 'provider-manual-demo')").run();
-  await db.prepare("DELETE FROM ebay_providers WHERE id = 'provider-manual-demo'").run();
+  await runSchemaStep("remove demo orders", db.prepare("DELETE FROM ebay_orders WHERE id IN ('order-demo-01', 'order-demo-02', 'order-demo-03')"));
+  await runSchemaStep("remove demo listings", db.prepare("DELETE FROM ebay_listings WHERE id IN ('listing-organiser', 'listing-stand')"));
+  await runSchemaStep("remove demo opportunities", db.prepare("DELETE FROM ebay_opportunities WHERE id IN ('opp-heatpad', 'opp-dock', 'opp-lamp', 'opp-organiser', 'opp-stand')"));
+  await runSchemaStep("remove demo activity", db.prepare("DELETE FROM ebay_activity_log WHERE entity_id IN ('order-demo-01', 'order-demo-02', 'order-demo-03', 'listing-organiser', 'listing-stand', 'opp-heatpad', 'opp-dock', 'opp-lamp', 'opp-organiser', 'opp-stand', 'provider-manual-demo')"));
+  await runSchemaStep("remove demo provider", db.prepare("DELETE FROM ebay_providers WHERE id = 'provider-manual-demo'"));
   await db.prepare("UPDATE ebay_providers SET notes = ? WHERE id = 'provider-bigbuy-demo'").bind("BigBuy free-account mode: real product data is entered manually; API access and supplier ordering remain disabled.").run();
   await db.prepare("UPDATE ebay_opportunities SET data_source = 'bigbuy_manual', source_reference = 'BigBuy SKU ' || supplier_sku, verified_at = updated_at WHERE id LIKE 'bigbuy-manual-%' AND (verified_at IS NULL OR data_source = 'manual')").run();
 
