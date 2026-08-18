@@ -1,6 +1,7 @@
 import { requireEbayWrite } from "../../../../_lib/ebay.js";
 import { ebayApi } from "../../../../_lib/ebay-client.js";
 import { json, methodNotAllowed } from "../../../../_lib/http.js";
+import { ensureRealMarketplaceSchema } from "../../../../_lib/marketplace-schema.js";
 
 function orderStatus(order) {
   if (order.cancelStatus?.cancelState && order.cancelStatus.cancelState !== "NONE_REQUESTED") return "cancelled";
@@ -35,6 +36,7 @@ export async function onRequest(context) {
   if (context.request.method !== "POST") return methodNotAllowed(["POST"]);
   const denied = requireEbayWrite(context);
   if (denied) return denied;
+  await ensureRealMarketplaceSchema(context.env.CONTROL_DB);
   const credential = await context.env.CONTROL_DB.prepare("SELECT connection_status FROM ebay_credentials WHERE service = 'ebay_sell_api'").first();
   if (credential?.connection_status !== "connected") return json({ ok: false, error: "ebay_not_connected" }, { status: 409 });
 

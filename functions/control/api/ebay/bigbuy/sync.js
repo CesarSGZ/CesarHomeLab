@@ -2,6 +2,7 @@ import { requireEbayWrite } from "../../../../_lib/ebay.js";
 import { loadBigBuyCataloguePage, bigBuyConfigured } from "../../../../_lib/bigbuy-client.js";
 import { ebayApplicationAccessToken, ebayMarketPriceByGtin } from "../../../../_lib/ebay-client.js";
 import { json, methodNotAllowed } from "../../../../_lib/http.js";
+import { ensureRealMarketplaceSchema } from "../../../../_lib/marketplace-schema.js";
 
 async function settings(db) {
   const result = await db.prepare("SELECT setting_key, setting_value FROM marketplace_settings").all();
@@ -12,6 +13,7 @@ export async function onRequest(context) {
   if (context.request.method !== "POST") return methodNotAllowed(["POST"]);
   const denied = requireEbayWrite(context);
   if (denied) return denied;
+  await ensureRealMarketplaceSchema(context.env.CONTROL_DB);
   if (!bigBuyConfigured(context.env)) {
     return json({ ok: false, error: "bigbuy_api_not_configured" }, { status: 409 });
   }

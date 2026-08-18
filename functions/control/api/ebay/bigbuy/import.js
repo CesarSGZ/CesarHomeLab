@@ -1,5 +1,6 @@
 import { requireEbayWrite } from "../../../../_lib/ebay.js";
 import { json, methodNotAllowed } from "../../../../_lib/http.js";
+import { ensureRealMarketplaceSchema } from "../../../../_lib/marketplace-schema.js";
 
 function euroCents(value) {
   const normalized = String(value ?? "").trim().replace(/\s/g, "").replace(",", ".");
@@ -25,6 +26,7 @@ export async function onRequest(context) {
   if (context.request.method !== "POST") return methodNotAllowed(["POST"]);
   const denied = requireEbayWrite(context);
   if (denied) return denied;
+  await ensureRealMarketplaceSchema(context.env.CONTROL_DB);
 
   let body;
   try { body = await context.request.json(); } catch { return json({ ok: false, error: "invalid_json" }, { status: 400 }); }

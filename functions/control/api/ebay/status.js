@@ -1,5 +1,6 @@
 import { requireEbayRead, asRows } from "../../../_lib/ebay.js";
 import { json, methodNotAllowed } from "../../../_lib/http.js";
+import { ensureRealMarketplaceSchema } from "../../../_lib/marketplace-schema.js";
 
 export async function onRequest(context) {
   if (context.request.method !== "GET") return methodNotAllowed(["GET"]);
@@ -7,6 +8,7 @@ export async function onRequest(context) {
   if (denied) return denied;
 
   const db = context.env.CONTROL_DB;
+  await ensureRealMarketplaceSchema(db);
   const [opportunities, listings, orders, providers, credentials, activity, marketplaceSettings, latestSync, storedToken] = await Promise.all([
     db.prepare(`SELECT o.*, p.name AS provider_name FROM ebay_opportunities o JOIN ebay_providers p ON p.id = o.provider_id ORDER BY CASE o.status WHEN 'pending' THEN 0 WHEN 'approved' THEN 1 WHEN 'drafted' THEN 2 ELSE 3 END, o.estimated_profit_cents DESC, o.match_confidence DESC LIMIT 100`).all(),
     db.prepare(`SELECT l.*, o.supplier_cost_cents, o.shipping_cost_cents, o.estimated_fee_cents, o.stock_quantity, p.name AS provider_name FROM ebay_listings l JOIN ebay_opportunities o ON o.id = l.opportunity_id JOIN ebay_providers p ON p.id = o.provider_id ORDER BY CASE l.listing_status WHEN 'ready_to_publish' THEN 0 WHEN 'active' THEN 1 ELSE 2 END, l.generated_at DESC LIMIT 100`).all(),

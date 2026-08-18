@@ -21,7 +21,7 @@ Every push to the `main` branch is automatically deployed to Cloudflare Pages by
 - `control/` — authenticated Mission Control, including the Terra Powerplant Lab
 - `control/data/terra-thermal-summary.json` — generated thermal-model contract
 - `migrations/0003_ebay_store.sql` — original eBay Store data model
-- `migrations/0005_real_marketplace_data.sql` — real-data-only cleanup and financial reconciliation fields
+- `functions/_lib/marketplace-schema.js` — idempotent real-data bootstrap and financial reconciliation schema
 
 ## Terra Powerplant Lab data
 
@@ -39,7 +39,7 @@ deliberately in setup mode until its external connections are approved and confi
 - approved products can generate local listing drafts;
 - publishing is blocked server-side unless an eBay Sell API connection is marked
   as connected and both independent live-publishing switches are enabled;
-- migration `0005_real_marketplace_data.sql` removes all illustrative opportunities,
+- the marketplace bootstrap removes all illustrative opportunities,
   listings and orders; empty states show zero rather than synthetic commerce;
 - orders come from eBay Fulfillment, while gross earnings and deductions come
   from eBay Finances. Supplier costs are manually confirmed in free BigBuy mode;
