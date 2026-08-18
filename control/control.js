@@ -92,7 +92,7 @@ function applyAccess(data){
   const accessSummary=document.getElementById('access-summary');
   if(owner){
     overviewIntro.textContent='Your private home for live infrastructure and engineering systems, from server operations to thermal integration.';
-    accessSummary.textContent='OWNER ACCESS · 3 MODULES';
+    accessSummary.textContent='OWNER ACCESS · 4 MODULES';
   }else if(minecraftOperator){
     overviewIntro.textContent='A focused home for shared tools. Your account currently includes Minecraft server operations.';
     accessSummary.textContent='STANDARD ACCESS · MINECRAFT ENABLED';
