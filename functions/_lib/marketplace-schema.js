@@ -34,15 +34,15 @@ export async function ensureRealMarketplaceSchema(db) {
     ["costs_confirmed_at", "INTEGER"],
   ]);
 
-  await db.batch([
-    db.prepare("DELETE FROM ebay_orders WHERE id IN ('order-demo-01', 'order-demo-02', 'order-demo-03')"),
-    db.prepare("DELETE FROM ebay_listings WHERE id IN ('listing-organiser', 'listing-stand')"),
-    db.prepare("DELETE FROM ebay_opportunities WHERE id IN ('opp-heatpad', 'opp-dock', 'opp-lamp', 'opp-organiser', 'opp-stand')"),
-    db.prepare("DELETE FROM ebay_activity_log WHERE entity_id IN ('order-demo-01', 'order-demo-02', 'order-demo-03', 'listing-organiser', 'listing-stand', 'opp-heatpad', 'opp-dock', 'opp-lamp', 'opp-organiser', 'opp-stand', 'provider-manual-demo')"),
-    db.prepare("DELETE FROM ebay_providers WHERE id = 'provider-manual-demo'"),
-    db.prepare("UPDATE ebay_providers SET notes = ? WHERE id = 'provider-bigbuy-demo'").bind("BigBuy free-account mode: real product data is entered manually; API access and supplier ordering remain disabled."),
-    db.prepare("UPDATE ebay_opportunities SET data_source = 'bigbuy_manual', source_reference = 'BigBuy SKU ' || supplier_sku, verified_at = updated_at WHERE id LIKE 'bigbuy-manual-%' AND (verified_at IS NULL OR data_source = 'manual')"),
-  ]);
+  // Keep FK-sensitive cleanup sequential. D1 batches are transactional, but
+  // production can validate constraints before all dependent deletes settle.
+  await db.prepare("DELETE FROM ebay_orders WHERE id IN ('order-demo-01', 'order-demo-02', 'order-demo-03')").run();
+  await db.prepare("DELETE FROM ebay_listings WHERE id IN ('listing-organiser', 'listing-stand')").run();
+  await db.prepare("DELETE FROM ebay_opportunities WHERE id IN ('opp-heatpad', 'opp-dock', 'opp-lamp', 'opp-organiser', 'opp-stand')").run();
+  await db.prepare("DELETE FROM ebay_activity_log WHERE entity_id IN ('order-demo-01', 'order-demo-02', 'order-demo-03', 'listing-organiser', 'listing-stand', 'opp-heatpad', 'opp-dock', 'opp-lamp', 'opp-organiser', 'opp-stand', 'provider-manual-demo')").run();
+  await db.prepare("DELETE FROM ebay_providers WHERE id = 'provider-manual-demo'").run();
+  await db.prepare("UPDATE ebay_providers SET notes = ? WHERE id = 'provider-bigbuy-demo'").bind("BigBuy free-account mode: real product data is entered manually; API access and supplier ordering remain disabled.").run();
+  await db.prepare("UPDATE ebay_opportunities SET data_source = 'bigbuy_manual', source_reference = 'BigBuy SKU ' || supplier_sku, verified_at = updated_at WHERE id LIKE 'bigbuy-manual-%' AND (verified_at IS NULL OR data_source = 'manual')").run();
 
   await db.exec("CREATE INDEX IF NOT EXISTS ebay_orders_financial_status_idx ON ebay_orders(financial_status, costs_confirmed_at, ordered_at DESC)");
   await db.exec("CREATE TABLE IF NOT EXISTS ebay_financial_transactions (id TEXT PRIMARY KEY, order_id TEXT, transaction_type TEXT NOT NULL, transaction_status TEXT, booking_entry TEXT, amount_cents INTEGER NOT NULL, fee_cents INTEGER NOT NULL DEFAULT 0, payout_id TEXT, currency TEXT NOT NULL DEFAULT 'EUR', transaction_at INTEGER, synced_at INTEGER NOT NULL)");
