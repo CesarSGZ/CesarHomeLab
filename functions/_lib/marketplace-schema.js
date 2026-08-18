@@ -44,8 +44,8 @@ export async function ensureRealMarketplaceSchema(db) {
 
   // Keep FK-sensitive cleanup sequential. D1 batches are transactional, but
   // production can validate constraints before all dependent deletes settle.
-  await runSchemaStep("remove demo orders", db.prepare("DELETE FROM ebay_orders WHERE id IN ('order-demo-01', 'order-demo-02', 'order-demo-03')"));
-  await runSchemaStep("remove demo listings", db.prepare("DELETE FROM ebay_listings WHERE id IN ('listing-organiser', 'listing-stand')"));
+  await runSchemaStep("remove demo orders", db.prepare("DELETE FROM ebay_orders WHERE id IN ('order-demo-01', 'order-demo-02', 'order-demo-03') OR listing_id IN (SELECT id FROM ebay_listings WHERE opportunity_id IN ('opp-heatpad', 'opp-dock', 'opp-lamp', 'opp-organiser', 'opp-stand'))"));
+  await runSchemaStep("remove demo listings", db.prepare("DELETE FROM ebay_listings WHERE id IN ('listing-organiser', 'listing-stand') OR opportunity_id IN ('opp-heatpad', 'opp-dock', 'opp-lamp', 'opp-organiser', 'opp-stand')"));
   await runSchemaStep("remove demo opportunities", db.prepare("DELETE FROM ebay_opportunities WHERE id IN ('opp-heatpad', 'opp-dock', 'opp-lamp', 'opp-organiser', 'opp-stand')"));
   await runSchemaStep("remove demo activity", db.prepare("DELETE FROM ebay_activity_log WHERE entity_id IN ('order-demo-01', 'order-demo-02', 'order-demo-03', 'listing-organiser', 'listing-stand', 'opp-heatpad', 'opp-dock', 'opp-lamp', 'opp-organiser', 'opp-stand', 'provider-manual-demo')"));
   await runSchemaStep("remove demo provider", db.prepare("DELETE FROM ebay_providers WHERE id = 'provider-manual-demo'"));
