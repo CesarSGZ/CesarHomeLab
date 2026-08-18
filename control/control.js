@@ -405,6 +405,207 @@ document.getElementById('sign-out').addEventListener('click',async()=>{
   }
 });
 
+let ebayState=null;
+const money=value=>new Intl.NumberFormat('en-IE',{style:'currency',currency:'EUR'}).format((Number(value)||0)/100);
+const ebayFeedback=document.getElementById('ebay-feedback');
+
+function ebayText(id,value){const element=document.getElementById(id);if(element)element.textContent=value}
+function shortDate(value){return value?new Intl.DateTimeFormat('en-GB',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}).format(new Date(Number(value))):'Not yet'}
+function ebayBadge(text){const badge=makeElement('span',`ebay-badge ${String(text).replace(/[^a-z]+/gi,'-').toLowerCase()}`,String(text).replaceAll('_',' '));return badge}
+function actionButton(label,action,id,disabled=false){const button=makeElement('button','ebay-action',label);button.type='button';button.dataset.ebayAction=action;button.dataset.id=id;button.disabled=disabled;return button}
+
+function renderEbayOpportunities(rows){
+  const container=document.getElementById('ebay-opportunity-list');
+  container.replaceChildren();
+  const pending=rows.filter(row=>row.status==='pending');
+  ebayText('ebay-opportunities-count',String(pending.length));
+  if(!pending.length){container.append(makeElement('p','panel-loading','No opportunities await review. Refresh a supplier catalogue to continue scouting.'));return}
+  pending.forEach(row=>{
+    const card=makeElement('article','opportunity-card');
+    const headline=makeElement('div','opportunity-headline');
+    const title=makeElement('div');
+    title.append(makeElement('small',null,`${row.provider_name} · ${row.category||'Uncategorised'}`),makeElement('strong',null,row.title));
+    headline.append(title,ebayBadge(`${row.match_confidence}% match`));
+    const metrics=makeElement('div','opportunity-metrics');
+    [['SALE',money(row.estimated_sale_cents)],['COST',money(Number(row.supplier_cost_cents)+Number(row.shipping_cost_cents))],['NET',money(row.estimated_profit_cents)],['ROI',`${(Number(row.roi_basis_points)/100).toFixed(1)}%`],['STOCK',String(row.stock_quantity??'—')]].forEach(([label,value])=>{const metric=makeElement('span');metric.append(makeElement('small',null,label),makeElement('b',null,value));metrics.append(metric)});
+    const actions=makeElement('div','opportunity-actions');
+    actions.append(actionButton('Approve','approve',row.id),actionButton('Reject','reject',row.id));
+    card.append(headline,metrics,actions);container.append(card);
+  });
+}
+
+function makeTable(headers,rows){
+  const table=document.createElement('table');
+  const head=document.createElement('thead');const headRow=document.createElement('tr');
+  headers.forEach(header=>headRow.append(makeElement('th',null,header)));head.append(headRow);table.append(head);
+  const body=document.createElement('tbody');rows.forEach(cells=>{const row=document.createElement('tr');cells.forEach(cell=>{const td=document.createElement('td');if(cell instanceof Node)td.append(cell);else td.textContent=cell;row.append(td)});body.append(row)});table.append(body);return table;
+}
+
+function renderEbayListings(rows){
+  const container=document.getElementById('ebay-listings');container.replaceChildren();
+  const approved=ebayState.opportunities.filter(row=>row.status==='approved');
+  if(approved.length){
+    const generator=makeElement('div','draft-generator');
+    generator.append(makeElement('strong',null,'Approved products ready for a local draft'));
+    const choices=makeElement('div');
+    approved.forEach(row=>{const option=makeElement('div','draft-option');option.append(makeElement('span',null,row.title),actionButton('Generate draft','generate',row.id));choices.append(option)});
+    generator.append(choices);container.append(generator);
+  }
+  if(!rows.length){container.append(makeElement('p','panel-loading','No drafts generated yet.'));return}
+  const tableRows=rows.map(row=>{
+    const product=makeElement('div','table-product');product.append(makeElement('strong',null,row.title),makeElement('small',null,`${row.sku} · ${row.provider_name}`));
+    const status=ebayBadge(row.listing_status);
+    const actions=makeElement('div','table-actions');
+    if(row.listing_status==='ready_to_publish')actions.append(actionButton('Publish to eBay','publish',row.id,!ebayState.connection.publishingEnabled));
+    else actions.append(makeElement('small','table-muted',row.listing_status==='active'?'Monitoring enabled':'No action'));
+    return [product,money(row.price_cents),String(row.quantity),status,shortDate(row.monitored_at),actions];
+  });
+  container.append(makeTable(['PRODUCT','PRICE','STOCK','STATUS','LAST CHECK','ACTION'],tableRows));
+}
+
+function renderEbayOrders(rows){
+  const container=document.getElementById('ebay-orders');container.replaceChildren();
+  const toolbar=makeElement('div','data-toolbar');toolbar.append(makeElement('span',null,'eBay Fulfillment API'),actionButton('Sync orders','sync-orders','orders',!ebayState.connection.ebayConnected));container.append(toolbar);
+  if(!rows.length){container.append(makeElement('p','panel-loading','No orders imported yet.'));return}
+  container.append(makeTable(['ORDER','LISTING','STATUS','SALE','EST. NET','ORDERED'],rows.map(row=>[
+    row.id.replace('order-demo-','ORDER #'),row.title||'Listing unavailable',ebayBadge(row.order_status),money(row.sale_cents),money(Number(row.sale_cents)-Number(row.fee_cents)-Number(row.product_cost_cents)-Number(row.shipping_cost_cents)),shortDate(row.ordered_at)
+  ])));
+}
+
+function renderEbayPnl(rows){
+  const container=document.getElementById('ebay-pnl');container.replaceChildren();
+  const totals=rows.reduce((total,row)=>{total.sales+=Number(row.sale_cents);total.fees+=Number(row.fee_cents);total.costs+=Number(row.product_cost_cents)+Number(row.shipping_cost_cents);return total},{sales:0,fees:0,costs:0});
+  const net=totals.sales-totals.fees-totals.costs;
+  [['SALES',money(totals.sales),'Paid and fulfilled mock orders'],['MARKETPLACE FEES',money(totals.fees),'Estimated eBay fee allocation'],['SUPPLIER + DELIVERY',money(totals.costs),'Product and outbound shipping'],['NET PROFIT',money(net),'Before tax and overheads']].forEach(([label,value,copy])=>{const card=makeElement('article','pnl-card');card.append(makeElement('small',null,label),makeElement('strong',null,value),makeElement('p',null,copy));container.append(card)});
+}
+
+function renderEbayMonitoring(listings,providers){
+  const container=document.getElementById('ebay-monitoring');container.replaceChildren();
+  const monitored=listings.filter(item=>item.listing_status==='active');
+  const stockRisks=monitored.filter(item=>Number(item.quantity)<5);
+  const cards=[['LISTINGS WATCHED',String(monitored.length),'Active listings are checked against their source quantity and expected price.'],['STOCK RISKS',String(stockRisks.length),stockRisks.length?'Pause or replenish before the next sale.':'No active listing is below the safety threshold.'],['CATALOGUE FEEDS',`${providers.filter(item=>item.connection_status==='connected').length}/${providers.length}`,'A connected source is required before stock and cost monitoring can run live.']];
+  cards.forEach(([label,value,copy])=>{const card=makeElement('article','monitor-card');card.append(makeElement('small',null,label),makeElement('strong',null,value),makeElement('p',null,copy));container.append(card)});
+  const note=makeElement('p','monitor-note',ebayState.connection.ebayConnected?'Live checks await the scheduled sync worker.':'Monitoring is showing seeded data. Connect a catalogue source to enable scheduled price and stock sync.');container.append(note);
+}
+
+function renderEbaySettings(providers,credentials){
+  const container=document.getElementById('ebay-settings');container.replaceChildren();
+  const requirements=[
+    ['eBay seller connection','ebay_sell_api','eBay developer application Client ID/Secret, RuName redirect URL, and one seller OAuth consent.'],
+    ['Supplier catalogue','supplier_catalogue','One approved supplier account plus API key or CSV/XML/JSON feed URL.'],
+    ['Order fulfilment','order_fulfilment','Supplier ordering API credentials, or a documented manual-order process for the MVP.']
+  ];
+  requirements.forEach(([title,service,copy])=>{
+    const credential=credentials.find(item=>item.service===service);const card=makeElement('article','setting-card');const status=credential?.connection_status||'not_connected';
+    card.append(makeElement('small',null,'REQUIRED CONNECTION'),makeElement('strong',null,title),ebayBadge(status),makeElement('p',null,copy));
+    if(service==='ebay_sell_api'){
+      const button=actionButton(ebayState.connection.ebayConnected?'Reconnect seller':'Connect seller OAuth','connect-ebay','ebay',!ebayState.connection.ebayAppConfigured);
+      card.append(button);
+      if(!ebayState.connection.ebayAppConfigured)card.append(makeElement('small','setting-hint','Add EBAY_CLIENT_ID, EBAY_CLIENT_SECRET, EBAY_RUNAME and TOKEN_ENCRYPTION_SECRET.'));
+    }
+    if(service==='supplier_catalogue'){
+      const button=actionButton(ebayState.connection.bigbuyApiConfigured?'Scan BigBuy catalogue':'Use free import','sync-bigbuy','bigbuy',false);
+      card.append(button);
+      if(!ebayState.connection.bigbuyApiConfigured)card.append(makeElement('small','setting-hint','Free-account mode is active: enter products below. No subscription or API pack is required.'));
+    }
+    container.append(card)
+  });
+  if(!ebayState.connection.bigbuyApiConfigured){
+    const starter=makeElement('article','provider-panel starter-import');
+    starter.id='ebay-bigbuy-starter';
+    starter.append(makeElement('small',null,'BIGBUY · FREE ACCOUNT'),makeElement('strong',null,'Import one catalogue product'));
+    starter.append(makeElement('p','starter-copy','Copy the SKU, EAN, distributor price and recommended price from a BigBuy product page. Mission Control calculates the estimated eBay fee, profit and ROI; nothing is ordered or published.'));
+    const form=document.createElement('form');form.id='ebay-bigbuy-import-form';form.className='starter-form';
+    const fields=[
+      ['sku','BigBuy SKU','text','V0710251',true],['ean','EAN / GTIN','text','8715946670362',false],['title','Product title','text','Product name',true],
+      ['brand','Brand','text','Optional',false],['category','Category','text','Computing',false],['cost','Distributor cost (€)','number','97.53',true],
+      ['salePrice','Expected eBay price (€)','number','149.99',true],['shipping','Estimated delivery (€)','number','4.95',false],['stock','Available units','number','1',false]
+    ];
+    const grid=makeElement('div','starter-fields');
+    fields.forEach(([name,label,type,placeholder,required])=>{const wrapper=makeElement('label');wrapper.append(makeElement('span',null,label));const input=document.createElement('input');input.name=name;input.type=type;input.placeholder=placeholder;if(required)input.required=true;if(type==='number'){input.min='0';input.step=name==='stock'?'1':'0.01'}wrapper.append(input);grid.append(wrapper)});
+    const submit=actionButton('Calculate & add to queue','manual-import','bigbuy');submit.type='submit';
+    form.append(grid,submit);starter.append(form);container.append(starter);
+  }
+  const providerPanel=makeElement('article','provider-panel');providerPanel.append(makeElement('small',null,'PROVIDERS'),makeElement('strong',null,'Supplier workspace'));
+  providers.forEach(provider=>{const row=makeElement('div','provider-row');row.append(makeElement('span',null,provider.name),ebayBadge(provider.connection_status));providerPanel.append(row)});container.append(providerPanel);
+}
+
+function renderEbay(data){
+  ebayState=data;
+  const connected=data.connection.ebayConnected;
+  document.querySelectorAll('[data-ebay-connection-dot]').forEach(dot=>dot.classList.toggle('online',connected));
+  document.querySelectorAll('[data-ebay-connection-label]').forEach(label=>label.textContent=connected?'EBAY CONNECTED':'SIMULATION · NOT CONNECTED');
+  ebayText('ebay-mode',data.mode.toUpperCase());ebayText('ebay-last-sync',`LAST SYNC · ${shortDate(data.connection.lastSync)}`);
+  ebayText('ebay-kpi-opportunities',String(data.summary.pendingOpportunities));ebayText('ebay-kpi-listings',String(data.summary.activeListings));ebayText('ebay-kpi-orders',String(data.summary.openOrders));ebayText('ebay-kpi-profit',money(data.summary.netProfitCents));
+  document.querySelectorAll('[data-ebay-pending-count]').forEach(element=>element.textContent=data.summary.pendingOpportunities);
+  document.querySelectorAll('[data-ebay-active-count]').forEach(element=>element.textContent=data.summary.activeListings);
+  document.querySelectorAll('[data-ebay-today-profit]').forEach(element=>element.textContent=money(data.summary.netProfitCents));
+  ebayText('ebay-connection-title',connected?'eBay publishing is connected.':'Connections still required.');
+  ebayText('ebay-connection-copy',connected?'Publishing awaits the production worker configuration.':'No eBay request has been sent. Generate and review drafts safely in the meantime.');
+  renderEbayOpportunities(data.opportunities);renderEbayListings(data.listings);renderEbayOrders(data.orders);renderEbayPnl(data.orders);renderEbayMonitoring(data.listings,data.providers);renderEbaySettings(data.providers,data.credentials);
+}
+
+async function loadEbay(){
+  try{
+    const response=await fetch('/control/api/ebay/status',{credentials:'same-origin',headers:{accept:'application/json'}});if(!response.ok)throw new Error('status_unavailable');renderEbay(await response.json());
+    const result=new URLSearchParams(location.search).get('ebay_connection');
+    if(result){ebayFeedback.textContent=result==='connected'?'eBay seller connection completed.':'eBay connection did not complete: '+result.replaceAll('-',' ');ebayFeedback.className=result==='connected'?'ebay-feedback success':'ebay-feedback error'}
+  }catch{ebayFeedback.textContent='eBay data is unavailable. Apply the marketplace database migration and refresh.';ebayFeedback.className='ebay-feedback error'}
+}
+
+async function ebayRequest(url,body){
+  const response=await fetch(url,{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json','x-csrf-token':csrfToken},body:JSON.stringify(body||{})});
+  const data=await response.json();if(!response.ok)throw new Error(data.detail||data.error||'request_failed');return data;
+}
+
+document.getElementById('ebay-refresh').addEventListener('click',loadEbay);
+document.getElementById('ebay-opportunity-list').addEventListener('click',async event=>{
+  const button=event.target.closest('[data-ebay-action]');if(!button)return;button.disabled=true;
+  try{if(button.dataset.ebayAction==='approve'||button.dataset.ebayAction==='reject'){await ebayRequest(`/control/api/ebay/opportunities/${encodeURIComponent(button.dataset.id)}`,{action:button.dataset.ebayAction});ebayFeedback.textContent=`Opportunity ${button.dataset.ebayAction}d. ${button.dataset.ebayAction==='approve'?'Generate a listing draft from Listings when ready.':''}`;ebayFeedback.className='ebay-feedback success';await loadEbay()}}catch(error){ebayFeedback.textContent=error.message;ebayFeedback.className='ebay-feedback error';button.disabled=false}
+});
+document.getElementById('ebay-listings').addEventListener('click',async event=>{
+  const button=event.target.closest('[data-ebay-action]');if(!button)return;button.disabled=true;
+  try{
+    if(button.dataset.ebayAction==='generate'){
+      const result=await ebayRequest('/control/api/ebay/listings/generate',{opportunityId:button.dataset.id});
+      ebayFeedback.textContent=result.duplicate?'A draft for this product already exists.':'Draft created locally. No eBay listing has been published.';ebayFeedback.className='ebay-feedback success';
+    }else await ebayRequest(`/control/api/ebay/listings/${encodeURIComponent(button.dataset.id)}/publish`);
+    await loadEbay()
+  }catch(error){ebayFeedback.textContent=error.message;ebayFeedback.className='ebay-feedback error';button.disabled=false}
+});
+document.getElementById('ebay-settings').addEventListener('click',async event=>{
+  const button=event.target.closest('[data-ebay-action]');if(!button)return;button.disabled=true;
+  try{
+    if(button.dataset.ebayAction==='connect-ebay'){
+      const result=await ebayRequest('/control/api/ebay/oauth/start');
+      location.assign(result.authorizeUrl);return;
+    }
+    if(button.dataset.ebayAction==='sync-bigbuy'){
+      if(!ebayState.connection.bigbuyApiConfigured){document.getElementById('ebay-bigbuy-starter')?.scrollIntoView({behavior:'smooth',block:'center'});document.querySelector('#ebay-bigbuy-import-form input')?.focus();button.disabled=false;return}
+      ebayFeedback.textContent='Scanning the first BigBuy catalogue page and comparing eligible GTINs…';ebayFeedback.className='ebay-feedback';
+      const result=await ebayRequest('/control/api/ebay/bigbuy/sync');
+      ebayFeedback.textContent=`BigBuy scan complete: ${result.scannedCount} products checked, ${result.opportunityCount} opportunities retained.`;ebayFeedback.className='ebay-feedback success';
+      await loadEbay();
+    }
+  }catch(error){ebayFeedback.textContent=error.message;ebayFeedback.className='ebay-feedback error';button.disabled=false}
+});
+document.getElementById('ebay-settings').addEventListener('submit',async event=>{
+  if(event.target.id!=='ebay-bigbuy-import-form')return;
+  event.preventDefault();
+  const form=event.target;const button=form.querySelector('[data-ebay-action="manual-import"]');button.disabled=true;
+  const product=Object.fromEntries(new FormData(form).entries());
+  try{
+    const result=await ebayRequest('/control/api/ebay/bigbuy/import',{products:[product]});
+    ebayFeedback.textContent=`BigBuy product added: ${result.imported} opportunity ready for review. No order or listing was sent.`;ebayFeedback.className='ebay-feedback success';
+    form.reset();await loadEbay();
+  }catch(error){ebayFeedback.textContent=error.message;ebayFeedback.className='ebay-feedback error';button.disabled=false}
+});
+document.getElementById('ebay-orders').addEventListener('click',async event=>{
+  const button=event.target.closest('[data-ebay-action="sync-orders"]');if(!button)return;button.disabled=true;
+  try{const result=await ebayRequest('/control/api/ebay/orders/sync');ebayFeedback.textContent=`Order sync complete: ${result.imported} orders imported or refreshed.`;ebayFeedback.className='ebay-feedback success';await loadEbay()}catch(error){ebayFeedback.textContent=error.message;ebayFeedback.className='ebay-feedback error';button.disabled=false}
+});
+document.querySelectorAll('[data-ebay-tab]').forEach(button=>button.addEventListener('click',()=>{document.querySelectorAll('[data-ebay-tab]').forEach(item=>{const active=item===button;item.classList.toggle('active',active);item.setAttribute('aria-selected',String(active))});document.querySelectorAll('[data-ebay-panel]').forEach(panel=>panel.classList.toggle('active',panel.dataset.ebayPanel===button.dataset.ebayTab))}));
+
 async function initialiseControl(){
   const session=await loadSession();
   if(!session){
@@ -418,6 +619,7 @@ async function initialiseControl(){
     setInterval(refreshMinecraft,10000);
   }
   if(hasCapability('thermal:read'))await loadThermalLab();
+  if(hasCapability('ebay:read'))await loadEbay();
 }
 
 initialiseControl();

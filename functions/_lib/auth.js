@@ -11,8 +11,8 @@ const STANDARD_ACCESS = Object.freeze({
 const USER_ACCESS = Object.freeze({
   cesarvapor: Object.freeze({
     profile: "owner",
-    views: ["overview", "infrastructure", "thermal"],
-    capabilities: ["minecraft:read", "minecraft:restart", "thermal:read"],
+    views: ["overview", "infrastructure", "thermal", "ebay"],
+    capabilities: ["minecraft:read", "minecraft:restart", "thermal:read", "ebay:read", "ebay:write"],
   }),
   supersanti86: Object.freeze({
     profile: "minecraft-operator",
