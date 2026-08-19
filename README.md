@@ -19,6 +19,7 @@ small agents that connect cloud controls to services running on ServerCesar.
 | Users, sessions and operational data | `/migrations/` | Cloudflare D1 |
 | Minecraft recovery agent | `/server-agent/` | ServerCesar / Windows |
 | PDF Tools | linked from `/control/` | ServerCesar / Stirling PDF / Tailscale |
+| GitHub Galaxy | `/control/` | GitHub Actions + browser canvas |
 | Thermal experiment | `/control/data/` and `/control/assets/thermal/` | Versioned static evidence |
 
 The detailed boundaries and request flows are documented in
@@ -50,6 +51,10 @@ Every push to `main` runs the GitHub Actions workflow in
 `.github/workflows/deploy.yml`. Wrangler publishes the repository to the
 `cesar-solla` Cloudflare Pages project. Required tokens are GitHub Actions
 secrets and are never committed.
+
+The same workflow rebuilds the Gource-style GitHub Galaxy from every public
+repository owned by `CesarSGZ`. A scheduled run repeats the discovery every 15
+minutes so new repositories and external changes appear automatically.
 
 ## Security boundaries
 

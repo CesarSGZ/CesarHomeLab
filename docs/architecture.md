@@ -54,3 +54,12 @@ devices authorised in the tailnet; it is not exposed with a router port forward.
 3. Push the branch and open a pull request.
 4. Merge into `main`.
 5. GitHub Actions deploys the exact merged commit to Cloudflare Pages.
+
+## GitHub Galaxy data
+
+The deployment workflow rebuilds `control/data/github-galaxy.json` from real
+Git history on every push to `main` and every 15 minutes. It discovers all
+public repositories owned by `CesarSGZ`, clones their history temporarily and
+exports repository, branch, commit, author and file-change data for the private
+Gource-style visualisation. Future public repositories appear without a portal
+code change.

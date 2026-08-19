@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="control.css?v=20260819homelab">
+  <link rel="stylesheet" href="control.css?v=20260819galaxy">
   <link rel="stylesheet" href="auth-overrides.css?v=20260728a">
 </head>
 <body class="access-pending">
@@ -22,9 +22,10 @@
     <nav aria-label="Control panel sections">
       <button class="nav-item active" data-view="overview"><span>01</span>Home</button>
       <button class="nav-item" data-view="infrastructure"><span>02</span><b id="infrastructure-nav-label">Servers</b></button>
-      <button class="nav-item" data-view="thermal"><span>03</span>Thermal Lab</button>
-      <button class="nav-item" data-view="ebay"><span>04</span>eBay Store</button>
-      <button class="nav-item" data-view="pdf"><span>05</span>PDF Tools</button>
+      <button class="nav-item" data-view="github"><span>03</span>GitHub Galaxy</button>
+      <button class="nav-item" data-view="thermal"><span>04</span>Thermal Lab</button>
+      <button class="nav-item" data-view="ebay"><span>05</span>eBay Store</button>
+      <button class="nav-item" data-view="pdf"><span>06</span>PDF Tools</button>
     </nav>
     <div class="sidebar-foot"><span><i></i> Secure session</span><button id="sign-out" type="button">Sign out ↗</button></div>
   </aside>
@@ -63,8 +64,16 @@
             <button class="module-action" data-open="infrastructure">Open controls →</button>
           </div>
         </article>
+        <article class="module module-wide github-summary" data-requires="github:read" data-accent="blue">
+          <header><span>GITHUB GALAXY</span><small>CODE / 02</small></header>
+          <div class="github-summary-body">
+            <div class="github-mark" aria-hidden="true"><i></i><i></i><b>GH</b></div>
+            <div><p><span></span> LIVE REPOSITORY MAP</p><strong><span data-github-repo-count>—</span> repositories orbiting CesarSGZ</strong><small>Branches, activity and languages discovered automatically from GitHub.</small></div>
+            <button class="module-action" data-open="github">Explore galaxy →</button>
+          </div>
+        </article>
         <article class="module module-wide thermal-summary" data-requires="thermal:read" data-accent="violet">
-          <header><span>TERRA POWERPLANT LAB</span><small>PROJECT / 02</small></header>
+          <header><span>TERRA POWERPLANT LAB</span><small>PROJECT / 03</small></header>
           <div class="thermal-summary-body">
             <div class="thermal-mark"><i></i><i></i><i></i><b>TL</b></div>
             <div>
@@ -76,7 +85,7 @@
           </div>
         </article>
         <article class="module module-wide ebay-summary" data-requires="ebay:read" data-accent="acid">
-          <header><span>EBAY STORE</span><small>WORKSPACE / 03</small></header>
+          <header><span>EBAY STORE</span><small>WORKSPACE / 04</small></header>
           <div class="ebay-summary-body">
             <div class="ebay-mark"><b>eB</b></div>
             <div><p><span data-ebay-connection-dot></span> <span data-ebay-connection-label>SETUP MODE</span></p><strong><span data-ebay-pending-count>—</span> real opportunities awaiting review</strong><small><span data-ebay-active-count>—</span> active listings · <span data-ebay-today-profit>—</span> realised P&amp;L</small></div>
@@ -84,7 +93,7 @@
           </div>
         </article>
         <article class="module module-wide pdf-summary" data-requires="pdf:read" data-accent="blue">
-          <header><span>PDF TOOLS</span><small>HOMELAB / 04</small></header>
+          <header><span>PDF TOOLS</span><small>SERVICE / 05</small></header>
           <div class="pdf-summary-body">
             <div class="pdf-mark"><b>PDF</b></div>
             <div><p><span></span> PRIVATE TAILSCALE SERVICE</p><strong>Stirling-PDF on ServerCesar</strong><small>Merge, split, organise, sign, protect and convert documents locally.</small></div>
@@ -129,7 +138,38 @@
       </div>
     </section>
 
-    <section class="view" id="thermal" data-title="Thermal Lab" data-code="03">
+    <section class="view github-view" id="github" data-title="GitHub Galaxy" data-code="03">
+      <div class="simple-heading github-heading">
+        <p class="eyebrow"><span></span> Live development universe</p>
+        <h2>GitHub Galaxy.</h2>
+        <p>A Gource-inspired replay of the real Git history. Directories become branches, files become luminous leaves and each contribution travels through the system over time.</p>
+      </div>
+      <div class="github-status-strip">
+        <span><i></i><b id="github-account-label">CONNECTING TO GITHUB</b></span>
+        <span id="github-sync-label">WAITING FOR FIRST SYNC</span>
+        <button id="github-refresh" type="button">RELOAD DATA ↻</button>
+      </div>
+      <div class="github-galaxy-layout">
+        <div class="github-canvas-shell">
+          <canvas id="github-galaxy-canvas" role="img" aria-label="Animated Gource-style map of the selected GitHub repository"></canvas>
+          <div class="galaxy-legend"><span><i></i> FILE</span><span><i></i> DIRECTORY</span><span id="github-timeline-date">CURRENT TREE</span></div>
+          <div class="github-playback">
+            <button id="github-play" type="button">▶ PLAY HISTORY</button>
+            <input id="github-timeline" type="range" min="0" max="0" value="0" aria-label="Repository history timeline">
+            <span id="github-timeline-count">0 / 0</span>
+          </div>
+        </div>
+        <aside class="github-repo-detail" id="github-repo-detail">
+          <small>SELECTED REPOSITORY</small>
+          <h3>Waiting for history…</h3>
+          <p>The repository structure and contribution timeline will appear here after the first sync.</p>
+        </aside>
+      </div>
+      <div class="github-repo-list" id="github-repo-list" aria-label="GitHub repositories"></div>
+      <p class="github-feedback" id="github-feedback" role="status" aria-live="polite"></p>
+    </section>
+
+    <section class="view" id="thermal" data-title="Thermal Lab" data-code="04">
       <div class="simple-heading thermal-heading">
         <p class="eyebrow"><span></span> Propulsion integration analogue</p>
         <h2>Terra Powerplant Lab.</h2>
@@ -257,7 +297,7 @@
       </section>
     </section>
 
-    <section class="view" id="ebay" data-title="eBay Store" data-code="04">
+    <section class="view" id="ebay" data-title="eBay Store" data-code="05">
       <div class="simple-heading ebay-heading">
         <p class="eyebrow"><span></span> Marketplace operating system</p>
         <h2>eBay Store.</h2>
@@ -307,7 +347,7 @@
       <p id="ebay-feedback" class="ebay-feedback" role="status" aria-live="polite"></p>
     </section>
 
-    <section class="view" id="pdf" data-title="PDF Tools" data-code="05">
+    <section class="view" id="pdf" data-title="PDF Tools" data-code="06">
       <div class="simple-heading pdf-heading">
         <p class="eyebrow"><span></span> Private document workshop</p>
         <h2>PDF Tools.</h2>
@@ -342,7 +382,8 @@
       </div>
     </section>
   </main>
-  <script src="control.js?v=20260819homelab"></script>
+  <script src="github-galaxy.js?v=20260819gource"></script>
+  <script src="control.js?v=20260819galaxy"></script>
   <script src="thermal-viewer.bundle.js?v=20260805o"></script>
 </body>
 </html>
