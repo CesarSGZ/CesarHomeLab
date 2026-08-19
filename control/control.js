@@ -91,7 +91,7 @@ function applyAccess(data){
   const overviewIntro=document.getElementById('overview-intro');
   const accessSummary=document.getElementById('access-summary');
   if(owner){
-    overviewIntro.textContent='Your private home for live infrastructure and engineering systems, from server operations to thermal integration.';
+    overviewIntro.textContent='One private entry point for services, experiments and operational tools running across Cesar HomeLab.';
     accessSummary.textContent='OWNER ACCESS · 4 MODULES';
   }else if(minecraftOperator){
     overviewIntro.textContent='A focused home for shared tools. Your account currently includes Minecraft server operations.';
