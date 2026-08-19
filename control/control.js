@@ -564,7 +564,7 @@ function renderEbay(data){
   document.querySelectorAll('[data-ebay-active-count]').forEach(element=>element.textContent=data.summary.activeListings);
   document.querySelectorAll('[data-ebay-today-profit]').forEach(element=>element.textContent=money(data.summary.netProfitCents));
   ebayText('ebay-connection-title',connected?'eBay publishing is connected.':'Connections still required.');
-  ebayText('ebay-connection-copy',connected?'Publishing remains gated until the production switch is deliberately enabled.':'Developer approval and production OAuth are still pending. No listing, order or payment request can be sent.');
+  ebayText('ebay-connection-copy',connected?'Publishing remains gated until the production switch is deliberately enabled.':'Production application credentials and seller OAuth are still required. No listing, order or payment request can be sent.');
   renderEbayOpportunities(data.opportunities);renderEbayListings(data.listings);renderEbayOrders(data.orders);renderEbayPnl(data.orders);renderEbayMonitoring(data.listings,data.providers);renderEbaySettings(data.providers,data.credentials);
 }
 
