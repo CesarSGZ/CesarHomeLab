@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="control.css?v=20260818ebay">
+  <link rel="stylesheet" href="control.css?v=20260818pdf">
   <link rel="stylesheet" href="auth-overrides.css?v=20260728a">
 </head>
 <body class="access-pending">
@@ -22,12 +22,9 @@
     <nav aria-label="Control panel sections">
       <button class="nav-item active" data-view="overview"><span>01</span>Overview</button>
       <button class="nav-item" data-view="infrastructure"><span>02</span><b id="infrastructure-nav-label">Infrastructure</b></button>
-      <button class="nav-item" data-view="revenue"><span>03</span>Revenue</button>
-      <button class="nav-item" data-view="projects"><span>04</span>Projects</button>
-      <button class="nav-item" data-view="analytics"><span>05</span>Analytics</button>
-      <button class="nav-item" data-view="notes"><span>06</span>Notes</button>
-      <button class="nav-item" data-view="thermal"><span>07</span>Thermal Lab</button>
-      <button class="nav-item" data-view="ebay"><span>08</span>eBay Store</button>
+      <button class="nav-item" data-view="thermal"><span>03</span>Thermal Lab</button>
+      <button class="nav-item" data-view="ebay"><span>04</span>eBay Store</button>
+      <button class="nav-item" data-view="pdf"><span>05</span>PDF Tools</button>
     </nav>
     <div class="sidebar-foot"><span><i></i> Secure session</span><button id="sign-out" type="button">Sign out ↗</button></div>
   </aside>
@@ -84,6 +81,14 @@
             <div class="ebay-mark"><b>eB</b></div>
             <div><p><span data-ebay-connection-dot></span> <span data-ebay-connection-label>SETUP MODE</span></p><strong><span data-ebay-pending-count>—</span> real opportunities awaiting review</strong><small><span data-ebay-active-count>—</span> active listings · <span data-ebay-today-profit>—</span> realised P&amp;L</small></div>
             <button class="module-action" data-open="ebay">Open store →</button>
+          </div>
+        </article>
+        <article class="module module-wide pdf-summary" data-requires="pdf:read" data-accent="blue">
+          <header><span>PDF TOOLS</span><small>HOMELAB / 04</small></header>
+          <div class="pdf-summary-body">
+            <div class="pdf-mark"><b>PDF</b></div>
+            <div><p><span></span> PRIVATE TAILSCALE SERVICE</p><strong>Stirling-PDF on ServerCesar</strong><small>Merge, split, organise, sign, protect and convert documents locally.</small></div>
+            <button class="module-action" data-open="pdf">Open tools →</button>
           </div>
         </article>
       </div>
@@ -145,7 +150,7 @@
       <div class="notes-placeholder"><span>UNTITLED / EMPTY</span><p>Start with a thought when this module becomes useful.</p><div></div></div>
     </section>
 
-    <section class="view" id="thermal" data-title="Thermal Lab" data-code="07">
+    <section class="view" id="thermal" data-title="Thermal Lab" data-code="03">
       <div class="simple-heading thermal-heading">
         <p class="eyebrow"><span></span> Propulsion integration analogue</p>
         <h2>Terra Powerplant Lab.</h2>
@@ -273,7 +278,7 @@
       </section>
     </section>
 
-    <section class="view" id="ebay" data-title="eBay Store" data-code="08">
+    <section class="view" id="ebay" data-title="eBay Store" data-code="04">
       <div class="simple-heading ebay-heading">
         <p class="eyebrow"><span></span> Marketplace operating system</p>
         <h2>eBay Store.</h2>
@@ -322,8 +327,43 @@
       <div class="ebay-tab-panel" data-ebay-panel="settings"><div id="ebay-settings" class="settings-grid"><p class="panel-loading">Loading connection checklist…</p></div></div>
       <p id="ebay-feedback" class="ebay-feedback" role="status" aria-live="polite"></p>
     </section>
+
+    <section class="view" id="pdf" data-title="PDF Tools" data-code="05">
+      <div class="simple-heading pdf-heading">
+        <p class="eyebrow"><span></span> Private document workshop</p>
+        <h2>PDF Tools.</h2>
+        <p>Stirling-PDF runs locally on ServerCesar. Documents travel only through your private Tailscale network and are processed by the homelab rather than uploaded to a public PDF website.</p>
+      </div>
+
+      <div class="pdf-status-strip">
+        <span><i></i><b>SERVICE CONFIGURED</b></span>
+        <span>RUNTIME · WINDOWS NATIVE</span>
+        <span>VERSION · 2.14.3</span>
+      </div>
+
+      <div class="pdf-tool-grid">
+        <article><small>ORGANISE</small><strong>Merge &amp; split</strong><p>Combine several PDFs, extract pages, divide documents and change page order.</p></article>
+        <article><small>EDIT</small><strong>Sign &amp; annotate</strong><p>Add visible signatures, text, images, page numbers, watermarks and annotations.</p></article>
+        <article><small>SECURE</small><strong>Protect &amp; redact</strong><p>Add or remove passwords, manage permissions, redact content and inspect metadata.</p></article>
+        <article><small>CONVERT</small><strong>Transform files</strong><p>Convert images and supported document formats, compress PDFs and prepare printable output.</p></article>
+      </div>
+
+      <div class="pdf-launch-panel">
+        <div>
+          <small>TAILSCALE REQUIRED</small>
+          <strong>Open ServerCesar PDF workspace</strong>
+          <p>Your phone or computer must be connected to your Tailscale account. The service is not exposed through the router or the public Internet.</p>
+        </div>
+        <a id="pdf-open-button" href="https://cesarserver.tail2550a5.ts.net/" target="_blank" rel="noreferrer">Launch Stirling-PDF ↗</a>
+      </div>
+
+      <div class="pdf-migration-note">
+        <b>DOCKER READY</b>
+        <p>The current native Windows deployment and its persistent data live under <code>C:\Homelab</code>. A version-pinned Compose stack is already prepared so the service can move to Docker later without changing this Mission Control entry.</p>
+      </div>
+    </section>
   </main>
-  <script src="control.js?v=20260818real2"></script>
+  <script src="control.js?v=20260818pdf"></script>
   <script src="thermal-viewer.bundle.js?v=20260805o"></script>
 </body>
 </html>

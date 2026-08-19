@@ -18,7 +18,7 @@ Every push to the `main` branch is automatically deployed to Cloudflare Pages by
 - `styles.css`, `enhancements.css`, `trajectory.css`, `polish.css`, `mobile.css` — design, responsive layout and animations
 - `script.js` — interactive effects, timeline and capability filtering
 - `assets/` — public portfolio images
-- `control/` — authenticated Mission Control, including the Terra Powerplant Lab
+- `control/` — authenticated Mission Control, including the Terra Powerplant Lab and owner-only PDF Tools
 - `control/data/terra-thermal-summary.json` — generated thermal-model contract
 - `migrations/0003_ebay_store.sql` — original eBay Store data model
 - `functions/_lib/marketplace-schema.js` — idempotent real-data bootstrap and financial reconciliation schema
