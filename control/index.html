@@ -151,7 +151,21 @@
       </div>
       <div class="github-galaxy-layout">
         <div class="github-canvas-shell">
-          <canvas id="github-galaxy-canvas" role="img" aria-label="Animated Gource-style map of the selected GitHub repository"></canvas>
+          <canvas id="github-galaxy-canvas" tabindex="0" role="img" aria-label="Interactive Gource-style map of the selected GitHub repository. Drag to move, use the mouse wheel to zoom and click a node to inspect it."></canvas>
+          <div class="github-map-controls" aria-label="Map controls">
+            <button id="github-zoom-out" type="button" title="Zoom out" aria-label="Zoom out">−</button>
+            <output id="github-zoom-level" aria-live="polite">150%</output>
+            <button id="github-zoom-in" type="button" title="Zoom in" aria-label="Zoom in">+</button>
+            <button id="github-reset-view" type="button">FIT</button>
+            <button id="github-expand" type="button">EXPAND ↗</button>
+          </div>
+          <div class="github-map-hint">DRAG TO MOVE · SCROLL TO ZOOM · CLICK A NODE</div>
+          <div class="github-node-tooltip" id="github-node-tooltip" role="tooltip" hidden></div>
+          <aside class="github-node-inspector" id="github-node-inspector" aria-live="polite">
+            <small>NODE INSPECTOR</small>
+            <strong>Choose a point in the map</strong>
+            <span>Files, folders and their latest contribution details will appear here.</span>
+          </aside>
           <div class="galaxy-legend"><span><i></i> FILE</span><span><i></i> DIRECTORY</span><span id="github-timeline-date">CURRENT TREE</span></div>
           <div class="github-playback">
             <button id="github-play" type="button">▶ PLAY HISTORY</button>
