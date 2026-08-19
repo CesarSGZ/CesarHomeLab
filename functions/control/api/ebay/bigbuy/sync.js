@@ -29,9 +29,7 @@ export async function onRequest(context) {
       .filter((product) => product.active && product.stock > 0 && product.wholesaleCents > 0 && product.ean)
       .slice(0, 20);
     let appToken = null;
-    if (context.env.EBAY_CLIENT_ID && context.env.EBAY_CLIENT_SECRET) {
-      try { appToken = await ebayApplicationAccessToken(context.env); } catch { appToken = null; }
-    }
+    try { appToken = await ebayApplicationAccessToken(context.env); } catch { appToken = null; }
     const shippingCents = Number(config.default_shipping_cents || 495);
     const feeBps = Number(config.estimated_fee_basis_points || 1350);
     const minimumProfit = Number(config.minimum_profit_cents || 500);

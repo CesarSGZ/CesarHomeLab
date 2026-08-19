@@ -17,6 +17,17 @@ function stableProductId(sku) {
   return `bigbuy-manual-${slug}`;
 }
 
+const EBAY_CONDITIONS = new Set(["NEW", "LIKE_NEW", "NEW_OTHER", "NEW_WITH_DEFECTS", "CERTIFIED_REFURBISHED", "EXCELLENT_REFURBISHED", "VERY_GOOD_REFURBISHED", "GOOD_REFURBISHED", "SELLER_REFURBISHED", "USED_EXCELLENT", "USED_VERY_GOOD", "USED_GOOD", "USED_ACCEPTABLE", "FOR_PARTS_OR_NOT_WORKING"]);
+
+function safeUrl(value) {
+  try { const url = new URL(String(value || "")); return url.protocol === "https:" ? url.toString().slice(0, 1_000) : null; } catch { return null; }
+}
+
+function imageUrls(value) {
+  const values = Array.isArray(value) ? value : String(value || "").split(/[\n,]+/);
+  return [...new Set(values.map(safeUrl).filter(Boolean))].slice(0, 12);
+}
+
 async function marketplaceSettings(db) {
   const result = await db.prepare("SELECT setting_key, setting_value FROM marketplace_settings").all();
   return Object.fromEntries((result.results || []).map((row) => [row.setting_key, row.setting_value]));
@@ -50,6 +61,8 @@ export async function onRequest(context) {
     const saleCents = euroCents(row.salePrice);
     const shippingCents = row.shipping === "" || row.shipping == null ? defaultShippingCents : euroCents(row.shipping);
     const stock = Math.max(0, Math.min(1_000_000, Math.floor(Number(row.stock) || 0)));
+    const conditionCode = EBAY_CONDITIONS.has(String(row.condition || "").toUpperCase()) ? String(row.condition).toUpperCase() : "NEW";
+    const images = imageUrls(row.imageUrls);
     if (!sku || !title || !Number.isFinite(supplierCostCents) || supplierCostCents <= 0 || !Number.isFinite(saleCents) || saleCents <= 0 || !Number.isFinite(shippingCents) || shippingCents < 0) {
       errors.push({ row: index + 1, error: "sku_title_cost_sale_required" });
       continue;
@@ -63,19 +76,23 @@ export async function onRequest(context) {
       `INSERT INTO ebay_opportunities
         (id, provider_id, supplier_sku, ean, title, brand, category, supplier_cost_cents, shipping_cost_cents,
          estimated_sale_cents, estimated_fee_cents, estimated_profit_cents, roi_basis_points, match_confidence,
-         stock_quantity, status, created_at, updated_at, data_source, source_reference, verified_at)
-       VALUES (?, 'provider-bigbuy-demo', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, 'bigbuy_manual', ?, ?)
+         stock_quantity, status, created_at, updated_at, data_source, source_reference, verified_at,
+         source_url, description, image_urls, condition_code, condition_description)
+       VALUES (?, 'provider-bigbuy-demo', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, 'bigbuy_manual', ?, ?, ?, ?, ?, ?, ?)
        ON CONFLICT(id) DO UPDATE SET ean=excluded.ean, title=excluded.title, brand=excluded.brand,
          category=excluded.category, supplier_cost_cents=excluded.supplier_cost_cents,
          shipping_cost_cents=excluded.shipping_cost_cents, estimated_sale_cents=excluded.estimated_sale_cents,
          estimated_fee_cents=excluded.estimated_fee_cents, estimated_profit_cents=excluded.estimated_profit_cents,
          roi_basis_points=excluded.roi_basis_points, match_confidence=excluded.match_confidence,
          stock_quantity=excluded.stock_quantity, status='pending', updated_at=excluded.updated_at,
-         data_source=excluded.data_source, source_reference=excluded.source_reference, verified_at=excluded.verified_at`,
+         data_source=excluded.data_source, source_reference=excluded.source_reference, verified_at=excluded.verified_at,
+         source_url=excluded.source_url, description=excluded.description, image_urls=excluded.image_urls,
+         condition_code=excluded.condition_code, condition_description=excluded.condition_description`,
     ).bind(
       id, sku, ean || null, title, safeText(row.brand, 100) || null, safeText(row.category, 100) || "BigBuy manual import",
       supplierCostCents, shippingCents, saleCents, feeCents, profitCents, roiBasisPoints, ean ? 80 : 55, stock, now, now,
-      `BigBuy SKU ${sku}`, now,
+      `BigBuy SKU ${sku}`, now, safeUrl(row.sourceUrl), safeText(row.description, 4_000) || null,
+      JSON.stringify(images), conditionCode, safeText(row.conditionDescription, 1_000) || null,
     ));
     statements.push(context.env.CONTROL_DB.prepare(
       "UPDATE ebay_listings SET quantity = ?, monitored_at = ? WHERE opportunity_id = ? AND listing_status IN ('ready_to_publish', 'active')",

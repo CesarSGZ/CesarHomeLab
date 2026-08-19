@@ -31,6 +31,11 @@ export async function ensureRealMarketplaceSchema(db) {
     ["data_source", "TEXT NOT NULL DEFAULT 'manual'"],
     ["source_reference", "TEXT"],
     ["verified_at", "INTEGER"],
+    ["source_url", "TEXT"],
+    ["description", "TEXT"],
+    ["image_urls", "TEXT"],
+    ["condition_code", "TEXT NOT NULL DEFAULT 'NEW'"],
+    ["condition_description", "TEXT"],
   ]);
   await addMissingColumns(db, "ebay_orders", [
     ["data_source", "TEXT NOT NULL DEFAULT 'ebay_fulfillment_api'"],
@@ -57,4 +62,5 @@ export async function ensureRealMarketplaceSchema(db) {
   await db.exec("CREATE INDEX IF NOT EXISTS ebay_financial_transactions_order_idx ON ebay_financial_transactions(order_id, transaction_at DESC)");
   await db.exec("CREATE INDEX IF NOT EXISTS ebay_financial_transactions_payout_idx ON ebay_financial_transactions(payout_id, transaction_at DESC)");
   await db.exec("CREATE TABLE IF NOT EXISTS ebay_payouts (id TEXT PRIMARY KEY, payout_status TEXT NOT NULL, amount_cents INTEGER NOT NULL, currency TEXT NOT NULL DEFAULT 'EUR', scheduled_at INTEGER, sent_at INTEGER, bank_reference TEXT, synced_at INTEGER NOT NULL)");
+  await db.exec("CREATE TABLE IF NOT EXISTS marketplace_app_credentials (service TEXT PRIMARY KEY, client_id TEXT NOT NULL, client_secret_cipher TEXT NOT NULL, client_secret_iv TEXT NOT NULL, redirect_uri_name TEXT NOT NULL, environment TEXT NOT NULL DEFAULT 'production', updated_at INTEGER NOT NULL, updated_by TEXT NOT NULL)");
 }

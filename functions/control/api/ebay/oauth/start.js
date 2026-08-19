@@ -2,6 +2,7 @@ import { requireEbayWrite } from "../../../../_lib/ebay.js";
 import { ebayAuthorizeUrl } from "../../../../_lib/ebay-client.js";
 import { sha256 } from "../../../../_lib/auth.js";
 import { json, methodNotAllowed } from "../../../../_lib/http.js";
+import { ensureRealMarketplaceSchema } from "../../../../_lib/marketplace-schema.js";
 
 function randomState() {
   const bytes = crypto.getRandomValues(new Uint8Array(32));
@@ -14,9 +15,7 @@ export async function onRequest(context) {
   if (context.request.method !== "POST") return methodNotAllowed(["POST"]);
   const denied = requireEbayWrite(context);
   if (denied) return denied;
-  if (!context.env.EBAY_CLIENT_ID || !context.env.EBAY_CLIENT_SECRET || !context.env.EBAY_RUNAME) {
-    return json({ ok: false, error: "ebay_app_not_configured" }, { status: 409 });
-  }
+  await ensureRealMarketplaceSchema(context.env.CONTROL_DB);
   const state = randomState();
   const now = Date.now();
   await context.env.CONTROL_DB.batch([
@@ -25,5 +24,10 @@ export async function onRequest(context) {
       "INSERT INTO marketplace_oauth_states (state_hash, service, user_id, created_at, expires_at) VALUES (?, 'ebay', ?, ?, ?)",
     ).bind(await sha256(state), context.data.session.user.id, now, now + 10 * 60 * 1000),
   ]);
-  return json({ ok: true, authorizeUrl: ebayAuthorizeUrl(context.env, state) });
+  try {
+    return json({ ok: true, authorizeUrl: await ebayAuthorizeUrl(context.env, state) });
+  } catch (error) {
+    if (error.message === "ebay_app_not_configured") return json({ ok: false, error: error.message }, { status: 409 });
+    throw error;
+  }
 }

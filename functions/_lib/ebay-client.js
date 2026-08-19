@@ -11,16 +11,30 @@ export const EBAY_USER_SCOPES = [
 const TOKEN_ENDPOINT = "https://api.ebay.com/identity/v1/oauth2/token";
 const API_BASE = "https://api.ebay.com";
 
-function basicCredentials(env) {
-  if (!env.EBAY_CLIENT_ID || !env.EBAY_CLIENT_SECRET) throw new Error("ebay_app_not_configured");
-  return `Basic ${btoa(`${env.EBAY_CLIENT_ID}:${env.EBAY_CLIENT_SECRET}`)}`;
+export async function ebayAppConfig(env) {
+  if (env.EBAY_CLIENT_ID && env.EBAY_CLIENT_SECRET && env.EBAY_RUNAME) {
+    return { clientId: env.EBAY_CLIENT_ID, clientSecret: env.EBAY_CLIENT_SECRET, ruName: env.EBAY_RUNAME, source: "environment" };
+  }
+  const row = await env.CONTROL_DB.prepare("SELECT client_id, client_secret_cipher, client_secret_iv, redirect_uri_name FROM marketplace_app_credentials WHERE service = 'ebay'").first();
+  if (!row || !env.TOKEN_ENCRYPTION_SECRET) throw new Error("ebay_app_not_configured");
+  return {
+    clientId: row.client_id,
+    clientSecret: await decryptSecret(row.client_secret_cipher, row.client_secret_iv, env.TOKEN_ENCRYPTION_SECRET),
+    ruName: row.redirect_uri_name,
+    source: "encrypted_database",
+  };
+}
+
+async function basicCredentials(env) {
+  const config = await ebayAppConfig(env);
+  return `Basic ${btoa(`${config.clientId}:${config.clientSecret}`)}`;
 }
 
 async function tokenRequest(env, body) {
   const response = await fetch(TOKEN_ENDPOINT, {
     method: "POST",
     headers: {
-      authorization: basicCredentials(env),
+      authorization: await basicCredentials(env),
       "content-type": "application/x-www-form-urlencoded",
       accept: "application/json",
     },
@@ -31,11 +45,11 @@ async function tokenRequest(env, body) {
   return data;
 }
 
-export function ebayAuthorizeUrl(env, state) {
-  if (!env.EBAY_CLIENT_ID || !env.EBAY_RUNAME) throw new Error("ebay_app_not_configured");
+export async function ebayAuthorizeUrl(env, state) {
+  const config = await ebayAppConfig(env);
   const url = new URL("https://auth.ebay.com/oauth2/authorize");
-  url.searchParams.set("client_id", env.EBAY_CLIENT_ID);
-  url.searchParams.set("redirect_uri", env.EBAY_RUNAME);
+  url.searchParams.set("client_id", config.clientId);
+  url.searchParams.set("redirect_uri", config.ruName);
   url.searchParams.set("response_type", "code");
   url.searchParams.set("scope", EBAY_USER_SCOPES.join(" "));
   url.searchParams.set("state", state);
@@ -44,10 +58,11 @@ export function ebayAuthorizeUrl(env, state) {
 }
 
 export async function exchangeEbayAuthorizationCode(env, code) {
+  const config = await ebayAppConfig(env);
   return tokenRequest(env, {
     grant_type: "authorization_code",
     code,
-    redirect_uri: env.EBAY_RUNAME,
+    redirect_uri: config.ruName,
   });
 }
 
@@ -221,18 +236,22 @@ export async function publishEbayOffer(env, listing, opportunity, config) {
   const categoryId = await ebayCategorySuggestion(env, listing.title, marketplace);
   const sku = listing.sku;
   const safeTitle = String(listing.title).slice(0, 80);
-  const description = `${safeTitle}\n\nNew product fulfilled by our approved European wholesale partner. Tracking is provided after dispatch.`;
+  const description = String(opportunity.description || `${safeTitle}\n\nFulfilled by our approved European wholesale partner. Tracking is provided after dispatch.`).slice(0, 4_000);
+  const condition = String(opportunity.condition_code || "NEW");
+  const imageUrls = (() => { try { const parsed = JSON.parse(opportunity.image_urls || "[]"); return Array.isArray(parsed) ? parsed.filter(Boolean).slice(0, 12) : []; } catch { return []; } })();
 
   await ebayApi(env, `/sell/inventory/v1/inventory_item/${encodeURIComponent(sku)}`, {
     method: "PUT",
     marketplace,
     body: {
       availability: { shipToLocationAvailability: { quantity: Math.max(0, Number(listing.quantity) || 0) } },
-      condition: "NEW",
+      condition,
+      conditionDescription: condition === "NEW" ? undefined : String(opportunity.condition_description || "Please review the product description and images for the exact supplied condition.").slice(0, 1_000),
       product: {
         title: safeTitle,
         description,
         ean: opportunity.ean ? [String(opportunity.ean)] : undefined,
+        imageUrls: imageUrls.length ? imageUrls : undefined,
         aspects: { Brand: [String(opportunity.brand || "Unbranded")] },
       },
     },

@@ -508,7 +508,12 @@ function renderEbaySettings(providers,credentials){
     if(service==='ebay_sell_api'){
       const button=actionButton(ebayState.connection.ebayConnected?'Reconnect seller':'Connect seller OAuth','connect-ebay','ebay',!ebayState.connection.ebayAppConfigured);
       card.append(button);
-      if(!ebayState.connection.ebayAppConfigured)card.append(makeElement('small','setting-hint','Add EBAY_CLIENT_ID, EBAY_CLIENT_SECRET, EBAY_RUNAME and TOKEN_ENCRYPTION_SECRET.'));
+      if(!ebayState.connection.ebayAppConfigured)card.append(makeElement('small','setting-hint','Add the production App ID, Cert ID and RuName below. The Cert ID is encrypted before storage.'));
+      if(ebayState.connection.ebayConnected){
+        const enabled=ebayState.connection.publishingEnabled;
+        card.append(actionButton(enabled?'Disable live publishing':'Enable live publishing',enabled?'disable-publishing':'enable-publishing','publishing'));
+        card.append(makeElement('small','setting-hint',enabled?'Live listing creation is enabled for approved drafts.':'OAuth is connected, but public listing creation is still locked.'));
+      }
     }
     if(service==='supplier_catalogue'){
       const button=actionButton(ebayState.connection.bigbuyApiConfigured?'Scan BigBuy catalogue':'Use free import','sync-bigbuy','bigbuy',false);
@@ -517,6 +522,15 @@ function renderEbaySettings(providers,credentials){
     }
     container.append(card)
   });
+  if(!ebayState.connection.ebayAppConfigured){
+    const app=makeElement('article','provider-panel starter-import');
+    app.append(makeElement('small',null,'EBAY · PRODUCTION APPLICATION'),makeElement('strong',null,'Store encrypted API credentials'));
+    app.append(makeElement('p','starter-copy','Use Production keys only. The Cert ID is never returned to the browser after it is saved.'));
+    const form=document.createElement('form');form.id='ebay-app-config-form';form.className='starter-form';
+    const grid=makeElement('div','starter-fields');
+    [['clientId','App ID / Client ID','text','cesarsgz-CSGMissi-PRD-…'],['clientSecret','Cert ID / Client Secret','password','Production Cert ID'],['ruName','OAuth RuName','text','Your redirect URI name']].forEach(([name,label,type,placeholder])=>{const wrapper=makeElement('label');wrapper.append(makeElement('span',null,label));const input=document.createElement('input');input.name=name;input.type=type;input.placeholder=placeholder;input.required=true;input.autocomplete='off';wrapper.append(input);grid.append(wrapper)});
+    const submit=actionButton('Encrypt & save application','save-ebay-app','ebay');submit.type='submit';form.append(grid,submit);app.append(form);container.append(app);
+  }
   if(!ebayState.connection.bigbuyApiConfigured){
     const starter=makeElement('article','provider-panel starter-import');
     starter.id='ebay-bigbuy-starter';
@@ -526,10 +540,12 @@ function renderEbaySettings(providers,credentials){
     const fields=[
       ['sku','BigBuy SKU','text','V0710251',true],['ean','EAN / GTIN','text','8715946670362',false],['title','Product title','text','Product name',true],
       ['brand','Brand','text','Optional',false],['category','Category','text','Computing',false],['cost','Distributor cost (€)','number','97.53',true],
-      ['salePrice','Expected eBay price (€)','number','149.99',true],['shipping','Estimated delivery (€)','number','4.95',false],['stock','Available units','number','1',false]
+      ['salePrice','Expected eBay price (€)','number','149.99',true],['shipping','Estimated delivery (€)','number','4.95',false],['stock','Available units','number','1',false],
+      ['sourceUrl','BigBuy product URL','url','https://www.bigbuy.eu/…',false],['imageUrls','HTTPS image URLs','text','One or more URLs, separated by commas',false],['description','Buyer description','text','Exact product contents and delivery information',false],['conditionDescription','Condition detail','text','Required for non-new items',false]
     ];
     const grid=makeElement('div','starter-fields');
     fields.forEach(([name,label,type,placeholder,required])=>{const wrapper=makeElement('label');wrapper.append(makeElement('span',null,label));const input=document.createElement('input');input.name=name;input.type=type;input.placeholder=placeholder;if(required)input.required=true;if(type==='number'){input.min='0';input.step=name==='stock'?'1':'0.01'}wrapper.append(input);grid.append(wrapper)});
+    const conditionWrapper=makeElement('label');conditionWrapper.append(makeElement('span',null,'Exact eBay condition'));const condition=document.createElement('select');condition.name='condition';[['NEW','New'],['LIKE_NEW','Like new'],['NEW_OTHER','New other'],['SELLER_REFURBISHED','Seller refurbished'],['USED_EXCELLENT','Used · excellent'],['USED_VERY_GOOD','Used · very good'],['USED_GOOD','Used · good'],['USED_ACCEPTABLE','Used · acceptable']].forEach(([value,label])=>{const option=document.createElement('option');option.value=value;option.textContent=label;condition.append(option)});conditionWrapper.append(condition);grid.append(conditionWrapper);
     const submit=actionButton('Calculate & add to queue','manual-import','bigbuy');submit.type='submit';
     form.append(grid,submit);starter.append(form);container.append(starter);
   }
@@ -582,11 +598,17 @@ document.getElementById('ebay-listings').addEventListener('click',async event=>{
 });
 document.getElementById('ebay-settings').addEventListener('click',async event=>{
   const button=event.target.closest('[data-ebay-action]');if(!button)return;button.disabled=true;
-  if(button.dataset.ebayAction==='manual-import'){button.disabled=false;return}
+  if(button.dataset.ebayAction==='manual-import'||button.dataset.ebayAction==='save-ebay-app'){button.disabled=false;return}
   try{
     if(button.dataset.ebayAction==='connect-ebay'){
       const result=await ebayRequest('/control/api/ebay/oauth/start');
       location.assign(result.authorizeUrl);return;
+    }
+    if(button.dataset.ebayAction==='enable-publishing'||button.dataset.ebayAction==='disable-publishing'){
+      const enabled=button.dataset.ebayAction==='enable-publishing';
+      if(enabled&&!window.confirm('Enable creation of public eBay listings from approved drafts?')){button.disabled=false;return}
+      await ebayRequest('/control/api/ebay/publishing',{enabled});
+      ebayFeedback.textContent=enabled?'Live publishing enabled. Drafts still require an explicit Publish action.':'Live publishing disabled.';ebayFeedback.className='ebay-feedback success';await loadEbay();return;
     }
     if(button.dataset.ebayAction==='sync-bigbuy'){
       if(!ebayState.connection.bigbuyApiConfigured){document.getElementById('ebay-bigbuy-starter')?.scrollIntoView({behavior:'smooth',block:'center'});document.querySelector('#ebay-bigbuy-import-form input')?.focus();button.disabled=false;return}
@@ -598,6 +620,10 @@ document.getElementById('ebay-settings').addEventListener('click',async event=>{
   }catch(error){ebayFeedback.textContent=error.message;ebayFeedback.className='ebay-feedback error';button.disabled=false}
 });
 document.getElementById('ebay-settings').addEventListener('submit',async event=>{
+  if(event.target.id==='ebay-app-config-form'){
+    event.preventDefault();const form=event.target;const button=form.querySelector('[data-ebay-action="save-ebay-app"]');button.disabled=true;
+    try{await ebayRequest('/control/api/ebay/app-config',Object.fromEntries(new FormData(form).entries()));ebayFeedback.textContent='Production application encrypted and saved. You can now connect the seller account with OAuth.';ebayFeedback.className='ebay-feedback success';form.reset();await loadEbay()}catch(error){ebayFeedback.textContent=error.message;ebayFeedback.className='ebay-feedback error';button.disabled=false}return;
+  }
   if(event.target.id!=='ebay-bigbuy-import-form')return;
   event.preventDefault();
   const form=event.target;const button=form.querySelector('[data-ebay-action="manual-import"]');button.disabled=true;

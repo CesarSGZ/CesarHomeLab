@@ -12,7 +12,7 @@ export async function onRequest(context) {
   }
   const settingsResult = await context.env.CONTROL_DB.prepare("SELECT setting_key, setting_value FROM marketplace_settings").all();
   const config = Object.fromEntries((settingsResult.results || []).map((row) => [row.setting_key, row.setting_value]));
-  if (config.live_publish_enabled !== "true" || String(context.env.EBAY_LIVE_PUBLISHING || "").toLowerCase() !== "true") {
+  if (config.live_publish_enabled !== "true") {
     return json({ ok: false, error: "live_publishing_disabled", detail: "Seller identity, payouts, business policies and the explicit live-publishing switch must all be verified first." }, { status: 409 });
   }
   const id = String(context.params.id || "");
@@ -21,6 +21,12 @@ export async function onRequest(context) {
   if (listing.listing_status !== "ready_to_publish") return json({ ok: false, error: "listing_not_ready" }, { status: 409 });
   const opportunity = await context.env.CONTROL_DB.prepare("SELECT * FROM ebay_opportunities WHERE id = ?").bind(listing.opportunity_id).first();
   if (!opportunity) return json({ ok: false, error: "opportunity_not_found" }, { status: 404 });
+  if (/refurb|reacond/i.test(opportunity.title) && String(opportunity.condition_code || "NEW") === "NEW") {
+    return json({ ok: false, error: "condition_review_required", detail: "A refurbished product cannot be published as NEW. Re-import it with the exact eBay condition." }, { status: 409 });
+  }
+  if (!opportunity.ean && !opportunity.image_urls) {
+    return json({ ok: false, error: "product_media_required", detail: "Add an EAN or at least one HTTPS product image before publishing." }, { status: 409 });
+  }
   try {
     const published = await publishEbayOffer(context.env, listing, opportunity, config);
     const now = Date.now();

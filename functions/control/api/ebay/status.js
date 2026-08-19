@@ -13,7 +13,7 @@ export async function onRequest(context) {
   } catch (error) {
     return json({ ok: false, error: "marketplace_schema_failed", detail: String(error.message || error).slice(0, 500) }, { status: 500 });
   }
-  const [opportunities, listings, orders, providers, credentials, activity, marketplaceSettings, latestSync, storedToken] = await Promise.all([
+  const [opportunities, listings, orders, providers, credentials, activity, marketplaceSettings, latestSync, storedToken, storedApp] = await Promise.all([
     db.prepare(`SELECT o.*, p.name AS provider_name FROM ebay_opportunities o JOIN ebay_providers p ON p.id = o.provider_id ORDER BY CASE o.status WHEN 'pending' THEN 0 WHEN 'approved' THEN 1 WHEN 'drafted' THEN 2 ELSE 3 END, o.estimated_profit_cents DESC, o.match_confidence DESC LIMIT 100`).all(),
     db.prepare(`SELECT l.*, o.supplier_cost_cents, o.shipping_cost_cents, o.estimated_fee_cents, o.stock_quantity, p.name AS provider_name FROM ebay_listings l JOIN ebay_opportunities o ON o.id = l.opportunity_id JOIN ebay_providers p ON p.id = o.provider_id ORDER BY CASE l.listing_status WHEN 'ready_to_publish' THEN 0 WHEN 'active' THEN 1 ELSE 2 END, l.generated_at DESC LIMIT 100`).all(),
     db.prepare(`SELECT o.*, l.sku, l.title FROM ebay_orders o LEFT JOIN ebay_listings l ON l.id = o.listing_id ORDER BY o.ordered_at DESC LIMIT 100`).all(),
@@ -23,6 +23,7 @@ export async function onRequest(context) {
     db.prepare("SELECT setting_key, setting_value FROM marketplace_settings ORDER BY setting_key").all(),
     db.prepare("SELECT * FROM marketplace_sync_jobs ORDER BY started_at DESC LIMIT 1").first(),
     db.prepare("SELECT access_expires_at, refresh_expires_at, updated_at FROM marketplace_tokens WHERE service = 'ebay'").first(),
+    db.prepare("SELECT environment, updated_at FROM marketplace_app_credentials WHERE service = 'ebay'").first(),
   ]);
   const opportunityRows = asRows(opportunities);
   const listingRows = asRows(listings);
@@ -42,8 +43,9 @@ export async function onRequest(context) {
     mode: connected ? "live-ready" : "setup",
     connection: {
       ebayConnected: connected,
-      publishingEnabled: connected && String(context.env.EBAY_LIVE_PUBLISHING || "").toLowerCase() === "true" && asRows(marketplaceSettings).find((row) => row.setting_key === "live_publish_enabled")?.setting_value === "true",
-      ebayAppConfigured: Boolean(context.env.EBAY_CLIENT_ID && context.env.EBAY_CLIENT_SECRET && context.env.EBAY_RUNAME && context.env.TOKEN_ENCRYPTION_SECRET),
+      publishingEnabled: connected && asRows(marketplaceSettings).find((row) => row.setting_key === "live_publish_enabled")?.setting_value === "true",
+      ebayAppConfigured: Boolean(context.env.TOKEN_ENCRYPTION_SECRET && ((context.env.EBAY_CLIENT_ID && context.env.EBAY_CLIENT_SECRET && context.env.EBAY_RUNAME) || storedApp)),
+      ebayAppEnvironment: storedApp?.environment || (context.env.EBAY_CLIENT_ID ? "production" : null),
       bigbuyApiConfigured: Boolean(context.env.BIGBUY_API_KEY),
       lastSync,
       latestSync: latestSync || null,
