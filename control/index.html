@@ -5,11 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#071015">
   <meta name="robots" content="noindex,nofollow,noarchive">
-  <title>CSG Mission Control</title>
+  <title>Cesar HomeLab</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="control.css?v=20260818pdf">
+  <link rel="stylesheet" href="control.css?v=20260819homelab">
   <link rel="stylesheet" href="auth-overrides.css?v=20260728a">
 </head>
 <body class="access-pending">
@@ -18,10 +18,10 @@
 
   <aside class="sidebar">
     <a class="control-brand" href="/" aria-label="Return to public portfolio"><span>CSG</span><i></i></a>
-    <div class="system-label"><small>PRIVATE SYSTEM</small><strong>Mission<br>Control</strong></div>
+    <div class="system-label"><small>PRIVATE SYSTEM</small><strong>Cesar<br>HomeLab</strong></div>
     <nav aria-label="Control panel sections">
-      <button class="nav-item active" data-view="overview"><span>01</span>Overview</button>
-      <button class="nav-item" data-view="infrastructure"><span>02</span><b id="infrastructure-nav-label">Infrastructure</b></button>
+      <button class="nav-item active" data-view="overview"><span>01</span>Home</button>
+      <button class="nav-item" data-view="infrastructure"><span>02</span><b id="infrastructure-nav-label">Servers</b></button>
       <button class="nav-item" data-view="thermal"><span>03</span>Thermal Lab</button>
       <button class="nav-item" data-view="ebay"><span>04</span>eBay Store</button>
       <button class="nav-item" data-view="pdf"><span>05</span>PDF Tools</button>
@@ -32,14 +32,14 @@
   <main>
     <header class="topbar">
       <button class="menu-toggle" type="button" aria-label="Toggle navigation" aria-expanded="false">MENU</button>
-      <div><small>CSG / PERSONAL OPERATING SYSTEM</small><p id="view-code">OVERVIEW · 01</p></div>
+      <div><small>CESAR HOMELAB / PRIVATE PORTAL</small><p id="view-code">HOME · 01</p></div>
       <div class="session"><span id="session-role">SECURE</span><b id="session-avatar">CV</b></div>
     </header>
 
-    <section class="view active" id="overview" data-title="Overview" data-code="01">
+    <section class="view active" id="overview" data-title="Home" data-code="01">
       <div class="view-heading">
-        <div><p class="eyebrow"><span></span> Personal command centre</p><h1>Good to see you,<br><em id="session-name">César.</em></h1></div>
-        <p id="overview-intro">This is the empty framework for your private systems. Each module is ready to be connected to real data when you decide what matters.</p>
+        <div><p class="eyebrow"><span></span> HomeLab control plane</p><h1>Good to see you,<br><em id="session-name">César.</em></h1></div>
+        <p id="overview-intro">One private entry point for the services, experiments and operational tools running across Cesar HomeLab.</p>
       </div>
       <div class="status-strip"><span><i></i> SYSTEM READY</span><span id="access-summary">PERSONAL VIEW</span><span id="system-time">--:--:-- CET</span></div>
       <div class="dashboard-grid">
@@ -52,7 +52,7 @@
           </div>
         </article>
         <article class="module module-wide minecraft-summary" data-requires="minecraft:read" data-accent="cyan">
-          <header><span>MINECRAFT SERVER</span><small>MODULE / 01</small></header>
+          <header><span>MINECRAFT SERVER</span><small>SERVICE / 01</small></header>
           <div class="server-summary">
             <div class="server-orb" data-server-orb><i></i><b>MC</b></div>
             <div>
@@ -64,7 +64,7 @@
           </div>
         </article>
         <article class="module module-wide thermal-summary" data-requires="thermal:read" data-accent="violet">
-          <header><span>TERRA POWERPLANT LAB</span><small>MODULE / 02</small></header>
+          <header><span>TERRA POWERPLANT LAB</span><small>PROJECT / 02</small></header>
           <div class="thermal-summary-body">
             <div class="thermal-mark"><i></i><i></i><i></i><b>TL</b></div>
             <div>
@@ -76,7 +76,7 @@
           </div>
         </article>
         <article class="module module-wide ebay-summary" data-requires="ebay:read" data-accent="acid">
-          <header><span>EBAY STORE</span><small>COMMERCE / 03</small></header>
+          <header><span>EBAY STORE</span><small>WORKSPACE / 03</small></header>
           <div class="ebay-summary-body">
             <div class="ebay-mark"><b>eB</b></div>
             <div><p><span data-ebay-connection-dot></span> <span data-ebay-connection-label>SETUP MODE</span></p><strong><span data-ebay-pending-count>—</span> real opportunities awaiting review</strong><small><span data-ebay-active-count>—</span> active listings · <span data-ebay-today-profit>—</span> realised P&amp;L</small></div>
@@ -94,8 +94,8 @@
       </div>
     </section>
 
-    <section class="view" id="infrastructure" data-title="Infrastructure" data-code="02">
-      <div class="simple-heading"><p class="eyebrow"><span></span> <b id="infrastructure-eyebrow">Infrastructure</b></p><h2 id="infrastructure-title">Servers & services.</h2><p id="infrastructure-intro">Reserved for Minecraft, websites, APIs and anything that should stay online.</p></div>
+    <section class="view" id="infrastructure" data-title="Servers" data-code="02">
+      <div class="simple-heading"><p class="eyebrow"><span></span> <b id="infrastructure-eyebrow">HomeLab infrastructure</b></p><h2 id="infrastructure-title">Servers & services.</h2><p id="infrastructure-intro">Operational controls for the workloads hosted by ServerCesar.</p></div>
       <div class="server-console">
         <article class="server-card">
           <header>
@@ -127,27 +127,6 @@
           <p>Each operator has an independent account. Passwords are protected using one-way hashing and secure, expiring sessions.</p>
         </aside>
       </div>
-    </section>
-
-    <section class="view" id="revenue" data-title="Revenue" data-code="03">
-      <div class="simple-heading"><p class="eyebrow"><span></span> Revenue</p><h2>Money with context.</h2><p>A private view of income, recurring revenue, costs and project performance.</p></div>
-      <div class="empty-canvas"><div class="axis-placeholder"><i></i><i></i><i></i><i></i><i></i></div><strong>No financial source connected</strong><p>Future options: manual entries, Google Sheets, Stripe or another platform.</p></div>
-    </section>
-
-    <section class="view" id="projects" data-title="Projects" data-code="04">
-      <div class="simple-heading"><p class="eyebrow"><span></span> Projects</p><h2>What is moving.</h2><p>One place for objectives, milestones, progress and the next meaningful action.</p></div>
-      <div class="project-columns"><article><header>BACKLOG <span>0</span></header><div>Drop future ideas here.</div></article><article><header>IN FLIGHT <span>0</span></header><div>Active work will appear here.</div></article><article><header>COMPLETE <span>0</span></header><div>Finished missions will land here.</div></article></div>
-    </section>
-
-    <section class="view" id="analytics" data-title="Analytics" data-code="05">
-      <div class="simple-heading"><p class="eyebrow"><span></span> Analytics</p><h2>Signals, not noise.</h2><p>Prepared for portfolio visits, traffic sources and whichever indicators become useful.</p></div>
-      <div class="metric-placeholders"><article><small>VISITORS</small><strong>—</strong></article><article><small>ENGAGEMENT</small><strong>—</strong></article><article><small>TOP SOURCE</small><strong>—</strong></article></div>
-      <div class="empty-canvas compact"><strong>No analytics source connected</strong><p>The layout is ready; tracking remains deliberately disabled.</p></div>
-    </section>
-
-    <section class="view" id="notes" data-title="Notes" data-code="06">
-      <div class="simple-heading"><p class="eyebrow"><span></span> Private notes</p><h2>A quiet workspace.</h2><p>Later, this can hold decisions, ideas, objectives or a private operating log.</p></div>
-      <div class="notes-placeholder"><span>UNTITLED / EMPTY</span><p>Start with a thought when this module becomes useful.</p><div></div></div>
     </section>
 
     <section class="view" id="thermal" data-title="Thermal Lab" data-code="03">
@@ -363,7 +342,7 @@
       </div>
     </section>
   </main>
-  <script src="control.js?v=20260818pdf"></script>
+  <script src="control.js?v=20260819homelab"></script>
   <script src="thermal-viewer.bundle.js?v=20260805o"></script>
 </body>
 </html>
