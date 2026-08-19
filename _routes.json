@@ -2,7 +2,8 @@
   "version": 1,
   "include": [
     "/control/*",
-    "/api/agent/*"
+    "/api/agent/*",
+    "/api/ebay/*"
   ],
   "exclude": []
 }
