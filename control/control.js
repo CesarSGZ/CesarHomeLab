@@ -522,6 +522,13 @@ function renderEbaySettings(providers,credentials){
     }
     container.append(card)
   });
+  if(ebayState.connection.deletionEndpoint&&ebayState.connection.deletionVerificationToken){
+    const notifications=makeElement('article','provider-panel notification-setup');
+    notifications.append(makeElement('small',null,'EBAY · REQUIRED COMPLIANCE'),makeElement('strong',null,'Marketplace account deletion endpoint'));
+    notifications.append(makeElement('p','starter-copy','Choose Marketplace Account Deletion in eBay Developers. Copy these exact values, keep the exemption off, save, then send a test notification.'));
+    [['HTTPS ENDPOINT',ebayState.connection.deletionEndpoint],['VERIFICATION TOKEN',ebayState.connection.deletionVerificationToken]].forEach(([label,value])=>{const row=makeElement('div','notification-value');row.append(makeElement('span',null,label),makeElement('code',null,value));const copy=actionButton('Copy','copy-notification',value);copy.dataset.value=value;row.append(copy);notifications.append(row)});
+    container.append(notifications);
+  }
   if(!ebayState.connection.ebayAppConfigured){
     const app=makeElement('article','provider-panel starter-import');
     app.append(makeElement('small',null,'EBAY · PRODUCTION APPLICATION'),makeElement('strong',null,'Store encrypted API credentials'));
@@ -598,6 +605,7 @@ document.getElementById('ebay-listings').addEventListener('click',async event=>{
 });
 document.getElementById('ebay-settings').addEventListener('click',async event=>{
   const button=event.target.closest('[data-ebay-action]');if(!button)return;button.disabled=true;
+  if(button.dataset.ebayAction==='copy-notification'){await navigator.clipboard.writeText(button.dataset.value);ebayFeedback.textContent='Value copied.';ebayFeedback.className='ebay-feedback success';button.disabled=false;return}
   if(button.dataset.ebayAction==='manual-import'||button.dataset.ebayAction==='save-ebay-app'){button.disabled=false;return}
   try{
     if(button.dataset.ebayAction==='connect-ebay'){

@@ -63,4 +63,5 @@ export async function ensureRealMarketplaceSchema(db) {
   await db.exec("CREATE INDEX IF NOT EXISTS ebay_financial_transactions_payout_idx ON ebay_financial_transactions(payout_id, transaction_at DESC)");
   await db.exec("CREATE TABLE IF NOT EXISTS ebay_payouts (id TEXT PRIMARY KEY, payout_status TEXT NOT NULL, amount_cents INTEGER NOT NULL, currency TEXT NOT NULL DEFAULT 'EUR', scheduled_at INTEGER, sent_at INTEGER, bank_reference TEXT, synced_at INTEGER NOT NULL)");
   await db.exec("CREATE TABLE IF NOT EXISTS marketplace_app_credentials (service TEXT PRIMARY KEY, client_id TEXT NOT NULL, client_secret_cipher TEXT NOT NULL, client_secret_iv TEXT NOT NULL, redirect_uri_name TEXT NOT NULL, environment TEXT NOT NULL DEFAULT 'production', updated_at INTEGER NOT NULL, updated_by TEXT NOT NULL)");
+  await db.exec("CREATE TABLE IF NOT EXISTS ebay_account_deletion_events (id TEXT PRIMARY KEY, payload_hash TEXT NOT NULL, received_at INTEGER NOT NULL, processing_status TEXT NOT NULL CHECK (processing_status IN ('acknowledged', 'processed', 'failed')))");
 }

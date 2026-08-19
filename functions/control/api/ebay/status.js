@@ -1,6 +1,7 @@
 import { requireEbayRead, asRows } from "../../../_lib/ebay.js";
 import { json, methodNotAllowed } from "../../../_lib/http.js";
 import { ensureRealMarketplaceSchema } from "../../../_lib/marketplace-schema.js";
+import { ebayDeletionEndpoint, ebayDeletionVerificationToken } from "../../../_lib/ebay-notifications.js";
 
 export async function onRequest(context) {
   if (context.request.method !== "GET") return methodNotAllowed(["GET"]);
@@ -37,6 +38,8 @@ export async function onRequest(context) {
     ...asRows(providers).flatMap((provider) => [provider.stock_sync_at, provider.price_sync_at]),
     ...orderRows.map((order) => order.last_synced_at),
   ].filter(Boolean).sort((a, b) => b - a)[0] || null;
+  let deletionVerificationToken = null;
+  try { deletionVerificationToken = await ebayDeletionVerificationToken(context.env); } catch { deletionVerificationToken = null; }
 
   return json({
     ok: true,
@@ -50,6 +53,8 @@ export async function onRequest(context) {
       lastSync,
       latestSync: latestSync || null,
       tokenUpdatedAt: storedToken?.updated_at || null,
+      deletionEndpoint: ebayDeletionEndpoint(context.request),
+      deletionVerificationToken,
     },
     summary: {
       pendingOpportunities: opportunityRows.filter((item) => item.status === "pending").length,
