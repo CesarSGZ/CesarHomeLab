@@ -92,7 +92,7 @@ function applyAccess(data){
   const accessSummary=document.getElementById('access-summary');
   if(owner){
     overviewIntro.textContent='One private entry point for services, experiments and operational tools running across Cesar HomeLab.';
-    accessSummary.textContent='OWNER ACCESS · 4 MODULES';
+    accessSummary.textContent='OWNER ACCESS · 5 MODULES';
   }else if(minecraftOperator){
     overviewIntro.textContent='A focused home for shared tools. Your account currently includes Minecraft server operations.';
     accessSummary.textContent='STANDARD ACCESS · MINECRAFT ENABLED';
@@ -640,6 +640,7 @@ async function initialiseControl(){
     await refreshMinecraft();
     setInterval(refreshMinecraft,10000);
   }
+  if(hasCapability('github:read'))window.GitHubGalaxy?.initialise();
   if(hasCapability('thermal:read'))await loadThermalLab();
   if(hasCapability('ebay:read'))await loadEbay();
 }

@@ -10,6 +10,7 @@
 | PDF-01 | Stirling PDF | ServerCesar | Tailscale HTTPS only | `C:\Homelab` on ServerCesar | Private PDF workshop |
 | LAB-01 | Terra Powerplant Lab | Cloudflare Pages | Owner portal | `control/data/` | Engineering experiment |
 | MKT-01 | eBay workspace | Cloudflare Pages + D1 | Owner portal | `functions/control/api/ebay/` | Marketplace operations |
+| GIT-01 | GitHub Galaxy | GitHub Actions + Cloudflare Pages | Owner portal | `scripts/build-github-galaxy.mjs` | Animated repository history |
 
 ## Naming rule
 
