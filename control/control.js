@@ -2,6 +2,29 @@ const navItems=[...document.querySelectorAll('.nav-item')];
 const views=[...document.querySelectorAll('.view')];
 const sidebar=document.querySelector('.sidebar');
 const menu=document.querySelector('.menu-toggle');
+const backdrop=document.querySelector('.nav-backdrop');
+function setMenuOpen(open){
+  sidebar.classList.toggle('open',open);
+  menu.setAttribute('aria-expanded',String(open));
+  backdrop.hidden=!open;
+  document.body.classList.toggle('navigation-open',open);
+  sidebar.inert=innerWidth<=900&&!open;
+  if(open)sidebar.querySelector('.nav-item:not([hidden])')?.focus();
+}
+backdrop.addEventListener('click',()=>{setMenuOpen(false);menu.focus()});
+document.querySelector('.nav-close').addEventListener('click',()=>{setMenuOpen(false);menu.focus()});
+document.addEventListener('keydown',event=>{
+  if(!sidebar.classList.contains('open'))return;
+  if(event.key==='Escape'){setMenuOpen(false);menu.focus()}
+  if(event.key==='Tab'){
+    const focusable=[...sidebar.querySelectorAll('a,button:not([hidden])')].filter(el=>el.offsetParent!==null);
+    const first=focusable[0],last=focusable.at(-1);
+    if(event.shiftKey&&document.activeElement===first){event.preventDefault();last?.focus()}
+    else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first?.focus()}
+  }
+});
+addEventListener('resize',()=>{if(innerWidth>900)setMenuOpen(false);else sidebar.inert=!sidebar.classList.contains('open')});
+sidebar.inert=innerWidth<=900;
 let allowedViews=new Set(['overview']);
 let capabilities=new Set();
 let accessProfile='standard';
@@ -13,13 +36,15 @@ function showView(id,push=true){
   navItems.forEach(item=>item.classList.toggle('active',item.dataset.view===next.id));
   document.getElementById('view-code').textContent=`${next.dataset.title.toUpperCase()} · ${next.dataset.code}`;
   if(push)history.replaceState(null,'',`#${next.id}`);
-  sidebar.classList.remove('open');
-  menu.setAttribute('aria-expanded','false');
+  const menuWasOpen=sidebar.classList.contains('open');
+  setMenuOpen(false);
+  navItems.forEach(item=>{if(item.classList.contains('active'))item.setAttribute('aria-current','page');else item.removeAttribute('aria-current')});
+  if(push){window.scrollTo({top:0,behavior:'instant'});if(menuWasOpen){next.tabIndex=-1;next.focus({preventScroll:true})}}
 }
 
 navItems.forEach(item=>item.addEventListener('click',()=>showView(item.dataset.view)));
 document.querySelectorAll('[data-open]').forEach(button=>button.addEventListener('click',()=>showView(button.dataset.open)));
-menu.addEventListener('click',()=>{const open=sidebar.classList.toggle('open');menu.setAttribute('aria-expanded',String(open))});
+menu.addEventListener('click',()=>setMenuOpen(!sidebar.classList.contains('open')));
 
 const clock=document.getElementById('system-time');
 function tick(){clock.textContent=new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/Madrid',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).format(new Date())+' CET'}

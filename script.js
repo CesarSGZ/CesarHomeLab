@@ -1,16 +1,20 @@
 const $=(s,c=document)=>c.querySelector(s),$$=(s,c=document)=>[...c.querySelectorAll(s)];
 
 // Ambient starfield reacts subtly to the pointer.
-const canvas=$('#stars'),ctx=canvas.getContext('2d');let stars=[],mx=0,my=0;
-function resize(){canvas.width=innerWidth*devicePixelRatio;canvas.height=innerHeight*devicePixelRatio;ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);stars=Array.from({length:Math.min(170,Math.floor(innerWidth/7))},()=>({x:Math.random()*innerWidth,y:Math.random()*innerHeight,r:Math.random()*1.2+.2,a:Math.random()*.65+.15,s:Math.random()*.09+.015}))}
-function draw(){ctx.clearRect(0,0,innerWidth,innerHeight);for(const s of stars){s.y+=s.s;if(s.y>innerHeight)s.y=0;ctx.beginPath();ctx.arc(s.x+mx*.008,s.y+my*.008,s.r,0,Math.PI*2);ctx.fillStyle=`rgba(220,245,245,${s.a})`;ctx.fill()}requestAnimationFrame(draw)}
-addEventListener('resize',resize);addEventListener('pointermove',e=>{mx=e.clientX-innerWidth/2;my=e.clientY-innerHeight/2});resize();draw();
+const canvas=$('#stars'),ctx=canvas.getContext('2d');let stars=[],mx=0,my=0,starFrame=0;
+const reducedMotion=matchMedia('(prefers-reduced-motion: reduce)');
+function resize(){const ratio=Math.min(devicePixelRatio||1,2);canvas.width=innerWidth*ratio;canvas.height=innerHeight*ratio;ctx.setTransform(ratio,0,0,ratio,0,0);stars=Array.from({length:Math.min(90,Math.floor(innerWidth/12))},()=>({x:Math.random()*innerWidth,y:Math.random()*innerHeight,r:Math.random()*.9+.2,a:Math.random()*.5+.15,s:Math.random()*.06+.015}));restartStars()}
+function draw(){ctx.clearRect(0,0,innerWidth,innerHeight);for(const s of stars){if(!reducedMotion.matches)s.y+=s.s;if(s.y>innerHeight)s.y=0;ctx.beginPath();ctx.arc(s.x+mx*.008,s.y+my*.008,s.r,0,Math.PI*2);ctx.fillStyle=`rgba(220,245,245,${s.a})`;ctx.fill()}if(!document.hidden&&!reducedMotion.matches&&scrollY<innerHeight)starFrame=requestAnimationFrame(draw)}
+function restartStars(){cancelAnimationFrame(starFrame);draw()}
+document.addEventListener('visibilitychange',restartStars);reducedMotion.addEventListener('change',restartStars);
+addEventListener('scroll',restartStars,{passive:true});addEventListener('resize',resize);addEventListener('pointermove',e=>{mx=e.clientX-innerWidth/2;my=e.clientY-innerHeight/2},{passive:true});resize();
 
 const observer=new IntersectionObserver(entries=>entries.forEach(e=>{if(e.isIntersecting)e.target.classList.add('visible','in-view')}),{threshold:.18});$$('.reveal,.skill-card').forEach(el=>observer.observe(el));
 
 function updateTrajectoryState(){
   const max=document.documentElement.scrollHeight-innerHeight;
   $('.progress span').style.width=(scrollY/max*100)+'%';
+  $$('.nav-wrap nav a').forEach(link=>{const section=$(link.getAttribute('href')),box=section.getBoundingClientRect();if(box.top<=innerHeight*.4&&box.bottom>innerHeight*.4)link.setAttribute('aria-current','location');else link.removeAttribute('aria-current')});
   const log=$('.flight-log'),line=$('.timeline-line span'),entries=$$('.log-entry');
   if(!log)return;
   const r=log.getBoundingClientRect(),focus=innerHeight*.44,p=Math.max(0,Math.min(1,(focus-r.top)/r.height));
@@ -64,6 +68,7 @@ function placeSkillNode(node,x,y,index){
 
 function layoutConstellation(filter=constellationFilter){
   if(!skillMap)return;
+  if(skillMap.classList.contains('capability-index'))return;
   const visible=skillNodes.filter(node=>filter==='all'||node.dataset.category===filter);
   const allPositions={
     programme:[[.07,.14],[.20,.08],[.34,.13],[.13,.27],[.29,.25],[.41,.30],[.06,.42],[.20,.42],[.36,.44],[.10,.59],[.25,.57],[.41,.60],[.08,.76],[.23,.73],[.38,.78]],
@@ -118,6 +123,7 @@ function strokeConnection(a,b,color,alpha=.18,width=.8){
 }
 
 function drawConstellation(){
+  if(skillMap?.classList.contains('capability-index'))return;
   if(!skillCanvas||!skillContext)return;
   const rect=skillCanvas.getBoundingClientRect();
   if(!rect.width||!rect.height)return;
@@ -170,6 +176,7 @@ function overlapArea(a,b,padding=5){
 
 function resolveLabelCollisions(){
   if(!skillMap)return;
+  if(skillMap.classList.contains('capability-index'))return;
   const visible=skillNodes.filter(node=>!node.classList.contains('hide'));
   const boundary=skillField.getBoundingClientRect();
   const fixedObstacles=[...visible.map(node=>node.getBoundingClientRect())];
@@ -212,10 +219,8 @@ function setConstellationFilter(filter){
     node.classList.toggle('hide',hidden);
     node.setAttribute('aria-hidden',hidden);
     node.tabIndex=hidden?-1:0;
-    if(hidden){
-      node.classList.remove('selected');
-      node.setAttribute('aria-pressed','false');
-    }
+    node.classList.remove('selected');
+    node.setAttribute('aria-pressed','false');
   });
   $$('.constellation-label',skillMap).forEach(label=>{
     const category=label.classList.contains('label-programme')?'programme':label.classList.contains('label-engineering')?'engineering':'data';
@@ -240,10 +245,12 @@ function selectSkillNode(node){
   $('#node-code').textContent=`${node.dataset.code} / ${node.dataset.category.toUpperCase()}`;
   $('#node-title').textContent=node.querySelector('strong').textContent;
   $('#node-detail').textContent=node.dataset.detail;
+  if(innerWidth<=580&&skillMap.classList.contains('capability-index'))$('.node-readout',skillMap).scrollIntoView({behavior:reducedMotion.matches?'instant':'smooth',block:'start'});
   requestAnimationFrame(()=>{resolveLabelCollisions();drawConstellation()});
 }
 
-skillNodes.forEach(node=>node.setAttribute('aria-pressed','false'));
+skillNodes.forEach(node=>{node.setAttribute('aria-pressed','false');node.style.setProperty('--node-color',skillColors[node.dataset.category]);node.setAttribute('aria-controls','node-detail')});
+$('.node-readout',skillMap).setAttribute('aria-live','polite');
 skillMap.addEventListener('click',event=>{
   if(event.target.closest('.node-readout'))return;
   let node=event.target.closest('.cap-node');
@@ -262,7 +269,7 @@ skillMap.addEventListener('click',event=>{
   selectSkillNode(node);
 });
 
-if(skillMap&&!matchMedia('(prefers-reduced-motion: reduce)').matches){
+if(skillMap&&!skillMap.classList.contains('capability-index')&&!matchMedia('(prefers-reduced-motion: reduce)').matches){
   skillMap.addEventListener('pointermove',event=>{
     const rect=skillMap.getBoundingClientRect();
     skillField.style.setProperty('--parallax-x',`${((event.clientX-rect.left)/rect.width-.5)*-7}px`);
@@ -360,4 +367,4 @@ $$('.cap-node').forEach(node=>{
 });
 
 // Magnetic call-to-action movement, intentionally restrained.
-$$('.button').forEach(b=>{b.addEventListener('pointermove',e=>{const r=b.getBoundingClientRect();b.style.transform=`translate(${(e.clientX-r.left-r.width/2)*.08}px,${(e.clientY-r.top-r.height/2)*.12}px)`});b.addEventListener('pointerleave',()=>b.style.transform='')});
+$$('.button').forEach(b=>{b.addEventListener('pointermove',e=>{if(reducedMotion.matches||e.pointerType!=='mouse')return;const r=b.getBoundingClientRect();b.style.transform=`translate(${(e.clientX-r.left-r.width/2)*.04}px,${(e.clientY-r.top-r.height/2)*.06}px)`});b.addEventListener('pointerleave',()=>b.style.transform='')});
