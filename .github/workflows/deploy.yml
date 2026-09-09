@@ -30,6 +30,14 @@ jobs:
           GITHUB_GALAXY_USERNAME: CesarSGZ
         run: node scripts/build-github-galaxy.mjs
 
+      - name: Set up test runtime
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Validate private chat boundaries
+        run: node --test tests/chat.test.mjs
+
       - name: Deploy to Cloudflare Pages
         uses: cloudflare/wrangler-action@v3
         with:
