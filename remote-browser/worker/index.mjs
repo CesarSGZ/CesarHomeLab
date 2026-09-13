@@ -49,6 +49,7 @@ export class BrowserRoom {
    if(typeof message!=="string")return this.send("viewer",message);
    let data;try{data=JSON.parse(message)}catch{return}
    if(data.type==="status")this.send("viewer",JSON.stringify({type:"status",ready:data.ready===true,paused:data.paused===true,width:data.width,height:data.height}));
+   if(data.type==="upload-result")this.send("viewer",JSON.stringify({type:"upload-result",id:String(data.id).slice(0,50),ok:data.ok===true,complete:data.complete===true,message:String(data.message||"").slice(0,200)}));
    return;
   }
   let data;try{data=JSON.parse(message)}catch{return}

@@ -328,7 +328,8 @@
       <div class="remote-text-controls">
         <label for="remote-text">Text input · select a field in the remote window first</label>
         <textarea id="remote-text" rows="2" maxlength="12000" placeholder="Useful for pasting text or typing from a phone."></textarea>
-        <div><small>Only this browser window is shared. No desktop, microphone, file transfer or system clipboard access.</small><button id="remote-insert" type="button" disabled>Insert text</button><button id="remote-enter" type="button" disabled>Enter ↵</button></div>
+        <div><small>Only this browser window is shared. Upload one document or image (up to 10 MB). No desktop or system clipboard access.</small><button id="remote-upload" type="button" disabled>Upload file ↑</button><input id="remote-file" type="file" accept=".pdf,.txt,.csv,.json,.md,.docx,.xlsx,.pptx,.png,.jpg,.jpeg,.webp" hidden><button id="remote-insert" type="button" disabled>Insert text</button><button id="remote-enter" type="button" disabled>Enter ↵</button></div>
+        <p id="remote-upload-status" role="status" aria-live="polite">Files are attached to ChatGPT. Review the attachment before sending your message.</p>
       </div>
       <p class="remote-note">Sign in to ChatGPT in the dedicated browser on CesarPC. If that session expires, renew it there. Leaving this tab disconnects your view; it does not sign you out of ChatGPT. Remote screen interaction may not be accessible to screen readers.</p>
     </section>
@@ -369,7 +370,7 @@
     </section>
   </main>
   <script src="github-galaxy.js?v=20260819gource"></script>
-  <script src="chat.js?v=20260909remote"></script>
+  <script src="chat.js?v=20260913upload"></script>
   <script src="control.js?v=20260909remote"></script>
   <script src="thermal-viewer.bundle.js?v=20260805o"></script>
 </body>

@@ -4,6 +4,13 @@ import {join} from "node:path";
 import {createServer} from "node:http";
 import {randomBytes} from "node:crypto";
 import {validateInput,shareable,allowedNavigation} from "./protocol.mjs";
+import {UploadReceiver} from "./uploads.mjs";
+const uploads=new UploadReceiver(async file=>{
+ if(!viewing||paused||!status().ready)throw Error("Browser unavailable. Reconnect and try again.");
+ const inputs=page.locator('input[type="file"]');
+ if(!await inputs.count())throw Error("Open ChatGPT's attachment menu, then try Upload file again.");
+ await inputs.first().setInputFiles(file,{timeout:15000});
+});
 
 const settingsPath=process.argv[2];
 if(!settingsPath)throw Error("A private configuration path is required.");
@@ -39,7 +46,12 @@ async function openBrowser(){
  send(status());
 }
 async function handleInput(data){
- const input=validateInput(data);if(!input||!viewing||paused||!status().ready)return;
+ const input=validateInput(data);if(!input)return;
+ if(input.type==="upload"){
+  if(!viewing||paused||!status().ready){uploads.clear();send({type:"upload-result",id:input.id,ok:false,message:"Browser unavailable. Reconnect and try again."});return}
+  send(await uploads.receive(input));return;
+ }
+ if(!viewing||paused||!status().ready)return;
  if(input.type==="resize"){width=input.width;height=input.height;await page.setViewportSize({width,height});send(status());return}
  if(input.type==="home"){await page.goto("https://chatgpt.com/",{waitUntil:"domcontentloaded",timeout:30000});return}
  if(input.type==="pointer"){
@@ -58,10 +70,10 @@ function connect(){
  socket.addEventListener("open",()=>{send(status())});
  socket.addEventListener("message",event=>{
   let data;try{data=JSON.parse(event.data)}catch{return}
-  if(data.type==="viewer"){viewing=data.active===true;send(status());return}
+  if(data.type==="viewer"){viewing=data.active===true;uploads.clear();send(status());return}
   inputChain=inputChain.then(()=>handleInput(data)).catch(()=>send(status()));
  });
- socket.addEventListener("close",()=>{viewing=false;if(!stopping)setTimeout(connect,5000)});
+ socket.addEventListener("close",()=>{viewing=false;uploads.clear();if(!stopping)setTimeout(connect,5000)});
  socket.addEventListener("error",()=>{});
 }
 setInterval(()=>send(status()),10000).unref();

@@ -48,8 +48,16 @@ The main website retains its normal GitHub deployment and URL.
 Only validated mouse, text, limited navigation keys, resizing and ChatGPT-home
 commands are accepted. No arbitrary CDP, JavaScript, URLs, shell commands or
 filesystem actions can be supplied by a remote viewer. Right-click menus,
-privileged keyboard shortcuts, file selection/downloads, microphone and system
+privileged keyboard shortcuts, local filesystem selection/downloads, microphone and system
 clipboard synchronisation are not provided. Remote full-desktop access is absent.
+
+The portal's Upload file button transfers a single document/image (maximum 10 MB)
+through the owner-authenticated relay. Chunks are acknowledged and held only in
+bounded host memory, with a two-minute timeout and cleanup on disconnection or
+completion. The app writes no temporary upload files. Browser/OpenAI processing
+and retention are governed by ChatGPT settings; browser/OS memory may be paged.
+Only the selected file is attached, using a Playwright in-memory file payload.
+The native remote file picker remains blocked. Review attachments before sending.
 
 Top-level navigation is restricted to ChatGPT. Authentication sites are allowed
 only while no remote viewer is connected so login is performed locally. Basic

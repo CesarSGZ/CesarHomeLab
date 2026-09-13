@@ -1,6 +1,13 @@
 // Shared validation at both relay and host. Never accept arbitrary browser/OS commands.
 export function validateInput(value) {
   if (!value || typeof value !== "object") return null;
+  if(value.type==="upload" && /^[a-zA-Z0-9-]{1,50}$/.test(value.id||"")){
+    if(value.action==="start" && typeof value.name==="string" && /^[^\\/\x00-\x1f]{1,160}$/.test(value.name) && /\.(pdf|txt|csv|json|md|docx|xlsx|pptx|png|jpg|jpeg|webp)$/i.test(value.name) && Number.isInteger(value.size)&&value.size>0&&value.size<=10*1024*1024)
+      return {type:"upload",action:"start",id:value.id,name:value.name,size:value.size};
+    if(value.action==="chunk" && typeof value.data==="string" && value.data.length>0 && value.data.length<=32768 && /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(value.data))return {type:"upload",action:"chunk",id:value.id,data:value.data};
+    if(["finish","cancel"].includes(value.action))return {type:"upload",action:value.action,id:value.id};
+    return null;
+  }
   const number = (n,min,max) => Number.isFinite(n) && n>=min && n<=max;
   if (value.type==="pointer" && ["move","down","up"].includes(value.action) && number(value.x,0,1600) && number(value.y,0,1200))
     return {type:"pointer",action:value.action,x:value.x,y:value.y};

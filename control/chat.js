@@ -1,10 +1,18 @@
 window.RemoteChat=(()=>{
  const el=id=>document.getElementById(id),canvas=el("remote-screen"),context=canvas.getContext("2d");
  let socket,wanted=false,retries=0,ready=false,initialised=false,resizeTimer,lastSize="";
+ let uploading=false,pendingUpload;
+ function uploadStep(data){return new Promise((resolve,reject)=>{
+  if(!ready||socket?.readyState!==1)return reject(Error("Connection lost. Please retry."));
+  const timer=setTimeout(()=>{pendingUpload=null;reject(Error("Transfer timed out. Please retry."))},25000);
+  pendingUpload={id:data.id,resolve:result=>{clearTimeout(timer);pendingUpload=null;result.ok?resolve(result):reject(Error(result.message||"Upload failed."))}};
+  socket.send(JSON.stringify(data));
+ })}
  function state(text,hint,online=false){
   el("remote-state").textContent=text;el("remote-dot").classList.toggle("online",online);
   if(hint){el("remote-hint").textContent=hint;el("remote-overlay").hidden=false}
   ready=online;for(const id of ["remote-home","remote-insert","remote-enter"])el(id).disabled=!online;
+  el("remote-upload").disabled=!online||uploading;
  }
  function send(data){if(ready&&socket?.readyState===1)socket.send(JSON.stringify(data))}
  function size(){
@@ -30,6 +38,7 @@ window.RemoteChat=(()=>{
     image.src=url;return;
    }
    let data;try{data=JSON.parse(event.data)}catch{return}
+   if(data.type==="upload-result"&&pendingUpload?.id===data.id)pendingUpload.resolve(data);
    if(data.type==="connected"){if(!data.hostOnline)state("CesarPC offline","Start the Remote Browser host on CesarPC and keep the computer awake.");size()}
    if(data.type==="offline"){canvas.width=canvas.width;state("CesarPC offline","The host disconnected. The view will resume when CesarPC reconnects.")}
    if(data.type==="status"){
@@ -66,6 +75,26 @@ window.RemoteChat=(()=>{
  el("remote-home").addEventListener("click",()=>send({type:"home"}));
  el("remote-insert").addEventListener("click",()=>{const text=el("remote-text").value;if(text&&ready){send({type:"text",text});el("remote-text").value=""}});
  el("remote-enter").addEventListener("click",()=>send({type:"key",key:"Enter"}));
+ el("remote-upload").addEventListener("click",()=>el("remote-file").click());
+ el("remote-file").addEventListener("change",async()=>{
+  const file=el("remote-file").files[0];el("remote-file").value="";if(!file||uploading)return;
+  const note=el("remote-upload-status"),id=crypto.randomUUID();
+  if(!file.size||file.size>10*1024*1024||file.name.length>160||! /\.(pdf|txt|csv|json|md|docx|xlsx|pptx|png|jpg|jpeg|webp)$/i.test(file.name)){note.textContent="Choose a supported document or image between 1 byte and 10 MB.";return}
+  uploading=true;el("remote-upload").disabled=true;
+  try{
+   await uploadStep({type:"upload",action:"start",id,name:file.name,size:file.size});
+   for(let offset=0;offset<file.size;offset+=24576){
+    const bytes=new Uint8Array(await file.slice(offset,offset+24576).arrayBuffer());
+    await uploadStep({type:"upload",action:"chunk",id,data:btoa(String.fromCharCode(...bytes))});
+    note.textContent=`Transferring ${file.name} · ${Math.round(Math.min(offset+24576,file.size)/file.size*100)}%`;
+    await new Promise(resolve=>setTimeout(resolve,180));
+   }
+   note.textContent="Attaching to ChatGPT…";
+   await uploadStep({type:"upload",action:"finish",id});
+   note.textContent="File attached. Wait for ChatGPT to process it, then review it before sending your message.";
+  }catch(error){note.textContent=error.message;send({type:"upload",action:"cancel",id})}
+  finally{uploading=false;el("remote-upload").disabled=!ready}
+ });
  el("remote-fullscreen").addEventListener("click",()=>el("remote-stage").requestFullscreen().catch(()=>{}));
  addEventListener("resize",()=>{clearTimeout(resizeTimer);resizeTimer=setTimeout(size,300)});
  addEventListener("pagehide",disconnect);
