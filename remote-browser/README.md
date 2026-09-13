@@ -29,7 +29,12 @@ and attempts a limited interactive scheduled task at Windows login.
 No Windows password is stored. Start the host manually with start-host.ps1
 if task creation is unavailable.
 
-Sign in to ChatGPT in the dedicated Edge window. Do not send credentials to Codex.
+For Google sign-in, run local-login.ps1 first. It stops the remote host and opens
+the same dedicated profile in ordinary Edge with no automation attached. Sign in
+manually, close that dedicated window, then run start-host.ps1 to resume sharing.
+This uses normal browser authentication, not stealth flags or copied cookies.
+Do not send credentials to Codex. Google or ChatGPT can still require fresh
+authentication or decline a browser session; do not bypass those checks.
 Keep CesarPC awake and its Windows user signed in. Browser capture while the
 desktop is locked or the window minimised can depend on the graphics environment.
 Closing that browser stops its view; reopen it from the local control page.
