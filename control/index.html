@@ -12,7 +12,7 @@
   <link rel="stylesheet" href="control.css?v=20260909chat">
   <link rel="stylesheet" href="auth-overrides.css?v=20260728a">
   <link rel="stylesheet" href="refinement.css?v=20260909chat">
-  <link rel="stylesheet" href="chat.css?v=20260909a">
+  <link rel="stylesheet" href="chat.css?v=20260909remote">
 </head>
 <body class="access-pending">
   <canvas id="control-grid" aria-hidden="true"></canvas>
@@ -28,7 +28,7 @@
       <button class="nav-item" data-view="infrastructure"><span>02</span><b id="infrastructure-nav-label">Servers</b></button>
       <button class="nav-item" data-view="github"><span>03</span>GitHub Galaxy</button>
       <button class="nav-item" data-view="thermal"><span>04</span>Thermal Lab</button>
-      <button class="nav-item" data-view="chat"><span>05</span>AI Chat</button>
+      <button class="nav-item" data-view="chat"><span>05</span>ChatGPT Remote</button>
       <button class="nav-item" data-view="pdf"><span>06</span>PDF Tools</button>
     </nav>
     <div class="sidebar-foot"><span><i></i> Secure session</span><button id="sign-out" type="button">Sign out ↗</button></div>
@@ -88,11 +88,11 @@
             <button class="module-action" data-open="thermal">Open laboratory →</button>
           </div>
         </article>
-        <article class="module module-wide chat-summary" data-requires="chat:use" data-accent="violet">
-          <header><span>AI CHAT</span><small>WORKSPACE / 04</small></header>
+        <article class="module module-wide chat-summary" data-requires="remote:use" data-accent="violet">
+          <header><span>CHATGPT REMOTE</span><small>WORKSPACE / 04</small></header>
           <div class="chat-summary-body">
             <div class="chat-mark" aria-hidden="true">✦</div>
-            <div><p>YOUR PRIVATE THINKING SPACE</p><strong>A conversation, wherever you are.</strong><small>OpenAI-powered chat. One HomeLab login, with history across your devices.</small></div>
+            <div><p>HOSTED ON CESARPC</p><strong>Your ChatGPT. Your own computer.</strong><small>A private view of your dedicated ChatGPT browser on CesarPC. No API key.</small></div>
             <button class="module-action" data-open="chat">Open chat →</button>
           </div>
         </article>
@@ -315,35 +315,22 @@
       </section>
     </section>
 
-    <section class="view" id="chat" data-title="AI Chat" data-code="05">
-      <div class="simple-heading chat-heading"><p class="eyebrow"><span></span> Private AI workspace</p><h2>Room to think.</h2><p>Ask, explore and pick up where you left off. Your conversations stay with your HomeLab account.</p></div>
-      <details class="chat-settings" id="chat-settings">
-        <summary>OpenAI connection <span id="chat-connection-state">Checking connection…</span></summary>
-        <form id="chat-config-form">
-          <p>This is an independent chat powered by the OpenAI API, not your ChatGPT account or its history. API usage is billed separately. Set a spending limit in your OpenAI project before connecting.</p>
-          <label for="chat-api-key">API key</label><input id="chat-api-key" name="apiKey" type="password" autocomplete="off" placeholder="Paste a project API key to connect or replace it" maxlength="512">
-          <label for="chat-model">Model</label><select id="chat-model" name="model"><option value="gpt-5-mini">GPT-5 mini</option></select>
-          <p class="chat-fineprint">The key is encrypted on the server and never returned to this browser. Messages are sent to OpenAI when you press Send. Text only; no access to your servers, files or ChatGPT history.</p>
-          <div class="chat-config-actions"><button type="submit">Save connection</button><button type="button" id="chat-disconnect">Disconnect</button></div>
-        </form>
-      </details>
-      <div class="chat-workspace">
-        <aside class="chat-history" aria-label="Conversation history">
-          <div class="chat-history-header"><span>CONVERSATIONS</span><button id="chat-new" type="button">+ New</button></div>
-          <div id="chat-conversations"></div>
-        </aside>
-        <div class="chat-main">
-          <header class="chat-topline"><div><i></i><span id="chat-title">New conversation</span></div><button id="chat-delete" type="button" hidden>Delete conversation</button></header>
-          <div id="chat-messages" class="chat-messages" role="log" aria-label="Chat messages" aria-live="polite" aria-relevant="additions"></div>
-          <p id="chat-feedback" class="chat-feedback" role="status" aria-live="polite"></p>
-          <form id="chat-send-form" class="chat-composer">
-            <label class="chat-input-label" for="chat-input">Your message</label>
-            <textarea id="chat-input" rows="3" maxlength="12000" placeholder="What would you like to work on?" required></textarea>
-            <div><small>Enter to send · Shift + Enter for a new line</small><button id="chat-send" type="submit" disabled>Send ↗</button></div>
-          </form>
-          <p class="chat-fineprint chat-bottom-note">AI can make mistakes. Check important information. Context: the latest 20 messages, up to 40,000 characters.</p>
-        </div>
+    <section class="view" id="chat" data-title="ChatGPT Remote" data-code="05">
+      <div class="simple-heading remote-heading"><p class="eyebrow"><span></span> CesarPC · private browser</p><h2>Your ChatGPT.<br>From here.</h2><p>This is the real ChatGPT browser running on CesarPC, not an API chat. Your login and conversations remain with ChatGPT.</p></div>
+      <div class="remote-toolbar">
+        <div><i id="remote-dot"></i><strong id="remote-state">Not connected</strong><span>CESARPC / OWNER ONLY</span></div>
+        <div><button id="remote-connect" type="button">Connect</button><button id="remote-home" type="button" disabled>ChatGPT home</button><button id="remote-fullscreen" type="button">Full screen ↗</button></div>
       </div>
+      <div id="remote-stage" class="remote-stage">
+        <canvas id="remote-screen" tabindex="0" role="application" aria-label="Remote ChatGPT browser. Click a field, then type. Use the text controls below on touch devices." width="1280" height="850"></canvas>
+        <div id="remote-overlay" class="remote-overlay"><span>✦</span><h3>Your private window to CesarPC.</h3><p id="remote-hint">Connect to use the dedicated ChatGPT browser. CesarPC must be awake, with your Windows session signed in and the host running.</p></div>
+      </div>
+      <div class="remote-text-controls">
+        <label for="remote-text">Text input · select a field in the remote window first</label>
+        <textarea id="remote-text" rows="2" maxlength="12000" placeholder="Useful for pasting text or typing from a phone."></textarea>
+        <div><small>Only this browser window is shared. No desktop, microphone, file transfer or system clipboard access.</small><button id="remote-insert" type="button" disabled>Insert text</button><button id="remote-enter" type="button" disabled>Enter ↵</button></div>
+      </div>
+      <p class="remote-note">Sign in to ChatGPT in the dedicated browser on CesarPC. If that session expires, renew it there. Leaving this tab disconnects your view; it does not sign you out of ChatGPT. Remote screen interaction may not be accessible to screen readers.</p>
     </section>
 
     <section class="view" id="pdf" data-title="PDF Tools" data-code="06">
@@ -382,8 +369,8 @@
     </section>
   </main>
   <script src="github-galaxy.js?v=20260819gource"></script>
-  <script src="chat.js?v=20260909a"></script>
-  <script src="control.js?v=20260909chat"></script>
+  <script src="chat.js?v=20260909remote"></script>
+  <script src="control.js?v=20260909remote"></script>
   <script src="thermal-viewer.bundle.js?v=20260805o"></script>
 </body>
 </html>

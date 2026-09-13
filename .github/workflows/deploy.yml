@@ -35,8 +35,8 @@ jobs:
         with:
           node-version: "24"
 
-      - name: Validate private chat boundaries
-        run: node --test tests/chat.test.mjs
+      - name: Validate remote browser boundaries
+        run: node --test tests/remote-browser.test.mjs
 
       - name: Deploy to Cloudflare Pages
         uses: cloudflare/wrangler-action@v3

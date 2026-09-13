@@ -1,0 +1,9 @@
+{
+ "name":"cesar-remote-browser",
+ "main":"index.mjs",
+ "compatibility_date":"2026-07-28",
+ "workers_dev":true,
+ "observability":{"enabled":false},
+ "durable_objects":{"bindings":[{"name":"BROWSER_ROOM","class_name":"BrowserRoom"}]},
+ "migrations":[{"tag":"v1","new_sqlite_classes":["BrowserRoom"]}]
+}

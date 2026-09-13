@@ -62,35 +62,24 @@ minutes so new repositories and external changes appear automatically.
 - Authentication data and sessions live in Cloudflare D1.
 - The Minecraft agent accepts only the predefined `restart` command over outbound HTTPS.
 - Stirling PDF is private to the Tailscale network and is not proxied through the public site.
-- AI Chat uses the existing private session; only CesarVapor has access. OpenAI keys stay server-side.
+- Remote Browser is owner-only and never exposes the desktop, raw browser protocol or existing browser profiles.
 
 ## Local development
 
-## Private AI Chat
+## Private ChatGPT Remote
 
-The AI Chat tab is owner-only and reuses the existing HomeLab session; it is not
-a ChatGPT login proxy. Configure a project API key in the private connection
-form, or use the optional OPENAI_API_KEY server secret. The form requires the
-existing TOKEN_ENCRYPTION_SECRET. ChatGPT subscriptions and history are not used.
-Keys are encrypted with AES-GCM and never returned by the configuration API.
-Only same-origin requests with a valid CSRF token can change settings or send messages.
+The owner-only ChatGPT Remote tab streams a dedicated browser on CesarPC.
+It is not an OpenAI API client. Sign into ChatGPT locally on CesarPC; the
+dedicated browser profile retains the session. Renew authentication locally
+whenever ChatGPT requests it. Keep Windows signed in and CesarPC awake.
 
-Migration 0007 was applied to the production D1 database before the first chat
-deployment. For a new environment, apply migrations/0007_private_chat.sql with
-Wrangler before publishing. The deployment workflow runs the isolated chat tests.
-History is stored per owner in D1; conversations can be deleted from the UI.
-Requests send only the most recent 20 messages within a 40,000-character budget
-to the Responses API with store:false. There are no browsing, file or server tools.
-The initial model is GPT-5 mini, with a 4,000-output-token cap and a 30-request
-hourly safety limit. Also set an OpenAI project budget; these limits are not
-a monetary spending guarantee.
+See [remote-browser/README.md](remote-browser/README.md) for installation,
+security boundaries, pause controls and the separate relay deployment.
 
-Retired marketplace UI, integrations and endpoints have been removed. Historical
-migrations and existing database records are retained for migration continuity;
-they are not read or operated by the portal. External seller accounts and listings
-have not been modified.
+Historical API-chat and marketplace migrations are retained; their active APIs
+have been removed. No external accounts or historical database records were deleted.
 
-Run isolated backend tests with: node --test tests/chat.test.mjs
+Run isolated tests: node --test tests/remote-browser.test.mjs
 
 ### Frontend development
 

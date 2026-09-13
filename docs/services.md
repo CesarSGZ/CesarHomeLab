@@ -9,7 +9,7 @@
 | AGT-01 | Minecraft recovery agent | ServerCesar | Outbound HTTPS only | `server-agent/` | Status and crash recovery |
 | PDF-01 | Stirling PDF | ServerCesar | Tailscale HTTPS only | `C:\Homelab` on ServerCesar | Private PDF workshop |
 | LAB-01 | Terra Powerplant Lab | Cloudflare Pages | Owner portal | `control/data/` | Engineering experiment |
-| AI-01 | AI Chat | Cloudflare Pages + D1 + OpenAI API | Owner portal | `functions/control/api/chat/` | Private text conversations |
+| AI-01 | ChatGPT Remote | CesarPC + authenticated Cloudflare relay | Owner portal | `remote-browser/` | Dedicated browser view |
 | GIT-01 | GitHub Galaxy | GitHub Actions + Cloudflare Pages | Owner portal | `scripts/build-github-galaxy.mjs` | Animated repository history |
 
 ## Naming rule

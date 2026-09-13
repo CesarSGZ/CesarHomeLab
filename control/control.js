@@ -35,6 +35,7 @@ function showView(id,push=true){
   views.forEach(view=>view.classList.toggle('active',view===next));
   navItems.forEach(item=>item.classList.toggle('active',item.dataset.view===next.id));
   document.getElementById('view-code').textContent=`${next.dataset.title.toUpperCase()} · ${next.dataset.code}`;
+  window.dispatchEvent(new CustomEvent('homelab:view',{detail:next.id}));
   if(push)history.replaceState(null,'',`#${next.id}`);
   const menuWasOpen=sidebar.classList.contains('open');
   setMenuOpen(false);
@@ -444,7 +445,7 @@ async function initialiseControl(){
   }
   if(hasCapability('github:read'))window.GitHubGalaxy?.initialise();
   if(hasCapability('thermal:read'))await loadThermalLab();
-  if(hasCapability('chat:use'))await window.MissionChat?.initialise({csrfToken});
+  if(hasCapability('remote:use'))window.RemoteChat?.initialise();
 }
 
 initialiseControl();
