@@ -30,18 +30,5 @@ try {
  $RelayUrl.TrimEnd('/') | & pnpm.cmd dlx wrangler@4.124.0 pages secret put REMOTE_RELAY_URL --project-name cesar-solla
  if ($LASTEXITCODE -ne 0) {throw 'Portal relay address setup failed.'}
 } finally {Pop-Location}
-$HostScript = Join-Path $PSScriptRoot 'host.mjs'
-$Arguments = '"' + $HostScript + '" "' + $ConfigFile + '"'
-# Interactive browser host: starts with the owner's Windows login, never as SYSTEM.
-$PowerShellPath = (Get-Process -Id $PID).Path
-$StartFile = Join-Path $PSScriptRoot 'start-host.ps1'
-$Action = New-ScheduledTaskAction -Execute $PowerShellPath -Argument ('-NoProfile -WindowStyle Hidden -File "' + $StartFile + '" -NodePath "' + $NodePath + '"')
-$Trigger = New-ScheduledTaskTrigger -AtLogOn -User $Identity
-$Principal = New-ScheduledTaskPrincipal -UserId $Identity -LogonType Interactive -RunLevel Limited
-$Settings = New-ScheduledTaskSettingsSet -ExecutionTimeLimit ([TimeSpan]::Zero) -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 1) -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries
-try {
- Register-ScheduledTask -TaskName 'CesarHomeLab Remote Browser' -Action $Action -Trigger $Trigger -Principal $Principal -Settings $Settings -Description 'Dedicated ChatGPT browser for owner-only HomeLab access. No desktop sharing.' -Force | Out-Null
- Write-Output 'Automatic start at Windows login configured.'
-} catch {Write-Output 'Automatic task registration unavailable. Use start-host.ps1 to run the host manually.'}
-Start-Process -FilePath $NodePath -ArgumentList $Arguments -WindowStyle Hidden -WorkingDirectory $PSScriptRoot
-Write-Output 'Private browser host started. Local controls: http://127.0.0.1:18763/'
+& (Join-Path $PSScriptRoot 'register-web-launcher.ps1')
+Write-Output 'Installed in manual mode. Use the links in Mission Control on CesarPC to sign in or start sharing.'

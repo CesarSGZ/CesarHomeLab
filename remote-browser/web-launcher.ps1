@@ -1,0 +1,31 @@
+param([string]$Link)
+$ErrorActionPreference='Stop'
+Add-Type -AssemblyName System.Windows.Forms
+try {
+ if($Link -notmatch '^cesar-remote://(login|start|stop)/?$'){throw 'Invalid launcher action.'}
+ $Mode=$Matches[1]
+ $Labels=@{login='Abrir el navegador dedicado para iniciar sesion en ChatGPT';start='Activar Remote Browser en este PC';stop='Apagar Remote Browser en este PC'}
+ if([System.Windows.Forms.MessageBox]::Show($Labels[$Mode]+'?','CesarPC - Remote Browser','YesNo','Question') -ne 'Yes'){exit}
+ if($Mode -eq 'login'){
+  & (Join-Path $PSScriptRoot 'local-login.ps1')
+  [System.Windows.Forms.MessageBox]::Show('Inicia sesion en la ventana de Edge que se ha abierto. Cuando veas tus conversaciones, cierra esa ventana y pulsa Activar en tu web.','Paso siguiente') | Out-Null
+  exit
+ }
+ $HostFile=Join-Path $PSScriptRoot 'host.mjs'
+ if($Mode -eq 'stop'){
+  Get-CimInstance Win32_Process -Filter "Name='node.exe'" | Where-Object {$_.CommandLine -and $_.CommandLine.Contains($HostFile)} | ForEach-Object {Stop-Process -Id $_.ProcessId}
+ }
+ $Running=$false
+ try {$null=Invoke-WebRequest 'http://127.0.0.1:18763/status' -UseBasicParsing -TimeoutSec 2; $Running=$true} catch {}
+ if(!$Running){
+  $Config=Get-Content -LiteralPath (Join-Path $env:LOCALAPPDATA 'CesarHomeLab/RemoteBrowser/settings.json') -Raw | ConvertFrom-Json
+  $Profile=Join-Path $Config.dataDirectory 'browser-profile'
+  $Dedicated=@(Get-CimInstance Win32_Process -Filter "Name='msedge.exe'" | Where-Object {$_.CommandLine -and $_.CommandLine.Contains($Profile) -and $_.CommandLine -notmatch '--type='})
+  foreach($Item in $Dedicated){$null=(Get-Process -Id $Item.ProcessId).CloseMainWindow()}
+  if($Dedicated.Count){Start-Sleep -Seconds 2}
+ }
+ if($Mode -eq 'start'){
+  $Node=Join-Path $env:USERPROFILE '.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node.exe'
+  & (Join-Path $PSScriptRoot 'start-host.ps1') -NodePath $Node
+ }
+} catch {[System.Windows.Forms.MessageBox]::Show($_.Exception.Message,'Remote Browser - Error') | Out-Null;exit 1}

@@ -25,9 +25,11 @@ Deploy the relay with Wrangler using worker/wrangler.jsonc. Note its actual
 workers.dev URL, then run install.ps1 -RelayUrl <that URL> on CesarPC.
 The installer creates random host/viewer secrets, configures the cloud secrets,
 restricts the local profile directory to the current Windows user and SYSTEM,
-and attempts a limited interactive scheduled task at Windows login.
-No Windows password is stored. Start the host manually with start-host.ps1
-if task creation is unavailable.
+and registers a current-user cesar-remote URL handler for manual web actions.
+No Windows password is stored. No startup task or background listener is required.
+The previous Remote Browser login task is disabled. Mission Control provides
+explicit login/start/stop links for CesarPC, with local confirmation for every action.
+The protocol handler accepts only these three fixed actions, not arbitrary commands.
 
 For Google sign-in, run local-login.ps1 first. It stops the remote host and opens
 the same dedicated profile in ordinary Edge with no automation attached. Sign in

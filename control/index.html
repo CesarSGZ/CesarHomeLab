@@ -317,6 +317,13 @@
 
     <section class="view" id="chat" data-title="ChatGPT Remote" data-code="05">
       <div class="simple-heading remote-heading"><p class="eyebrow"><span></span> CesarPC · private browser</p><h2>Your ChatGPT.<br>From here.</h2><p>This is the real ChatGPT browser running on CesarPC, not an API chat. Your login and conversations remain with ChatGPT.</p></div>
+      <details class="remote-local-help" style="margin-bottom:20px;padding:18px;border:1px solid #536570;border-radius:12px">
+        <summary style="cursor:pointer">¿Estás en CesarPC? Iniciar sesión o encender Remote Browser</summary>
+        <p>Primera vez o sesión caducada: <a href="cesar-remote://login">1. Iniciar sesión en ChatGPT ↗</a>. Identifícate en la ventana dedicada de Edge y ciérrala cuando veas tus conversaciones.</p>
+        <p><a href="cesar-remote://start">2. Activar Remote Browser ↗</a>. Después pulsa Connect. Si ya habías iniciado sesión, ve directamente a este paso.</p>
+        <p><a href="cesar-remote://stop">Apagar Remote Browser ↗</a> cuando termines.</p>
+        <small>Solo en CesarPC. Acepta abrir el lanzador local si el navegador lo pregunta. Nada arranca al iniciar Windows. Desde otro ordenador, utiliza Connect con CesarPC ya activado.</small>
+      </details>
       <div class="remote-toolbar">
         <div><i id="remote-dot"></i><strong id="remote-state">Not connected</strong><span>CESARPC / OWNER ONLY</span></div>
         <div><button id="remote-connect" type="button">Connect</button><button id="remote-home" type="button" disabled>ChatGPT home</button><button id="remote-fullscreen" type="button">Full screen ↗</button></div>
