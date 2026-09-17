@@ -30,6 +30,11 @@ No Windows password is stored. No startup task or background listener is require
 The previous Remote Browser login task is disabled. Mission Control provides
 explicit login/start/stop links for CesarPC, with local confirmation for every action.
 The protocol handler accepts only these three fixed actions, not arbitrary commands.
+The installer compiles Launcher.cs using the Windows .NET Framework compiler and
+registers that visible local executable, not a hidden script, as the URL handler.
+The launcher shows the requested action before running it and surfaces failures.
+Its executable and action-only diagnostic log live in the private installation
+directory. It creates no background service and starts only on explicit activation.
 
 For Google sign-in, run local-login.ps1 first. It stops the remote host and opens
 the same dedicated profile in ordinary Edge with no automation attached. Sign in
