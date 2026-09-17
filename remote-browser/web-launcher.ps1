@@ -1,8 +1,9 @@
-param([string]$Link)
+param([string]$Link,[switch]$Check)
 $ErrorActionPreference='Stop'
 Add-Type -AssemblyName System.Windows.Forms
 try {
  if($Link -notmatch '^cesar-remote://(login|start|stop)/?$'){throw 'Invalid launcher action.'}
+ if($Check){Write-Output 'Launcher ready. No action executed.';exit 0}
  $Mode=$Matches[1]
  $Labels=@{login='Abrir el navegador dedicado para iniciar sesion en ChatGPT';start='Activar Remote Browser en este PC';stop='Apagar Remote Browser en este PC'}
  if([System.Windows.Forms.MessageBox]::Show($Labels[$Mode]+'?','CesarPC - Remote Browser','YesNo','Question') -ne 'Yes'){exit}

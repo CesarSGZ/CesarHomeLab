@@ -1,7 +1,7 @@
 $ErrorActionPreference='Stop'
 # Manual protocol handler only. No background listener, startup task or login trigger.
 $Key='HKCU:\Software\Classes\cesar-remote'
-$Shell=Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
+$Shell=(Get-Command pwsh -ErrorAction Stop).Source
 $Script=Join-Path $PSScriptRoot 'web-launcher.ps1'
 New-Item -Path "$Key\shell\open\command" -Force | Out-Null
 Set-Item -Path $Key -Value 'URL:CesarPC Remote Browser'
