@@ -1,12 +1,16 @@
 param([string]$Link,[switch]$Check)
 $ErrorActionPreference='Stop'
+$Log=Join-Path $env:LOCALAPPDATA 'CesarHomeLab/RemoteBrowser/launcher.log'
+function Record([string]$Message){Add-Content -LiteralPath $Log -Value ((Get-Date -Format o)+' '+$Message)}
+Record 'Launcher invoked'
 Add-Type -AssemblyName System.Windows.Forms
 try {
  if($Link -notmatch '^cesar-remote://(login|start|stop)/?$'){throw 'Invalid launcher action.'}
  if($Check){Write-Output 'Launcher ready. No action executed.';exit 0}
  $Mode=$Matches[1]
+ Record ('Validated action: '+$Mode)
  $Labels=@{login='Abrir el navegador dedicado para iniciar sesion en ChatGPT';start='Activar Remote Browser en este PC';stop='Apagar Remote Browser en este PC'}
- if([System.Windows.Forms.MessageBox]::Show($Labels[$Mode]+'?','CesarPC - Remote Browser','YesNo','Question') -ne 'Yes'){exit}
+ if([System.Windows.Forms.MessageBox]::Show($Labels[$Mode]+'?','CesarPC - Remote Browser','YesNo','Question','Button2','DefaultDesktopOnly') -ne 'Yes'){Record 'Cancelled';exit}
  if($Mode -eq 'login'){
   & (Join-Path $PSScriptRoot 'local-login.ps1')
   [System.Windows.Forms.MessageBox]::Show('Inicia sesion en la ventana de Edge que se ha abierto. Cuando veas tus conversaciones, cierra esa ventana y pulsa Activar en tu web.','Paso siguiente') | Out-Null
@@ -29,4 +33,4 @@ try {
   $Node=Join-Path $env:USERPROFILE '.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node.exe'
   & (Join-Path $PSScriptRoot 'start-host.ps1') -NodePath $Node
  }
-} catch {[System.Windows.Forms.MessageBox]::Show($_.Exception.Message,'Remote Browser - Error') | Out-Null;exit 1}
+} catch {Record ('Error: '+$_.Exception.Message);[System.Windows.Forms.MessageBox]::Show($_.Exception.Message,'Remote Browser - Error','OK','Error','Button1','DefaultDesktopOnly') | Out-Null;exit 1}
