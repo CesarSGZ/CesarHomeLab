@@ -7,7 +7,6 @@ small agents that connect cloud controls to services running on ServerCesar.
 
 - Public portfolio: [cesar-solla.pages.dev](https://cesar-solla.pages.dev/)
 - Private portal: [cesar-solla.pages.dev/control/](https://cesar-solla.pages.dev/control/)
-- PDF workspace: available only inside the Tailscale network
 
 ## System map
 
@@ -18,7 +17,6 @@ small agents that connect cloud controls to services running on ServerCesar.
 | Authentication and operational APIs | `/functions/` | Cloudflare Pages Functions |
 | Users, sessions and operational data | `/migrations/` | Cloudflare D1 |
 | Minecraft recovery agent | `/server-agent/` | ServerCesar / Windows |
-| PDF Tools | linked from `/control/` | ServerCesar / Stirling PDF / Tailscale |
 | GitHub Galaxy | `/control/` | GitHub Actions + browser canvas |
 | Thermal experiment | `/control/data/` and `/control/assets/thermal/` | Versioned static evidence |
 
@@ -61,25 +59,8 @@ minutes so new repositories and external changes appear automatically.
 - The GitHub repository contains source code, never real passwords or service tokens.
 - Authentication data and sessions live in Cloudflare D1.
 - The Minecraft agent accepts only the predefined `restart` command over outbound HTTPS.
-- Stirling PDF is private to the Tailscale network and is not proxied through the public site.
-- Remote Browser is owner-only and never exposes the desktop, raw browser protocol or existing browser profiles.
 
 ## Local development
-
-## Private ChatGPT Remote
-
-The owner-only ChatGPT Remote tab streams a dedicated browser on CesarPC.
-It is not an OpenAI API client. Sign into ChatGPT locally on CesarPC; the
-dedicated browser profile retains the session. Renew authentication locally
-whenever ChatGPT requests it. Keep Windows signed in and CesarPC awake.
-
-See [remote-browser/README.md](remote-browser/README.md) for installation,
-security boundaries, pause controls and the separate relay deployment.
-
-Historical API-chat and marketplace migrations are retained; their active APIs
-have been removed. No external accounts or historical database records were deleted.
-
-Run isolated tests: node --test tests/remote-browser.test.mjs
 
 ### Frontend development
 

@@ -30,14 +30,6 @@ jobs:
           GITHUB_GALAXY_USERNAME: CesarSGZ
         run: node scripts/build-github-galaxy.mjs
 
-      - name: Set up test runtime
-        uses: actions/setup-node@v4
-        with:
-          node-version: "24"
-
-      - name: Validate remote browser boundaries
-        run: node --test tests/remote-browser.test.mjs tests/remote-upload.test.mjs
-
       - name: Deploy to Cloudflare Pages
         uses: cloudflare/wrangler-action@v3
         with:

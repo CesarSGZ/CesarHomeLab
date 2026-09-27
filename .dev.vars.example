@@ -1,3 +1,0 @@
-# Local development only. Never commit real secrets.
-REMOTE_RELAY_URL=
-REMOTE_VIEWER_SECRET=

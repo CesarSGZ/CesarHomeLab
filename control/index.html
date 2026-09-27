@@ -12,7 +12,6 @@
   <link rel="stylesheet" href="control.css?v=20260909chat">
   <link rel="stylesheet" href="auth-overrides.css?v=20260728a">
   <link rel="stylesheet" href="refinement.css?v=20260909chat">
-  <link rel="stylesheet" href="chat.css?v=20260909remote">
 </head>
 <body class="access-pending">
   <canvas id="control-grid" aria-hidden="true"></canvas>
@@ -28,8 +27,6 @@
       <button class="nav-item" data-view="infrastructure"><span>02</span><b id="infrastructure-nav-label">Servers</b></button>
       <button class="nav-item" data-view="github"><span>03</span>GitHub Galaxy</button>
       <button class="nav-item" data-view="thermal"><span>04</span>Thermal Lab</button>
-      <button class="nav-item" data-view="chat"><span>05</span>ChatGPT Remote</button>
-      <button class="nav-item" data-view="pdf"><span>06</span>PDF Tools</button>
     </nav>
     <div class="sidebar-foot"><span><i></i> Secure session</span><button id="sign-out" type="button">Sign out ↗</button></div>
   </aside>
@@ -86,22 +83,6 @@
               <small>Fractal Terra · spine 3 · CPU/GPU transient modelling</small>
             </div>
             <button class="module-action" data-open="thermal">Open laboratory →</button>
-          </div>
-        </article>
-        <article class="module module-wide chat-summary" data-requires="remote:use" data-accent="violet">
-          <header><span>CHATGPT REMOTE</span><small>WORKSPACE / 04</small></header>
-          <div class="chat-summary-body">
-            <div class="chat-mark" aria-hidden="true">✦</div>
-            <div><p>HOSTED ON CESARPC</p><strong>Your ChatGPT. Your own computer.</strong><small>A private view of your dedicated ChatGPT browser on CesarPC. No API key.</small></div>
-            <button class="module-action" data-open="chat">Open chat →</button>
-          </div>
-        </article>
-        <article class="module module-wide pdf-summary" data-requires="pdf:read" data-accent="blue">
-          <header><span>PDF TOOLS</span><small>SERVICE / 05</small></header>
-          <div class="pdf-summary-body">
-            <div class="pdf-mark"><b>PDF</b></div>
-            <div><p><span></span> PRIVATE TAILSCALE SERVICE</p><strong>Stirling-PDF on ServerCesar</strong><small>Merge, split, organise, sign, protect and convert documents locally.</small></div>
-            <button class="module-action" data-open="pdf">Open tools →</button>
           </div>
         </article>
       </div>
@@ -315,70 +296,9 @@
       </section>
     </section>
 
-    <section class="view" id="chat" data-title="ChatGPT Remote" data-code="05">
-      <div class="simple-heading remote-heading"><p class="eyebrow"><span></span> CesarPC · private browser</p><h2>Your ChatGPT.<br>From here.</h2><p>This is the real ChatGPT browser running on CesarPC, not an API chat. Your login and conversations remain with ChatGPT.</p></div>
-      <details class="remote-local-help" style="margin-bottom:20px;padding:18px;border:1px solid #536570;border-radius:12px">
-        <summary style="cursor:pointer">¿Estás en CesarPC? Iniciar sesión o encender Remote Browser</summary>
-        <p>Primera vez o sesión caducada: <a href="cesar-remote://login">1. Iniciar sesión en ChatGPT ↗</a>. Pulsa Continuar en el lanzador, identifícate en el Brave dedicado y cierra esa ventana cuando veas tus conversaciones.</p>
-        <p><a href="cesar-remote://start">2. Activar Remote Browser ↗</a>. Pulsa Continuar y espera la confirmación de conexión en el lanzador. Después pulsa Connect. Si ya habías iniciado sesión, ve directamente a este paso.</p>
-        <p><a href="cesar-remote://stop">Apagar Remote Browser ↗</a> cuando termines.</p>
-        <small>Solo en CesarPC. Acepta abrir el lanzador local si el navegador lo pregunta. Nada arranca al iniciar Windows. Desde otro ordenador, utiliza Connect con CesarPC ya activado.</small>
-      </details>
-      <div class="remote-toolbar">
-        <div><i id="remote-dot"></i><strong id="remote-state">Not connected</strong><span>CESARPC / OWNER ONLY</span></div>
-        <div><button id="remote-connect" type="button">Connect</button><button id="remote-home" type="button" disabled>ChatGPT home</button><button id="remote-fullscreen" type="button">Full screen ↗</button></div>
-      </div>
-      <div id="remote-stage" class="remote-stage">
-        <canvas id="remote-screen" tabindex="0" role="application" aria-label="Remote ChatGPT browser. Click a field, then type. Use the text controls below on touch devices." width="1280" height="850"></canvas>
-        <div id="remote-overlay" class="remote-overlay"><span>✦</span><h3>Your private window to CesarPC.</h3><p id="remote-hint">Connect to use the dedicated ChatGPT browser. CesarPC must be awake, with your Windows session signed in and the host running.</p></div>
-      </div>
-      <div class="remote-text-controls">
-        <label for="remote-text">Text input · select a field in the remote window first</label>
-        <textarea id="remote-text" rows="2" maxlength="12000" placeholder="Useful for pasting text or typing from a phone."></textarea>
-        <div><small>Only this browser window is shared. Upload one document or image (up to 10 MB). No desktop or system clipboard access.</small><button id="remote-upload" type="button" disabled>Upload file ↑</button><input id="remote-file" type="file" accept=".pdf,.txt,.csv,.json,.md,.docx,.xlsx,.pptx,.png,.jpg,.jpeg,.webp" hidden><button id="remote-insert" type="button" disabled>Insert text</button><button id="remote-enter" type="button" disabled>Enter ↵</button></div>
-        <p id="remote-upload-status" role="status" aria-live="polite">Files are attached to ChatGPT. Review the attachment before sending your message.</p>
-      </div>
-      <p class="remote-note">Sign in to ChatGPT in the dedicated browser on CesarPC. If that session expires, renew it there. Leaving this tab disconnects your view; it does not sign you out of ChatGPT. Remote screen interaction may not be accessible to screen readers.</p>
-    </section>
-
-    <section class="view" id="pdf" data-title="PDF Tools" data-code="06">
-      <div class="simple-heading pdf-heading">
-        <p class="eyebrow"><span></span> Private document workshop</p>
-        <h2>PDF Tools.</h2>
-        <p>Stirling-PDF runs locally on ServerCesar. Documents travel only through your private Tailscale network and are processed by the homelab rather than uploaded to a public PDF website.</p>
-      </div>
-
-      <div class="pdf-status-strip">
-        <span><i></i><b>SERVICE CONFIGURED</b></span>
-        <span>RUNTIME · WINDOWS NATIVE</span>
-        <span>VERSION · 2.14.3</span>
-      </div>
-
-      <div class="pdf-tool-grid">
-        <article><small>ORGANISE</small><strong>Merge &amp; split</strong><p>Combine several PDFs, extract pages, divide documents and change page order.</p></article>
-        <article><small>EDIT</small><strong>Sign &amp; annotate</strong><p>Add visible signatures, text, images, page numbers, watermarks and annotations.</p></article>
-        <article><small>SECURE</small><strong>Protect &amp; redact</strong><p>Add or remove passwords, manage permissions, redact content and inspect metadata.</p></article>
-        <article><small>CONVERT</small><strong>Transform files</strong><p>Convert images and supported document formats, compress PDFs and prepare printable output.</p></article>
-      </div>
-
-      <div class="pdf-launch-panel">
-        <div>
-          <small>TAILSCALE REQUIRED</small>
-          <strong>Open ServerCesar PDF workspace</strong>
-          <p>Your phone or computer must be connected to your Tailscale account. The service is not exposed through the router or the public Internet.</p>
-        </div>
-        <a id="pdf-open-button" href="https://cesarserver.tail2550a5.ts.net/" target="_blank" rel="noreferrer">Launch Stirling-PDF ↗</a>
-      </div>
-
-      <div class="pdf-migration-note">
-        <b>DOCKER READY</b>
-        <p>The current native Windows deployment and its persistent data live under <code>C:\Homelab</code>. A version-pinned Compose stack is already prepared so the service can move to Docker later without changing this Mission Control entry.</p>
-      </div>
-    </section>
   </main>
   <script src="github-galaxy.js?v=20260819gource"></script>
-  <script src="chat.js?v=20260913upload"></script>
-  <script src="control.js?v=20260909remote"></script>
+  <script src="control.js?v=20260927cleanup"></script>
   <script src="thermal-viewer.bundle.js?v=20260805o"></script>
 </body>
 </html>
