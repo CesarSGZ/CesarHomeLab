@@ -11,13 +11,13 @@ if($Task -and $Task.State -eq 'Running'){Stop-ScheduledTask -TaskName 'CesarHome
 $Hosts=@(Get-CimInstance Win32_Process | Where-Object { $_.Name -eq 'node.exe' -and $_.CommandLine -and $_.CommandLine.Contains($HostFile) })
 foreach($Item in $Hosts){Stop-Process -Id $Item.ProcessId -ErrorAction Stop}
 Start-Sleep -Milliseconds 1500
-$Dedicated=@(Get-CimInstance Win32_Process | Where-Object { $_.Name -eq $BrowserProcess -and $_.CommandLine -and $_.CommandLine.Contains($Profile) -and $_.CommandLine -notmatch '--type=' })
+$Dedicated=@(Get-CimInstance Win32_Process | Where-Object { $_.Name -eq $BrowserProcess -and $_.CommandLine -and $_.CommandLine.Contains($Profile) -and $_.CommandLine -match '--remote-debugging-pipe' -and $_.CommandLine -notmatch '--type=' })
 foreach($Item in $Dedicated){
  $Process=Get-Process -Id $Item.ProcessId -ErrorAction SilentlyContinue
  if($Process){$null=$Process.CloseMainWindow()}
 }
 Start-Sleep -Milliseconds 1500
-$Remaining=@(Get-CimInstance Win32_Process | Where-Object { $_.Name -eq $BrowserProcess -and $_.CommandLine -and $_.CommandLine.Contains($Profile) -and $_.CommandLine -notmatch '--type=' })
+$Remaining=@(Get-CimInstance Win32_Process | Where-Object { $_.Name -eq $BrowserProcess -and $_.CommandLine -and $_.CommandLine.Contains($Profile) -and $_.CommandLine -match '--remote-debugging-pipe' -and $_.CommandLine -notmatch '--type=' })
 if($Remaining.Count){throw 'Close only the dedicated ChatGPT browser window, then run this helper again.'}
 Start-Process -FilePath $Config.browserPath -ArgumentList ('--user-data-dir="'+$Profile+'" --no-first-run --new-window https://chatgpt.com/')
 Write-Output 'Dedicated browser opened for manual sign-in. Remote sharing is stopped. After signing in, close this dedicated window and activate Remote Browser.'
