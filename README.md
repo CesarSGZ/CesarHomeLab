@@ -65,5 +65,4 @@ minutes so new repositories and external changes appear automatically.
 ### Frontend development
 
 The frontend has no compilation step. Open `index.html` directly or serve the
-repository with a local static server. Use `.dev.vars.example` as the list of
-optional local environment variables; never commit `.dev.vars`.
+repository with a local static server. Never commit local secrets.
