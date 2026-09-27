@@ -26,9 +26,15 @@ try {
   $Config=Get-Content -LiteralPath (Join-Path $env:LOCALAPPDATA 'CesarHomeLab/RemoteBrowser/settings.json') -Raw | ConvertFrom-Json
   $Profile=Join-Path $Config.dataDirectory $(if($Config.profileDirectory){$Config.profileDirectory}else{'browser-profile'})
   $BrowserProcess=[IO.Path]::GetFileName($Config.browserPath)
-  $Dedicated=@(Get-CimInstance Win32_Process | Where-Object {$_.Name -eq $BrowserProcess -and $_.CommandLine -and $_.CommandLine.Contains($Profile) -and $_.CommandLine -notmatch '--type='})
-  foreach($Item in $Dedicated){$null=(Get-Process -Id $Item.ProcessId).CloseMainWindow()}
-  if($Dedicated.Count){Start-Sleep -Seconds 2}
+  # A profile may own several windows. Close each gracefully before taking its lock.
+  for($Attempt=0;$Attempt -lt 20;$Attempt++){
+   $Dedicated=@(Get-CimInstance Win32_Process | Where-Object {$_.Name -eq $BrowserProcess -and $_.CommandLine -and $_.CommandLine.Contains($Profile) -and $_.CommandLine -notmatch '--type='})
+   if(!$Dedicated.Count){break}
+   foreach($Item in $Dedicated){$Process=Get-Process -Id $Item.ProcessId -ErrorAction SilentlyContinue;if($Process){$null=$Process.CloseMainWindow()}}
+   Start-Sleep -Milliseconds 500
+  }
+  $Remaining=@(Get-CimInstance Win32_Process | Where-Object {$_.Name -eq $BrowserProcess -and $_.CommandLine -and $_.CommandLine.Contains($Profile) -and $_.CommandLine -notmatch '--type='})
+  if($Remaining.Count){throw 'Close all dedicated Remote Browser windows, then activate again. Your normal Brave windows can stay open.'}
  }
  if($Mode -eq 'start'){
   $Node=Join-Path $env:USERPROFILE '.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node.exe'
