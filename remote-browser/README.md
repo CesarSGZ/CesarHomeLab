@@ -1,7 +1,7 @@
 # CesarPC remote ChatGPT browser
 
 This is a **remote browser view**, not an unofficial ChatGPT API or a login proxy.
-The owner signs into the dedicated visible Microsoft Edge window on CesarPC.
+The owner signs into the dedicated visible Brave window on CesarPC.
 Do not copy a personal browser profile, authentication cookies or passwords.
 
 ## Components
@@ -37,7 +37,7 @@ Its executable and action-only diagnostic log live in the private installation
 directory. It creates no background service and starts only on explicit activation.
 
 For Google sign-in, run local-login.ps1 first. It stops the remote host and opens
-the same dedicated profile in ordinary Edge with no automation attached. Sign in
+the same dedicated Brave profile in an ordinary window with no automation attached. Sign in
 manually, close that dedicated window, then run start-host.ps1 to resume sharing.
 This uses normal browser authentication, not stealth flags or copied cookies.
 Do not send credentials to Codex. Google or ChatGPT can still require fresh

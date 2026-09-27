@@ -16,7 +16,7 @@ const settingsPath=process.argv[2];
 if(!settingsPath)throw Error("A private configuration path is required.");
 const settings=JSON.parse(readFileSync(settingsPath,"utf8"));
 const require=createRequire(import.meta.url),{chromium}=require(settings.playwrightPath);
-const profile=join(settings.dataDirectory,"browser-profile");mkdirSync(profile,{recursive:true});
+const profile=join(settings.dataDirectory,settings.profileDirectory||"browser-profile");mkdirSync(profile,{recursive:true});
 let browser,page,socket,viewing=false,paused=false,capturing=false,inputChain=Promise.resolve(),stopping=false;
 let width=1280,height=850;
 const localToken=randomBytes(24).toString("hex");

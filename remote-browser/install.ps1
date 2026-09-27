@@ -9,15 +9,15 @@ $Private = Join-Path $env:LOCALAPPDATA 'CesarHomeLab/RemoteBrowser'
 $ConfigFile = Join-Path $Private 'settings.json'
 if (Test-Path -LiteralPath $ConfigFile) { throw 'Already provisioned. Reuse the existing private settings; do not rotate them by reinstalling.' }
 if ($env:COMPUTERNAME -ne 'CesarPC') { throw 'Install this host only on CesarPC.' }
-$Browser = 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe'
-if (!(Test-Path -LiteralPath $Browser)) { throw 'Microsoft Edge was not found.' }
+$Browser = 'C:/Program Files/BraveSoftware/Brave-Browser/Application/brave.exe'
+if (!(Test-Path -LiteralPath $Browser)) { throw 'Brave was not found.' }
 New-Item -ItemType Directory -Path $Private -Force | Out-Null
 $Identity = [System.Security.Principal.WindowsIdentity]::GetCurrent().Name
 & icacls.exe $Private /inheritance:r /grant:r "${Identity}:(OI)(CI)F" 'SYSTEM:(OI)(CI)F' | Out-Null
 if ($LASTEXITCODE -ne 0) { throw 'Could not protect the private host folder.' }
 $HostSecret = [Convert]::ToHexString([System.Security.Cryptography.RandomNumberGenerator]::GetBytes(32)).ToLower()
 $ViewerSecret = [Convert]::ToHexString([System.Security.Cryptography.RandomNumberGenerator]::GetBytes(32)).ToLower()
-$Config = @{dataDirectory=$Private;hostSecret=$HostSecret;relayUrl=$RelayUrl.TrimEnd('/');browserPath=$Browser;playwrightPath=$PlaywrightPath;localPort=18763}
+$Config = @{dataDirectory=$Private;profileDirectory='brave-profile';hostSecret=$HostSecret;relayUrl=$RelayUrl.TrimEnd('/');browserPath=$Browser;playwrightPath=$PlaywrightPath;localPort=18763}
 $Config | ConvertTo-Json | Set-Content -LiteralPath $ConfigFile -Encoding UTF8
 Push-Location $Repo
 try {

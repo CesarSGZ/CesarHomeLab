@@ -34,9 +34,11 @@ static class Launcher {
      process.Start();
      var output=process.StandardOutput.ReadToEndAsync();var error=process.StandardError.ReadToEndAsync();
      await System.Threading.Tasks.Task.Run(()=>process.WaitForExit());
-     string result=await output,errors=await error;
+     // Browser descendants can inherit pipe handles. Never wait forever for EOF.
+     await System.Threading.Tasks.Task.WhenAny(System.Threading.Tasks.Task.WhenAll(output,error),System.Threading.Tasks.Task.Delay(1000));
+     string result=output.IsCompleted?output.Result:"",errors=error.IsCompleted?error.Result:"";
      if(process.ExitCode!=0)throw new Exception(errors+result);
-     text.Text=mode=="login"?"Ventana de inicio de sesion abierta.\r\n\r\nIdentificate en Edge. Cierra esa ventana cuando termines y pulsa Activar Remote Browser en la web.":mode=="start"?"Remote Browser activado.\r\n\r\nVuelve a la web y pulsa Connect.":"Remote Browser apagado.";
+     text.Text=mode=="login"?"Ventana de inicio de sesion abierta.\r\n\r\nIdentificate en Brave. Cierra esa ventana cuando termines y pulsa Activar Remote Browser en la web.":mode=="start"?"Navegador conectado a Mission Control.\r\n\r\nVuelve a la web y pulsa Connect. Si ChatGPT solicita identificacion, usa primero Iniciar sesion.":"Remote Browser apagado.";
     }
    }catch(Exception e){text.Text="No se ha completado la accion:\r\n"+e.Message;}
    finished=true;button.Text="Cerrar";button.Enabled=true;

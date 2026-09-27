@@ -24,8 +24,9 @@ try {
  try {$null=Invoke-WebRequest 'http://127.0.0.1:18763/status' -UseBasicParsing -TimeoutSec 2; $Running=$true} catch {}
  if(!$Running){
   $Config=Get-Content -LiteralPath (Join-Path $env:LOCALAPPDATA 'CesarHomeLab/RemoteBrowser/settings.json') -Raw | ConvertFrom-Json
-  $Profile=Join-Path $Config.dataDirectory 'browser-profile'
-  $Dedicated=@(Get-CimInstance Win32_Process -Filter "Name='msedge.exe'" | Where-Object {$_.CommandLine -and $_.CommandLine.Contains($Profile) -and $_.CommandLine -notmatch '--type='})
+  $Profile=Join-Path $Config.dataDirectory $(if($Config.profileDirectory){$Config.profileDirectory}else{'browser-profile'})
+  $BrowserProcess=[IO.Path]::GetFileName($Config.browserPath)
+  $Dedicated=@(Get-CimInstance Win32_Process | Where-Object {$_.Name -eq $BrowserProcess -and $_.CommandLine -and $_.CommandLine.Contains($Profile) -and $_.CommandLine -notmatch '--type='})
   foreach($Item in $Dedicated){$null=(Get-Process -Id $Item.ProcessId).CloseMainWindow()}
   if($Dedicated.Count){Start-Sleep -Seconds 2}
  }
