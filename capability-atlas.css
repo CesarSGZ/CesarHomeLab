@@ -1,5 +1,5 @@
 /* Sculptural, accessible navigation for three connected disciplines. */
-.story-back{display:none}.skill-story{scroll-margin-top:125px}.worlds{scroll-margin-top:115px}
+.story-back{display:none}.capability-atlas .skill-story{scroll-margin-top:125px;overflow:clip}.worlds{scroll-margin-top:115px}
 @media(max-width:680px){.story-back{display:inline-block;margin-top:26px;padding:11px 15px;color:var(--signal);background:transparent;border:1px solid #b6d3e233;border-radius:25px;font-size:12px}.worlds{scroll-margin-top:130px}.skill-story{scroll-margin-top:125px}}
 .systems{position:relative;background:radial-gradient(ellipse at 50% 25%,#14243680,transparent 55%),#090f19;overflow:hidden}
 .systems .section-head{margin-bottom:22px}
