@@ -24,10 +24,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Build GitHub Galaxy history
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_GALAXY_USERNAME: CesarSGZ
+      - name: Build current GitHub Galaxy snapshot
         run: node scripts/build-github-galaxy.mjs
 
       - name: Deploy to Cloudflare Pages

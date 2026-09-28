@@ -12,6 +12,7 @@
   <link rel="stylesheet" href="control.css?v=20260909chat">
   <link rel="stylesheet" href="auth-overrides.css?v=20260728a">
   <link rel="stylesheet" href="refinement.css?v=20260909chat">
+  <link rel="stylesheet" href="github-galaxy.css?v=20260928atlas">
 </head>
 <body class="access-pending">
   <canvas id="control-grid" aria-hidden="true"></canvas>
@@ -69,7 +70,7 @@
           <header><span>GITHUB GALAXY</span><small>CODE / 02</small></header>
           <div class="github-summary-body">
             <div class="github-mark" aria-hidden="true"><i></i><i></i><b>GH</b></div>
-            <div><p><span></span> LIVE REPOSITORY MAP</p><strong><span data-github-repo-count>—</span> repositories orbiting CesarSGZ</strong><small>Branches, activity and languages discovered automatically from GitHub.</small></div>
+            <div><p><span></span> LIVE REPOSITORY MAP</p><strong>Your website, connected.</strong><small>Explore how the website is built, with current source and deployment data.</small></div>
             <button class="module-action" data-open="github">Explore galaxy →</button>
           </div>
         </article>
@@ -124,47 +125,37 @@
     </section>
 
     <section class="view github-view" id="github" data-title="GitHub Galaxy" data-code="03">
-      <div class="simple-heading github-heading">
-        <p class="eyebrow"><span></span> Live development universe</p>
-        <h2>GitHub Galaxy.</h2>
-        <p>A Gource-inspired replay of the real Git history. Directories become branches, files become luminous leaves and each contribution travels through the system over time.</p>
+      <div class="galaxy-heading"><div><p class="eyebrow"><span></span> GitHub Galaxy / Architecture explorer</p><h2>Your website.<br><em>Decoded.</em></h2></div><p>Not a wall of files. A living map of what each part does, how it connects, and how a change becomes something real.</p></div>
+      <div class="galaxy-syncbar">
+        <div><span class="galaxy-signal" id="galaxy-signal"></span><strong id="github-account-label">CesarHomeLab / main</strong><small id="github-sync-label">Waiting for source data</small></div>
+        <button id="github-refresh" type="button"><span aria-hidden="true">↻</span> Refresh from GitHub</button>
       </div>
-      <div class="github-status-strip">
-        <span><i></i><b id="github-account-label">CONNECTING TO GITHUB</b></span>
-        <span id="github-sync-label">WAITING FOR FIRST SYNC</span>
-        <button id="github-refresh" type="button">RELOAD DATA ↻</button>
-      </div>
-      <div class="github-galaxy-layout">
-        <div class="github-canvas-shell">
-          <canvas id="github-galaxy-canvas" tabindex="0" role="img" aria-label="Interactive Gource-style map of the selected GitHub repository. Drag to move, use the mouse wheel to zoom and click a node to inspect it."></canvas>
-          <div class="github-map-controls" aria-label="Map controls">
-            <button id="github-zoom-out" type="button" title="Zoom out" aria-label="Zoom out">−</button>
-            <output id="github-zoom-level" aria-live="polite">150%</output>
-            <button id="github-zoom-in" type="button" title="Zoom in" aria-label="Zoom in">+</button>
-            <button id="github-reset-view" type="button">FIT</button>
-            <button id="github-expand" type="button">EXPAND ↗</button>
-          </div>
-          <div class="github-map-hint">DRAG TO MOVE · SCROLL TO ZOOM · CLICK A NODE</div>
-          <div class="github-node-tooltip" id="github-node-tooltip" role="tooltip" hidden></div>
-          <aside class="github-node-inspector" id="github-node-inspector" aria-live="polite">
-            <small>NODE INSPECTOR</small>
-            <strong>Choose a point in the map</strong>
-            <span>Files, folders and their latest contribution details will appear here.</span>
-          </aside>
-          <div class="galaxy-legend"><span><i></i> FILE</span><span><i></i> DIRECTORY</span><span id="github-timeline-date">CURRENT TREE</span></div>
-          <div class="github-playback">
-            <button id="github-play" type="button">▶ PLAY HISTORY</button>
-            <input id="github-timeline" type="range" min="0" max="0" value="0" aria-label="Repository history timeline">
-            <span id="github-timeline-count">0 / 0</span>
-          </div>
+      <div class="galaxy-journeys" id="galaxy-journeys" role="group" aria-label="Guided explanations"></div>
+      <div class="galaxy-workspace">
+        <div class="galaxy-map" id="galaxy-map" aria-label="Interactive architecture of CesarHomeLab">
+          <div class="galaxy-map-top"><span>THE CURRENT SYSTEM</span><button type="button" id="galaxy-reset">Explore freely ↗</button></div>
+          <div class="galaxy-map-legend"><span>BUILD</span><span>DELIVER</span><span>EXPERIENCE</span></div>
+          <svg class="galaxy-links" id="galaxy-links" aria-hidden="true"><defs><linearGradient id="galaxy-wire"><stop stop-color="#bba8f1"/><stop offset=".5" stop-color="#83d7ed"/><stop offset="1" stop-color="#d5e99a"/></linearGradient></defs><g id="galaxy-paths"></g></svg>
+          <div class="galaxy-map-nodes" id="galaxy-map-nodes"></div>
+          <div class="galaxy-map-foot"><span><i></i> Select a node. Follow the connections.</span><button type="button" id="galaxy-motion" aria-pressed="false">Pause motion Ⅱ</button></div>
         </div>
-        <aside class="github-repo-detail" id="github-repo-detail">
-          <small>SELECTED REPOSITORY</small>
-          <h3>Waiting for history…</h3>
-          <p>The repository structure and contribution timeline will appear here after the first sync.</p>
+        <aside class="galaxy-inspector" id="galaxy-inspector" aria-label="What this component does">
+          <div class="galaxy-inspector-top"><span id="galaxy-node-tag">THE PUBLIC FRONT DOOR</span><span id="galaxy-node-number">03</span></div>
+          <h3 id="galaxy-node-title">Cloudflare Pages</h3><p class="galaxy-node-summary" id="galaxy-node-summary"></p><p id="galaxy-node-explanation"></p>
+          <div class="galaxy-io"><div><small>RECEIVES</small><p id="galaxy-node-input"></p></div><span aria-hidden="true">↓</span><div><small>PROVIDES</small><p id="galaxy-node-output"></p></div></div>
+          <div class="galaxy-neighbours"><small>CONNECTED TO</small><div id="galaxy-neighbours"></div></div>
+          <button type="button" id="galaxy-show-files">Inspect its source files ↓</button>
         </aside>
       </div>
-      <div class="github-repo-list" id="github-repo-list" aria-label="GitHub repositories"></div>
+      <div class="galaxy-guide" id="galaxy-guide" hidden>
+        <div class="galaxy-guide-progress" id="galaxy-guide-progress"></div><div><span id="galaxy-guide-kicker"></span><h3 id="galaxy-guide-title"></h3><p id="galaxy-guide-copy"></p></div>
+        <div class="galaxy-guide-controls"><button type="button" id="galaxy-previous" aria-label="Previous step">←</button><button type="button" id="galaxy-next">Next step →</button><button type="button" id="galaxy-close" aria-label="Close guided explanation">×</button></div>
+      </div>
+      <div class="galaxy-facts"><div><small>CURRENT BRANCH</small><strong id="galaxy-branch">main</strong></div><div><small>ACTIVE SOURCE FILES</small><strong id="galaxy-file-count">—</strong></div><div><small>LATEST COMMIT</small><a id="galaxy-commit" target="_blank" rel="noreferrer">—</a></div><div><small>LAST DEPLOY WORKFLOW</small><a id="galaxy-deploy" target="_blank" rel="noreferrer">Not checked yet</a></div></div>
+      <div class="galaxy-bottom">
+        <section class="galaxy-files" id="galaxy-files"><header><div><small>GO ONE LEVEL DEEPER</small><h3 id="galaxy-files-title">Source files</h3></div><span id="galaxy-file-total">0</span></header><label class="galaxy-search"><span aria-hidden="true">⌕</span><input id="galaxy-file-search" type="search" placeholder="Find a source file…" aria-label="Find a source file"></label><div id="galaxy-file-list"></div><p class="galaxy-file-note">Current main only. Removed features and historical migrations are not shown as active services.</p></section>
+        <section class="galaxy-activity"><header><small>THE LATEST CHANGES</small><h3>From idea to commit.</h3></header><div id="galaxy-activity-list"></div><p>Source and deployment data, not a live health monitor. Infrastructure is where the Minecraft agent reports its operational state.</p></section>
+      </div>
       <p class="github-feedback" id="github-feedback" role="status" aria-live="polite"></p>
     </section>
 
@@ -297,7 +288,7 @@
     </section>
 
   </main>
-  <script src="github-galaxy.js?v=20260819gource"></script>
+  <script src="github-galaxy.js?v=20260928atlas"></script>
   <script src="control.js?v=20260927cleanup"></script>
   <script src="thermal-viewer.bundle.js?v=20260805o"></script>
 </body>

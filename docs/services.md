@@ -7,9 +7,8 @@
 | DB-01 | Control database | Cloudflare D1 | Pages binding only | `migrations/` | Users, sessions and operational data |
 | MC-01 | Minecraft | ServerCesar | Game port + restricted portal controls | Server filesystem | Shared game server |
 | AGT-01 | Minecraft recovery agent | ServerCesar | Outbound HTTPS only | `server-agent/` | Status and crash recovery |
-| PDF-01 | Stirling PDF | ServerCesar | Tailscale HTTPS only | `C:\Homelab` on ServerCesar | Private PDF workshop |
 | LAB-01 | Terra Powerplant Lab | Cloudflare Pages | Owner portal | `control/data/` | Engineering experiment |
-| GIT-01 | GitHub Galaxy | GitHub Actions + Cloudflare Pages | Owner portal | `scripts/build-github-galaxy.mjs` | Animated repository history |
+| GIT-01 | GitHub Galaxy | GitHub API + Cloudflare Pages | Owner portal | `control/galaxy-model.js` and authenticated read-only endpoint | Current architecture and source explorer |
 
 ## Naming rule
 

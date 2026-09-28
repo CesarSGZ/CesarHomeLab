@@ -19,7 +19,6 @@ Cloudflare Pages ---------------- Public portfolio
     |
     +-- outbound command queue <-- ServerCesar Minecraft agent
 
-Private browser -- Tailscale --> ServerCesar Stirling PDF
 ```
 
 ## Boundaries
@@ -38,14 +37,14 @@ configured outside the repository.
 
 ### ServerCesar
 
-Runs the actual workloads. The Minecraft agent polls Cloudflare over outbound
-HTTPS and accepts only a restricted restart order. Stirling PDF listens on
-localhost and Tailscale Serve provides the private HTTPS route.
+Runs Minecraft. Its agent polls Cloudflare over outbound HTTPS and accepts
+only a restricted restart order. Galaxy is read-only and never issues commands.
 
 ### Tailscale
 
-Provides private device-to-device access. The PDF service is available only to
-devices authorised in the tailnet; it is not exposed with a router port forward.
+Provides private device-to-device access for administration. The web-based
+Minecraft command flow uses the agent's outbound HTTPS connection, not a
+browser-to-Tailscale connection.
 
 ## Change workflow
 
@@ -57,9 +56,22 @@ devices authorised in the tailnet; it is not exposed with a router port forward.
 
 ## GitHub Galaxy data
 
-The deployment workflow rebuilds `control/data/github-galaxy.json` from real
-Git history on every push to `main` and every 15 minutes. It discovers all
-public repositories owned by `CesarSGZ`, clones their history temporarily and
-exports repository, branch, commit, author and file-change data for the private
-Gource-style visualisation. Future public repositories appear without a portal
-code change.
+Galaxy now explains the current CesarHomeLab architecture, not historical file
+trees. `control/galaxy-model.js` defines the eight components, their curated
+relationships and read-only guided explanations. Source-file lists come from
+the current main commit and exclude retired features; file counts are not
+service-health indicators. Historical migrations remain intact in Git.
+
+`GET /control/api/github/status` requires the `github:read` capability. It reads
+the fixed public repository's latest commits, the tree at that exact commit,
+and the latest deploy-workflow result. It never writes to GitHub or runs a
+deployment. Results are cached at the edge for 90 seconds. The view polls every
+five minutes while visible and has a manual Refresh button. An optional
+server-side `GITHUB_READ_TOKEN` can raise the public API quota; it is never sent
+to the browser. API failures do not become success or live-health claims.
+
+The deployment workflow rebuilds `control/data/github-galaxy.json` from its
+checked-out HEAD on each deployment. If GitHub is unavailable, the interface
+explicitly labels this as a saved deployment snapshot with its timestamp.
+
+Verify the model and API with `node --test tests/github-galaxy.test.mjs`.

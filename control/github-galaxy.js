@@ -1,185 +1,163 @@
-(()=>{
-  const canvas=document.getElementById('github-galaxy-canvas');
-  const context=canvas.getContext('2d');
-  const detail=document.getElementById('github-repo-detail');
-  const repoList=document.getElementById('github-repo-list');
-  const feedback=document.getElementById('github-feedback');
-  const refreshButton=document.getElementById('github-refresh');
-  const playButton=document.getElementById('github-play');
-  const timeline=document.getElementById('github-timeline');
-  const timelineCount=document.getElementById('github-timeline-count');
-  const timelineDate=document.getElementById('github-timeline-date');
-  const shell=canvas.closest('.github-canvas-shell');
-  const zoomOutButton=document.getElementById('github-zoom-out');
-  const zoomInButton=document.getElementById('github-zoom-in');
-  const zoomLevel=document.getElementById('github-zoom-level');
-  const resetViewButton=document.getElementById('github-reset-view');
-  const expandButton=document.getElementById('github-expand');
-  const tooltip=document.getElementById('github-node-tooltip');
-  const inspector=document.getElementById('github-node-inspector');
-  let galaxy=null;
-  let selectedRepo=null;
-  let commitIndex=0;
-  let playbackTimer=null;
-  let frame={nodes:[],edges:[],highlighted:new Set(),author:null};
-  let viewport={zoom:1.5,panX:0,panY:0};
-  let pointer=null;
-  let hoveredNode=null;
-
-  const extensionColours={js:'#f4df64',mjs:'#f4df64',ts:'#4f9cff',html:'#ff765f',css:'#a98be0',py:'#52d9ff',ps1:'#388ccf',java:'#ff9b63',rs:'#f09a72',md:'#eef3ec',json:'#c9ff3d',sql:'#ffb86b',png:'#ff83d1',jpg:'#ff83d1',svg:'#ff83d1'};
-  const make=(tag,className,text)=>{const element=document.createElement(tag);if(className)element.className=className;if(text!==undefined)element.textContent=text;return element};
-  const hash=(value)=>{let result=2166136261;for(const character of String(value)){result^=character.charCodeAt(0);result=Math.imul(result,16777619)}return result>>>0};
-  const fileColour=(path)=>extensionColours[String(path).split('.').pop().toLowerCase()]||'#52d9ff';
-  const formatDate=(value)=>value?new Intl.DateTimeFormat('en-GB',{day:'2-digit',month:'short',year:'numeric'}).format(new Date(value)).toUpperCase():'NO DATE';
-  const clamp=(value,min,max)=>Math.max(min,Math.min(max,value));
-  const nodeRadius=(node,active=false)=>node.type==='root'?10:node.type==='directory'?3.4:active?3.5:1.8;
-
-  function setZoom(nextZoom,screenX=null,screenY=null){
-    const box=canvas.getBoundingClientRect();if(!box.width||!box.height)return;
-    const oldZoom=viewport.zoom;const zoom=clamp(nextZoom,.45,6);const centreX=box.width/2;const centreY=box.height/2;
-    const anchorX=screenX??centreX;const anchorY=screenY??centreY;
-    const worldX=(anchorX-centreX-viewport.panX)/oldZoom+centreX;const worldY=(anchorY-centreY-viewport.panY)/oldZoom+centreY;
-    viewport.zoom=zoom;viewport.panX=anchorX-centreX-(worldX-centreX)*zoom;viewport.panY=anchorY-centreY-(worldY-centreY)*zoom;
-    zoomLevel.textContent=`${Math.round(zoom*100)}%`;drawFrame();
-  }
-
-  function resetView(){viewport={zoom:1.5,panX:0,panY:0};zoomLevel.textContent='150%';drawFrame()}
-  function screenPosition(node,box){const centreX=box.width/2;const centreY=box.height/2;return{x:(node.x-centreX)*viewport.zoom+centreX+viewport.panX,y:(node.y-centreY)*viewport.zoom+centreY+viewport.panY}}
-  function nodeAt(clientX,clientY){
-    const box=canvas.getBoundingClientRect();const x=clientX-box.left;const y=clientY-box.top;let closest=null;let closestDistance=Infinity;
-    for(const node of frame.nodes){const point=screenPosition(node,box);const distance=Math.hypot(point.x-x,point.y-y);const hitRadius=Math.max(8,nodeRadius(node,frame.highlighted.has(node.path))*viewport.zoom+5);if(distance<=hitRadius&&distance<closestDistance){closest=node;closestDistance=distance}}
-    return closest;
-  }
-
-  function latestChange(node){
-    if(!selectedRepo)return null;
-    for(let index=Math.min(commitIndex,selectedRepo.commits.length-1);index>=0;index-=1){const commit=selectedRepo.commits[index];for(const change of commit.changes||[]){const paths=[change.path,change.oldPath].filter(Boolean);const matches=node.type==='file'?paths.includes(node.path):node.type==='root'||paths.some(path=>path===node.path||path.startsWith(`${node.path}/`));if(matches)return{commit,change}}}
-    return null;
-  }
-
-  function inspectNode(node){
-    if(!node){inspector.replaceChildren(make('small',null,'NODE INSPECTOR'),make('strong',null,'Choose a point in the map'),make('span',null,'Files, folders and their latest contribution details will appear here.'));return}
-    const kind=node.type==='root'?'REPOSITORY':node.type==='directory'?'DIRECTORY':'FILE';const touched=latestChange(node);
-    const label=make('small',null,kind);const title=make('strong',null,node.path||selectedRepo.name);const summary=make('span',null,node.type==='file'?`EXTENSION · ${(node.path.split('.').pop()||'none').toUpperCase()}`:`${node.leaves} DESCENDANT FILE${node.leaves===1?'':'S'}`);
-    const children=[label,title,summary];
-    if(touched){const status={A:'ADDED',M:'MODIFIED',D:'DELETED',R:'RENAMED'}[touched.change.status]||touched.change.status;children.push(make('span','node-change',`${status} · ${touched.commit.message}\n${touched.commit.author.toUpperCase()} · ${formatDate(touched.commit.date)}`))}
-    inspector.replaceChildren(...children);
-  }
-
-  function showTooltip(node,event){
-    hoveredNode=node;if(!node){tooltip.hidden=true;drawFrame();return}
-    tooltip.textContent=`${node.type.toUpperCase()} · ${node.path||selectedRepo.name}`;tooltip.style.left=`${event.clientX-canvas.getBoundingClientRect().left}px`;tooltip.style.top=`${event.clientY-canvas.getBoundingClientRect().top}px`;tooltip.hidden=false;drawFrame();
-  }
-
-  function visibleFiles(repo,index){
-    if(index>=repo.commits.length-1)return new Set(repo.files);
-    const files=new Set();
-    for(let current=0;current<=index;current+=1){
-      for(const change of repo.commits[current]?.changes||[]){
-        if(change.oldPath)files.delete(change.oldPath);
-        if(change.status==='D')files.delete(change.path);else if(change.path)files.add(change.path);
-      }
-    }
-    return files;
-  }
-
-  function treeFromFiles(files){
-    const root={path:'',name:selectedRepo?.name||'repository',type:'root',children:new Map(),leaves:0,depth:0};
-    for(const path of files){
-      const parts=path.split('/').filter(Boolean);let parent=root;
-      parts.forEach((part,index)=>{
-        const currentPath=parts.slice(0,index+1).join('/');
-        if(!parent.children.has(part))parent.children.set(part,{path:currentPath,name:part,type:index===parts.length-1?'file':'directory',children:new Map(),leaves:0,depth:index+1});
-        parent=parent.children.get(part);
+/* Read-only architecture explorer. Authentication stays in Pages middleware. */
+(() => {
+  let initialisation;
+  window.GitHubGalaxy={initialise:()=>initialisation ||= start()};
+  async function start(){
+    const {SYSTEMS,CONNECTIONS,JOURNEYS,activeFiles,REPOSITORY,BRANCH}=await import('./galaxy-model.js?v=20260928atlas');
+    const byId=id=>document.getElementById(id),view=byId('github'),map=byId('galaxy-map'),svg=byId('galaxy-links');
+    const reduced=matchMedia('(prefers-reduced-motion: reduce)');
+    const compact=matchMedia('(max-width: 700px)');
+    const make=(tag,className,text)=>{const e=document.createElement(tag);if(className)e.className=className;if(text!==undefined)e.textContent=text;return e;};
+    const byNode=new Map(SYSTEMS.map(n=>[n.id,n])),buttons=new Map();
+    let data=null,selected='edge',tour=null,step=0,busy=false,lastAttempt=0,motionPaused=reduced.matches,resizeFrame;
+    const icons={
+      git:'M7 4v11a4 4 0 0 0 4 4h5M7 8h6a4 4 0 0 0 4-4M4 4a3 3 0 1 0 6 0a3 3 0 1 0-6 0M14 19a3 3 0 1 0 6 0a3 3 0 1 0-6 0M14 4a3 3 0 1 0 6 0a3 3 0 1 0-6 0',
+      rocket:'M8 16l-3 3m3-10l-4 1-2 5 6-1m7-5l-1-6 5-1-1 5M8 14c0-6 6-11 13-11 0 7-5 13-11 13zM12 18l-1 4-4 1 1-6M15 7h.01',
+      cloud:'M6 18h12a4 4 0 0 0 0-8h-1a6 6 0 0 0-11-2 5 5 0 0 0 0 10',
+      person:'M12 3a4 4 0 1 0 0 8a4 4 0 1 0 0-8M4 22v-3a8 8 0 0 1 16 0v3',
+      dashboard:'M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z',
+      code:'M7 6l-6 6 6 6M17 6l6 6-6 6M14 3l-4 18',
+      database:'M3 6c0-5 18-5 18 0s-18 5-18 0v12c0 5 18 5 18 0V6M3 12c0 5 18 5 18 0',
+      server:'M3 3h18v7H3zM3 14h18v7H3zM6 6.5h.01M6 17.5h.01M12 6.5h6M12 17.5h6'
+    };
+    SYSTEMS.forEach(n=>{
+      const button=make('button','galaxy-node');button.type='button';button.dataset.node=n.id;
+      button.style.setProperty('--x',n.x+'%');button.style.setProperty('--y',n.y+'%');button.style.setProperty('--node',n.colour);
+      const icon=document.createElementNS('http://www.w3.org/2000/svg','svg');icon.setAttribute('viewBox','0 0 24 24');icon.setAttribute('aria-hidden','true');
+      const path=document.createElementNS(icon.namespaceURI,'path');path.setAttribute('d',icons[n.icon]);icon.append(path);
+      const art=make('span','galaxy-node-art');art.setAttribute('aria-hidden','true');art.append(icon);
+      button.append(art,make('strong','',n.name),make('small','galaxy-node-count','SOURCE NOT CHECKED'));
+      button.title=n.summary;button.setAttribute('aria-controls','galaxy-inspector');button.setAttribute('aria-pressed','false');
+      button.addEventListener('pointerenter',e=>{if(e.pointerType==='mouse')highlight(n.id);});
+      button.addEventListener('pointerleave',()=>highlight(selected));
+      button.addEventListener('focus',()=>highlight(n.id));
+      button.addEventListener('blur',()=>highlight(selected));
+      button.addEventListener('click',()=>{closeTour();select(n.id,true);if(compact.matches)byId('galaxy-inspector').scrollIntoView({behavior:reduced.matches?'instant':'smooth',block:'start'});});
+      buttons.set(n.id,button);byId('galaxy-map-nodes').append(button);
+    });
+    const wires=CONNECTIONS.map(edge=>{
+      const path=document.createElementNS(svg.namespaceURI,'path');path.setAttribute('class','galaxy-wire');
+      const flow=document.createElementNS(svg.namespaceURI,'path');flow.setAttribute('class','galaxy-flow');flow.style.setProperty('--wire-colour',byNode.get(edge.to).colour);
+      byId('galaxy-paths').append(path,flow);return {...edge,path,flow};
+    });
+    function drawLinks(){
+      const box=map.getBoundingClientRect();if(!box.width||!box.height)return;
+      svg.setAttribute('viewBox','0 0 '+box.width+' '+box.height);
+      wires.forEach(edge=>{
+        const a=buttons.get(edge.from).querySelector('.galaxy-node-art').getBoundingClientRect(),b=buttons.get(edge.to).querySelector('.galaxy-node-art').getBoundingClientRect();
+        const ax=a.left+a.width/2-box.left,ay=a.top+a.height/2-box.top,bx=b.left+b.width/2-box.left,by=b.top+b.height/2-box.top;
+        const horizontal=Math.abs(bx-ax)>Math.abs(by-ay);
+        const sx=ax+(horizontal?Math.sign(bx-ax)*a.width/2:0),sy=ay+(!horizontal?Math.sign(by-ay)*a.height/2:0);
+        const tx=bx-(horizontal?Math.sign(bx-ax)*b.width/2:0),ty=by-(!horizontal?Math.sign(by-ay)*b.height/2:0);
+        const mx=(sx+tx)/2,my=(sy+ty)/2;
+        const d=horizontal?'M '+sx+' '+sy+' C '+mx+' '+sy+', '+mx+' '+ty+', '+tx+' '+ty:'M '+sx+' '+sy+' C '+sx+' '+my+', '+tx+' '+my+', '+tx+' '+ty;
+        edge.path.setAttribute('d',d);edge.flow.setAttribute('d',d);
       });
     }
-    const count=(node)=>{if(!node.children.size){node.leaves=1;return 1}node.leaves=[...node.children.values()].reduce((sum,child)=>sum+count(child),0);return node.leaves};
-    count(root);return root;
-  }
-
-  function layoutTree(root,width,height){
-    const nodes=[],edges=[];const centreX=width/2,centreY=height/2-10;let maximumDepth=1;
-    const inspect=(node)=>{maximumDepth=Math.max(maximumDepth,node.depth);node.children.forEach(inspect)};inspect(root);
-    const radialStep=Math.min(width,height-90)/(2*(maximumDepth+1));
-    const place=(node,start,end,parent=null)=>{
-      const angle=(start+end)/2;const radius=node.depth*radialStep;
-      node.x=centreX+Math.cos(angle)*radius;node.y=centreY+Math.sin(angle)*radius*.78;
-      nodes.push(node);if(parent)edges.push([parent,node]);
-      let cursor=start;const total=Math.max(1,node.leaves);
-      [...node.children.values()].sort((a,b)=>a.path.localeCompare(b.path)).forEach(child=>{const span=(end-start)*(child.leaves/total);place(child,cursor,cursor+span,node);cursor+=span});
-    };
-    place(root,-Math.PI*.96,Math.PI*1.04);return{nodes,edges};
-  }
-
-  function rebuildFrame(){
-    if(!selectedRepo)return;
-    const box=canvas.getBoundingClientRect();if(!box.width||!box.height)return;
-    const files=visibleFiles(selectedRepo,commitIndex);const tree=treeFromFiles(files);const layout=layoutTree(tree,box.width,box.height);
-    const commit=selectedRepo.commits[commitIndex]||null;
-    frame={...layout,highlighted:new Set((commit?.changes||[]).flatMap(change=>[change.path,change.oldPath].filter(Boolean))),author:commit?.author||null};
-    timeline.value=String(commitIndex);timelineCount.textContent=`${selectedRepo.commits.length?commitIndex+1:0} / ${selectedRepo.commits.length}`;
-    timelineDate.textContent=commit?`${formatDate(commit.date)} · ${commit.author.toUpperCase()}`:'CURRENT TREE';
-    drawFrame();
-  }
-
-  function drawFrame(){
-    if(!selectedRepo)return;
-    const box=canvas.getBoundingClientRect();if(!box.width||!box.height)return;
-    const scale=devicePixelRatio||1;canvas.width=Math.round(box.width*scale);canvas.height=Math.round(box.height*scale);context.setTransform(scale,0,0,scale,0,0);context.clearRect(0,0,box.width,box.height);
-    for(let index=0;index<75;index+=1){const seed=hash(`gource-star-${index}`);context.fillStyle=`rgba(238,243,236,${.12+(seed%35)/100})`;context.beginPath();context.arc((seed%10000)/10000*box.width,((seed>>>8)%10000)/10000*box.height,.4+(seed%10)/15,0,Math.PI*2);context.fill()}
-    const centreX=box.width/2;const centreY=box.height/2;context.save();context.translate(centreX+viewport.panX,centreY+viewport.panY);context.scale(viewport.zoom,viewport.zoom);context.translate(-centreX,-centreY);
-    for(const [parent,node] of frame.edges){context.strokeStyle=node.type==='file'?'rgba(82,217,255,.18)':'rgba(169,139,224,.28)';context.lineWidth=(node.type==='file'?.7:1.2)/Math.sqrt(viewport.zoom);context.beginPath();context.moveTo(parent.x,parent.y);context.lineTo(node.x,node.y);context.stroke()}
-    const pulse=.75+Math.sin(Date.now()/170)*.25;
-    for(const node of frame.nodes){
-      const active=frame.highlighted.has(node.path);const hovered=node===hoveredNode;const colour=node.type==='file'?fileColour(node.path):node.type==='root'?'#eef3ec':'#a98be0';const radius=nodeRadius(node,active)+(hovered?2.5/viewport.zoom:0);
-      if(active||hovered){context.shadowBlur=(hovered?26:18)*pulse;context.shadowColor=colour}else{context.shadowBlur=node.type==='file'?5:8;context.shadowColor=colour}
-      context.fillStyle=colour;context.beginPath();context.arc(node.x,node.y,radius,0,Math.PI*2);context.fill();context.shadowBlur=0;
-      if(node.type==='directory'||node.type==='root'||active||hovered){context.fillStyle=active||hovered?'#eef3ec':'rgba(238,243,236,.68)';context.font=`${active||hovered?'500':'400'} ${node.type==='root'?9:7}px "DM Mono"`;context.textAlign='center';context.fillText(node.name,node.x,node.y+(node.type==='root'?21:13))}
+    function highlight(id){
+      const connected=new Set([id]);CONNECTIONS.filter(e=>e.from===id||e.to===id).forEach(e=>{connected.add(e.from);connected.add(e.to);});
+      buttons.forEach((button,key)=>{button.classList.toggle('connected',key!==id&&connected.has(key));button.classList.toggle('dimmed',!connected.has(key));});
+      view.dispatchEvent(new CustomEvent('galaxy:highlight',{detail:id}));
+      wires.forEach(e=>{const active=e.from===id||e.to===id;e.path.classList.toggle('connected',active);e.flow.classList.toggle('connected',active);e.path.style.setProperty('--wire-colour',byNode.get(id).colour);});
     }
-    if(frame.author&&frame.highlighted.size){
-      const changed=frame.nodes.filter(node=>frame.highlighted.has(node.path));if(changed.length){const authorSeed=hash(frame.author);const anchor=changed[0];const ax=Math.max(70,Math.min(box.width-70,anchor.x+((authorSeed%2)?70:-70)));const ay=Math.max(35,Math.min(box.height-80,anchor.y-55));context.strokeStyle='rgba(238,243,236,.42)';context.lineWidth=.8;changed.slice(0,12).forEach(node=>{context.beginPath();context.moveTo(ax,ay);context.lineTo(node.x,node.y);context.stroke()});context.fillStyle='#eef3ec';context.beginPath();context.arc(ax,ay,5,0,Math.PI*2);context.fill();context.font='500 8px "DM Mono"';context.textAlign='center';context.fillText(frame.author.toUpperCase(),ax,ay-11)}
+    function select(id,announce=false){
+      selected=id;const n=byNode.get(id);
+      const inspector=byId('galaxy-inspector');inspector.style.setProperty('--galaxy-accent',n.colour);inspector.style.setProperty('--galaxy-soft',n.colour+'12');
+      [['galaxy-node-title',n.name],['galaxy-node-tag',n.tag],['galaxy-node-number',n.number],['galaxy-node-summary',n.summary],['galaxy-node-explanation',n.explanation],['galaxy-node-input',n.input],['galaxy-node-output',n.output]].forEach(([key,value])=>byId(key).textContent=value);
+      buttons.forEach((button,key)=>{button.classList.toggle('selected',key===id);button.setAttribute('aria-pressed',String(key===id));});
+      const neighbours=byId('galaxy-neighbours');neighbours.replaceChildren();
+      CONNECTIONS.filter(e=>e.from===id||e.to===id).forEach(edge=>{
+        const other=byNode.get(edge.from===id?edge.to:edge.from),b=make('button','',other.name+' ↗');b.type='button';b.title=edge.label;
+        b.addEventListener('click',()=>{closeTour();select(other.id,true);});neighbours.append(b);
+      });
+      highlight(id);renderFiles();
+      if(announce)feedback(n.name+'. '+n.summary);
+      if(!reduced.matches)inspector.animate([{opacity:.55,transform:'translateY(4px)'},{opacity:1,transform:'translateY(0)'}],{duration:200});
     }
-    context.restore();
+    const guide=byId('galaxy-guide');view.querySelector('.galaxy-workspace').before(guide);
+    JOURNEYS.forEach(j=>{
+      const b=make('button');b.type='button';b.dataset.journey=j.id;b.setAttribute('aria-pressed','false');b.append(make('strong','',j.label),make('span','','↗'));b.title=j.description;
+      b.addEventListener('click',()=>{tour=j;step=0;renderStep();});byId('galaxy-journeys').append(b);
+    });
+    function renderStep(){
+      if(!tour)return;guide.hidden=false;const current=tour.steps[step];
+      byId('galaxy-guide-kicker').textContent=tour.label.toUpperCase()+' / '+(step+1)+' OF '+tour.steps.length;
+      byId('galaxy-guide-title').textContent=current[1];byId('galaxy-guide-copy').textContent=current[2];
+      byId('galaxy-guide-progress').style.setProperty('--step',(step+1)/tour.steps.length*100+'%');
+      byId('galaxy-previous').disabled=step===0;byId('galaxy-next').textContent=step===tour.steps.length-1?'Finish tour ✓':'Next step →';
+      byId('galaxy-journeys').querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.journey===tour.id)));
+      select(current[0]);feedback('Step '+(step+1)+': '+current[1]+'. '+current[2]);requestAnimationFrame(drawLinks);
+    }
+    function closeTour(){tour=null;guide.hidden=true;byId('galaxy-journeys').querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed','false'));requestAnimationFrame(drawLinks);}
+    byId('galaxy-next').addEventListener('click',()=>{if(!tour)return;if(step===tour.steps.length-1){closeTour();return;}step++;renderStep();});
+    byId('galaxy-previous').addEventListener('click',()=>{if(tour&&step>0){step--;renderStep();}});
+    byId('galaxy-close').addEventListener('click',closeTour);
+    byId('galaxy-reset').addEventListener('click',()=>{closeTour();select('edge');});
+    function setMotion(){view.classList.toggle('galaxy-paused',motionPaused||document.hidden);byId('galaxy-motion').textContent=motionPaused?'Resume motion ▷':'Pause motion Ⅱ';byId('galaxy-motion').setAttribute('aria-pressed',String(motionPaused));view.dispatchEvent(new Event('galaxy:motion'));}
+    byId('galaxy-motion').addEventListener('click',()=>{motionPaused=!motionPaused;setMotion();});
+    reduced.addEventListener('change',()=>{motionPaused=reduced.matches;setMotion();});setMotion();
+    const date=value=>value?new Intl.DateTimeFormat('en-GB',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}).format(new Date(value)):'Unknown';
+    function feedback(text,error=false){byId('github-feedback').textContent=text;byId('github-feedback').classList.toggle('error',error);}
+    function renderFiles(){
+      const list=byId('galaxy-file-list');list.replaceChildren();
+      const n=byNode.get(selected),query=byId('galaxy-file-search').value.toLowerCase().trim();
+      const files=(data?.files||[]).filter(n.matches).filter(path=>!query||path.toLowerCase().includes(query));
+      byId('galaxy-files-title').textContent=n.name+' / source';byId('galaxy-file-total').textContent=String(files.length);
+      if(!files.length){list.append(make('p','',data?'No matching source files in this component.':'Load source data to inspect the current files.'));return;}
+      files.forEach(path=>{
+        const link=make('a');link.href='https://github.com/'+REPOSITORY+'/blob/'+data.sha+'/'+path.split('/').map(encodeURIComponent).join('/');link.target='_blank';link.rel='noreferrer';
+        link.append(make('span','',path),make('small','','↗'));list.append(link);
+      });
+    }
+    byId('galaxy-file-search').addEventListener('input',renderFiles);
+    byId('galaxy-show-files').addEventListener('click',()=>{byId('galaxy-files').scrollIntoView({behavior:reduced.matches?'instant':'smooth',block:'start'});});
+    function renderData(next){
+      if(next.schema!==2||!Array.isArray(next.files)||!Array.isArray(next.commits)||!/^[0-9a-f]{40}$/.test(next.sha))throw new Error('invalid_snapshot');
+      data={...next,files:activeFiles(next.files)};
+      byId('github-account-label').textContent=REPOSITORY+' / '+BRANCH;
+      byId('github-sync-label').textContent=(data.source==='github'?'SOURCE CHECKED · ':'SAVED SNAPSHOT · ')+date(data.checkedAt)+(data.cacheAgeSeconds?' · cached '+data.cacheAgeSeconds+'s':'');
+      byId('galaxy-signal').className='galaxy-signal '+(data.source==='github'?'fresh':'saved');
+      byId('galaxy-branch').textContent=BRANCH;byId('galaxy-file-count').textContent=data.files.length;
+      byId('galaxy-commit').textContent=data.sha.slice(0,7)+' ↗';byId('galaxy-commit').href='https://github.com/'+REPOSITORY+'/commit/'+data.sha;
+      const deploy=byId('galaxy-deploy'),run=data.deployment;
+      if(run){deploy.textContent=(run.status==='completed'?(run.conclusion==='success'?'Succeeded':run.conclusion||'Finished'):'In progress')+' · '+run.sha.slice(0,7);deploy.href=run.url;deploy.title='GitHub workflow status. This is not a runtime health check.';}
+      else{deploy.textContent='Not available';deploy.removeAttribute('href');}
+      SYSTEMS.forEach(n=>{const count=data.files.filter(n.matches).length;buttons.get(n.id).querySelector('.galaxy-node-count').textContent=count+' SOURCE FILE'+(count===1?'':'S');});
+      const activity=byId('galaxy-activity-list');activity.replaceChildren();
+      data.commits.slice(0,5).forEach(commit=>{
+        const article=make('article'),link=make('a','',commit.message);link.href='https://github.com/'+REPOSITORY+'/commit/'+commit.sha;link.target='_blank';link.rel='noreferrer';
+        article.append(link,make('small','',date(commit.date)+' · '+commit.sha.slice(0,7)));activity.append(article);
+      });
+      renderFiles();requestAnimationFrame(drawLinks);
+    }
+    async function load(force=false){
+      if(busy)return;
+      if(!force&&(document.hidden||!view.classList.contains('active')))return;
+      busy=true;lastAttempt=Date.now();const refresh=byId('github-refresh');refresh.disabled=true;refresh.setAttribute('aria-busy','true');feedback('Checking the current main branch on GitHub…');
+      try{
+        const response=await fetch('/control/api/github/status',{credentials:'same-origin',cache:'no-store',headers:{accept:'application/json'}});
+        if(response.status===401){feedback('Your session has expired. Sign in again to refresh Galaxy.',true);return;}
+        if(response.status===403){feedback('This account does not have access to GitHub Galaxy.',true);return;}
+        if(!response.ok)throw new Error('github_unavailable');
+        renderData(await response.json());feedback('Current main, checked '+date(data.checkedAt)+'. Automatic checks every 5 minutes while this view is open; a 90-second cache protects the GitHub rate limit. This is not a streaming health monitor.');
+      }catch{
+        if(data){feedback('GitHub could not be reached. Keeping the last successful source check from '+date(data.checkedAt)+'. No new live data has been received.',true);byId('galaxy-signal').className='galaxy-signal saved';}
+        else try{
+          const response=await fetch('/control/data/github-galaxy.json',{credentials:'same-origin',cache:'no-store'});
+          if(!response.ok)throw new Error('snapshot_unavailable');renderData({...await response.json(),source:'deployment-snapshot'});
+          feedback('GitHub is temporarily unavailable. Showing the deployment snapshot from '+date(data.checkedAt)+'. Use Refresh to try again; this copy is not live.',true);
+        }catch{feedback('Source data is unavailable. The architecture explanation still works; file counts and deployment status are not being claimed.',true);}
+      }finally{busy=false;refresh.disabled=false;refresh.setAttribute('aria-busy','false');}
+    }
+    byId('github-refresh').addEventListener('click',()=>load(true));
+    new ResizeObserver(()=>{cancelAnimationFrame(resizeFrame);resizeFrame=requestAnimationFrame(drawLinks);}).observe(map);
+    addEventListener('homelab:view',event=>{if(event.detail==='github'){requestAnimationFrame(drawLinks);if(!data||Date.now()-lastAttempt>300000)load(true);}});
+    document.addEventListener('visibilitychange',()=>{setMotion();if(!document.hidden&&view.classList.contains('active')&&Date.now()-lastAttempt>300000)load();});
+    setInterval(()=>load(),300000);
+    select('edge');drawLinks();
+    let graphicsLoaded=false;
+    const graphicsObserver=new IntersectionObserver(entries=>{if(graphicsLoaded||!entries.some(e=>e.isIntersecting))return;graphicsLoaded=true;graphicsObserver.disconnect();import('./galaxy-sculpture.js?v=20260928atlas').then(m=>m.mountSculptures(view,SYSTEMS)).catch(()=>{});},{rootMargin:'200px'});
+    graphicsObserver.observe(map);
+    await load(true);
   }
-
-  function renderDetail(repo){
-    const recent=repo.commits.slice(-4).reverse();const label=make('small',null,repo.fullName.toUpperCase());const title=make('h3',null,repo.name);const description=make('p',null,repo.description);const meta=make('div','github-detail-meta');
-    [['LANGUAGE',repo.language],['FILES',repo.files.length],['COMMITS',repo.commits.length],['BRANCHES',repo.branches.length]].forEach(([key,value])=>{const cell=make('div');cell.append(make('small',null,key),make('strong',null,String(value)));meta.append(cell)});
-    const branches=make('div','github-branch-list');repo.branches.slice(0,12).forEach(branch=>branches.append(make('span',null,branch)));
-    const activity=make('div','github-activity');activity.append(make('small',null,'LATEST CONTRIBUTIONS'));recent.forEach(commit=>{const row=make('article');row.append(make('strong',null,commit.message),make('span',null,`${commit.author} · ${formatDate(commit.date)}`));activity.append(row)});
-    const link=make('a','github-detail-link','OPEN ON GITHUB ↗');link.href=repo.url;link.target='_blank';link.rel='noreferrer';detail.replaceChildren(label,title,description,meta,branches,activity,link);
-    document.querySelectorAll('.github-repo-card').forEach(button=>button.classList.toggle('active',button.dataset.repoId===String(repo.id)));
-  }
-
-  function selectRepo(repo){
-    selectedRepo=repo;hoveredNode=null;tooltip.hidden=true;stopPlayback();commitIndex=Math.max(0,repo.commits.length-1);timeline.max=String(Math.max(0,repo.commits.length-1));timeline.value=String(commitIndex);renderDetail(repo);inspectNode(null);resetView();rebuildFrame();
-  }
-
-  function renderGalaxy(data){
-    galaxy=data;document.querySelectorAll('[data-github-repo-count]').forEach(element=>{element.textContent=data.repos.length});document.getElementById('github-account-label').textContent=`${data.profile.login.toUpperCase()} · ${data.repos.length} REPOSITORIES`;document.getElementById('github-sync-label').textContent=`GENERATED · ${formatDate(data.generatedAt)}`;repoList.replaceChildren();
-    data.repos.forEach(repo=>{const button=make('button','github-repo-card');button.type='button';button.dataset.repoId=repo.id;button.append(make('small',null,`${repo.language.toUpperCase()} · ${repo.branches.length} BRANCH${repo.branches.length===1?'':'ES'}`),make('strong',null,repo.name),make('span',null,`${repo.commits.length} COMMITS · ${repo.files.length} FILES`));button.addEventListener('click',()=>selectRepo(repo));repoList.append(button)});
-    selectRepo(data.repos.find(repo=>repo.id===selectedRepo?.id)||data.repos[0]);feedback.className='github-feedback';feedback.textContent='REAL GIT HISTORY · REBUILT ON EVERY HOMELAB PUSH AND EVERY 15 MINUTES';
-  }
-
-  async function load(force=false){
-    refreshButton.disabled=true;feedback.className='github-feedback';feedback.textContent='LOADING VERSION-CONTROL HISTORY…';
-    try{const response=await fetch(`/control/data/github-galaxy.json${force?`?v=${Date.now()}`:''}`,{credentials:'same-origin',cache:force?'no-store':'default'});if(!response.ok)throw new Error('history_unavailable');renderGalaxy(await response.json())}catch{feedback.className='github-feedback error';feedback.textContent='GITHUB HISTORY IS NOT AVAILABLE YET';refreshButton.disabled=false;return}
-    refreshButton.disabled=false;
-  }
-
-  function stopPlayback(){if(playbackTimer)clearInterval(playbackTimer);playbackTimer=null;playButton.textContent='▶ PLAY HISTORY'}
-  function startPlayback(){if(!selectedRepo?.commits.length)return;if(commitIndex>=selectedRepo.commits.length-1)commitIndex=0;playButton.textContent='Ⅱ PAUSE';playbackTimer=setInterval(()=>{rebuildFrame();if(commitIndex>=selectedRepo.commits.length-1){stopPlayback();return}commitIndex+=1},650);rebuildFrame()}
-  function toggleExpanded(){const expanded=shell.classList.toggle('expanded');document.body.classList.toggle('galaxy-expanded',expanded);expandButton.textContent=expanded?'CLOSE ×':'EXPAND ↗';expandButton.setAttribute('aria-pressed',String(expanded));requestAnimationFrame(rebuildFrame)}
-
-  canvas.addEventListener('wheel',(event)=>{event.preventDefault();const box=canvas.getBoundingClientRect();setZoom(viewport.zoom*(event.deltaY<0?1.14:.88),event.clientX-box.left,event.clientY-box.top)},{passive:false});
-  canvas.addEventListener('pointerdown',(event)=>{if(event.button!==0)return;canvas.setPointerCapture(event.pointerId);pointer={id:event.pointerId,startX:event.clientX,startY:event.clientY,lastX:event.clientX,lastY:event.clientY,moved:false};canvas.style.cursor='grabbing';tooltip.hidden=true});
-  canvas.addEventListener('pointermove',(event)=>{if(pointer?.id===event.pointerId){const deltaX=event.clientX-pointer.lastX;const deltaY=event.clientY-pointer.lastY;viewport.panX+=deltaX;viewport.panY+=deltaY;pointer.lastX=event.clientX;pointer.lastY=event.clientY;pointer.moved=pointer.moved||Math.hypot(event.clientX-pointer.startX,event.clientY-pointer.startY)>5;drawFrame();return}showTooltip(nodeAt(event.clientX,event.clientY),event)});
-  canvas.addEventListener('pointerup',(event)=>{if(pointer?.id!==event.pointerId)return;const wasMoved=pointer.moved;pointer=null;canvas.style.cursor='grab';canvas.releasePointerCapture(event.pointerId);if(!wasMoved){const node=nodeAt(event.clientX,event.clientY);if(node)inspectNode(node)}});
-  canvas.addEventListener('pointercancel',()=>{pointer=null;canvas.style.cursor='grab'});canvas.addEventListener('pointerleave',()=>{if(!pointer)showTooltip(null)});
-  canvas.addEventListener('keydown',(event)=>{if(event.key==='+'||event.key==='='){event.preventDefault();setZoom(viewport.zoom*1.2)}else if(event.key==='-'){event.preventDefault();setZoom(viewport.zoom/1.2)}else if(event.key==='0'){event.preventDefault();resetView()}});
-  zoomOutButton.addEventListener('click',()=>setZoom(viewport.zoom/1.2));zoomInButton.addEventListener('click',()=>setZoom(viewport.zoom*1.2));resetViewButton.addEventListener('click',resetView);expandButton.addEventListener('click',toggleExpanded);
-  document.addEventListener('keydown',(event)=>{if(event.key==='Escape'&&shell.classList.contains('expanded'))toggleExpanded()});
-  playButton.addEventListener('click',()=>playbackTimer?stopPlayback():startPlayback());timeline.addEventListener('input',()=>{stopPlayback();commitIndex=Number(timeline.value);hoveredNode=null;tooltip.hidden=true;inspectNode(null);rebuildFrame()});refreshButton.addEventListener('click',()=>load(true));addEventListener('resize',rebuildFrame);
-  const animate=()=>{const githubView=document.getElementById('github');if((!githubView||githubView.classList.contains('active'))&&frame.highlighted.size)drawFrame();requestAnimationFrame(animate)};requestAnimationFrame(animate);
-  window.GitHubGalaxy={initialise:()=>{load();setInterval(()=>load(true),180000)}};
 })();
