@@ -16,6 +16,7 @@
   <link rel="stylesheet" href="polish.css?v=20260713g">
   <link rel="stylesheet" href="refinement.css?v=20260907a">
   <link rel="stylesheet" href="capability-atlas.css?v=20260927worlds">
+  <link rel="stylesheet" href="languages.css?v=20260929signals">
 </head>
 <body>
   <canvas id="stars" aria-hidden="true"></canvas>
@@ -166,9 +167,21 @@
       </div>
     </section>
 
-    <section class="languages section reveal">
-      <p class="eyebrow">05 / Communication range</p><h2>Five languages.<br><em>Zero lost in translation.</em></h2>
-      <div class="language-radar"><div class="radar"><i></i><i></i><i></i><span>ES</span><span>GL</span><span>EN</span><span>FR</span><span>PT</span><b></b></div><div class="language-list"><p><strong>Spanish</strong><span>Native</span></p><p><strong>Galician</strong><span>Native</span></p><p><strong>English</strong><span>C1</span></p><p><strong>French</strong><span>B1</span></p><p><strong>Portuguese</strong><span>A2</span></p></div></div>
+    <section class="languages language-spectrum section reveal" id="languages" aria-labelledby="languages-title">
+      <div class="language-heading"><div><p class="eyebrow">05 / Communication range</p><h2 id="languages-title">Five languages.<br><em>Zero lost in translation.</em></h2></div><p>Two native languages. Advanced English.<br>A wider range, with every level in perspective.</p></div>
+      <div class="language-console">
+        <div class="language-console-header"><span><i aria-hidden="true"></i> COMMUNICATION CHANNELS</span><span>03 PRIMARY / 02 ADDITIONAL</span></div>
+        <div class="language-primary">
+          <details class="language-channel" style="--signal:#d5e99a"><summary><div class="language-identity"><img class="language-flag" src="assets/flags/es.svg" alt="Spain flag" width="51" height="35" loading="lazy"><div><h3>Spanish</h3><small>ES / ESPAÑOL</small></div></div><div class="language-grade"><strong>Native</strong><span>FIRST LANGUAGE</span></div><div class="language-native" aria-hidden="true">NATIVE FLUENCY / NO CEFR EQUIVALENT</div><span class="language-hint">About this level <b aria-hidden="true">+</b></span></summary><p class="language-description">One of my two native languages, alongside Galician. Native fluency is shown separately from the CEFR scale.</p></details>
+          <details class="language-channel" style="--signal:#9acde5"><summary><div class="language-identity"><img class="language-flag" src="assets/flags/gl.svg" alt="Galicia flag" width="51" height="35" loading="lazy"><div><h3>Galician</h3><small>GL / GALEGO</small></div></div><div class="language-grade"><strong>Native</strong><span>FIRST LANGUAGE</span></div><div class="language-native" aria-hidden="true">NATIVE FLUENCY / NO CEFR EQUIVALENT</div><span class="language-hint">About this level <b aria-hidden="true">+</b></span></summary><p class="language-description">One of my two native languages, alongside Spanish. The Galician flag marks this part of my linguistic identity.</p></details>
+          <details class="language-channel" style="--signal:#83d7ed"><summary><div class="language-identity"><img class="language-flag" src="assets/flags/gb.svg" alt="United Kingdom flag" width="51" height="35" loading="lazy"><div><h3>English</h3><small>EN / ENGLISH</small></div></div><div class="language-grade"><strong>C1</strong><span>ADVANCED</span></div><div class="language-scale" aria-hidden="true"><span class="reached">A1</span><span class="reached">A2</span><span class="reached">B1</span><span class="reached">B2</span><span class="reached current">C1</span><span>C2</span></div><span class="language-hint">About this level <b aria-hidden="true">+</b></span></summary><p class="language-description">My strongest non-native language. C1 is an advanced CEFR level, associated with flexible, fluent communication and understanding complex material.</p></details>
+        </div>
+        <div class="language-secondary">
+          <details class="language-channel"><summary><div class="language-identity"><img class="language-flag" src="assets/flags/fr.svg" alt="France flag" width="51" height="35" loading="lazy"><div><h3>French</h3><small>FR / FRANÇAIS</small></div></div><div class="language-grade"><strong>B1</strong><span>INTERMEDIATE</span></div><div class="language-scale" aria-hidden="true"><span class="reached">A1</span><span class="reached">A2</span><span class="reached current">B1</span><span>B2</span><span>C1</span><span>C2</span></div><span class="language-hint">About this level <b aria-hidden="true">+</b></span></summary><p class="language-description">B1 is an intermediate CEFR level: an independent-user foundation for familiar subjects and everyday situations, below my advanced English level.</p></details>
+          <details class="language-channel"><summary><div class="language-identity"><img class="language-flag" src="assets/flags/pt.svg" alt="Portugal flag" width="51" height="35" loading="lazy"><div><h3>Portuguese</h3><small>PT / PORTUGUÊS</small></div></div><div class="language-grade"><strong>A2</strong><span>ELEMENTARY</span></div><div class="language-scale" aria-hidden="true"><span class="reached">A1</span><span class="reached current">A2</span><span>B1</span><span>B2</span><span>C1</span><span>C2</span></div><span class="language-hint">About this level <b aria-hidden="true">+</b></span></summary><p class="language-description">A2 is an elementary CEFR level, focused on simple, routine exchanges and familiar everyday needs. It is distinct from my native and advanced languages.</p></details>
+        </div>
+        <p class="language-scale-note"><strong>A1 → C2</strong> · CEFR levels as reported in my profile. Native languages are shown separately, not converted into a CEFR score.</p>
+      </div>
     </section>
 
     <section class="finale section">
