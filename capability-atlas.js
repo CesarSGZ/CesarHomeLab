@@ -1,15 +1,14 @@
-/* The existing HTML descriptions remain the source of truth for every skill. */
+/* Content remains in semantic HTML; WebGL is a progressive enhancement. */
 (() => {
   'use strict';
   const atlas = document.getElementById('capability-atlas');
   if (!atlas) return;
   const byId = id => document.getElementById(id);
-  const stage = byId('atlas-stage');
-  const svg = byId('atlas-connections');
   const reduced = matchMedia('(prefers-reduced-motion: reduce)');
-  const touchLayout = matchMedia('(max-width: 680px)');
-  const colours = { programme: '#d5e99a', engineering: '#83d7ed', data: '#bba8f1' };
-  const categoryNames = { programme: 'Programme', engineering: 'Engineering', data: 'Data, modelling & tools' };
+  const mobile = matchMedia('(max-width: 680px)');
+  const colours = {programme:'#d5e99a',engineering:'#83d7ed',data:'#bba8f1'};
+  const rgb = {programme:'213,233,154',engineering:'131,215,237',data:'187,168,241'};
+  const names = {programme:'Management',engineering:'Engineering',data:'Data'};
   const experiences = {
     mrtt: { label: 'A330 MRTT', company: 'AIRBUS DEFENCE & SPACE', title: 'MRTT & strategic R&D programmes', core: 'MRTT &\nstrategic R&D.', eyebrow: 'AIRBUS / PROGRAMMES', anchor: 'role-mrtt' },
     eurodrone: { label: 'Eurodrone', company: 'AIRBUS DEFENCE & SPACE', title: 'Powerplant systems · V&V and testing', core: 'Eurodrone\npowerplant.', eyebrow: 'AIRBUS / EURODRONE', anchor: 'role-eurodrone' },
@@ -57,334 +56,94 @@
     'DT.08': { at: ['studies'], with: ['DT.02', 'DT.09', 'DT.05'] },
     'DT.09': { at: ['studies'], with: ['DT.08', 'SE.11', 'SE.09'] }
   };
+
   const skills = [...atlas.querySelectorAll('.atlas-index-skill')].map(source => ({
-    code: source.dataset.code,
-    category: source.dataset.category,
-    name: source.querySelector('strong').textContent.trim(),
-    description: source.dataset.detail,
-    source,
-    ...context[source.dataset.code]
+    code: source.dataset.code, category: source.dataset.category,
+    name: source.querySelector('strong').textContent.trim(), description: source.dataset.detail,
+    source, ...context[source.dataset.code]
   }));
-  const byCode = new Map(skills.map(skill => [skill.code, skill]));
-  const overview = ['PM.01', 'PM.02', 'PM.03', 'PM.04', 'PM.12', 'PM.14', 'SE.01', 'SE.03', 'SE.04', 'SE.09', 'SE.11', 'DT.01', 'DT.03', 'DT.05', 'DT.06'];
-  let filter = 'all', experience = null, pinned = 'SE.01', preview = null;
-  let rendered = [], shownCode = '', hoverTimer = 0, restoreTimer = 0, drawFrame = 0, tourTimer = 0;
-  const filterButtons = [...document.querySelectorAll('.systems .filter')];
-  const roleIds = ['role-mrtt', 'role-eurodrone', 'role-analytics', 'role-salesforce', 'role-rd'];
-  document.querySelectorAll('.log-entry').forEach((entry, index) => { if (roleIds[index]) entry.id = roleIds[index]; });
-  const text = (id, value) => { byId(id).textContent = value; };
-  const el = (tag, className, value) => {
-    const node = document.createElement(tag);
-    if (className) node.className = className;
-    if (value !== undefined) node.textContent = value;
-    return node;
-  };
-  const activeCode = () => preview || pinned;
-  const viewSkills = () => skills.filter(skill => experience ? skill.at.includes(experience) : filter === 'all' ? overview.includes(skill.code) : skill.category === filter);
-  const relatedTo = code => new Set(byCode.get(code).with);
-
-  function stopTour() {
-    clearTimeout(tourTimer);
-    tourTimer = 0;
-    byId('atlas-tour').setAttribute('aria-pressed', 'false');
-    byId('atlas-tour').innerHTML = '<span aria-hidden="true">▷</span> Take a tour';
-  }
-  function updateControls() {
-    filterButtons.forEach(button => {
-      const active = !experience && filter === button.dataset.filter;
-      button.classList.toggle('active', active);
-      button.setAttribute('aria-pressed', String(active));
+  const byCode = new Map(skills.map(s => [s.code,s]));
+  const worlds = [...atlas.querySelectorAll('[data-world]')];
+  const roleIds = ['role-mrtt','role-eurodrone','role-analytics','role-salesforce','role-rd'];
+  document.querySelectorAll('.log-entry').forEach((entry,i) => {if(roleIds[i]) entry.id=roleIds[i];});
+  const node = (tag, value) => {const e=document.createElement(tag);if(value)e.textContent=value;return e;};
+  let category='programme', pinned='PM.01', shown='', previewTimer;
+  const remembered = {programme:'PM.01',engineering:'SE.01',data:'DT.01'};
+  const updateHint=()=>{atlas.querySelector('.library-head span:last-child').textContent=mobile.matches?'TAP A SKILL TO EXPLORE':'HOVER TO EXPLORE · CLICK TO HOLD';};
+  updateHint();mobile.addEventListener('change',updateHint);
+  byId('atlas-back').addEventListener('click',()=>{byId('atlas-stage').scrollIntoView({behavior:reduced.matches?'instant':'smooth',block:'start'});});
+  function show(code, announce=false) {
+    const skill=byCode.get(code);
+    if(!skill) return;
+    atlas.style.setProperty('--signal',colours[skill.category]);
+    atlas.style.setProperty('--signal-rgb',rgb[skill.category]);
+    skills.forEach(s=>{
+      s.source.classList.toggle('is-selected',s.code===code);
+      s.source.classList.toggle('is-connected',skill.with.includes(s.code));
+      s.source.setAttribute('aria-pressed',String(s.code===pinned));
     });
-    atlas.querySelectorAll('[data-experience]').forEach(button => button.setAttribute('aria-pressed', String(experience === button.dataset.experience)));
-    const label = experience ? experiences[experience].label.toUpperCase() : filter === 'all' ? 'ALL SYSTEMS' : categoryNames[filter].toUpperCase();
-    text('atlas-view-label', `${experience ? '02 / EXPERIENCE' : '01 / DISCIPLINE'} · ${label}`);
-    text('atlas-interaction-hint', touchLayout.matches ? 'Tap a connection to explore' : 'Hover to trace · Click to pin');
-  }
-
-  function renderInspector(code) {
-    const skill = byCode.get(code);
-    if (!skill) return;
-    atlas.style.setProperty('--signal', colours[skill.category]);
-    text('atlas-selection-state', preview ? 'PREVIEW · CLICK TO PIN' : tourTimer ? 'GUIDED TOUR' : 'PINNED SIGNAL');
-    if (shownCode === code) return;
-    shownCode = code;
-    text('atlas-detail-category', categoryNames[skill.category].toUpperCase());
-    text('atlas-detail-code', skill.code);
-    text('atlas-detail-title', skill.name);
-    text('atlas-detail-description', skill.description);
-    const evidence = byId('atlas-evidence-list');
-    evidence.replaceChildren();
-    const relevantExperience = experience && skill.at.includes(experience) ? [experience, ...skill.at.filter(id => id !== experience)] : skill.at;
-    relevantExperience.slice(0, 2).forEach(id => {
-      const item = experiences[id], link = el('a');
-      link.href = `#${item.anchor}`;
-      link.append(el('small', '', item.company), el('strong', '', item.title));
-      evidence.append(link);
+    if(shown===code) return;
+    shown=code;
+    byId('atlas-detail-category').textContent=names[skill.category].toUpperCase();
+    byId('atlas-detail-code').textContent=code;
+    byId('atlas-detail-title').textContent=skill.name;
+    byId('atlas-detail-description').textContent=skill.description;
+    atlas.querySelector('.story-watermark').textContent=code.split('.')[1];
+    const evidence=byId('atlas-evidence-list'); evidence.replaceChildren();
+    skill.at.forEach(id=>{
+      const info=experiences[id], a=node('a');a.href='#'+info.anchor;
+      a.append(node('small',info.company),node('strong',info.title));evidence.append(a);
     });
-    const related = byId('atlas-related-list');
-    related.replaceChildren();
-    skill.with.forEach(id => {
-      const item = byCode.get(id), button = el('button', '', item.name);
-      button.type = 'button';
-      button.style.setProperty('--related-color', colours[item.category]);
-      button.addEventListener('click', () => pin(id));
-      related.append(button);
+    const links=byId('atlas-related-list');links.replaceChildren();
+    skill.with.forEach(id=>{
+      const related=byCode.get(id),b=node('button',related.name);b.type='button';
+      b.style.setProperty('--related-color',colours[related.category]);
+      b.addEventListener('click',()=>select(id,true));links.append(b);
     });
-    if (!reduced.matches) byId('atlas-detail-content').animate([{ opacity: .35, transform: 'translateY(5px)' }, { opacity: 1, transform: 'translateY(0)' }], { duration: 220, easing: 'ease-out' });
+    if(!reduced.matches)byId('atlas-detail-content').animate([{opacity:.35,transform:'translateY(7px)'},{opacity:1,transform:'translateY(0)'}],{duration:240,easing:'ease-out'});
+    atlas.dispatchEvent(new CustomEvent('signalchange',{detail:{category:skill.category,index:skills.filter(s=>s.category===skill.category).indexOf(skill)}}));
+    if(announce)byId('atlas-announcement').textContent=skill.name+'. '+skill.description;
   }
-
-  function renderCore(code) {
-    const skill = byCode.get(code);
-    const role = experiences[experience && skill.at.includes(experience) ? experience : skill.at[0]];
-    text('atlas-core-eyebrow', touchLayout.matches ? `${skill.code} / ${categoryNames[skill.category].split(',')[0].toUpperCase()}` : role.eyebrow);
-    text('atlas-core-title', touchLayout.matches ? skill.name : role.core);
-    byId('atlas-core-title').style.setProperty('--core-title-size', skill.name.length > 32 ? '14px' : skill.name.length > 22 ? '16px' : '18px');
-    text('atlas-core-caption', touchLayout.matches ? 'SELECTED CAPABILITY' : 'CONNECTED EXPERIENCE');
+  function changeCategory(next) {
+    category=next;
+    worlds.forEach(b=>{const active=b.dataset.world===category;b.classList.toggle('is-active',active);b.setAttribute('aria-pressed',String(active));});
+    skills.forEach(s=>{s.source.hidden=s.category!==category;});
+    byId('atlas-library-label').textContent=names[category].toUpperCase()+' / '+skills.filter(s=>s.category===category).length;
+    byId('atlas-index').setAttribute('aria-label',names[category]+' skills');
   }
-
-  function highlight() {
-    const code = activeCode(), related = relatedTo(code);
-    for (const skill of skills) {
-      skill.node.classList.toggle('is-active', skill.code === code);
-      skill.node.classList.toggle('is-related', related.has(skill.code));
-      skill.node.classList.toggle('is-dimmed', skill.code !== code && !related.has(skill.code));
-      skill.node.setAttribute('aria-pressed', String(skill.code === pinned));
-    }
-    byId('atlas-skill-rail').querySelectorAll('button').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.code === pinned)));
-    renderCore(code);
-    renderInspector(code);
-    drawLinks();
+  function select(code,announce=false) {
+    clearTimeout(previewTimer);
+    const skill=byCode.get(code);if(!skill)return;
+    pinned=code;remembered[skill.category]=code;
+    if(category!==skill.category)changeCategory(skill.category);
+    show(code,announce);
   }
-
-  function pathBetween(start, end) {
-    const middleX = start.x + (end.x - start.x) * .56;
-    return `M ${start.x.toFixed(1)} ${start.y.toFixed(1)} C ${middleX.toFixed(1)} ${start.y.toFixed(1)}, ${middleX.toFixed(1)} ${end.y.toFixed(1)}, ${end.x.toFixed(1)} ${end.y.toFixed(1)}`;
-  }
-  function makePath(d, className, colour) {
-    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-    path.setAttribute('d', d);
-    path.setAttribute('class', className);
-    if (colour) path.setAttribute('stroke', colour);
-    return path;
-  }
-  function drawLinks() {
-    const bounds = stage.getBoundingClientRect();
-    if (!bounds.width || !bounds.height) return;
-    svg.setAttribute('viewBox', `0 0 ${bounds.width} ${bounds.height}`);
-    const core = byId('atlas-core').getBoundingClientRect();
-    const center = { x: core.left + core.width / 2 - bounds.left, y: core.top + core.height / 2 - bounds.top };
-    const radius = core.width / 2 + 2;
-    const base = document.createDocumentFragment(), active = document.createDocumentFragment();
-    const related = relatedTo(activeCode());
-    const points = new Map();
-    for (const skill of rendered) {
-      const dot = skill.node.querySelector('.atlas-node-dot').getBoundingClientRect();
-      const origin = { x: dot.left + dot.width / 2 - bounds.left, y: dot.top + dot.height / 2 - bounds.top };
-      points.set(skill.code, origin);
-      const dx = origin.x - center.x, dy = origin.y - center.y, distance = Math.hypot(dx, dy) || 1;
-      const end = { x: center.x + dx / distance * radius, y: center.y + dy / distance * radius };
-      const isSelected = skill.code === activeCode();
-      const isRelated = related.has(skill.code);
-      const d = pathBetween(origin, end);
-      const state = isSelected ? 'is-selected' : isRelated ? 'is-related' : 'is-muted';
-      base.append(makePath(d, `atlas-link ${state}`, colours[skill.category]));
-      if (isSelected || isRelated) active.append(makePath(d, 'atlas-flow'));
-    }
-    const origin = points.get(activeCode());
-    if (origin && !touchLayout.matches) {
-      for (const id of related) {
-        const target = points.get(id);
-        if (target) base.append(makePath(`M ${origin.x} ${origin.y} Q ${center.x} ${center.y} ${target.x} ${target.y}`, 'atlas-relation'));
-      }
-    }
-    byId('atlas-base-links').replaceChildren(base);
-    byId('atlas-active-links').replaceChildren(active);
-  }
-  function redrawTransition() {
-    cancelAnimationFrame(drawFrame);
-    if (reduced.matches) { drawLinks(); return; }
-    const started = performance.now();
-    function frame(now) {
-      drawLinks();
-      if (now - started < 680) drawFrame = requestAnimationFrame(frame);
-    }
-    drawFrame = requestAnimationFrame(frame);
-  }
-
-  function layout() {
-    const visible = viewSkills();
-    if (touchLayout.matches) {
-      const selected = byCode.get(activeCode());
-      const ids = [...new Set(selected.with)].filter(id => id !== selected.code).slice(0, 4);
-      rendered = ids.map(id => byCode.get(id));
-      const positions = rendered.length === 3 ? [[25, 21], [75, 21], [50, 77]] : [[25, 21], [75, 21], [25, 77], [75, 77]];
-      rendered.forEach((skill, index) => {
-        skill.node.style.setProperty('--x', `${positions[index][0]}%`);
-        skill.node.style.setProperty('--y', `${positions[index][1]}%`);
-        skill.node.dataset.side = 'mobile';
-      });
-    } else {
-      rendered = visible;
-      const midpoint = Math.ceil(visible.length / 2);
-      visible.forEach((skill, index) => {
-        const left = index < midpoint;
-        const row = left ? index : index - midpoint;
-        const count = left ? midpoint : visible.length - midpoint;
-        const height = stage.clientHeight;
-        const y = count === 1 ? height / 2 : 85 + row * ((height - 170) / (count - 1));
-        skill.node.style.setProperty('--x', left ? '2%' : '66%');
-        skill.node.style.setProperty('--y', `${y}px`);
-        skill.node.dataset.side = left ? 'left' : 'right';
-      });
-    }
-    const shown = new Set(rendered.map(skill => skill.code));
-    skills.forEach(skill => { skill.node.hidden = !shown.has(skill.code); });
-    const countText = touchLayout.matches ? `${rendered.length} RELATED SIGNALS` : filter === 'all' && !experience ? `${visible.length} / ${skills.length} · OVERVIEW` : `${visible.length} CONNECTED SKILLS`;
-    text('atlas-node-count', countText);
-    updateControls();
-    highlight();
-    redrawTransition();
-  }
-
-  function renderRail() {
-    const rail = byId('atlas-skill-rail');
-    rail.replaceChildren();
-    // On mobile the complete view is available through a thumb-friendly rail.
-    const visible = experience ? viewSkills() : filter === 'all' ? skills : viewSkills();
-    visible.forEach(skill => {
-      const button = el('button', '', skill.name);
-      button.type = 'button';
-      button.dataset.code = skill.code;
-      button.style.setProperty('--node-color', colours[skill.category]);
-      button.setAttribute('aria-pressed', String(skill.code === pinned));
-      button.addEventListener('click', () => pin(skill.code));
-      rail.append(button);
+  worlds.forEach((button,i)=>{
+    button.addEventListener('click',()=>{select(remembered[button.dataset.world]);});
+    button.addEventListener('keydown',e=>{
+      if(!['ArrowLeft','ArrowRight','Home','End'].includes(e.key))return;
+      e.preventDefault();const next=e.key==='Home'?0:e.key==='End'?2:(i+(e.key==='ArrowRight'?1:2))%3;
+      worlds[next].focus();select(remembered[worlds[next].dataset.world]);
     });
-  }
-  function changeView(category, role = null) {
-    stopTour();
-    clearTimeout(hoverTimer); clearTimeout(restoreTimer);
-    preview = null; filter = category; experience = role;
-    const visible = viewSkills();
-    if (!visible.some(skill => skill.code === pinned)) pinned = visible[0].code;
-    shownCode = '';
-    renderRail(); layout();
-    text('atlas-announcement', `${role ? experiences[role].label : category === 'all' ? 'All systems' : categoryNames[category]}. ${visible.length} skills. Selected ${byCode.get(pinned).name}.`);
-  }
-  function pin(code, userAction = true) {
-    if (!byCode.has(code)) return;
-    if (userAction) stopTour();
-    clearTimeout(hoverTimer); clearTimeout(restoreTimer);
-    preview = null; pinned = code;
-    if (!viewSkills().some(skill => skill.code === code) && !touchLayout.matches) {
-      filter = byCode.get(code).category; experience = null;
-      renderRail();
-    } else if (experience && !byCode.get(code).at.includes(experience)) {
-      filter = byCode.get(code).category; experience = null;
-      renderRail();
-    } else if (filter !== 'all' && byCode.get(code).category !== filter) {
-      filter = byCode.get(code).category; experience = null;
-      renderRail();
-    }
-    shownCode = '';
-    layout();
-    text('atlas-announcement', `${byCode.get(code).name}. ${byCode.get(code).description}`);
-  }
-  function previewSkill(code) {
-    if (touchLayout.matches) return;
-    stopTour();
-    clearTimeout(hoverTimer); clearTimeout(restoreTimer);
-    hoverTimer = setTimeout(() => { preview = code; highlight(); }, 65);
-  }
-  function restorePinned() {
-    clearTimeout(hoverTimer); clearTimeout(restoreTimer);
-    restoreTimer = setTimeout(() => { preview = null; highlight(); }, 130);
-  }
-
-  for (const skill of skills) {
-    skill.source.style.setProperty('--node-color', colours[skill.category]);
-    skill.source.addEventListener('click', () => {
-      pin(skill.code);
-      byId('atlas-directory').open = false;
-      atlas.scrollIntoView({ behavior: reduced.matches ? 'instant' : 'smooth', block: 'start' });
-      skill.node.hidden ? byId('atlas-reset').focus({ preventScroll: true }) : skill.node.focus({ preventScroll: true });
-    });
-    const button = el('button', 'atlas-node');
-    button.type = 'button'; button.dataset.code = skill.code;
-    button.style.setProperty('--node-color', colours[skill.category]);
-    button.setAttribute('aria-controls', 'atlas-inspector');
-    button.setAttribute('aria-label', `${skill.name}, ${categoryNames[skill.category]}`);
-    const dot = el('i', 'atlas-node-dot'); dot.setAttribute('aria-hidden', 'true');
-    const copy = el('span', 'atlas-node-copy');
-    copy.append(el('small', '', skill.code), el('strong', '', skill.name));
-    button.append(dot, copy);
-    button.addEventListener('click', () => pin(skill.code));
-    button.addEventListener('pointerenter', event => { if (event.pointerType === 'mouse') previewSkill(skill.code); });
-    button.addEventListener('pointerleave', restorePinned);
-    button.addEventListener('focus', () => { if (button.matches(':focus-visible')) previewSkill(skill.code); });
-    button.addEventListener('blur', restorePinned);
-    skill.node = button;
-    byId('atlas-nodes').append(button);
-  }
-  for (const [id, item] of Object.entries(experiences)) {
-    const button = el('button'); button.type = 'button'; button.dataset.experience = id;
-    button.append(el('span', '', item.label), el('small', '', String(skills.filter(skill => skill.at.includes(id)).length).padStart(2, '0')));
-    button.setAttribute('aria-pressed', 'false');
-    button.addEventListener('click', () => changeView('all', experience === id ? null : id));
-    byId('atlas-experience-filters').append(button);
-  }
-  filterButtons.forEach(button => button.addEventListener('click', () => changeView(button.dataset.filter)));
-  byId('atlas-reset').addEventListener('click', () => { pinned = 'SE.01'; changeView('all'); });
-  byId('atlas-open-index').addEventListener('click', () => {
-    byId('atlas-directory').open = true;
-    byId('atlas-directory').scrollIntoView({ behavior: reduced.matches ? 'instant' : 'smooth', block: 'center' });
-    byId('atlas-search').focus({ preventScroll: true });
   });
-  const normalise = value => value.toLocaleLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-  byId('atlas-search').addEventListener('input', event => {
-    const query = normalise(event.target.value.trim());
-    let count = 0;
-    skills.forEach(skill => {
-      const matches = normalise(`${skill.name} ${skill.code} ${categoryNames[skill.category]} ${skill.description}`).includes(query);
-      skill.source.hidden = !matches;
-      if (matches) count++;
+  skills.forEach(s=>{
+    s.source.addEventListener('pointerenter',e=>{if(e.pointerType==='mouse'){clearTimeout(previewTimer);previewTimer=setTimeout(()=>show(s.code),75);}});
+    s.source.addEventListener('focus',()=>show(s.code));
+    s.source.addEventListener('click',()=>{select(s.code,true);if(mobile.matches)atlas.querySelector('.skill-story').scrollIntoView({behavior:reduced.matches?'instant':'smooth',block:'start'});});
+    s.source.setAttribute('aria-controls','atlas-detail-content');
+  });
+  byId('atlas-index').addEventListener('pointerleave',()=>{clearTimeout(previewTimer);show(pinned);});
+  byId('atlas-index').addEventListener('focusout',e=>{if(!byId('atlas-index').contains(e.relatedTarget))show(pinned);});
+  changeCategory(category);show(pinned);
+
+  // Load the local rendering module only when the gallery approaches the viewport.
+  let started=false;
+  const loader=new IntersectionObserver(entries=>{
+    if(!entries.some(e=>e.isIntersecting)||started)return;started=true;loader.disconnect();
+    import('./capability-worlds.js?v=20260927worlds').then(module=>module.mountWorlds(atlas)).catch(()=>{
+      // CSS sculptures and all skill controls remain available without WebGL.
+      atlas.classList.add('worlds-fallback');
     });
-    text('atlas-search-count', `${count} ${count === 1 ? 'skill' : 'skills'}`);
-    byId('atlas-no-results').hidden = count !== 0;
-  });
-  byId('atlas-tour').addEventListener('click', () => {
-    if (tourTimer) { stopTour(); highlight(); return; }
-    filter = 'all'; experience = null; preview = null;
-    const route = ['SE.01', 'SE.03', 'PM.14', 'DT.03', 'DT.06'];
-    let step = 0;
-    const advance = () => {
-      if (step >= route.length) { stopTour(); highlight(); return; }
-      tourTimer = setTimeout(advance, 5200);
-      byId('atlas-tour').setAttribute('aria-pressed', 'true');
-      byId('atlas-tour').innerHTML = '<span aria-hidden="true">Ⅱ</span> Pause tour';
-      pin(route[step++], false);
-    };
-    renderRail(); advance();
-  });
-  stage.addEventListener('pointermove', event => {
-    if (reduced.matches || event.pointerType !== 'mouse') return;
-    const bounds = stage.getBoundingClientRect();
-    stage.style.setProperty('--pointer-x', `${event.clientX - bounds.left}px`);
-    stage.style.setProperty('--pointer-y', `${event.clientY - bounds.top}px`);
-  }, { passive: true });
-  atlas.addEventListener('keydown', event => { if (event.key === 'Escape') { stopTour(); preview = null; highlight(); } });
-  new IntersectionObserver(entries => entries.forEach(entry => {
-    atlas.classList.toggle('is-in-view', entry.isIntersecting);
-    if (!entry.isIntersecting) stopTour();
-  }), { threshold: .05 }).observe(atlas);
-  let lastWidth = 0;
-  new ResizeObserver(entries => {
-    const width = entries[0].contentRect.width;
-    if (Math.abs(width - lastWidth) > 1) { lastWidth = width; preview = null; renderRail(); layout(); }
-  }).observe(stage);
-  document.addEventListener('visibilitychange', () => { if (document.hidden) stopTour(); });
-  reduced.addEventListener('change', () => { stopTour(); layout(); });
-  byId('atlas-core-title').style.whiteSpace = 'pre-line';
-  atlas.style.scrollMarginTop = '125px';
-  renderRail(); layout();
+  },{rootMargin:'350px'});
+  loader.observe(atlas);
 })();
