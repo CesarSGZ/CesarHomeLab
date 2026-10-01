@@ -97,7 +97,10 @@ function initialise() {
     const visible = [];
     for (const node of fleet) {
       const point={...node,...flightPosition(node,clock,width,height)};
-      const visibility = nodeVisibility(point, node.size * .61, rectangles);
+      // Fade the later craft when routes cross; outlines must not pile up into
+      // a visual knot, even in an otherwise empty margin.
+      const separation=visible.reduce((opacity,other)=>Math.min(opacity,smooth((node.size+other.size)*.55,(node.size+other.size)*1.05,Math.hypot(point.x-other.x,point.y-other.y))),1);
+      const visibility = nodeVisibility(point, node.size * .61, rectangles)*separation;
       if (visibility < .02) continue;
       visible.push({ ...point, visibility });
       ctx.save(); ctx.translate(point.x, point.y);
