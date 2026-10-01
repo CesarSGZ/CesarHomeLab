@@ -1,0 +1,54 @@
+/* Shared preference; the daytime CV deliberately retains its dark technical sections. */
+.theme-toggle{width:38px;height:38px;flex:0 0 38px;display:inline-grid;place-items:center;border:1px solid #637d9366;border-radius:50%;background:#12223780;color:#bbd8e9;padding:9px;cursor:pointer;transition:background .2s,transform .2s}
+.theme-toggle:hover{background:#263b50;transform:rotate(-12deg)}.theme-toggle:focus-visible{outline:2px solid #86d7ef;outline-offset:4px}.theme-toggle svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.nav-actions .theme-toggle{margin-right:-6px}.login-theme{position:fixed;right:26px;top:26px;z-index:20}
+.login-theme{margin:0}
+html[data-theme=night] :is(.manifest,.credentials) .discipline-programme{--discipline-bright:#c8df90;--discipline-color:#c8df90}
+html[data-theme=night] :is(.manifest,.credentials) .discipline-engineering{--discipline-bright:#83d0ee;--discipline-color:#83d0ee}
+html[data-theme=night] :is(.manifest,.credentials) .discipline-data{--discipline-bright:#c4aced;--discipline-color:#c4aced}
+html[data-theme=night] .manifest,html[data-theme=night] .credentials{--paper:#14202d;--paper-ink:#e1e9ef;background:#14202d;color:#e1e9ef}
+html[data-theme=night] .trajectory{--paper-ink:#e1e9ef;background:#101b27;color:#e1e9ef;border-color:#2c4052}
+html[data-theme=night] :is(.manifest,.trajectory,.credentials) .eyebrow{color:#9aafbf}
+html[data-theme=night] .manifest h2 span,html[data-theme=night] .credentials h2 em,html[data-theme=night] .trajectory .section-head h2 em{color:#98b7ca}
+html[data-theme=night] .manifest-grid>p,html[data-theme=night] .pillars p,html[data-theme=night] .belief-statement p{color:#b8c8d4}
+html[data-theme=night] .belief-statement{border-color:#55778e}html[data-theme=night] .belief-statement span{color:#a2b9ca}
+html[data-theme=night] .pillars article[class*="discipline-"],html[data-theme=night] .credential[class*="discipline-"]{background:#1a2938;border-color:#3b4d5e;border-top-color:var(--discipline-bright);box-shadow:none}
+html[data-theme=night] .credential h3{color:#e5edf3}html[data-theme=night] .credential p,html[data-theme=night] .credential>div>span:not(.credential-category){color:#a9bfcd}
+html[data-theme=night] .credential .credential-category,html[data-theme=night] .pillars article>i{color:var(--discipline-bright);background:color-mix(in srgb,var(--discipline-bright) 8%,transparent);border-color:color-mix(in srgb,var(--discipline-bright) 30%,transparent)}
+html[data-theme=night] .credential-brand img[src$="upm.svg"]{filter:brightness(0) invert(.87)}
+html[data-theme=night] .tenure-overview article{background:#1a2938!important;border-color:#3b4d5e}html[data-theme=night] .tenure-overview small{color:#afc1ce}
+html[data-theme=night] .log-content{background:#192938;border-color:#394f63;box-shadow:none}html[data-theme=night] .log-entry.active .log-content{border-color:#6c8da7}
+html[data-theme=night] .log-content>p,html[data-theme=night] .log-content h3 small,html[data-theme=night] .log-meta small{color:#b7c8d5}
+html[data-theme=night] .log-entry:before{background:#101b27!important}html[data-theme=night] .timeline-line{background:#33485b}
+html[data-theme=night] .company-airbus{--company-color:#79b9ed}html[data-theme=night] .company-deloitte{--company-color:#b8d779}html[data-theme=night] .company-ey{--company-color:#ead481}
+html[data-theme=night] .company-logo{background:#edf3f7;border-color:#edf3f7;padding:8px;border-radius:5px}
+/* Private workspace: pale slate in daylight, existing instrument palette at night. */
+html[data-theme=day]:has(body[data-workspace]){--night:#eaf0f5;--panel:#fff;--ink:#1c3145;--muted:#526b80;--line:#bfcfdd;--cyan:#147693;--acid:#59771f;--blue:#3f73a4;--violet:#7858a0;color-scheme:light}
+html[data-theme=night]{color-scheme:dark}
+html[data-theme=day] body[data-workspace]{background:radial-gradient(ellipse at 92% 0,#dcebf6 0,transparent 45%),#edf2f6}
+html[data-theme=day] [data-workspace] :is(.sidebar,.topbar){background:#f4f7faee;border-color:#c4d3e0}
+html[data-theme=day] [data-workspace] .nav-item{color:#526a80}html[data-theme=day] [data-workspace] .nav-item.active{background:#dae9f4;border-color:#9ebbd2;box-shadow:inset 3px 0 #147693}
+html[data-theme=day] [data-workspace] .nav-item:hover{background:#e4edf4;color:#193c54}
+html[data-theme=day] [data-workspace] .session b{background:#e3edf5;border-color:#b4cbdc}
+html[data-theme=day] [data-workspace] :is(.module,.server-card,.security-card,.thermal-panel,.chart-card,.setting-card,.agent-card,.auth-panel,.galaxy-inspector,.galaxy-system-card,.galaxy-source-panel,.galaxy-file-list,.galaxy-guide){background:#f9fbfd;border-color:#bdcedc;color:#1c3145;box-shadow:0 8px 32px #29496708}
+html[data-theme=day] [data-workspace] .status-strip{background:#e1ebf3;color:#526a80}
+html[data-theme=day] [data-workspace] :is(.module-action,input,select,.galaxy-journeys button,.galaxy-syncbar button,.galaxy-neighbours button){background:#e8f0f6;border-color:#a8c0d4;color:#2c526d}
+html[data-theme=day] [data-workspace] .module-action:hover{background:#d8e8f3;color:#143d58}
+html[data-theme=day] [data-workspace] .theme-toggle{background:#e1eaf2;color:#315c78;border-color:#a4bbce}
+html[data-theme=day] [data-workspace] :is(.galaxy-map,.galaxy-map-nodes,.thermal-3d-shell){--ink:#edf3f8;--muted:#a0b2c5;--line:#aec8e02e;--cyan:#86d7ef;--acid:#d6eb91;--blue:#8abce8;--violet:#bfa7e3;color:#edf3f8;color-scheme:dark}
+html[data-theme=day] [data-workspace] .galaxy-map{background:#0d1928}
+html[data-theme=day] [data-workspace] .login-copy>p,html[data-theme=day] [data-workspace] .auth-panel header span{color:#526a80}
+html[data-theme=day] [data-workspace] .glow{opacity:.12}html[data-theme=day] [data-workspace] .grid{opacity:.18}
+html[data-theme=day] [data-workspace] .auth-panel input{background:#edf4f9;color:#193d55;border-color:#aac1d3}
+html[data-theme=day] [data-workspace] .feedback{color:#b13a47}
+html[data-theme=day] [data-workspace] .github-view{--galaxy-accent:#147693;--galaxy-soft:#14769318}
+html[data-theme=day] [data-workspace] :is(.galaxy-heading h2 em,.galaxy-inspector-top,#galaxy-show-files,.galaxy-guide #galaxy-guide-kicker,.galaxy-files header>span,.galaxy-journeys button span){color:#147693}
+html[data-theme=day] [data-workspace] :is(.galaxy-heading>p,.galaxy-syncbar small,.galaxy-inspector #galaxy-node-explanation,.galaxy-io small,.galaxy-neighbours>small,.galaxy-guide p,.galaxy-facts small,.galaxy-bottom header small,#galaxy-file-list p,#galaxy-file-list small,.galaxy-file-note,.galaxy-activity>p,#galaxy-activity-list small,.github-view .github-feedback){color:#526b80}
+html[data-theme=day] [data-workspace] :is(.galaxy-node-summary,.galaxy-io p,.galaxy-facts strong,.galaxy-facts a,#galaxy-file-list a,#galaxy-activity-list a){color:#263f55}
+html[data-theme=day] [data-workspace] :is(.galaxy-guide-controls button,#galaxy-neighbours button,.galaxy-search){background:#e8f0f6;border-color:#a8c0d4;color:#2c526d}
+html[data-theme=day] [data-workspace] .galaxy-signal.fresh{background:#59771f}
+html[data-theme=day] [data-workspace] :is(.thermal-guide,.thermal-metrics,.thermal-provenance,.thermal-validation,.thermal-roadmap,.thermal-deep-dive>article,.thermal-readiness>article,.thermal-status,.model-assurance){background:#f9fbfd;border-color:#bdcedc}
+html[data-theme=day] [data-workspace] :is(.restart-button,.command-feedback.error){color:#b33b48}
+html[data-theme=day] .login-page label>span{color:#526b80}
+@media(max-width:580px){.theme-toggle{width:30px;height:30px;flex-basis:30px;padding:6px}.theme-toggle svg{width:17px;height:17px}.nav-actions{gap:11px!important}.nav-actions .theme-toggle{margin:0}.login-theme{top:20px;right:20px}}
+@media(prefers-reduced-motion:reduce){.theme-toggle{transition:none}.theme-toggle:hover{transform:none}}

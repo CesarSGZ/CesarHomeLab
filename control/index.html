@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="/theme.js?v=20261001"></script>
   <meta name="theme-color" content="#071015">
   <meta name="robots" content="noindex,nofollow,noarchive">
   <title>Cesar HomeLab</title>
@@ -13,8 +14,10 @@
   <link rel="stylesheet" href="auth-overrides.css?v=20260728a">
   <link rel="stylesheet" href="refinement.css?v=20260909chat">
   <link rel="stylesheet" href="github-galaxy.css?v=20260928atlas">
+  <link rel="stylesheet" href="training.css?v=20261001">
+  <link rel="stylesheet" href="/theme.css?v=20261001">
 </head>
-<body class="access-pending">
+<body class="access-pending" data-workspace>
   <canvas id="control-grid" aria-hidden="true"></canvas>
   <div class="noise" aria-hidden="true"></div>
 
@@ -28,6 +31,7 @@
       <button class="nav-item" data-view="infrastructure"><span>02</span><b id="infrastructure-nav-label">Servers</b></button>
       <button class="nav-item" data-view="github"><span>03</span>GitHub Galaxy</button>
       <button class="nav-item" data-view="thermal"><span>04</span>Thermal Lab</button>
+      <button class="nav-item" data-view="training"><span>05</span>Training</button>
     </nav>
     <div class="sidebar-foot"><span><i></i> Secure session</span><button id="sign-out" type="button">Sign out ↗</button></div>
   </aside>
@@ -36,7 +40,7 @@
     <header class="topbar">
       <button class="menu-toggle" type="button" aria-label="Toggle navigation" aria-controls="portal-navigation" aria-expanded="false">MENU</button>
       <div><small>CESAR HOMELAB / PRIVATE PORTAL</small><p id="view-code">HOME · 01</p></div>
-      <div class="session"><span id="session-role">SECURE</span><b id="session-avatar">CV</b></div>
+      <div class="session"><button class="theme-toggle" type="button" data-theme-toggle aria-label="Switch to night mode"></button><span id="session-role">SECURE</span><b id="session-avatar">CV</b></div>
     </header>
 
     <section class="view active" id="overview" data-title="Home" data-code="01">
@@ -72,6 +76,14 @@
             <div class="github-mark" aria-hidden="true"><i></i><i></i><b>GH</b></div>
             <div><p><span></span> LIVE REPOSITORY MAP</p><strong>Your website, connected.</strong><small>Explore how the website is built, with current source and deployment data.</small></div>
             <button class="module-action" data-open="github">Explore galaxy →</button>
+          </div>
+        </article>
+        <article class="module module-wide training-summary" data-requires="training:read" data-accent="acid">
+          <header><span>TRAINING LAB</span><small>PERSONAL / 04</small></header>
+          <div class="thermal-summary-body">
+            <div class="thermal-mark" aria-hidden="true"><b>TR</b></div>
+            <div><p>ROUTINES / PROGRESSION</p><strong>Your training, in perspective.</strong><small>Explore routines, historical loads and your exercise alternatives.</small></div>
+            <button class="module-action" data-open="training">Open training →</button>
           </div>
         </article>
         <article class="module module-wide thermal-summary" data-requires="thermal:read" data-accent="violet">
@@ -287,9 +299,13 @@
       </section>
     </section>
 
+    <section class="view training-view" id="training" data-title="Training" data-code="05" lang="es">
+      <div id="training-app" aria-live="polite"><p class="eyebrow"><span></span> TRAINING LAB</p><h2>Preparando tu entrenamiento.</h2></div>
+    </section>
   </main>
+  <script src="training.js?v=20261001"></script>
   <script src="github-galaxy.js?v=20260928atlas"></script>
-  <script src="control.js?v=20260927cleanup"></script>
+  <script src="control.js?v=20261001training"></script>
   <script src="thermal-viewer.bundle.js?v=20260805o"></script>
 </body>
 </html>
