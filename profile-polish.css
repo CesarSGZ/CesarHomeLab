@@ -1,0 +1,10 @@
+.manifest .belief-statement{margin:42px 0 0;padding-block:26px}
+.credential-brand{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;width:84px;align-self:center}
+.credential-brand img{display:block;width:84px;height:84px;object-fit:contain}
+.credential-brand-pmi img{object-fit:cover;object-position:left}
+.credential-brand .credential-no{font-size:16px;line-height:1.2;letter-spacing:.03em}
+.credential[class*="discipline-"]{grid-template-columns:84px minmax(0,1fr);gap:28px}
+.language-grade .language-certificate{letter-spacing:.02em;text-transform:none;font:12px/1.5 Manrope,sans-serif;color:#afcbdc}
+.language-console .language-primary{align-items:stretch}
+.language-channel .language-content{height:100%}
+@media(max-width:580px){.credential[class*="discipline-"]{grid-template-columns:60px minmax(0,1fr);gap:18px}.credential-brand{width:60px;gap:11px}.credential-brand img{width:60px;height:60px}.credential-brand .credential-no{font-size:13px}.manifest .belief-statement{margin-top:30px;padding-top:20px;padding-bottom:0}.language-grade .language-certificate{font-size:10px}}

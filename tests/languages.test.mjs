@@ -4,7 +4,7 @@ import {readFileSync,statSync} from 'node:fs';
 const root=new URL('../',import.meta.url);
 const html=readFileSync(new URL('index.html',root),'utf8');
 const section=html.split('id="languages"')[1].split('</section>')[0];
-const cards=[...section.matchAll(/<details\b[^>]*>([\s\S]*?)<\/details>/g)].map(m=>m[1]);
+const cards=[...section.matchAll(/<article\b[^>]*>([\s\S]*?)<\/article>/g)].map(m=>m[1]);
 
 test('language redesign preserves all five reported proficiency levels',()=>{
   assert.equal(cards.length,5);
@@ -18,10 +18,10 @@ test('native languages are separate; CEFR rulers use consistent six-step levels'
     for(const level of ['A1','A2','B1','B2','C1','C2'])assert.ok(card.includes('>'+level+'</span>'));
   });
 });
-test('each language has a local flag and a native HTML disclosure',()=>{
+test('each language has a local flag and only its proficiency is shown',()=>{
   cards.forEach(card=>{
     const path=card.match(/src="(assets\/flags\/[^"]+)"/)[1];
     assert.ok(statSync(new URL(path,root)).size>0);
-    assert.match(card,/<summary>/);assert.match(card,/class="language-description"/);assert.match(card,/alt="[^"]+ flag"/);
+    assert.doesNotMatch(card,/About this level|language-description|<summary>/);assert.match(card,/alt="[^"]+ flag"/);
   });
 });
