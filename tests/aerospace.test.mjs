@@ -16,6 +16,8 @@ test('fleet fits available whitespace with a lighter mobile budget', () => {
   assert.ok(mobile.length > 0 && mobile.length <= 7);
   assert.ok(desktop.every(node => clearance(node, boxes) > node.size * .5));
   assert.equal(new Set(desktop.map(node => node.kind)).size, 4);
+  const narrowGutters = layoutFleet(1250, 720, [{ left: 68, right: 1181, top: 120, bottom: 710 }]);
+  assert.ok(narrowGutters.filter(node => node.x > 1200).length >= 3);
 });
 test('connections exclude distant nodes', () => {
   const nodes = [{ x: 30, y: 100, id: 0 }, { x: 160, y: 100, id: 1 }, { x: 1400, y: 900, id: 2 }];

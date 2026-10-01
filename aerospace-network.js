@@ -1,4 +1,4 @@
-import { layoutFleet, nodeVisibility, linkPairs, smooth, clamp } from './aerospace-model.mjs';
+import { layoutFleet, nodeVisibility, linkPairs, smooth, clamp } from './aerospace-model.mjs?v=20261001b';
 
 const canvas = document.querySelector('#aerospace-network');
 const toggle = document.querySelector('#ambient-toggle');

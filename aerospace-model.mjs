@@ -14,7 +14,7 @@ export function clearance(point, rectangles) {
   return distance;
 }
 export function nodeVisibility(point, radius, rectangles) {
-  return smooth(radius + 3, radius + 25, clearance(point, rectangles));
+  return smooth(radius + 3, radius + 15, clearance(point, rectangles));
 }
 export function layoutFleet(width, height, rectangles) {
   const mobile = width < 680, size = mobile ? 29 : 41;
@@ -23,7 +23,7 @@ export function layoutFleet(width, height, rectangles) {
   const candidates = [];
   for (let y = 112; y < height - 46; y += mobile ? 44 : 52) {
     for (const x of columns) {
-      if (clearance({ x, y }, rectangles) > size * .62 + 12) candidates.push({ x, y });
+      if (clearance({ x, y }, rectangles) > size * .58 + 8) candidates.push({ x, y });
     }
   }
   const nodes = [], kinds = ['plane', 'satellite', 'drone', 'uav', 'satellite', 'plane', 'drone'];
