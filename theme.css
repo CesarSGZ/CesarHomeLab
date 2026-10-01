@@ -15,7 +15,7 @@ html[data-theme=night] .belief-statement{border-color:#55778e}html[data-theme=ni
 html[data-theme=night] .pillars article[class*="discipline-"],html[data-theme=night] .credential[class*="discipline-"]{background:#1a2938;border-color:#3b4d5e;border-top-color:var(--discipline-bright);box-shadow:none}
 html[data-theme=night] .credential h3{color:#e5edf3}html[data-theme=night] .credential p,html[data-theme=night] .credential>div>span:not(.credential-category){color:#a9bfcd}
 html[data-theme=night] .credential .credential-category,html[data-theme=night] .pillars article>i{color:var(--discipline-bright);background:color-mix(in srgb,var(--discipline-bright) 8%,transparent);border-color:color-mix(in srgb,var(--discipline-bright) 30%,transparent)}
-html[data-theme=night] .credential-brand img[src$="upm.svg"]{filter:brightness(0) invert(.87)}
+html[data-theme=night] :is(.credential-brand img[src$="upm.svg"],.credential-brand-pmi img){filter:none;background:#f7f9fb;padding:5px;border-radius:5px}
 html[data-theme=night] .tenure-overview article{background:#1a2938!important;border-color:#3b4d5e}html[data-theme=night] .tenure-overview small{color:#afc1ce}
 html[data-theme=night] .log-content{background:#192938;border-color:#394f63;box-shadow:none}html[data-theme=night] .log-entry.active .log-content{border-color:#6c8da7}
 html[data-theme=night] .log-content>p,html[data-theme=night] .log-content h3 small,html[data-theme=night] .log-meta small{color:#b7c8d5}
