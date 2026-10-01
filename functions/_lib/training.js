@@ -1,9 +1,9 @@
-export function parseCsv(text) {
+export function parseCsv(text, delimiter = ',') {
   const rows = []; let row = [], field = '', quoted = false;
   for (let i = 0; i < text.length; i++) {
     const ch = text[i];
     if (ch === '"') { if (quoted && text[i + 1] === '"') { field += '"'; i++; } else quoted = !quoted; }
-    else if (ch === ',' && !quoted) { row.push(field); field = ''; }
+    else if (ch === delimiter && !quoted) { row.push(field); field = ''; }
     else if ((ch === '\n' || ch === '\r') && !quoted) {
       if (ch === '\r' && text[i + 1] === '\n') i++;
       row.push(field); rows.push(row); row = []; field = '';

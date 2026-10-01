@@ -1,6 +1,7 @@
 import { userCan, validCsrf } from '../../../_lib/auth.js';
 import { json, methodNotAllowed } from '../../../_lib/http.js';
-import { snapshotFromCsv } from '../../../_lib/training.js';
+import { snapshotFromCsv, parseCsv } from '../../../_lib/training.js';
+import { parseCvlpp, parseLegacy, validateTrainingSettings } from '../../../_lib/training-archives.js';
 
 export async function onRequest(context) {
   const { request, env, data } = context;
@@ -14,6 +15,18 @@ export async function onRequest(context) {
     const dataset = JSON.parse(stored.payload);
     let refreshError = null;
     if (request.method === 'POST') {
+      const body = await request.text();
+      if (body.length > 40_000) return json({ok:false,error:'request_too_large'},{status:413});
+      let action;
+      try { action = body ? JSON.parse(body) : null; } catch { return json({ok:false,error:'invalid_request'},{status:400}); }
+      if (action?.action === 'settings') {
+        try { dataset.settings = validateTrainingSettings(action.settings); }
+        catch { return json({ok:false,error:'invalid_settings'},{status:400}); }
+        const now = new Date().toISOString();
+        await env.CONTROL_DB.prepare('UPDATE personal_datasets SET payload = ?, updated_at = ? WHERE name = ?').bind(JSON.stringify(dataset),now,'training').run();
+        return json({ok:true,dataset,saved:true,updatedAt:now});
+      }
+      if(action && action.action !== 'refresh') return json({ok:false,error:'unknown_action'},{status:400});
       const lastCheck = Date.parse(dataset.checkedAt || '') || 0;
       if (Date.now() - lastCheck < 60_000) return json({ ok: true, dataset, refresh: 'recent', updatedAt: stored.updated_at });
       const now = new Date().toISOString();
@@ -39,6 +52,25 @@ export async function onRequest(context) {
         dataset.phases = phases;
         dataset.checkedAt = now;
         dataset.history = dataset.history.slice(-300);
+        // Refresh each archive independently; an unavailable older book must not
+        // destroy its imported records or prevent updating the current routine.
+        const archiveErrors=[];
+        for(const source of dataset.source.extra || []) {
+          try {
+            const tabs=await Promise.all(source.tabs.map(async tab=>{
+              const response=await fetch(`https://docs.google.com/spreadsheets/d/${encodeURIComponent(source.id)}/export?format=csv&gid=${tab.gid}`,{signal:AbortSignal.timeout(15_000),headers:{accept:'text/csv'}});
+              if(!response.ok||!/text\/csv/i.test(response.headers.get('content-type')||''))throw new Error('unavailable');
+              const csv=await response.text();if(csv.length>500_000)throw new Error('too_large');
+              return {name:tab.title,rows:parseCsv(csv)};
+            }));
+            const records=source.kind==='cvlpp'?parseCvlpp(tabs):parseLegacy(tabs[0].rows);
+            if(!records.length)throw new Error('structure_changed');
+            const index=(dataset.archives||[]).findIndex(archive=>archive.id===source.kind);
+            const archive={id:source.kind,title:source.title,checkedAt:now,records};
+            if(index<0)(dataset.archives ||= []).push(archive);else dataset.archives[index]=archive;
+          } catch { archiveErrors.push(source.title); }
+        }
+        if(archiveErrors.length)refreshError=`Rutina actualizada. Se conserva la última importación de: ${archiveErrors.join(', ')}.`;
         await env.CONTROL_DB.prepare('UPDATE personal_datasets SET payload = ?, updated_at = ? WHERE name = ?').bind(JSON.stringify(dataset), now, 'training').run();
       }
     }
