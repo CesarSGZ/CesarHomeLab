@@ -1,4 +1,4 @@
-import { layoutFleet, nodeVisibility, linkPairs, smooth, clamp } from './aerospace-model.mjs?v=20261001b';
+import { layoutFleet, flightPosition, nodeVisibility, linkPairs, smooth } from './aerospace-model.mjs?v=20261001continuous';
 
 const canvas = document.querySelector('#aerospace-network');
 const toggle = document.querySelector('#ambient-toggle');
@@ -15,20 +15,21 @@ function initialise() {
   let frame = 0, last = 0, elapsed = 0, clock = 0, dirty = true;
   let rectangles = [], bands = [], fleet = [], pointer = { x: -1000, y: -1000 };
   // Decorations occupy whitespace only, including during scrolling and resizing.
-  const readingSelector = '.nav-wrap,main h1,main h2,main h3,main p,main .eyebrow,.hero-actions,.identity,.scroll-hint,.pillars,.belief-statement,.log-content,.log-meta,.tenure-overview,.capability-atlas,.tool-marquee,.credential-grid,.language-console,.final-actions,main footer,.ambient-toggle';
+  const readingSelector = '.nav-wrap,main h1,main h2,main h3,main h4,main p,main a,main button,main li,main small,main strong,.eyebrow,.log-meta,.tenure-overview article>span,.pillars article>span,.pillars article>i,.credential span,main footer,.identity,.scroll-hint,.capability-atlas,.tool-marquee,.language-console,.ambient-toggle';
 
   function measure() {
-    rectangles = [...document.querySelectorAll(readingSelector)].map(el => el.getBoundingClientRect())
+    rectangles = [...document.querySelectorAll(readingSelector)].flatMap(el=>{
+      if(el.matches('p,h1,h2,h3,h4,small,strong')){
+        const range=document.createRange();range.selectNodeContents(el);return [...range.getClientRects()];
+      }
+      return [el.getBoundingClientRect()];
+    })
       .filter(r => r.width && r.height && r.bottom > -50 && r.top < height + 50)
-      .map(r => ({ left: r.left - 8, right: r.right + 8, top: r.top - 8, bottom: r.bottom + 8 }));
+      .map(r => ({ left: r.left - 3, right: r.right + 3, top: r.top - 4, bottom: r.bottom + 4 }));
     bands = [...document.querySelectorAll('main > .section')].map(el => ({
       rect: el.getBoundingClientRect(), light: el.matches('.manifest,.trajectory,.credentials')
     }));
-    const previous = new Map(fleet.map(node => [node.id, node]));
-    fleet = layoutFleet(width, height, rectangles).map(node => {
-      const old = previous.get(node.id);
-      return { ...node, tx: node.x, ty: node.y, x: old?.x ?? node.x, y: old?.y ?? node.y };
-    });
+    if(!fleet.length)fleet=layoutFleet(width,height,rectangles);
     toggle.dataset.tone = lightAt(height - 40) ? 'light' : 'dark';
     dirty = false;
   }
@@ -43,6 +44,7 @@ function initialise() {
     const ratio = Math.min(devicePixelRatio || 1, mobile ? 1.5 : 2);
     canvas.width = Math.round(width * ratio); canvas.height = Math.round(height * ratio);
     ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+    fleet=layoutFleet(width,height,rectangles);
     dirty = true; restart();
   }
   function path(points, closed = false, fill = false) {
@@ -92,26 +94,20 @@ function initialise() {
     }
   }
   function renderFleet(dt) {
-    const visible = [], blend = reduced.matches || paused ? 1 : 1 - Math.exp(-dt * 2.3);
+    const visible = [];
     for (const node of fleet) {
-      node.x += (node.tx - node.x) * blend; node.y += (node.ty - node.y) * blend;
-      const phase = clock * .065 + node.phase * Math.PI * 2, amplitude = mobile ? 5 : 12;
-      const edge = node.size * .68 + 3;
-      const point = { ...node, x: clamp(node.x + Math.sin(phase) * amplitude, edge, width - edge),
-        y: clamp(node.y + Math.cos(phase * .85) * amplitude * .7, node.size, height - node.size) };
-      const cycle = (clock / 58 + node.phase) % 1;
-      const presence = reduced.matches || paused ? .9 : .6 + .4 * smooth(0, .1, cycle) * (1 - smooth(.86, 1, cycle));
-      const visibility = nodeVisibility(point, node.size * .61, rectangles) * presence;
+      const point={...node,...flightPosition(node,clock,width,height)};
+      const visibility = nodeVisibility(point, node.size * .61, rectangles);
       if (visibility < .02) continue;
       visible.push({ ...point, visibility });
       ctx.save(); ctx.translate(point.x, point.y);
       const nearPointer = Math.max(0, 1 - Math.hypot(point.x - pointer.x, point.y - pointer.y) / 110);
-      ctx.globalAlpha = visibility * (lightAt(point.y) ? .54 : .64);
+      ctx.globalAlpha = visibility * (lightAt(point.y) ? .40 : .54);
       ctx.strokeStyle = colour(node.id, point.y); ctx.fillStyle = `${colour(node.id, point.y)}16`;
       if (nearPointer > .05 && !reduced.matches) {
         ctx.save(); ctx.globalAlpha *= nearPointer * .35; circle(0, 0, node.size * .72); ctx.restore();
       }
-      ctx.rotate(node.kind === 'plane' || node.kind === 'uav' ? Math.atan2(-Math.sin(phase * .85) * .85, Math.cos(phase)) * .23 + .35 : Math.sin(phase) * .12);
+      ctx.rotate(node.kind === 'plane' || node.kind === 'uav' ? point.heading : Math.sin(clock*.09+node.phase*6)*.18);
       ctx.scale(node.size / 42, node.size / 42); ctx.lineWidth = 1.35; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
       glyph(node); ctx.restore();
     }

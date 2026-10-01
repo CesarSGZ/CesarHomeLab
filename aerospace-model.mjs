@@ -14,28 +14,31 @@ export function clearance(point, rectangles) {
   return distance;
 }
 export function nodeVisibility(point, radius, rectangles) {
-  return smooth(radius + 3, radius + 15, clearance(point, rectangles));
+  return smooth(radius + 1, radius + 6, clearance(point, rectangles));
 }
 export function layoutFleet(width, height, rectangles) {
-  const mobile = width < 680, size = mobile ? 29 : 41;
-  const columns = mobile ? [25, width - 25, width * .25, width * .5, width * .75]
-    : [32, width - 32, width * .15, width * .32, width * .52, width * .72, width * .88];
-  const candidates = [];
-  for (let y = 112; y < height - 46; y += mobile ? 44 : 52) {
-    for (const x of columns) {
-      if (clearance({ x, y }, rectangles) > size * .58 + 8) candidates.push({ x, y });
-    }
+  const mobile=width<680,kinds=['plane','satellite','drone','uav','satellite','plane','drone'];
+  return Array.from({length:mobile?9:18},(_,id)=>{
+    const node={id,kind:kinds[id%kinds.length],size:mobile?(id<4?16:23):(id<8?34:42),phase:(id*.618033)%1,lane:id<(mobile?4:8)?'gutter':'cruise'};
+    return {...node,...flightPosition(node,0,width,height)};
+  });
+}
+// The viewport is a continuous airspace. Scrolling changes the reading mask,
+// never restarts or teleports the fleet. Opposite directions keep it organic.
+export function flightPosition(node,time,width,height){
+  const mobile=width<680,margin=mobile?11:28,direction=node.id%2?1:-1;
+  const wrap=(value,length)=>((value%length)+length)%length;
+  if(node.lane==='gutter'){
+    const travel=height+node.size*4,speed=mobile?7+node.id:11+node.id;
+    const y=wrap(node.phase*travel+time*speed*direction,travel)-node.size*2;
+    const x=(node.id%2?width-margin:margin)+Math.sin(time*.09+node.phase*6)*(mobile?1:6);
+    return{x,y,heading:direction>0?Math.PI:0};
   }
-  const nodes = [], kinds = ['plane', 'satellite', 'drone', 'uav', 'satellite', 'plane', 'drone'];
-  for (let i = 0; i < (mobile ? 7 : 15); i++) {
-    const target = { x: i < 10 ? (i % 2 ? width - 32 : 32) : width * [.5, .73, .26, .6, .86][i - 10],
-      y: height * (.16 + (i % 7) * .115) };
-    const available = candidates.filter(p => nodes.every(n => Math.hypot(n.x - p.x, n.y - p.y) > (mobile ? 73 : 95)));
-    available.sort((a, b) => Math.hypot(a.x - target.x, a.y - target.y) - Math.hypot(b.x - target.x, b.y - target.y));
-    if (!available.length) break;
-    nodes.push({ ...available[0], id: i, kind: kinds[i % kinds.length], size: size * (i % 3 === 0 ? 1.14 : 1), phase: (i * .618033) % 1 });
-  }
-  return nodes;
+  const travel=width+node.size*4,speed=(mobile?6:10)+(node.id%5)*1.5;
+  const x=wrap(node.phase*travel+time*speed*direction,travel)-node.size*2;
+  const base=height*(.20+((node.id*.271)%1)*.58),wave=time*.035+node.phase*6;
+  const y=base+Math.sin(wave)*height*.10;
+  return{x,y,heading:Math.atan2(Math.cos(wave)*height*.0035,speed*direction)+Math.PI/2};
 }
 export function linkPairs(nodes, width, mobile) {
   const pairs = [];

@@ -15,7 +15,7 @@
         : '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.7 13.7A9 9 0 0 1 10.3 3.3a9 9 0 1 0 10.4 10.4Z"/></svg>';
     });
     const meta = document.querySelector('meta[name="theme-color"]');
-    if (meta) meta.content = root.dataset.theme === 'night' ? '#090f19' : '#eaf0f5';
+    if (meta) meta.content = root.dataset.theme === 'night' ? '#15191c' : '#eaf0f5';
   }
   document.addEventListener('DOMContentLoaded', () => {
     paint();

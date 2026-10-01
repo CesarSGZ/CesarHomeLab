@@ -52,3 +52,42 @@ html[data-theme=day] [data-workspace] :is(.restart-button,.command-feedback.erro
 html[data-theme=day] .login-page label>span{color:#526b80}
 @media(max-width:580px){.theme-toggle{width:30px;height:30px;flex-basis:30px;padding:6px}.theme-toggle svg{width:17px;height:17px}.nav-actions{gap:11px!important}.nav-actions .theme-toggle{margin:0}.login-theme{top:20px;right:20px}}
 @media(prefers-reduced-motion:reduce){.theme-toggle{transition:none}.theme-toggle:hover{transform:none}}
+
+/* Night is a two-surface palette, not a blanket replacement of white by navy. */
+html[data-theme=night]{--night:#15191c;--panel:#20272c;--ink:#edf0f2;--muted:#b6c0c7;--line:#a7bbc52e;--paper:#28323a;--paper-ink:#edf0f2;--cyan:#93cee0;--acid:#ccdfa1}
+html[data-theme=night] body{background:radial-gradient(ellipse at 78% 4%,#28333950,transparent 28%),var(--night);color:var(--ink)}
+html[data-theme=night] :is(.hero,.finale){background:transparent}
+html[data-theme=night] .systems{background:radial-gradient(ellipse at 50% 25%,#35434830,transparent 55%),#15191c}
+html[data-theme=night] .languages.language-spectrum{background:radial-gradient(ellipse at 80% 30%,#35454830,transparent 60%),#191f23}
+html[data-theme=night] :is(.manifest,.credentials){background:#28323a;color:#edf0f2}
+html[data-theme=night] .trajectory{background:#242d34;color:#edf0f2;border-color:#47535c}
+html[data-theme=night] .nav-wrap{background:#171d21eb;border-color:#5b6a7559}
+html[data-theme=night] .theme-toggle{background:#263138;color:#c4dce5;border-color:#76929e70}
+html[data-theme=night] :is(.manifest,.credentials) :is(.pillars article[class*="discipline-"],.credential[class*="discipline-"]){background:#323e47;color:#edf0f2;border-color:#53636e;border-top-color:var(--discipline-bright)}
+html[data-theme=night] :is(.pillars article>span,.credential span){color:#b8c8d2}
+html[data-theme=night] .pillars h3{color:#edf0f2}
+html[data-theme=night] .tenure-overview article{background:#303c45!important;border-color:#52616c;color:#edf0f2}
+html[data-theme=night] .airbus-tenure{--tenure-color:#91c4ea}
+html[data-theme=night] .consulting-tenure{--tenure-color:#ccdfa1}
+html[data-theme=night] .log-content{background:#303c45;border-color:#52616c;color:#edf0f2}
+html[data-theme=night] .log-content h3{color:var(--company-color)}
+html[data-theme=night] .log-content li{color:#d5e2ea;background:#26333c;border-color:#657b8d}
+html[data-theme=night] .log-entry:before{background:#242d34!important}
+html[data-theme=night] .company-airbus{--company-color:#91c4ea;--company-soft:#91c4ea15}
+html[data-theme=night] .company-deloitte{--company-color:#ccdfa1;--company-soft:#ccdfa115}
+html[data-theme=night] .company-ey{--company-color:#ead6a0;--company-soft:#ead6a015}
+html[data-theme=night] .company-logo{background:#1d282f;border-color:#607481}
+html[data-theme=night] .company-logo-ey{background:#f5f4ec;border-color:#d3d4ca}
+html[data-theme=night] :is(.manifest-grid>p,.pillars p,.belief-statement p,.log-content>p,.log-content h3 small,.log-meta small,.tenure-overview small,.credential p){color:#c0cdd6}
+html[data-theme=night] :is(.language-console,.language-channel){background:#252e34;border-color:#677c8a59}
+html[data-theme=night] .language-secondary .language-channel{background:#20282d}
+html[data-theme=night] .language-scale span{color:#a2b5c3}
+html[data-theme=night] .language-scale .reached{color:#c4d6e0}
+html[data-theme=night] .language-scale .current{color:var(--signal)}
+html[data-theme=night] :is(.world-top,.systems-intro span,.library-head span:last-child,.story-evidence h4,.story-connections h4){color:#a5b7c4}
+/* Mission Control uses the same neutral canvas, with visibly raised panels. */
+html[data-theme=night] body[data-workspace]{background:radial-gradient(ellipse at 92% 0,#303a4140,transparent 45%),#15191c}
+html[data-theme=night] [data-workspace] :is(.sidebar,.topbar){background:#1d252aee;border-color:#53616b66}
+html[data-theme=night] [data-workspace] :is(.module,.server-card,.security-card,.thermal-panel,.chart-card,.setting-card,.agent-card,.auth-panel,.galaxy-inspector,.galaxy-system-card,.galaxy-source-panel,.galaxy-file-list,.galaxy-guide){background:#28343d;border-color:#526572;color:#edf0f2}
+html[data-theme=night] [data-workspace] :is(.nav-item.active,.module-action,input,select,.galaxy-journeys button,.galaxy-syncbar button,.galaxy-neighbours button){background:#303d47;color:#e0e9ef;border-color:#607482}
+html[data-theme=night] .training-view{--training-bg:#28343d;--training-soft:#33434f;--training-ink:#edf0f2;--training-muted:#becbd5;--training-line:#536876}
