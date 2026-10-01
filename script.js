@@ -1,13 +1,6 @@
 const $=(s,c=document)=>c.querySelector(s),$$=(s,c=document)=>[...c.querySelectorAll(s)];
 
-// Ambient starfield reacts subtly to the pointer.
-const canvas=$('#stars'),ctx=canvas.getContext('2d');let stars=[],mx=0,my=0,starFrame=0;
 const reducedMotion=matchMedia('(prefers-reduced-motion: reduce)');
-function resize(){const ratio=Math.min(devicePixelRatio||1,2);canvas.width=innerWidth*ratio;canvas.height=innerHeight*ratio;ctx.setTransform(ratio,0,0,ratio,0,0);stars=Array.from({length:Math.min(90,Math.floor(innerWidth/12))},()=>({x:Math.random()*innerWidth,y:Math.random()*innerHeight,r:Math.random()*.9+.2,a:Math.random()*.5+.15,s:Math.random()*.06+.015}));restartStars()}
-function draw(){ctx.clearRect(0,0,innerWidth,innerHeight);for(const s of stars){if(!reducedMotion.matches)s.y+=s.s;if(s.y>innerHeight)s.y=0;ctx.beginPath();ctx.arc(s.x+mx*.008,s.y+my*.008,s.r,0,Math.PI*2);ctx.fillStyle=`rgba(220,245,245,${s.a})`;ctx.fill()}if(!document.hidden&&!reducedMotion.matches&&scrollY<innerHeight)starFrame=requestAnimationFrame(draw)}
-function restartStars(){cancelAnimationFrame(starFrame);draw()}
-document.addEventListener('visibilitychange',restartStars);reducedMotion.addEventListener('change',restartStars);
-addEventListener('scroll',restartStars,{passive:true});addEventListener('resize',resize);addEventListener('pointermove',e=>{mx=e.clientX-innerWidth/2;my=e.clientY-innerHeight/2},{passive:true});resize();
 
 const observer=new IntersectionObserver(entries=>entries.forEach(e=>{if(e.isIntersecting)e.target.classList.add('visible','in-view')}),{threshold:.18});$$('.reveal,.skill-card').forEach(el=>observer.observe(el));
 

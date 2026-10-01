@@ -20,9 +20,14 @@
   <link rel="stylesheet" href="languages.css?v=20261001simple">
   <link rel="stylesheet" href="profile-polish.css?v=20261001a">
   <link rel="stylesheet" href="/theme.css?v=20261001">
+  <link rel="stylesheet" href="aerospace.css?v=20261001a">
 </head>
 <body>
-  <canvas id="stars" aria-hidden="true"></canvas>
+  <canvas id="aerospace-network" aria-hidden="true"></canvas>
+  <button class="ambient-toggle" id="ambient-toggle" type="button" aria-label="Pause background network" aria-pressed="false" title="Pausar el fondo animado">
+    <svg class="ambient-pause" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6v12m6-12v12"/></svg>
+    <svg class="ambient-play" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5 10 7-10 7Z"/></svg>
+  </button>
   <div class="noise" aria-hidden="true"></div>
   <div class="progress" aria-hidden="true"><span></span></div>
 
@@ -196,7 +201,8 @@
     </section>
   </main>
   <div class="contact-toast" id="contact-toast" role="status" aria-live="polite">Email copied to clipboard</div>
-  <script src="script.js?v=20260927atlas"></script>
+  <script src="script.js?v=20261001ambient"></script>
+  <script type="module" src="aerospace-network.js?v=20261001a"></script>
   <script type="module" src="career-dates.js?v=20260927a"></script>
   <script src="capability-atlas.js?v=20260927worlds"></script>
 </body>
