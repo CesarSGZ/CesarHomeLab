@@ -1,13 +1,13 @@
 import {authorisedDeveloper,developmentAction} from './development.js';
 import {refreshMarket} from './market-data.js';
-import {status,load,locked,cycle,storeSecret,validateConfig,log} from './engine.js';
+import {status,load,locked,cycle,storeSecret,secret,validateConfig,log} from './engine.js';
 import {id,eligible,sell,day,freshQuote} from './core.js';
 import {json} from '../functions/_lib/http.js';
 export default {
   async fetch(request,env,ctx){
     const path=new URL(request.url).pathname;
     try{
-      if(path==='/development'){if(request.method!=='POST'||!await authorisedDeveloper(request,env))return json({ok:false,error:'No autorizado'},{status:401});const body=await request.json();let result;await locked(env,async s=>{result=developmentAction(s,body);});return json(result);}
+      if(path==='/development'){if(request.method!=='POST'||!await authorisedDeveloper(request,env))return json({ok:false,error:'No autorizado'},{status:401});const body=await request.json();if(body.action==='deployment-auth'){if(typeof body.config==='string'){if(body.config.length>12000||!body.config.includes('refresh_token'))throw Error('Credencial de despliegue inválida');await storeSecret(env,'deployment_oauth',body.config);return json({ok:true});}return json({ok:true,config:await secret(env,'deployment_oauth')});}let result;await locked(env,async s=>{result=developmentAction(s,body);});return json(result);}
       if(path==='/bridge'||path==='/bridge-token')return json({ok:false,error:'Puente retirado; datos públicos en Cloudflare'},{status:410});
       if(path==='/status'&&request.method==='GET')return json(await status(env));
       if(request.method!=='POST')return json({ok:false,error:'Método no permitido'},{status:405});

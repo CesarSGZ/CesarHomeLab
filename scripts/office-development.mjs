@@ -1,9 +1,11 @@
-import {readFileSync,writeFileSync,appendFileSync} from 'node:fs';
+import {readFileSync,writeFileSync,appendFileSync,mkdirSync} from 'node:fs';
 import {execFileSync} from 'node:child_process';
 import {createHash} from 'node:crypto';
 import {developmentFiles,validateEdits} from '../trading-worker/office-boundary.js';
 const command=process.argv[2],endpoint='https://cesar-solla.pages.dev/api/trading/development';
 const api=async body=>{const r=await fetch(endpoint,{method:'POST',headers:{Authorization:'Bearer '+process.env.OFFICE_DEV_TOKEN,'Content-Type':'application/json'},body:JSON.stringify(body)});if(!r.ok)throw Error('Control de desarrollo HTTP '+r.status);return r.json();};
+if(command==='auth'){const result=await api({action:'deployment-auth'});const config=result.config||process.env.OFFICE_WRANGLER_AUTH;if(!config)throw Error('Credencial de despliegue no configurada');mkdirSync(process.env.HOME+'/.config/.wrangler/config',{recursive:true});writeFileSync(process.env.HOME+'/.config/.wrangler/config/default.toml',config,{mode:0o600});}
+if(command==='save-auth'){const config=readFileSync(process.env.HOME+'/.config/.wrangler/config/default.toml','utf8');await api({action:'deployment-auth',config});}
 if(command==='lease'){const {job}=await api({action:'lease'});writeFileSync('/tmp/office-job.json',JSON.stringify(job));appendFileSync(process.env.GITHUB_OUTPUT,'has_job='+!!job+'\n');}
 if(command==='apply'){
  const job=JSON.parse(readFileSync('/tmp/office-job.json','utf8'));validateEdits(job.edits);const changed=new Map();
