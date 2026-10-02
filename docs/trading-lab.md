@@ -46,3 +46,7 @@ Augusto calcula diariamente KPIs y cambios tipados: reducir riesgo con al menos 
 Cadaqui genera un manifiesto visual validado, limitado a Agent Office, sin llamadas a IA. Puede elegir foco de riesgo, economía o pipeline; muestra KPIs, versiones, motivos, reversión y mensajes entre empleados. No dispone de escritura en el repositorio ni puede ejecutar código arbitrario. La automejora modifica reglas ejecutables y manifiestos dentro del motor versionado. Objetivos y personalidades se registran por empleado; los mensajes son entregas del flujo real, no conversaciones simuladas para decorar.
 
 Coste IA acumulado se registra en USD y se convierte a EUR con referencia BCE actual (aproximado, no tipo histórico). P/L simulado menos IA y equivalencia 1.000 EUR ficticios = 1 EUR de objetivo se presentan separadamente. No se garantiza rentabilidad. Alojamiento, dividendos y ajustes corporativos no incluidos.
+
+
+### Alquiler mensual
+El presupuesto operativo real es 10 EUR por mes calendario de Nueva York, equivalentes a 10.000 unidades internas. Un ledger D1 independiente reserva EUR antes de cada llamada, reconcilia el coste con el cambio de la reserva y conserva reservas inciertas. Las llamadas se detienen al agotarse; datos, filtros y salidas siguen por código. La cartera no se reinicia. El ritmo de Santi usa saldo/días restantes con estimación conservadora de 0,045 EUR por investigación. La cobertura del alquiler compara beneficio ficticio del mes / 1.000 con 10 EUR; no crea dinero ni saldo de API. Requiere migración 0009.
