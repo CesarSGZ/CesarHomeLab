@@ -6,7 +6,20 @@ import {developmentFiles,validateEdits} from '../trading-worker/office-boundary.
 const command=process.argv[2],endpoint='https://cesar-solla.pages.dev/api/trading/development';
 const api=async body=>{const r=await fetch(endpoint,{method:'POST',headers:{Authorization:'Bearer '+process.env.OFFICE_DEV_TOKEN,'Content-Type':'application/json'},body:JSON.stringify(body)});if(!r.ok)throw Error('Control de desarrollo HTTP '+r.status);return r.json();};
 const validAuth=config=>typeof config==='string'&&/oauth_token\s*=\s*"[^"]+"/.test(config)&&/refresh_token\s*=\s*"[^"]+"/.test(config);
-if(command==='auth'){const result=await api({action:'deployment-auth'});const config=validAuth(result.config)?result.config:process.env.OFFICE_WRANGLER_AUTH;if(!validAuth(config))throw Error('Credencial de despliegue no configurada');mkdirSync(process.env.HOME+'/.config/.wrangler/config',{recursive:true});writeFileSync(process.env.HOME+'/.config/.wrangler/config/default.toml',config,{mode:0o600});}
+if(command==='auth'){
+ const result=await api({action:'deployment-auth'});let config=validAuth(result.config)?result.config:process.env.OFFICE_WRANGLER_AUTH;if(!validAuth(config))throw Error('Credencial de despliegue no configurada');
+ const expiry=config.match(/expiration_time\s*=\s*"([^"]+)"/)?.[1];
+ console.log('Sesión del controlador: '+(validAuth(result.config)?'almacenada':'respaldo')+'; caducidad '+(expiry||'desconocida'));
+ if(!expiry||Date.parse(expiry)<Date.now()+300000){
+  const refresh=config.match(/refresh_token\s*=\s*"([^"]+)"/)[1];
+  const r=await fetch('https://dash.cloudflare.com/oauth2/token',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({grant_type:'refresh_token',refresh_token:refresh,client_id:'54d11594-84e4-41aa-b438-e81b8fa78ee7'})});const j=await r.json();
+  if(!r.ok||!j.access_token)throw Error('Renovación Cloudflare HTTP '+r.status+' '+String(j.error||'sin token').slice(0,80));
+  config=config.replace(/oauth_token\s*=\s*"[^"]+"/,'oauth_token = '+JSON.stringify(j.access_token)).replace(/expiration_time\s*=\s*"[^"]+"/,'expiration_time = '+JSON.stringify(new Date(Date.now()+j.expires_in*1000).toISOString()));
+  if(j.refresh_token)config=config.replace(/refresh_token\s*=\s*"[^"]+"/,'refresh_token = '+JSON.stringify(j.refresh_token));
+  await api({action:'deployment-auth',config});console.log('Sesión renovada y guardada antes del despliegue.');
+ }
+ mkdirSync(process.env.HOME+'/.config/.wrangler/config',{recursive:true});writeFileSync(process.env.HOME+'/.config/.wrangler/config/default.toml',config,{mode:0o600});
+}
 if(command==='save-auth'){const config=readFileSync(process.env.HOME+'/.config/.wrangler/config/default.toml','utf8');if(validAuth(config))await api({action:'deployment-auth',config});else console.log('Se conserva la credencial anterior; la sesión actual está vacía.');}
 if(command==='lease'){const {job}=await api({action:'lease'});writeFileSync('/tmp/office-job.json',JSON.stringify(job));appendFileSync(process.env.GITHUB_OUTPUT,'has_job='+!!job+'\n');}
 if(command==='apply'){
