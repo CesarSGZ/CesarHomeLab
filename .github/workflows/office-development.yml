@@ -24,6 +24,7 @@ jobs:
         env:
           OFFICE_DEV_TOKEN: ${{ secrets.OFFICE_DEV_TOKEN }}
           OFFICE_WRANGLER_AUTH: ${{ secrets.OFFICE_WRANGLER_AUTH }}
+          OFFICE_FORCE_REFRESH: ${{ github.event_name == 'workflow_dispatch' && '1' || '' }}
         run: node scripts/office-development.mjs auth
       - name: Verify cloud worker deployment credentials
         if: github.event_name == 'workflow_dispatch'

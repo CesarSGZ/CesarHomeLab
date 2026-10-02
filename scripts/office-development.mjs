@@ -13,7 +13,7 @@ if(command==='auth'){
  const result=await api({action:'deployment-auth'});const candidates=[result.config,process.env.OFFICE_WRANGLER_AUTH].filter(validAuth).sort((a,b)=>Date.parse(b.match(/expiration_time\s*=\s*"([^"]+)"/)?.[1]||0)-Date.parse(a.match(/expiration_time\s*=\s*"([^"]+)"/)?.[1]||0));let config=candidates[0];if(!validAuth(config))throw Error('Credencial de despliegue no configurada');
  const expiry=config.match(/expiration_time\s*=\s*"([^"]+)"/)?.[1];
  console.log('Sesión del controlador: '+(validAuth(result.config)?'almacenada':'respaldo')+'; caducidad '+(expiry||'desconocida'));
- if(!expiry||Date.parse(expiry)<Date.now()+300000){
+ if(process.env.OFFICE_FORCE_REFRESH==='1'||!expiry||Date.parse(expiry)<Date.now()+300000){
   const refresh=config.match(/refresh_token\s*=\s*"([^"]+)"/)[1];
   const r=await fetch('https://dash.cloudflare.com/oauth2/token',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({grant_type:'refresh_token',refresh_token:refresh,client_id:'54d11594-84e4-41aa-b438-e81b8fa78ee7'})});const j=await r.json();
   if(!r.ok||!j.access_token)throw Error('Renovación Cloudflare HTTP '+r.status+' '+String(j.error||'sin token').slice(0,80));
