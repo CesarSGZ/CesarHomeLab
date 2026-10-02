@@ -33,5 +33,5 @@ export default {
       });return json({ok:true});
     }catch(e){return json({ok:false,error:e.message==='Ya hay una tarea en ejecución'?e.message:String(e.message).slice(0,200)},{status:400});}
   },
-  async scheduled(_event,env,ctx){ctx.waitUntil(cycle(env).catch(e=>console.warn('Ciclo pendiente:',String(e.message).slice(0,160))));}
+  async scheduled(){/* Cloud computation is scheduled by the isolated GitHub runner. */}
 };
