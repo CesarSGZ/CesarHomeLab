@@ -85,15 +85,17 @@ async function audit(env,s,book,trades){if(!trades.length||s.agents.find(a=>a.id
   s.proposals.unshift({id:crypto.randomUUID(),mode:s.mode,time:Date.now(),summary:result.summary,proposal:result.proposal,status:'pendiente de validación'});s.proposals=s.proposals.slice(0,50);for(const trade of trades)trade.auditAt=Date.now();role(s,'auditor','esperando',result.summary);log(s,'auditor',result.summary);
 }
 export async function readBridge(env,s){const row=await env.CONTROL_DB.prepare('SELECT payload,updated_at FROM trading_bridge WHERE id=1').first();if(!row)return;const b=JSON.parse(row.payload);s.real.bridgeAt=row.updated_at;s.real.bridgeStatus=b.status;Object.assign(s.real.quotes,b.quotes);for(const a of s.real.assets){const match=b.contracts[a.symbol];if(match){a.conid=match.conid;a.contractVerified=true;}}}
-export async function cycle(env,{advance=false,manual=false}={}){
+export async function cycle(env,{advance=false,manual=false,quotesOnly=false}={}){
   return locked(env,async(s,checkpoint)=>{
     if(!manual&&!s.automatic)return;
+    if(quotesOnly&&s.mode!=='real')return;
     s.lastTick=Date.now();s.lastError=null;const agentOn=name=>!s.agents.find(a=>a.id===name).paused;
-    if(s.mode==='demo')demoTick(s,advance);else if(agentOn('scout')&&(manual||Date.now()-s.real.lastScan>15*60e3))await scout(s);
+    if(s.mode==='demo')demoTick(s,advance);else if(!quotesOnly&&agentOn('scout')&&(manual||Date.now()-s.real.lastScan>15*60e3))await scout(s);
     if(s.mode==='real')await readBridge(env,s);
     const data=s[s.mode],t=s.mode==='demo'?data.time:Date.now();rollover(data.book,t);
     const closed=agentOn('operator')?monitor(data.book,data.quotes,s.config,t):[];for(const trade of closed)log(s,'operator',`${trade.symbol}: cierre ${trade.reason}, ${trade.pnl.toFixed(2)} USD simulados`);
     await checkpoint();
+    if(quotesOnly){sample(data.book,t);return {ok:true};}
     const keyPresent=await env.CONTROL_DB.prepare("SELECT name FROM trading_secrets WHERE name='openai'").first();
     if(s.mode==='real'&&!keyPresent){role(s,'analyst','pendiente','Conecta OpenAI para analizar candidatos');role(s,'risk','pendiente','Esperando planes del analista');}
     const candidates=data.events.filter(e=>['nuevo','verificar','espera'].includes(e.status)&&Date.parse(e.date)>t).sort((a,b)=>{

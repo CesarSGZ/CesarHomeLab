@@ -1,0 +1,25 @@
+name: Deploy Trading Lab backend
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply trading schema
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_TRADING_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          wranglerVersion: "4.124.0"
+          command: d1 execute cesar-mission-control --remote --file=migrations/0008_trading_lab.sql
+      - name: Deploy private scheduled service
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_TRADING_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          wranglerVersion: "4.124.0"
+          command: deploy --config trading-worker/wrangler.jsonc
+          postCommands: node scripts/init-trading-secret.mjs
