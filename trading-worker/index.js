@@ -14,7 +14,7 @@ async function bridge(request,env,ctx){
   const body=await request.text();if(body.length>100000)return json({ok:false},{status:413});const input=JSON.parse(body);const allowed=new Set([...real.assets.map(a=>a.symbol),...real.book.positions.map(p=>p.symbol)]);const quotes={};const contracts={};
   for(const [symbol,c] of Object.entries(input.contracts||{}).slice(0,50)){if(allowed.has(symbol)&&Number.isSafeInteger(c.conid)&&c.conid>0)contracts[symbol]={conid:c.conid};}
   for(const [symbol,q] of Object.entries(input.quotes||{}).slice(0,50)){if(!allowed.has(symbol))continue;if(!['bid','ask','time','dollarVolume'].every(k=>Number.isFinite(q[k]))||q.time>Date.now()+5000||q.ask<q.bid||q.bid<=0||q.dollarVolume<0)continue;quotes[symbol]={bid:q.bid,ask:q.ask,time:q.time,dollarVolume:q.dollarVolume,realtime:q.realtime===true,source:'IBKR · puente local'};}
-  await env.CONTROL_DB.prepare('INSERT INTO trading_bridge(id,payload,updated_at) VALUES(1,?,?) ON CONFLICT(id) DO UPDATE SET payload=excluded.payload,updated_at=excluded.updated_at').bind(JSON.stringify({quotes,contracts,status:String(input.status||'Puente conectado').slice(0,160)}),Date.now()).run();
+  await env.CONTROL_DB.prepare('INSERT INTO trading_bridge(id,payload,updated_at) VALUES(1,?,?) ON CONFLICT(id) DO UPDATE SET payload=excluded.payload,updated_at=excluded.updated_at').bind(JSON.stringify({authenticated:input.authenticated===true,quotes,contracts,status:String(input.status||'Puente conectado').slice(0,160)}),Date.now()).run();
   ctx.waitUntil(cycle(env,{quotesOnly:true}).catch(()=>{}));return json({ok:true,accepted:Object.keys(quotes).length});
 }
 export default {

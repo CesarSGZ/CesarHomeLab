@@ -10,3 +10,9 @@ runtime. `../thermal-viewer.bundle.js` packages these dependencies into one
 classic browser script so authentication and MIME handling cannot interrupt a
 module dependency chain. Update the source files together from the official
 `three` npm package, then rebuild the bundle.
+
+## Agent Office
+
+- `three.module.js`: Three.js 0.170.0, standalone ES module used only by Agent Office.
+- Source: https://registry.npmjs.org/three/-/three-0.170.0.tgz
+- MIT licence: THREE-LICENSE.txt. No runtime CDN requests.
