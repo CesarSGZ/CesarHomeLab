@@ -27,11 +27,11 @@ export default {
       const text=await request.text();if(text.length>25000)return json({ok:false,error:'Petición demasiado grande'},{status:413});const body=text?JSON.parse(text):{};
       if(path==='/key'){const key=String(body.key||'');if(key&&(!key.startsWith('sk-')||key.length<20||key.length>300))throw Error('Formato de clave no válido');await storeSecret(env,'openai',key);return json({ok:true,configured:!!key});}
       if(path==='/bridge-token'){const token=crypto.randomUUID()+crypto.randomUUID();await storeSecret(env,'bridge-hash',await hash(token));return json({ok:true,token});}
-      if(path==='/run'||path==='/advance'){if(path==='/advance'&&(await status(env)).mode!=='demo')throw Error('El avance de tiempo solo funciona en demo');await cycle(env,{manual:true,advance:path==='/advance'});return json({ok:true,completed:true});}
+      if(path==='/advance')throw Error('La demostración sintética está deshabilitada');if(path==='/run'){await cycle(env,{manual:true});return json({ok:true,completed:true});}
       await locked(env,async s=>{
         if(path==='/config'){s.config=validateConfig(body,s.config);log(s,'system','Configuración guardada');}
         else if(path==='/control'){if(typeof body.paused==='boolean')s.paused=body.paused;if(typeof body.automatic==='boolean')s.automatic=body.automatic;log(s,'system',s.paused?'Nuevas entradas pausadas':'Nuevas entradas activadas');}
-        else if(path==='/mode'){if(!['demo','real'].includes(body.mode))throw Error('Modo inválido');s.mode=body.mode;for(const a of s.agents){a.status=a.paused?'pausado':'esperando';a.task='Esperando próximo ciclo';}log(s,'system',`Modo ${body.mode}: cartera independiente`);}
+        else if(path==='/mode'){if(body.mode!=='real')throw Error('Modo inválido');s.mode=body.mode;for(const a of s.agents){a.status=a.paused?'pausado':'esperando';a.task='Esperando próximo ciclo';}log(s,'system',`Modo ${body.mode}: cartera independiente`);}
         else if(path==='/agent'){const a=s.agents.find(a=>a.id===body.id);if(!a||typeof body.paused!=='boolean')throw Error('Agente inválido');a.paused=body.paused;a.status=a.paused?'pausado':'esperando';log(s,a.id,a.paused?'Agente pausado':'Agente activado');}
         else if(path==='/event'){
           if(s.mode!=='real')throw Error('Los eventos verificados se añaden en modo real');const symbol=String(body.symbol||'').toUpperCase();if(!s.real.assets.some(a=>a.symbol===symbol&&!eligible(a,s.config)))throw Error('Símbolo fuera del universo');

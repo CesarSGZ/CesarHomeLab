@@ -1,18 +1,22 @@
 import universe from './universe.json' with {type:'json'};
-import {defaults,eligible,id,num,day,newBook,equity,rollover,buy,sell,monitor,sample,freshQuote} from './core.js';
+import {defaults,eligible,id,num,day,newBook,equity,allocation,fxValid,rollover,buy,sell,monitor,sample,freshQuote} from './core.js';
 import {encryptSecret,decryptSecret} from '../functions/_lib/crypto-store.js';
-const definitions=[['scout','Vera','Exploradora','#9ccb98'],['analyst','Nico','Analista','#b6a4e8'],['risk','Ada','Riesgo','#e8b67c'],['operator','Leo','Operador','#81cbd0'],['auditor','Iris','Auditora','#e7a6bf']];
+const definitions=[['scout','Santi','Explorador','#9ccb98'],['analyst','Pedro','Analista','#b6a4e8'],['risk','María','Riesgo','#e8b67c'],['operator','Erea','Operadora','#81cbd0'],['auditor','Augusto','Auditor','#e7a6bf']];
 export const agents=()=>definitions.map(([id,name,role,color])=>({id,name,role,color,paused:false,status:'esperando',task:'Sin tarea pendiente',lastRun:null,result:''}));
-function demoAssets(){const sectors=['Tecnología','Industria','Salud','Consumo','Energía'];return Array.from({length:1800},(_,i)=>({symbol:'SIM'+String(i+1).padStart(4,'0'),name:`Empresa ficticia ${i+1} Common Stock`,exchange:['NASDAQ','NYSE','AMEX'][i%3],marketCap:100e6+((i*73)%4900)*1e6,price:3+((i*137)%9000)/100,volume:2e6,sector:sectors[i%5],contractVerified:true,conid:null,source:null}));}
-export function initialState(){const t=Date.now();return {schema:1,mode:'demo',automatic:true,paused:false,config:{...defaults},demo:{assets:demoAssets(),events:[],quotes:{},book:newBook(t),time:t,step:0},real:{assets:universe.assets,events:[],quotes:{},book:newBook(t),catalogAt:universe.fetchedAt,total:universe.total,counts:universe.counts,calendarCursor:0,calendarCoverage:{},lastScan:0,bridgeAt:0,bridgeStatus:'Puente IBKR pendiente'},agents:agents(),logs:[],proposals:[],lastTick:0,lastError:null};}
+export function initialState(){const t=Date.now();return {schema:2,mode:'real',automatic:true,paused:false,config:{...defaults},demo:{assets:[],events:[],quotes:{},book:newBook(t),time:t,step:0},real:{assets:universe.assets,events:[],quotes:{},book:newBook(t,'EUR'),catalogAt:universe.fetchedAt,total:universe.total,counts:universe.counts,calendarCursor:0,calendarCoverage:{},lastScan:0,bridgeAt:0,bridgeStatus:'Puente IBKR pendiente'},agents:agents(),logs:[],proposals:[],lastTick:0,lastError:null};}
+export function upgradeState(s){
+  for(const [id,name,role] of definitions){const a=s.agents.find(a=>a.id===id);if(a){a.name=name;a.role=role;}}
+  if(s.schema<2){s.mode='real';s.schema=2;s.config={...s.config,maxPositions:20,maxPositionPct:5,maxExposurePct:100};if(!s.real.book.orders.length)s.real.book=newBook(Date.now(),'EUR');s.demo={assets:[],events:[],quotes:{},book:newBook(),time:Date.now(),step:0};s.logs=s.logs.filter(l=>l.mode==='real');s.proposals=s.proposals.filter(p=>p.mode==='real');for(const a of s.agents){a.status='pendiente';a.task='Esperando conexiones y datos reales';}s.lastError=null;}
+  return s;
+}
 export async function encodeState(state){const stream=new Blob([JSON.stringify(state)]).stream().pipeThrough(new CompressionStream('gzip'));const bytes=new Uint8Array(await new Response(stream).arrayBuffer());let binary='';for(let i=0;i<bytes.length;i+=8192)binary+=String.fromCharCode(...bytes.subarray(i,i+8192));return 'gz:'+btoa(binary);}
 export async function decodeState(payload){if(!payload.startsWith('gz:'))return JSON.parse(payload);const bytes=Uint8Array.from(atob(payload.slice(3)),c=>c.charCodeAt(0));const text=await new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'))).text();return JSON.parse(text);}
-export async function load(env){const row=await env.CONTROL_DB.prepare('SELECT * FROM trading_state WHERE id=1').first();return row?{state:await decodeState(row.payload),busy:row.lock_until>Date.now()}: {state:initialState(),busy:false};}
+export async function load(env){const row=await env.CONTROL_DB.prepare('SELECT * FROM trading_state WHERE id=1').first();return row?{state:upgradeState(await decodeState(row.payload)),busy:row.lock_until>Date.now()}: {state:initialState(),busy:false};}
 export async function locked(env,fn){
   if(!await env.CONTROL_DB.prepare('SELECT id FROM trading_state WHERE id=1').first())await env.CONTROL_DB.prepare('INSERT OR IGNORE INTO trading_state (id,payload,updated_at) VALUES (1,?,?)').bind(await encodeState(initialState()),Date.now()).run();
   const token=crypto.randomUUID();const lease=await env.CONTROL_DB.prepare('UPDATE trading_state SET lease_token=?,lock_until=? WHERE id=1 AND lock_until<? RETURNING payload').bind(token,Date.now()+900000,Date.now()).first();
   if(!lease)throw Error('Ya hay una tarea en ejecución');
-  const state=await decodeState(lease.payload);
+  const state=upgradeState(await decodeState(lease.payload));
   const checkpoint=async()=>{await env.CONTROL_DB.prepare('UPDATE trading_state SET payload=?,updated_at=? WHERE id=1 AND lease_token=?').bind(await encodeState(state),Date.now(),token).run();};
   try{const result=await fn(state,checkpoint);await checkpoint();return result;}
   catch(e){state.lastError=e.message;log(state,'system',e.message,'error');await checkpoint();throw e;}
@@ -90,10 +94,15 @@ export async function cycle(env,{advance=false,manual=false,quotesOnly=false}={}
     if(!manual&&!s.automatic)return;
     if(quotesOnly&&s.mode!=='real')return;
     s.lastTick=Date.now();s.lastError=null;const agentOn=name=>!s.agents.find(a=>a.id===name).paused;
-    if(s.mode==='demo')demoTick(s,advance);else if(!quotesOnly&&agentOn('scout')&&(manual||Date.now()-s.real.lastScan>15*60e3))await scout(s);
-    if(s.mode==='real')await readBridge(env,s);
+    if(s.mode==='demo')demoTick(s,advance);else if(!quotesOnly&&agentOn('scout')&&(manual||Date.now()-s.real.lastScan>15*60e3)){role(s,'scout','trabajando','Consultando catálogo y calendario reales');await checkpoint();await scout(s);}
+    if(s.mode==='real'){
+      await readBridge(env,s);
+      if(!quotesOnly&&(!s.real.book.fx||Date.now()-s.real.book.fx.checkedAt>3600e3)){
+        try{const r=await fetch('https://www.ecb.europa.eu/stats/eurofxref/eurofxref-daily.xml',{signal:AbortSignal.timeout(15000)});if(!r.ok)throw Error('Cambio BCE no disponible');const xml=await r.text();const rate=Number(xml.match(/currency=['"]USD['"]\s+rate=['"]([\d.]+)['"]/)?.[1]);const date=xml.match(/time=['"]([\d-]+)['"]/)?.[1];const time=Date.parse(date+'T00:00:00Z');if(!(rate>0)||!Number.isFinite(time))throw Error('Cambio BCE inválido');s.real.book.fx={rate,time,date,checkedAt:Date.now(),source:'BCE · referencia diaria, no precio de conversión ejecutable'};}catch(e){log(s,'system',e.message,'warning');}
+      }
+    }
     const data=s[s.mode],t=s.mode==='demo'?data.time:Date.now();rollover(data.book,t);
-    const closed=agentOn('operator')?monitor(data.book,data.quotes,s.config,t):[];for(const trade of closed)log(s,'operator',`${trade.symbol}: cierre ${trade.reason}, ${trade.pnl.toFixed(2)} USD simulados`);
+    const closed=agentOn('operator')?monitor(data.book,data.quotes,s.config,t):[];for(const trade of closed)log(s,'operator',`${trade.symbol}: cierre ${trade.reason}, ${trade.pnl.toFixed(2)} ${data.book.currency||'USD'} ficticios`);
     await checkpoint();
     if(quotesOnly){sample(data.book,t);return {ok:true};}
     const keyPresent=await env.CONTROL_DB.prepare("SELECT name FROM trading_secrets WHERE name='openai'").first();
@@ -107,7 +116,7 @@ export async function cycle(env,{advance=false,manual=false,quotesOnly=false}={}
       if(!event.confirmed){event.status='verificar';continue;}
       const asset=data.assets.find(a=>a.symbol===event.symbol);if(!asset||eligible(asset,s.config))continue;
       const q=data.quotes[asset.symbol];if(!freshQuote(q,t,s.config)||!asset.contractVerified){event.status='espera';event.reasons=['Esperando contrato IBKR y precios recientes'];continue;}
-      if(s.mode==='real'&&!keyPresent)continue;
+      if(s.mode==='real'&&(!keyPresent||!fxValid(data.book,t)))continue;
       if(data.book.entriesToday>=s.config.maxEntries||data.book.positions.length>=s.config.maxPositions)break;
       if(event.plan&&event.plan.expiresAt<=t){event.status='caducado';continue;}
       if(!event.plan){
@@ -130,13 +139,13 @@ export async function cycle(env,{advance=false,manual=false,quotesOnly=false}={}
       event.status=result.ok?'abierto':'espera';event.reasons=result.reasons||[];
       if(result.ok)log(s,'operator',`${asset.symbol}: ${result.qty} acciones simuladas a ${result.price.toFixed(2)} USD`);
     }
-    role(s,'analyst',s.mode==='real'&&!keyPresent?'pendiente':'esperando',`${analysed} análisis en este ciclo`);role(s,'risk','esperando','Controles de liquidez, tamaño y exposición activos');role(s,'operator','esperando',s.paused?'Nuevas entradas detenidas; salidas vigiladas':'Vigilando umbrales de posiciones simuladas');
+    role(s,'analyst',s.mode==='real'&&!keyPresent?'pendiente':'esperando',`${analysed} análisis en este ciclo`);role(s,'risk','esperando','Controles de liquidez, tamaño y exposición activos');role(s,'operator','esperando',s.mode==='real'&&Date.now()-s.real.bridgeAt>=90000?'Esperando precios actuales del puente IBKR':s.paused?'Nuevas entradas detenidas; salidas vigiladas':'Vigilando umbrales de posiciones ficticias');
     try{await audit(env,s,data.book,data.book.closed.filter(t=>!t.auditAt).slice(0,10));}catch(e){log(s,'auditor',`Auditoría pendiente: ${e.message}`,'warning');}
     sample(data.book,t);await checkpoint();return {ok:true};
   });
 }
 export async function status(env){const {state:s,busy}=await load(env);await readBridge(env,s);const data=s[s.mode];const selected=data.assets.filter(a=>!eligible(a,s.config));const secrets=await env.CONTROL_DB.prepare('SELECT name FROM trading_secrets').all();const configured=new Set(secrets.results.map(r=>r.name));
-  return {ok:true,mode:s.mode,automatic:s.automatic,paused:s.paused,busy,config:s.config,agents:s.agents,logs:s.logs.slice(0,80),proposals:s.proposals,lastTick:s.lastTick,lastError:s.lastError,book:data.book,time:s.mode==='demo'?data.time:Date.now(),events:data.events.slice(0,300),universe:{total:data.assets.length,eligible:selected.length,primary:selected.filter(a=>a.marketCap<=s.config.primaryCap).length,secondary:selected.filter(a=>a.marketCap>s.config.primaryCap).length,contracts:selected.filter(a=>a.contractVerified).length,catalogAt:s.mode==='demo'?null:s.real.catalogAt,coverage:Object.keys(s.real.calendarCoverage).length,source:s.mode==='demo'?'1800 empresas ficticias':'Catálogo Nasdaq, NYSE y AMEX'},assets:selected,connections:{openai:configured.has('openai'),encryption:!!env.TRADING_ENCRYPTION_SECRET,bridgePaired:configured.has('bridge-hash'),ibkr:Date.now()-s.real.bridgeAt<90000,bridgeAt:s.real.bridgeAt,bridgeStatus:s.real.bridgeStatus,scheduler:s.lastTick?Date.now()-s.lastTick<10*60e3:false},budget:await cost(env)};
+  return {ok:true,mode:s.mode,automatic:s.automatic,paused:s.paused,busy,config:s.config,agents:s.agents,logs:s.logs.slice(0,80),proposals:s.proposals,lastTick:s.lastTick,lastError:s.lastError,book:data.book,equity:equity(data.book),allocation:allocation(data.book),time:s.mode==='demo'?data.time:Date.now(),events:data.events.slice(0,300),universe:{total:data.assets.length,eligible:selected.length,primary:selected.filter(a=>a.marketCap<=s.config.primaryCap).length,secondary:selected.filter(a=>a.marketCap>s.config.primaryCap).length,contracts:selected.filter(a=>a.contractVerified).length,catalogAt:s.mode==='demo'?null:s.real.catalogAt,coverage:Object.keys(s.real.calendarCoverage).length,source:s.mode==='demo'?'1800 empresas ficticias':'Catálogo Nasdaq, NYSE y AMEX'},assets:selected,connections:{openai:configured.has('openai'),encryption:!!env.TRADING_ENCRYPTION_SECRET,bridgePaired:configured.has('bridge-hash'),ibkr:Date.now()-s.real.bridgeAt<90000,fx:fxValid(data.book,Date.now()),bridgeAt:s.real.bridgeAt,bridgeStatus:s.real.bridgeStatus,scheduler:s.lastTick?Date.now()-s.lastTick<10*60e3:false},budget:await cost(env)};
 }
-export function validateConfig(input,current){const c={...current};const bounds={minCap:[50e6,500e6],primaryCap:[500e6,3e9],maxCap:[1e9,5e9],minPrice:[1,20],minDollarVolume:[1e6,20e6],maxSpread:[.1,2],dailyBudget:[.1,10],riskPct:[.1,1],maxEntries:[1,2],maxPositions:[1,5],horizonDays:[7,45]};for(const [k,v] of Object.entries(input)){if(!bounds[k]||!Number.isFinite(v)||v<bounds[k][0]||v>bounds[k][1])throw Error('Configuración fuera de límites');if(['maxEntries','maxPositions','horizonDays'].includes(k)&&!Number.isInteger(v))throw Error('Valor entero requerido');c[k]=v;}if(c.minCap>=c.primaryCap||c.primaryCap>c.maxCap)throw Error('Rangos de capitalización inválidos');return c;}
+export function validateConfig(input,current){const c={...current};const bounds={minCap:[50e6,500e6],primaryCap:[500e6,3e9],maxCap:[1e9,5e9],minPrice:[1,20],minDollarVolume:[1e6,20e6],maxSpread:[.1,2],dailyBudget:[.1,10],riskPct:[.1,1],maxEntries:[1,2],maxPositions:[1,20],horizonDays:[7,45]};for(const [k,v] of Object.entries(input)){if(!bounds[k]||!Number.isFinite(v)||v<bounds[k][0]||v>bounds[k][1])throw Error('Configuración fuera de límites');if(['maxEntries','maxPositions','horizonDays'].includes(k)&&!Number.isInteger(v))throw Error('Valor entero requerido');c[k]=v;}if(c.minCap>=c.primaryCap||c.primaryCap>c.maxCap)throw Error('Rangos de capitalización inválidos');return c;}
 export {equity};
