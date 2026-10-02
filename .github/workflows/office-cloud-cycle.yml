@@ -1,0 +1,30 @@
+name: Agent Office cloud cycles
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '3-58/5 * * * *'
+permissions:
+  contents: read
+concurrency:
+  group: office-cloud-controller
+  cancel-in-progress: false
+jobs:
+  cycle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 14
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Renew isolated cloud controller
+        env:
+          OFFICE_DEV_TOKEN: ${{ secrets.OFFICE_DEV_TOKEN }}
+          OFFICE_WRANGLER_AUTH: ${{ secrets.OFFICE_WRANGLER_AUTH }}
+        run: node scripts/office-development.mjs auth
+      - name: Execute actual paper trading and employee meetings
+        env:
+          OFFICE_DEV_TOKEN: ${{ secrets.OFFICE_DEV_TOKEN }}
+        run: node scripts/office-cloud-cycle.mjs

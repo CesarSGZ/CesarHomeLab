@@ -6,7 +6,7 @@ on:
 permissions:
   contents: write
 concurrency:
-  group: office-development
+  group: office-cloud-controller
   cancel-in-progress: false
 jobs:
   develop:
@@ -20,17 +20,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
-      - name: Read-only audit independent of deployment authentication
-        if: github.event_name == 'workflow_dispatch'
-        env:
-          OFFICE_DEV_TOKEN: ${{ secrets.OFFICE_DEV_TOKEN }}
-        run: node scripts/office-live-audit.mjs
-      - uses: actions/upload-artifact@v4
-        if: github.event_name == 'workflow_dispatch'
-        with:
-          name: office-live-audit-before-deployment
-          path: /tmp/office-live-audit.json
-          retention-days: 3
       - name: Load isolated controller deployment credential
         env:
           OFFICE_DEV_TOKEN: ${{ secrets.OFFICE_DEV_TOKEN }}

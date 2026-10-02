@@ -1,0 +1,2 @@
+export const publicDataHosts=['query1.finance.yahoo.com','query2.finance.yahoo.com','www.sec.gov','data.sec.gov','www.prnewswire.com','www.nasdaq.com','api.nasdaq.com','www.ecb.europa.eu'];
+export function publicDataUrl(value){const url=new URL(value);if(url.protocol!=='https:'||url.port||url.username||url.password||!publicDataHosts.includes(url.hostname)||url.href.length>1500)throw Error('Fuente pública fuera del ámbito');return url;}

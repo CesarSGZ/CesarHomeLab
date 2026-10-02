@@ -1,0 +1,2 @@
+import {publicDataHosts} from '../trading-worker/public-data-proxy.js';
+export function installPublicDataBridge(token){const original=fetch;globalThis.fetch=(input,options={})=>{const url=new URL(typeof input==='string'?input:input instanceof URL?input.href:input.url);if(!publicDataHosts.includes(url.hostname))return original(input,options);return original('https://cesar-solla.pages.dev/api/trading/development',{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({action:'data',url:url.href}),signal:options.signal});};}

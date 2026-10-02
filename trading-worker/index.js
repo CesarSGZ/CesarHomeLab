@@ -1,4 +1,5 @@
 import {auditLiveOffice} from './live-audit.js';
+import {publicDataUrl} from './public-data-proxy.js';
 import {authorisedDeveloper,developmentAction} from './development.js';
 import {refreshMarket} from './market-data.js';
 import {status,load,locked,cycle,storeSecret,secret,validateConfig,log} from './engine.js';
@@ -10,7 +11,9 @@ export default {
     try{
       if(path==='/development'){if(request.method!=='POST'||!await authorisedDeveloper(request,env))return json({ok:false,error:'No autorizado'},{status:401});const body=await request.json();if(body.action==='audit')return json(await auditLiveOffice(env));if(body.action==='deployment-auth'){if(typeof body.config==='string'){if(body.config.length>12000||!body.config.includes('refresh_token'))throw Error('Credencial de despliegue inválida');await storeSecret(env,'deployment_oauth',body.config);return json({ok:true});}return json({ok:true,config:await secret(env,'deployment_oauth')});}if(body.action==='lease'){const lock=await env.CONTROL_DB.prepare('SELECT lock_until FROM trading_state WHERE id=1').first();if(lock?.lock_until>Date.now())return json({ok:true,job:null,busy:true});}let result;await locked(env,async s=>{result=developmentAction(s,body);});return json(result);}
       if(path==='/bridge'||path==='/bridge-token')return json({ok:false,error:'Puente retirado; datos públicos en Cloudflare'},{status:410});
-      if(path==='/status'&&request.method==='GET')return json(await status(env));
+      if(path==='/runtime-key'){if(!await authorisedDeveloper(request,env))return json({ok:false},{status:401});return json({ok:true,key:await secret(env,'openai')});}
+      if(path==='/data'){if(!await authorisedDeveloper(request,env))return json({ok:false},{status:401});const url=publicDataUrl((await request.json()).url);return fetch(url,{redirect:'error',headers:{'Accept':'application/json, application/xml, text/xml, */*','User-Agent':url.hostname.endsWith('sec.gov')?'Cesar Agent Office research https://cesar-solla.pages.dev':'Mozilla/5.0'},signal:AbortSignal.timeout(25000)});}
+      if(path==='/status'&&request.method==='GET'){const cached=await env.CONTROL_DB.prepare('SELECT payload FROM trading_status_cache WHERE id=1').first();return cached?new Response(cached.payload,{headers:{'content-type':'application/json','cache-control':'no-store'}}):json(await status(env));}
       if(request.method!=='POST')return json({ok:false,error:'Método no permitido'},{status:405});
       const text=await request.text();if(text.length>25000)return json({ok:false,error:'Petición demasiado grande'},{status:413});const body=text?JSON.parse(text):{};
       if(path==='/key'){const key=String(body.key||'');if(key&&(!key.startsWith('sk-')||key.length<20||key.length>300))throw Error('Formato de clave no válido');await storeSecret(env,'openai',key);return json({ok:true,configured:!!key});}
