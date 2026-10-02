@@ -35,3 +35,14 @@ The IBKR kit, bridge and local preview processes were retired. The bridge ingest
 ## Deployment and verification
 
 The backend is provisioned through the existing authorised local Cloudflare OAuth session. The normal Pages workflow remains responsible for the website and its service binding; it does not need D1 administration permissions. An optional manual `deploy-trading.yml` workflow applies the idempotent migration, deploys the Worker, and initializes its encryption secret if missing. That optional workflow requires a separate `CLOUDFLARE_TRADING_API_TOKEN` with D1 and Worker permissions. Alternatively use local authorised Wrangler for backend updates. Tests: `node --test tests/*.test.mjs`. Check the public endpoint rejects unauthorized callers; signed-in owner verification is a separate check.
+
+
+## Radar y mejora diaria (2 de octubre de 2026)
+
+El radar cruza el universo elegible completo con SEC 8-K y PR Newswire cada 15 minutos. Enriquece cuatro empresas por barrido con companyfacts SEC y cierres Yahoo; caché de fundamentales de siete días e histórico de seis horas. El calendario cubre cuatro fechas por barrido. La puntuación es prioridad de investigación, no probabilidad. Santi solo investiga candidatos que superan el umbral, con caché de 24 horas por empresa; no hay selección aleatoria. Fuentes sin respuesta se muestran como fallos de cobertura.
+
+Augusto calcula diariamente KPIs y cambios tipados: reducir riesgo con al menos diez cierres perdedores, endurecer prioridad tras veinte investigaciones y 80% de descartes, o reducir gasto después de doce investigaciones con equivalencia neta negativa. Observación mínima de siete días; reversión tras diez cierres nuevos y deterioro de P/L superior al 2% del capital inicial. Es una heurística conservadora, no una prueba de causalidad. No aumenta presupuesto o exposición. Auditoría Luna de cierres como máximo una vez al día.
+
+Cadaqui genera un manifiesto visual validado, limitado a Agent Office, sin llamadas a IA. Puede elegir foco de riesgo, economía o pipeline; muestra KPIs, versiones, motivos, reversión y mensajes entre empleados. No dispone de escritura en el repositorio ni puede ejecutar código arbitrario. La automejora modifica reglas ejecutables y manifiestos dentro del motor versionado. Objetivos y personalidades se registran por empleado; los mensajes son entregas del flujo real, no conversaciones simuladas para decorar.
+
+Coste IA acumulado se registra en USD y se convierte a EUR con referencia BCE actual (aproximado, no tipo histórico). P/L simulado menos IA y equivalencia 1.000 EUR ficticios = 1 EUR de objetivo se presentan separadamente. No se garantiza rentabilidad. Alojamiento, dividendos y ajustes corporativos no incluidos.
