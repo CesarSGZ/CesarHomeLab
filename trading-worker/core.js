@@ -1,0 +1,80 @@
+export const defaults = { minCap:100e6, primaryCap:2e9, maxCap:5e9, minPrice:2, minDollarVolume:1e6, maxSpread:1, maxEntries:2, maxPositions:5, riskPct:0.35, maxPositionPct:10, maxExposurePct:40, dailyLossPct:2, dailyBudget:3, maxAnalyses:2, slippageBps:10, commission:1, maxQuoteAge:120, minRR:2, horizonDays:45 };
+export const day = (t=Date.now()) => new Intl.DateTimeFormat('en-CA',{timeZone:'America/New_York',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(t));
+export const id = (...parts) => {let hash=14695981039346656037n;for(const char of parts.join('|')){hash^=BigInt(char.codePointAt(0));hash=BigInt.asUintN(64,hash*1099511628211n);}return hash.toString(16);};
+export const num = x => Number(String(x??'').replace(/[^0-9.\-]/g,'')) || 0;
+export function eligible(a,c=defaults){
+  if(!['NASDAQ','NYSE','AMEX'].includes(a.exchange)) return 'Mercado excluido';
+  if(!/^[A-Z][A-Z0-9.\-]{0,7}$/.test(a.symbol)) return 'Símbolo especial';
+  if(!/common stock|ordinary shares|capital stock|common shares/i.test(a.name) || /preferred|warrant|depositary|etf|exchange.traded|\bunits\b|\bfund\b/i.test(a.name)) return 'Tipo de instrumento excluido';
+  if(a.marketCap<c.minCap || a.marketCap>c.maxCap) return 'Capitalización fuera del rango';
+  if(a.price<c.minPrice) return 'Precio inferior al mínimo';
+  return null;
+}
+export function freshQuote(q,t,c=defaults){
+  return !!q && q.realtime===true && Number.isFinite(q.bid) && Number.isFinite(q.ask) && q.bid>0 && q.ask>=q.bid && q.time<=t+5000 && t-q.time<=c.maxQuoteAge*1000;
+}
+export const equity = book => book.cash + book.positions.reduce((s,p)=>s+p.qty*(p.mark??p.entry),0);
+export function assess(book,asset,event,plan,quote,config,t){
+  const fail=[]; const eq=equity(book);
+  if(eligible(asset,config)) fail.push(eligible(asset,config));
+  if(!asset.contractVerified) fail.push('Contrato IBKR pendiente');
+  if(!event.confirmed || (!event.source&&!event.synthetic) || !event.summary) fail.push('Catalizador sin confirmar');
+  const until=Date.parse(event.date)-t;
+  if(!Number.isFinite(until)||until<0||until>config.horizonDays*864e5) fail.push('Catalizador fuera de ventana');
+  if(!freshQuote(quote,t,config)) fail.push('Cotización ausente, retrasada o caducada');
+  if(!quote || quote.dollarVolume<config.minDollarVolume) fail.push('Liquidez insuficiente o desconocida');
+  if(quote && (quote.ask-quote.bid)/((quote.ask+quote.bid)/2)*100>config.maxSpread) fail.push('Spread excesivo');
+  if(!plan || ![plan.entryMin,plan.entryMax,plan.stop,plan.target,plan.expiresAt].every(Number.isFinite) || !(plan.stop>0 && plan.entryMin>plan.stop && plan.entryMax>=plan.entryMin && plan.target>plan.entryMax && plan.expiresAt>t)) fail.push('Plan inválido o caducado');
+  if(plan && Number.isFinite(plan.entryMax) && (plan.target-plan.entryMax)/(plan.entryMax-plan.stop)<config.minRR) fail.push('Beneficio/riesgo insuficiente');
+  if(book.positions.some(p=>p.symbol===asset.symbol)) fail.push('Ya existe posición');
+  if(book.positions.length>=config.maxPositions) fail.push('Límite de posiciones');
+  if(book.entriesToday>=config.maxEntries) fail.push('Límite de entradas de la sesión');
+  if(eq<=book.dayStartEquity*(1-config.dailyLossPct/100)) fail.push('Límite de pérdida diaria');
+  const price=quote?.ask*(1+config.slippageBps/1e4);
+  if(!Number.isFinite(price) || price<plan?.entryMin || price>plan?.entryMax) fail.push('Precio fuera de la zona de entrada');
+  let qty=0;
+  if(!fail.length){
+    qty=Math.floor(Math.min(eq*config.riskPct/100/(price-plan.stop),eq*config.maxPositionPct/100/price,(book.cash-config.commission)/price,(eq*config.maxExposurePct/100-(eq-book.cash))/price));
+    if(qty<1) fail.push('Sin capacidad de compra');
+  }
+  return {ok:!fail.length,reasons:fail,qty,price};
+}
+export function rollover(book,t){
+  if(book.sessionDay!==day(t)){book.sessionDay=day(t);book.entriesToday=0;book.dayStartEquity=equity(book);}
+}
+export function buy(book,asset,event,plan,q,c,t){
+  rollover(book,t);
+  if(book.orders.some(o=>o.eventId===event.id && o.side==='buy')) return {ok:false,reasons:['Evento ya operado']};
+  const result=assess(book,asset,event,plan,q,c,t);
+  if(!result.ok) return result;
+  const {qty,price}=result;
+  book.cash-=qty*price+c.commission;book.entriesToday++;
+  const order={id:id(event.id,'buy'),eventId:event.id,symbol:asset.symbol,side:'buy',qty,price,fee:c.commission,time:t};
+  book.orders.push(order);
+  book.positions.push({id:order.id,eventId:event.id,symbol:asset.symbol,sector:asset.sector,qty,entry:price,mark:q.bid,stop:plan.stop,target:plan.target,expiresAt:plan.expiresAt,entryFee:c.commission,openedAt:t,thesis:plan.thesis});
+  return {...result,order};
+}
+export function sell(book,p,q,c,t,reason='manual'){
+  if(!book.positions.some(x=>x.id===p.id)) return null;
+  if(!freshQuote(q,t,c)) return null;
+  const price=q.bid*(1-c.slippageBps/1e4);
+  const trade={...p,exit:price,exitFee:c.commission,closedAt:t,reason,pnl:(price-p.entry)*p.qty-p.entryFee-c.commission};
+  book.cash+=price*p.qty-c.commission;
+  book.closed.push(trade);
+  book.orders.push({id:id(p.id,'sell'),eventId:p.eventId,symbol:p.symbol,side:'sell',qty:p.qty,price,fee:c.commission,time:t,reason});
+  book.positions=book.positions.filter(x=>x.id!==p.id);
+  return trade;
+}
+export function monitor(book,quotes,c,t){
+  const trades=[];
+  for(const p of [...book.positions]){
+    const q=quotes[p.symbol]; if(!freshQuote(q,t,c)) continue;
+    p.mark=q.bid;
+    const reason=q.bid<=p.stop?'stop':q.bid>=p.target?'objetivo':t>=p.expiresAt?'tiempo':null;
+    if(reason){const trade=sell(book,p,q,c,t,reason);if(trade) trades.push(trade);}
+  }
+  rollover(book,t);
+  return trades;
+}
+export function newBook(t=Date.now()){return {cash:10000,initial:10000,sessionDay:day(t),entriesToday:0,dayStartEquity:10000,positions:[],orders:[],closed:[],curve:[{time:t,value:10000}],peak:10000,maxDrawdown:0};}
+export function sample(book,t){const value=equity(book);book.peak=Math.max(book.peak,value);book.maxDrawdown=Math.max(book.maxDrawdown,(book.peak-value)/book.peak*100);book.curve.push({time:t,value});book.curve=book.curve.slice(-500);}

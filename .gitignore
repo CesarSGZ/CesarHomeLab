@@ -2,3 +2,6 @@
 .dev.vars
 .dev.vars.*
 !.dev.vars.example
+ibkr-bridge.env
+**/ibkr-bridge.env
+*.pem

@@ -445,6 +445,11 @@ async function initialiseControl(){
   }
   if(hasCapability('github:read'))window.GitHubGalaxy?.initialise();
   if(hasCapability('training:read'))window.TrainingLab?.initialise(csrfToken);
+  if(hasCapability('trading:manage')){
+    window.TradingLabPending=csrfToken;
+    window.dispatchEvent(new CustomEvent('homelab:trading-init',{detail:csrfToken}));
+    window.TradingLab?.initialise(csrfToken);
+  }
   if(hasCapability('thermal:read'))await loadThermalLab();
 }
 

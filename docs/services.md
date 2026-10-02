@@ -9,6 +9,7 @@
 | AGT-01 | Minecraft recovery agent | ServerCesar | Outbound HTTPS only | `server-agent/` | Status and crash recovery |
 | LAB-01 | Terra Powerplant Lab | Cloudflare Pages | Owner portal | `control/data/` | Engineering experiment |
 | GIT-01 | GitHub Galaxy | GitHub API + Cloudflare Pages | Owner portal | `control/galaxy-model.js` and authenticated read-only endpoint | Current architecture and source explorer |
+| TRD-01 | Agent Office | Cloudflare Worker + Pages + D1 | Owner portal; token-authenticated IBKR bridge | `trading-worker/` and `control/trading.js` | Small-cap research and local simulated trading |
 
 ## Naming rule
 

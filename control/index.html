@@ -15,6 +15,7 @@
   <link rel="stylesheet" href="refinement.css?v=20260909chat">
   <link rel="stylesheet" href="github-galaxy.css?v=20260928atlas">
   <link rel="stylesheet" href="training.css?v=20261001strength">
+  <link rel="stylesheet" href="trading.css?v=20261002office">
   <link rel="stylesheet" href="/theme.css?v=20261001contrast">
 </head>
 <body class="access-pending" data-workspace>
@@ -32,6 +33,7 @@
       <button class="nav-item" data-view="github"><span>03</span>GitHub Galaxy</button>
       <button class="nav-item" data-view="thermal"><span>04</span>Thermal Lab</button>
       <button class="nav-item" data-view="training"><span>05</span>Training</button>
+      <button class="nav-item" data-view="trading"><span>06</span>Agent Office</button>
     </nav>
     <div class="sidebar-foot"><span><i></i> Secure session</span><button id="sign-out" type="button">Sign out ↗</button></div>
   </aside>
@@ -50,6 +52,10 @@
       </div>
       <div class="status-strip"><span><i></i> SYSTEM READY</span><span id="access-summary">PERSONAL VIEW</span><span id="system-time">--:--:-- CET</span></div>
       <div class="dashboard-grid">
+        <article class="module module-wide" data-requires="trading:manage" data-accent="violet">
+          <header><span>AGENT OFFICE</span><small>EXPERIMENT / 06</small></header>
+          <div class="thermal-summary-body"><div class="thermal-mark" aria-hidden="true"><b>AO</b></div><div><p>SMALL CAPS / PAPER TRADING</p><strong>Tu equipo de inversión, en pruebas.</strong><small>Oficina de agentes, universo amplio y cartera completamente simulada.</small></div><button class="module-action" data-open="trading">Entrar a la oficina →</button></div>
+        </article>
         <article class="module module-wide standard-welcome" data-accent="cyan">
           <header><span>WELCOME</span><small>HOME / 01</small></header>
           <div class="welcome-state">
@@ -302,7 +308,11 @@
     <section class="view training-view" id="training" data-title="Training" data-code="05" lang="es">
       <div id="training-app" aria-live="polite"><p class="eyebrow"><span></span> TRAINING LAB</p><h2>Preparando tu entrenamiento.</h2></div>
     </section>
+    <section class="view trading-view" id="trading" data-title="Agent Office" data-code="06" lang="es">
+      <div id="trading-app"><p class="eyebrow"><span></span> AGENT OFFICE / PAPER TRADING</p><h2>Preparando la oficina.</h2><p>Conectando con el servicio privado.</p></div>
+    </section>
   </main>
+  <script type="module" src="trading.js?v=20261002office"></script>
   <script src="training.js?v=20261001strength"></script>
   <script src="github-galaxy.js?v=20260928atlas"></script>
   <script src="control.js?v=20261001training"></script>

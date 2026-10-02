@@ -27,6 +27,23 @@ jobs:
       - name: Build current GitHub Galaxy snapshot
         run: node scripts/build-github-galaxy.mjs
 
+      - name: Apply Trading Lab database migration
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          wranglerVersion: "4.124.0"
+          command: d1 execute cesar-mission-control --remote --file=migrations/0008_trading_lab.sql
+
+      - name: Deploy scheduled Trading Lab service
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          wranglerVersion: "4.124.0"
+          command: deploy --config trading-worker/wrangler.jsonc
+          postCommands: node scripts/init-trading-secret.mjs
+
       - name: Deploy to Cloudflare Pages
         uses: cloudflare/wrangler-action@v3
         with:
