@@ -1,3 +1,4 @@
+import {augmentScore} from './company.js';
 const safeUrl=x=>{try{const u=new URL(x);return u.protocol==='https:'&&!u.username&&!u.password;}catch{return false;}};
 import {eligible,id} from './core.js';
 import {extractFundamentals,priceFeatures} from './fundamentals.js';
@@ -44,7 +45,7 @@ export async function discover(s,log,{fetcher=fetch,now=Date.now()}={}){
  // Sequential SEC requests stay far below its 10 requests/second limit.
  for(const symbol of symbols){const a=assets.find(a=>a.symbol===symbol),old=d.profiles[symbol]||{},profile={...old,checkedAt:now,errors:[]};if(d.ciks?.[symbol]&&(!old.fundamentals||now-old.fundamentals.checkedAt>7*864e5)){try{const j=await download('https://data.sec.gov/api/xbrl/companyfacts/CIK'+String(d.ciks[symbol]).padStart(10,'0')+'.json',fetcher);if(Number(j.cik)!==d.ciks[symbol])throw Error('CIK no coincide');profile.fundamentals=extractFundamentals(j,a,now);}catch(e){profile.errors.push('SEC: '+e.message);}}else if(!d.ciks?.[symbol])profile.errors.push('CIK no localizado');
   try{const j=await download('https://query1.finance.yahoo.com/v8/finance/chart/'+encodeURIComponent(symbol.replaceAll('.','-'))+'?interval=1d&range=1y&includePrePost=false',fetcher);const meta=j.chart?.result?.[0]?.meta;if(meta?.symbol!==symbol.replaceAll('.','-')||meta?.currency!=='USD'||meta?.instrumentType!=='EQUITY')throw Error('Identidad de precios no válida');profile.market=priceFeatures(j,benchmark,now);}catch(e){profile.errors.push('Precios: '+e.message);}d.profiles[symbol]=profile;}
- d.peers=sectorPeers(assets,d.profiles);for(const {e,a} of rough)e.preScore=rankCandidate(e,a,d.profiles[a.symbol],s.policy,now,d.peers);
+ d.peers=sectorPeers(assets,d.profiles);for(const {e,a} of rough)e.preScore=augmentScore(s,e,a,d.profiles[a.symbol],rankCandidate(e,a,d.profiles[a.symbol],s.policy,now,d.peers),now);
  d.profiles=Object.fromEntries(Object.entries(d.profiles).sort((a,b)=>b[1].checkedAt-a[1].checkedAt).slice(0,250));d.discovery.lastAt=now;d.discovery.universe=assets.length;d.discovery.enriched=Object.keys(d.profiles).length;d.discovery.queued=rough.filter(x=>x.e.preScore?.eligible).length;d.discovery.newSignals=added;
  if(added||symbols.length)log(s,'scout',`Radar por código: ${assets.length} empresas filtradas; ${added} señales nuevas, ${symbols.length} fichas enriquecidas y ${d.discovery.queued} candidatas priorizadas`);
 }

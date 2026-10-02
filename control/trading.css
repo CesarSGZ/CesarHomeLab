@@ -20,3 +20,5 @@
 #trading-app .ao-kpi-row{display:flex;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid var(--ao-line)}
 #trading-app [data-focus="economics"] .ao-live-panel{border-color:#9385bd}
 #trading-app [data-focus="risk"] .ao-live-panel{border-color:#c4a26c}
+
+#trading-app .ao-meeting details,#trading-app #ao-body details{border-bottom:1px solid var(--ao-line);padding:14px 0}#trading-app details summary{cursor:pointer;font-size:13px;line-height:1.7}#trading-app .ao-program-code{font:11px DM Mono,monospace;white-space:pre-wrap;overflow-wrap:anywhere;padding:14px;background:var(--ao-bg);max-height:350px;overflow:auto}#trading-app #ao-body[data-company-theme="amber"]{--ao-accent:#bf925f}#trading-app #ao-body[data-company-theme="mint"]{--ao-accent:#7eab91}#trading-app #ao-metrics{grid-template-columns:repeat(3,minmax(0,1fr))}@media(max-width:760px){#trading-app #ao-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}

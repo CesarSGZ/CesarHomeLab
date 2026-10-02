@@ -35,8 +35,8 @@ export function assess(book,asset,event,plan,quote,config,t){
   if(!plan || ![plan.entryMin,plan.entryMax,plan.stop,plan.target,plan.expiresAt].every(Number.isFinite) || !(plan.stop>0 && plan.entryMin>plan.stop && plan.entryMax>=plan.entryMin && plan.target>plan.entryMax && plan.expiresAt>t)) fail.push('Plan inválido o caducado');
   if(plan && Number.isFinite(plan.entryMax) && (plan.target-plan.entryMax)/(plan.entryMax-plan.stop)<config.minRR) fail.push('Beneficio/riesgo insuficiente');
   if(book.positions.some(p=>p.symbol===asset.symbol)) fail.push('Ya existe posición');
-  if(book.positions.length>=config.maxPositions) fail.push('Límite de posiciones');
-  if(book.entriesToday>=config.maxEntries) fail.push('Límite de entradas de la sesión');
+  if(book.positions.length>=Math.min(20,config.maxPositions)) fail.push('Límite de posiciones');
+  if(book.entriesToday>=Math.min(2,config.maxEntries)) fail.push('Límite de entradas de la sesión');
   if(eq<=book.dayStartEquity*(1-config.dailyLossPct/100)) fail.push('Límite de pérdida diaria');
   const price=entryPrice(quote)*(1+config.slippageBps/1e4);
   if(!Number.isFinite(price) || price<plan?.entryMin || price>plan?.entryMax) fail.push('Precio fuera de la zona de entrada');

@@ -1,0 +1,103 @@
+name: Agent Office autonomous development
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '7,22,37,52 * * * *'
+permissions:
+  contents: write
+concurrency:
+  group: office-development
+  cancel-in-progress: false
+jobs:
+  develop:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Verify cloud worker deployment credentials
+        if: github.event_name == 'workflow_dispatch'
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          wranglerVersion: '4.124.0'
+          command: deploy --config trading-worker/wrangler.jsonc
+      - name: Lease a reviewed office change
+        id: lease
+        env:
+          OFFICE_DEV_TOKEN: ${{ secrets.OFFICE_DEV_TOKEN }}
+        run: node scripts/office-development.mjs lease
+      - name: Apply exact scoped patch
+        if: steps.lease.outputs.has_job == 'true'
+        run: node scripts/office-development.mjs apply
+      - name: Validate without network or credentials
+        if: steps.lease.outputs.has_job == 'true'
+        run: |
+          docker pull node:24-bookworm-slim
+          docker run --rm --network=none --read-only --tmpfs /tmp -v "$GITHUB_WORKSPACE:/repo:ro" -w /repo node:24-bookworm-slim node --test tests/*.test.mjs
+          git diff --check
+      - name: Commit validated office code
+        id: commit
+        if: steps.lease.outputs.has_job == 'true'
+        run: node scripts/office-development.mjs commit
+      - name: Push validated version
+        id: push
+        if: steps.lease.outputs.has_job == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh auth setup-git
+          git push origin HEAD:main
+      - name: Deploy autonomous worker
+        if: steps.lease.outputs.has_job == 'true'
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          wranglerVersion: '4.124.0'
+          command: deploy --config trading-worker/wrangler.jsonc
+      - name: Deploy office website
+        if: steps.lease.outputs.has_job == 'true'
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          wranglerVersion: '4.124.0'
+          command: pages deploy . --project-name=cesar-solla --branch=main
+      - name: Revert failed deployment
+        if: failure() && steps.push.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh auth setup-git
+          git revert --no-edit HEAD
+          git push origin HEAD:main
+      - name: Restore worker after failed deployment
+        if: failure() && steps.push.outcome == 'success'
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          wranglerVersion: '4.124.0'
+          command: deploy --config trading-worker/wrangler.jsonc
+      - name: Restore website after failed deployment
+        if: failure() && steps.push.outcome == 'success'
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          wranglerVersion: '4.124.0'
+          command: pages deploy . --project-name=cesar-solla --branch=main
+      - name: Report result to Cesar
+        if: always() && steps.lease.outputs.has_job == 'true'
+        env:
+          OFFICE_DEV_TOKEN: ${{ secrets.OFFICE_DEV_TOKEN }}
+          OFFICE_RESULT: ${{ job.status }}
+          OFFICE_COMMIT: ${{ steps.commit.outputs.commit }}
+        run: node scripts/office-development.mjs finish

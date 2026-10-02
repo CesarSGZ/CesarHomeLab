@@ -1,0 +1,1 @@
+CREATE TABLE IF NOT EXISTS trading_dev_auth(id INTEGER PRIMARY KEY CHECK(id=1),token_hash TEXT NOT NULL,created_at INTEGER NOT NULL);
