@@ -1,10 +1,15 @@
 name: Agent Office autonomous development
 on:
   workflow_dispatch:
+    inputs:
+      relay:
+        type: boolean
+        default: false
   schedule:
     - cron: '7,22,37,52 * * * *'
 permissions:
   contents: write
+  actions: write
 concurrency:
   group: office-cloud-controller
   cancel-in-progress: false
@@ -24,18 +29,22 @@ jobs:
         env:
           OFFICE_DEV_TOKEN: ${{ secrets.OFFICE_DEV_TOKEN }}
           OFFICE_WRANGLER_AUTH: ${{ secrets.OFFICE_WRANGLER_AUTH }}
-          OFFICE_FORCE_REFRESH: ${{ github.event_name == 'workflow_dispatch' && '1' || '' }}
+          OFFICE_FORCE_REFRESH: ${{ github.event_name == 'workflow_dispatch' && !inputs.relay && '1' || '' }}
         run: node scripts/office-development.mjs auth
+      - name: Cadaqui infrastructure watchdog and recovery
+        env:
+          OFFICE_DEV_TOKEN: ${{ secrets.OFFICE_DEV_TOKEN }}
+        run: node scripts/office-recover.mjs
       - name: Verify cloud worker deployment credentials
-        if: github.event_name == 'workflow_dispatch'
+        if: github.event_name == 'workflow_dispatch' && !inputs.relay
         run: npx --yes wrangler@4.124.0 deploy --config trading-worker/wrangler.jsonc
       - name: Audit actual market connection and autonomous office
-        if: github.event_name == 'workflow_dispatch'
+        if: github.event_name == 'workflow_dispatch' && !inputs.relay
         env:
           OFFICE_DEV_TOKEN: ${{ secrets.OFFICE_DEV_TOKEN }}
         run: node scripts/office-live-audit.mjs
       - uses: actions/upload-artifact@v4
-        if: github.event_name == 'workflow_dispatch'
+        if: github.event_name == 'workflow_dispatch' && !inputs.relay
         with:
           name: office-live-audit
           path: /tmp/office-live-audit.json
@@ -108,3 +117,8 @@ jobs:
           OFFICE_RESULT: ${{ job.status }}
           OFFICE_COMMIT: ${{ steps.commit.outputs.commit }}
         run: node scripts/office-development.mjs finish
+      - name: Resume the next autonomous cloud cycle
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/office-relay.mjs office-cloud-cycle.yml

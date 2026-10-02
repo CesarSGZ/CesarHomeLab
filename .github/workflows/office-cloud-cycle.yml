@@ -5,6 +5,7 @@ on:
     - cron: '3-58/5 * * * *'
 permissions:
   contents: read
+  actions: write
 concurrency:
   group: office-cloud-controller
   cancel-in-progress: false
@@ -28,3 +29,11 @@ jobs:
         env:
           OFFICE_DEV_TOKEN: ${{ secrets.OFFICE_DEV_TOKEN }}
         run: node scripts/office-cloud-cycle.mjs
+      - name: Pace cloud relay without spending model tokens
+        if: always()
+        run: sleep 240
+      - name: Hand over to Cadaqui supervisor
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/office-relay.mjs office-development.yml
