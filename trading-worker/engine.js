@@ -6,7 +6,7 @@ import {refreshMarket,referenceSource} from './market-data.js';
 import universe from './universe.json' with {type:'json'};
 import {defaults,eligible,id,num,day,newBook,equity,allocation,fxValid,rollover,buy,sell,monitor,sample,freshQuote} from './core.js';
 import {encryptSecret,decryptSecret} from '../functions/_lib/crypto-store.js';
-const definitions=[['scout','Santi','Explorador','#9ccb98'],['analyst','Pedro','Analista','#b6a4e8'],['risk','María','Riesgo','#e8b67c'],['operator','Erea','Operadora','#81cbd0'],['auditor','Augusto','Auditor','#e7a6bf'],['designer','Cadaqui','Diseño y KPIs','#91afe8']];
+const definitions=[['scout','Santi','Explorador','#9ccb98'],['analyst','Pedro','Analista','#b6a4e8'],['risk','María','Riesgo','#e8b67c'],['operator','Yari','Operadora','#81cbd0'],['auditor','Augusto','Auditor','#e7a6bf'],['designer','Cadaqui','Diseño y KPIs','#91afe8']];
 export const agents=()=>definitions.map(([id,name,role,color])=>({id,name,role,color,paused:false,status:'esperando',task:'Sin tarea pendiente',lastRun:null,result:''}));
 export function initialState(){const t=Date.now();return {schema:3,mode:'real',automatic:true,paused:false,config:{...defaults},demo:{assets:[],events:[],quotes:{},book:newBook(t),time:t,step:0},real:{assets:universe.assets,events:[],quotes:{},book:newBook(t,'EUR'),catalogAt:universe.fetchedAt,total:universe.total,counts:universe.counts,calendarCursor:0,calendarCoverage:{},lastScan:0,marketAt:0,marketCheckedAt:0,marketStatus:'Esperando candidatos con evidencia'},agents:agents(),logs:[],proposals:[],lastTick:0,lastError:null};}
 export function upgradeState(s){
