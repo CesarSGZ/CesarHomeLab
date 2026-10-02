@@ -7,7 +7,7 @@ export default {
   async fetch(request,env,ctx){
     const path=new URL(request.url).pathname;
     try{
-      if(path==='/development'){if(request.method!=='POST'||!await authorisedDeveloper(request,env))return json({ok:false,error:'No autorizado'},{status:401});const body=await request.json();if(body.action==='deployment-auth'){if(typeof body.config==='string'){if(body.config.length>12000||!body.config.includes('refresh_token'))throw Error('Credencial de despliegue inválida');await storeSecret(env,'deployment_oauth',body.config);return json({ok:true});}return json({ok:true,config:await secret(env,'deployment_oauth')});}let result;await locked(env,async s=>{result=developmentAction(s,body);});return json(result);}
+      if(path==='/development'){if(request.method!=='POST'||!await authorisedDeveloper(request,env))return json({ok:false,error:'No autorizado'},{status:401});const body=await request.json();if(body.action==='deployment-auth'){if(typeof body.config==='string'){if(body.config.length>12000||!body.config.includes('refresh_token'))throw Error('Credencial de despliegue inválida');await storeSecret(env,'deployment_oauth',body.config);return json({ok:true});}return json({ok:true,config:await secret(env,'deployment_oauth')});}if(body.action==='lease'){const lock=await env.CONTROL_DB.prepare('SELECT lock_until FROM trading_state WHERE id=1').first();if(lock?.lock_until>Date.now())return json({ok:true,job:null,busy:true});}let result;await locked(env,async s=>{result=developmentAction(s,body);});return json(result);}
       if(path==='/bridge'||path==='/bridge-token')return json({ok:false,error:'Puente retirado; datos públicos en Cloudflare'},{status:410});
       if(path==='/status'&&request.method==='GET')return json(await status(env));
       if(request.method!=='POST')return json({ok:false,error:'Método no permitido'},{status:405});
@@ -29,5 +29,5 @@ export default {
       });return json({ok:true});
     }catch(e){return json({ok:false,error:e.message==='Ya hay una tarea en ejecución'?e.message:String(e.message).slice(0,200)},{status:400});}
   },
-  async scheduled(_event,env,ctx){ctx.waitUntil(cycle(env).catch(()=>{}));}
+  async scheduled(_event,env,ctx){ctx.waitUntil(cycle(env).catch(e=>console.warn('Ciclo pendiente:',String(e.message).slice(0,160))));}
 };
