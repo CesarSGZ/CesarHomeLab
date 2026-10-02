@@ -1,3 +1,4 @@
+import {auditLiveOffice} from './live-audit.js';
 import {authorisedDeveloper,developmentAction} from './development.js';
 import {refreshMarket} from './market-data.js';
 import {status,load,locked,cycle,storeSecret,secret,validateConfig,log} from './engine.js';
@@ -7,7 +8,7 @@ export default {
   async fetch(request,env,ctx){
     const path=new URL(request.url).pathname;
     try{
-      if(path==='/development'){if(request.method!=='POST'||!await authorisedDeveloper(request,env))return json({ok:false,error:'No autorizado'},{status:401});const body=await request.json();if(body.action==='deployment-auth'){if(typeof body.config==='string'){if(body.config.length>12000||!body.config.includes('refresh_token'))throw Error('Credencial de despliegue inválida');await storeSecret(env,'deployment_oauth',body.config);return json({ok:true});}return json({ok:true,config:await secret(env,'deployment_oauth')});}if(body.action==='lease'){const lock=await env.CONTROL_DB.prepare('SELECT lock_until FROM trading_state WHERE id=1').first();if(lock?.lock_until>Date.now())return json({ok:true,job:null,busy:true});}let result;await locked(env,async s=>{result=developmentAction(s,body);});return json(result);}
+      if(path==='/development'){if(request.method!=='POST'||!await authorisedDeveloper(request,env))return json({ok:false,error:'No autorizado'},{status:401});const body=await request.json();if(body.action==='audit')return json(await auditLiveOffice(env));if(body.action==='deployment-auth'){if(typeof body.config==='string'){if(body.config.length>12000||!body.config.includes('refresh_token'))throw Error('Credencial de despliegue inválida');await storeSecret(env,'deployment_oauth',body.config);return json({ok:true});}return json({ok:true,config:await secret(env,'deployment_oauth')});}if(body.action==='lease'){const lock=await env.CONTROL_DB.prepare('SELECT lock_until FROM trading_state WHERE id=1').first();if(lock?.lock_until>Date.now())return json({ok:true,job:null,busy:true});}let result;await locked(env,async s=>{result=developmentAction(s,body);});return json(result);}
       if(path==='/bridge'||path==='/bridge-token')return json({ok:false,error:'Puente retirado; datos públicos en Cloudflare'},{status:410});
       if(path==='/status'&&request.method==='GET')return json(await status(env));
       if(request.method!=='POST')return json({ok:false,error:'Método no permitido'},{status:405});
