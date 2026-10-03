@@ -1,5 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';
-import {parseFeed,matchIssuer,rankCandidate,signalKind,discover} from '../trading-worker/discovery.js';
+import {parseFeed,matchIssuer,rankCandidate,signalKind,discover,feedNoiseReason,selectEnrichmentSymbols} from '../trading-worker/discovery.js';
 import {extractFundamentals} from '../trading-worker/fundamentals.js';
 import {initialState,upgradeState,encodeState,decodeState} from '../trading-worker/engine.js';
 import {initialiseGovernance,metrics,chooseChange,applyChange,rollback,dailyReview,visualManifest,validManifest} from '../trading-worker/governance.js';
@@ -12,3 +12,28 @@ test('News discovery deduplicates documents and never invents catalyst dates',as
 test('Cadaqui migration preserves ledger and its manifest cannot escape office scope',async()=>{const s=initialState();s.agents=s.agents.filter(a=>a.id!=='designer');s.real.book.cash=9876;const restored=upgradeState(await decodeState(await encodeState(s)));assert.equal(restored.real.book.cash,9876);assert.equal(restored.agents.find(a=>a.id==='designer').name,'Cadaqui');const v=visualManifest({efficiencyNet:-1,maxDrawdown:0});assert.equal(validManifest(v),true);assert.equal(validManifest({...v,scope:'whole-site'}),false);assert.equal(validManifest({...v,panels:['javascript']}),false);});
 test('Autonomous changes require evidence, preserve spending limits and can roll back',()=>{const s=initialiseGovernance(initialState());const base={closed:0,closedPnl:0,winRate:null,researched:0,rejected:0,efficiencyNet:-1,grossPnl:0};assert.equal(chooseChange(s,base).action,'hold');assert.throws(()=>applyChange(s,{action:'raiseBudget'},base));assert.throws(()=>applyChange(s,{action:'reduceRisk'},base));const k={...base,closed:10,closedPnl:-200,winRate:.3};const budget=s.config.dailyBudget,entries=s.config.maxEntries;const c=applyChange(s,chooseChange(s,k),k,now);assert.equal(s.config.riskPct,.3);assert.equal(s.config.dailyBudget,budget);assert.equal(s.config.maxEntries,entries);assert.equal(c.status,'aplicado');assert.equal(rollback(s,{...k,closed:19,grossPnl:-500},now),null);assert.ok(rollback(s,{...k,closed:20,grossPnl:-500},now));assert.equal(s.config.riskPct,.35);assert.equal(s.policy.version,3);});
 test('Daily review is idempotent and reports real IA separately from fictional profit',()=>{const s=initialiseGovernance(initialState());s.real.book.fx={rate:2};const k=metrics(s,{confirmed:2,reserved:1},now);assert.equal(k.aiEur,1);assert.equal(k.netAfterAi,-1);assert.equal(k.efficiencyNet,-1);assert.ok(dailyReview(s,k,now));assert.equal(dailyReview(s,k,now),null);assert.equal(s.governance.messages.length,3);});
+
+test('legal lead-plaintiff solicitations are filtered without hiding material company litigation',()=>{
+ assert.ok(feedNoiseReason({title:'SMALL investor alert: lead plaintiff deadline approaching',summary:'NASDAQ: SMALL law firm reminds shareholders of securities fraud class action'}));
+ assert.ok(feedNoiseReason({title:'SHAREHOLDER ALERT: SMALL class action lawsuit',summary:'Contact our law firm to recover investment losses'}));
+ assert.ok(feedNoiseReason({title:'SMALL securities fraud deadline reminder',summary:''}));
+ assert.equal(feedNoiseReason({title:'Small Science resolves securities class action litigation',summary:'Settlement removes uncertainty; company announces next results on October 12'}),null);
+ assert.equal(feedNoiseReason({title:'Small Science wins contract after injunction lifted',summary:'NYSE: SMALL announced a five-year contract'}),null);
+ const e={date:null,signal:{kind:'Documento corporativo',strength:50,publishedAt:now,headline:'SMALL lead plaintiff deadline alert'}};
+ assert.equal(rankCandidate(e,asset,{fundamentals:{metrics:{annualAgeDays:100,fcf:20e6,netMargin:.2,revenueYoY:.4}}},{minScore:30},now).eligible,false);
+});
+
+test('noise is dropped before enrichment and cached legal promotions cannot enter research',async()=>{
+ const s=upgradeState(initialState());s.real.assets=[asset];s.real.ciks={SMALL:123};s.real.cikAt=now;s.real.events=[{id:'old-alert',symbol:'SMALL',status:'verificar',confirmed:false,signal:{headline:'SMALL lead plaintiff deadline reminder',excerpt:'Law firm class action reminder',publishedAt:now,strength:28},preScore:{eligible:true,score:70}}];
+ const xml='<rss><item><title>SMALL investor lead plaintiff deadline</title><description>NASDAQ: SMALL securities fraud law firm class action</description><link>https://law.example/alert</link><pubDate>Fri, 02 Oct 2026 12:00:00 GMT</pubDate></item></rss>';const fetched=[];
+ await discover(s,()=>{},{now,fetcher:async url=>{fetched.push(url);return new Response(xml);}});
+ assert.equal(s.real.events.length,1);assert.equal(s.real.events[0].status,'descartado');assert.equal(s.real.events[0].preScore.eligible,false);assert.ok(Object.values(s.real.discovery.sources).every(x=>x.filteredNoise===1));assert.ok(fetched.every(url=>url.includes('browse-edgar')||url.includes('prnewswire')));assert.equal(s.real.discovery.queued,0);
+});
+
+test('enrichment prioritizes employee backlog and obeys the current autonomous limit',()=>{
+ const s=upgradeState(initialState());s.company.strategy={enrichmentLimit:2};s.real.profiles={QUEUED:{checkedAt:now-1000,market:{}},FRESH:{checkedAt:now,fundamentals:{},market:{}}};s.company.agency.workQueue=[{kind:'analysis',eventId:'queued',status:'pending',createdAt:now,notBefore:now}];
+ const row=(symbol,strength,confirmed=false)=>({a:{...asset,symbol},e:{id:symbol.toLowerCase(),symbol,confirmed,signal:{strength}}});
+ const rough=[row('NEWS',28),row('QUEUED',8),row('CONFIRMED',20,true),row('FRESH',40,true),row('NEWS',28)];
+ assert.deepEqual(selectEnrichmentSymbols(s,rough,now),['QUEUED','CONFIRMED']);s.company.strategy.enrichmentLimit=1;assert.deepEqual(selectEnrichmentSymbols(s,rough,now),['QUEUED']);
+ s.company.agency.workQueue[0].notBefore=now+3600e3;assert.deepEqual(selectEnrichmentSymbols(s,rough,now),['CONFIRMED']);
+});

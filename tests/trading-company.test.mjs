@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {initialState,upgradeState} from '../trading-worker/engine.js';
-import {dueMeeting,holdMeeting,validateProgram,installProgram,observeProgram,executeProgram} from '../trading-worker/company.js';
+import {dueMeeting,holdMeeting,validateProgram,installProgram,observeProgram,executeProgram,compactContext,measureEvidence,initialiseCompany,staff} from '../trading-worker/company.js';
 import {officeState,validateEdits} from '../trading-worker/office-boundary.js';
 import {developmentAction} from '../trading-worker/development.js';
 const state=()=>upgradeState(initialState());
@@ -13,3 +13,30 @@ test('Programs remain observations until sufficient time and results, and missin
 test('Office autonomy cannot mutate cash, original quotes or monthly conditions',()=>{const s=state(),p=officeState(s);assert.throws(()=>p.real.book.cash=0);assert.throws(()=>p.real.quotes.TEST={price:100});assert.throws(()=>p.config.maxEntries=200);assert.throws(()=>p.real={});p.company.tasks.push({task:'Reorganizar'});assert.equal(s.company.tasks.length,1);});
 test('Source changes have exact scope and leases protect deployment results',()=>{const s=state(),edits=[{file:'trading-worker/company.js',baseSha:'a'.repeat(40),find:'old',replace:'new'}];assert.throws(()=>validateEdits([{...edits[0],file:'index.html'}]));s.company.development=[{id:'job',status:'queued',edits,summary:'Mejorar reuniones'}];const r=developmentAction(s,{action:'lease'},0);assert.equal(r.job.status,'running');assert.equal(developmentAction(s,{action:'lease'},1).job,null);assert.throws(()=>developmentAction(s,{action:'complete',id:'job',lease:'wrong',status:'applied'}));developmentAction(s,{action:'complete',id:'job',lease:r.job.lease,status:'applied',commit:'b'.repeat(40)});assert.equal(s.company.development[0].status,'applied');});
 test('An invalid implementation is rejected without cancelling the employee meeting or report',async()=>{const s=state();s.operating={spentEur:0,remainingEur:10};let calls=0;await holdMeeting(officeState(s),{budget:async()=>({...s.operating,paceEurPerDay:.3}),checkpoint:async()=>{},log:()=>{},call:async()=>{calls++;if(calls<=12)return {facts:'Sin cierres',evidence:[],idea:'Medir',replyTo:'',uncertainty:'Muestra corta',nextTask:'Observar'};if(calls===13)return {summary:'Medir sin operar',decisions:[{kind:'experiment'}],assignments:[],reportToCesar:'Informe contrastado',codeFiles:[],codeRationale:''};const p=program();p.workflow.minRR=0;return p;}},Date.parse('2026-10-02T09:01:00Z'));const m=s.company.meetings[0];assert.equal(m.status,'completa');assert.match(m.programRejected.reason,/Flujo/);assert.match(s.company.reports[0].text,/rechazada/);assert.equal(s.company.versions.length,0);assert.equal(s.real.book.orders.length,0);});
+
+test('A truncated chair gets one migration retry without repeating the twelve employee turns or resetting costs',async()=>{
+ const s=state(),now=Date.parse('2026-10-03T12:00:00Z');delete s.company.chairRecoveryMigration;s.operating={spentEur:.013,remainingEur:9.987};
+ const voices=staff.map(agent=>({agent,facts:'Dato real',idea:'Preparar planes',evidence:[],uncertainty:'Sin ventaja confirmada',nextTask:'Comparar empresas'})),responses=voices.map(v=>({...v,replyTo:'Priorizar datos'}));
+ const m={id:'2026-10-03:planning',day:'2026-10-03',slot:'planning',scheduledTime:'11:00',status:'omitida',attempts:2,error:'Respuesta de IA incompleta',voices,responses,costEur:.013};s.company.meetings.push(m);
+ assert.equal(dueMeeting(s,now).id,m.id);assert.equal(m.chairRecoveryPending,true);let calls=0;
+ await holdMeeting(s,{budget:async()=>({...s.operating,paceEurPerDay:.3}),checkpoint:async()=>{},log:()=>{},call:async(id,instructions,payload,_schema,options)=>{calls++;assert.equal(id,'auditor');assert.equal(options.outputTokens,2300);assert.match(instructions,/350 palabras/);assert.equal(payload.voices,voices);assert.equal(payload.responses,responses);assert.ok(payload.context.pipeline);assert.ok(payload.context.strategy);s.operating.spentEur+=.001;return {summary:'Planes para próxima sesión',decisions:[{kind:'hold'}],assignments:[],reportToCesar:'Preparación sin operaciones',codeFiles:[],codeRationale:''};}},now);
+ assert.equal(calls,1);assert.equal(m.status,'completa');assert.equal(m.attempts,3);assert.ok(m.costEur>=.014-1e-8);assert.equal(m.chairRecoveryPending,false);assert.equal(m.voices.length,6);assert.equal(dueMeeting(s,now),null);
+ // The same old failure cannot gain another migration retry.
+ m.status='omitida';m.error='Respuesta de IA incompleta';delete m.chair;initialiseCompany(s,now);assert.equal(dueMeeting(s,now),null);
+});
+
+test('Migration does not retry meetings omitted for budget, historic days or missing employee rounds',()=>{
+ for(const extra of [{error:'Tope de gasto de reunión alcanzado'},{day:'2026-10-02'},{responses:[]}]){
+  const s=state();delete s.company.chairRecoveryMigration;const now=Date.parse('2026-10-03T12:00:00Z'),voices=staff.map(agent=>({agent}));
+  s.company.meetings.push({id:'2026-10-03:planning',day:'2026-10-03',status:'omitida',attempts:2,error:'Respuesta de IA incompleta',voices,responses:voices,...extra});
+  assert.equal(dueMeeting(s,now),null);assert.equal(s.company.meetings[0].status,'omitida');
+ }
+});
+
+test('Meeting context distinguishes dated announcements from future events and describes the real work queue',()=>{
+ const s=state(),now=Date.parse('2026-10-03T12:00:00Z'),source={url:'https://issuer.example/news',claim:'Publicado por el emisor'};
+ s.company.strategy={enrichmentLimit:6};s.company.agency.workQueue=[{kind:'analysis',eventId:'published',phase:'preliminary',status:'pending',createdAt:now}];
+ s.real.events=[{id:'published',symbol:'PUB',confirmed:true,timing:'announced',date:new Date(now-864e5).toISOString(),status:'nuevo',sources:[source],preScore:{eligible:true,score:65},research:{costEur:.01}},{id:'old',symbol:'OLD',confirmed:true,timing:'announced',date:new Date(now-8*864e5).toISOString(),status:'nuevo',sources:[source],research:{}},{id:'future',symbol:'FUT',confirmed:true,date:new Date(now+864e5).toISOString(),status:'nuevo',sources:[source],research:{}}];
+ const proof=measureEvidence(s,now);assert.equal(proof.rows[0].status,'elegible');assert.equal(proof.rows[0].timing,'announced');assert.equal(proof.rows[1].status,'pausada');assert.equal(proof.rows[2].status,'elegible');assert.equal(proof.groups[0].unknownCosts,1);
+ const context=compactContext(s,now);assert.equal(context.snapshotAt,new Date(now).toISOString());assert.equal(context.strategy.enrichmentLimit,6);assert.equal(context.pipeline.counts.supportPending,1);assert.equal(context.pipeline.counts.analysisReady,2);assert.equal(context.evidence[0].timing,'announced');assert.equal(context.evidenceProtocol.rows[0].date,s.real.events[0].date);
+});

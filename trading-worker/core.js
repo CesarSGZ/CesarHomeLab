@@ -1,4 +1,5 @@
 import {regularSession,referenceSource} from './market-data.js';
+import {catalystReady} from './strategy.js';
 export const defaults = { minCap:100e6, primaryCap:2e9, maxCap:5e9, minPrice:2, minDollarVolume:1e6, maxSpread:1, maxEntries:2, maxPositions:20, riskPct:0.35, maxPositionPct:5, maxExposurePct:100, dailyLossPct:2, dailyBudget:3, maxAnalyses:2, slippageBps:25, commission:1, maxQuoteAge:120, minRR:2, horizonDays:45 };
 export const day = (t=Date.now()) => new Intl.DateTimeFormat('en-CA',{timeZone:'America/New_York',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(t));
 export const id = (...parts) => {let hash=14695981039346656037n;for(const char of parts.join('|')){hash^=BigInt(char.codePointAt(0));hash=BigInt.asUintN(64,hash*1099511628211n);}return hash.toString(16);};
@@ -27,8 +28,10 @@ export function assess(book,asset,event,plan,quote,config,t){
   if(eligible(asset,config)) fail.push(eligible(asset,config));
   if(!(quote?.referenceOnly?asset.dataVerified:asset.contractVerified)) fail.push('Identidad del instrumento pendiente');
   if(!event.confirmed || (!event.source&&!event.synthetic) || !event.summary) fail.push('Catalizador sin confirmar');
-  const until=Date.parse(event.date)-t;
-  if(!Number.isFinite(until)||until<0||until>config.horizonDays*864e5) fail.push('Catalizador fuera de ventana');
+  const timing=event.timing??event.research?.timing??'scheduled',until=Date.parse(event.date)-t;
+  if(timing==='announced'){
+    if(!catalystReady(event,t))fail.push('Anuncio sin evidencia primaria fechada en los últimos siete días');
+  }else if(timing!=='scheduled'||!Number.isFinite(until)||until<0||until>config.horizonDays*864e5)fail.push('Catalizador fuera de ventana');
   if(!freshQuote(quote,t,config)) fail.push('Cotización ausente, retrasada o caducada');
   if(!quote || !Number.isFinite(quote.dollarVolume)||quote.dollarVolume<config.minDollarVolume) fail.push('Liquidez insuficiente o desconocida');
   if(quote&&!quote.referenceOnly && (quote.ask-quote.bid)/((quote.ask+quote.bid)/2)*100>config.maxSpread) fail.push('Spread excesivo');
