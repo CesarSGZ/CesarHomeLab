@@ -1,3 +1,4 @@
+export function quoteContext(q){if(!q)return null;const iso=t=>{const d=new Date(t);return Number.isFinite(t)&&Number.isFinite(d.getTime())?d.toISOString():null;};return {...q,timeISO:iso(q.time),fetchedAtISO:iso(q.fetchedAt)};}
 // Editable business policy. Accounting, prices and the monthly API allowance remain outside this module.
 const hour=3600e3,day=24*hour;
 const closedStatuses=new Set(['descartado','caducado','abierto']);
