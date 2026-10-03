@@ -50,3 +50,13 @@ Coste IA acumulado se registra en USD y se convierte a EUR con referencia BCE ac
 
 ### Alquiler mensual
 El presupuesto operativo real es 10 EUR por mes calendario de Nueva York, equivalentes a 10.000 unidades internas. Un ledger D1 independiente reserva EUR antes de cada llamada, reconcilia el coste con el cambio de la reserva y conserva reservas inciertas. Las llamadas se detienen al agotarse; datos, filtros y salidas siguen por código. La cartera no se reinicia. El ritmo de Santi usa saldo/días restantes con estimación conservadora de 0,045 EUR por investigación. La cobertura del alquiler compara beneficio ficticio del mes / 1.000 con 10 EUR; no crea dinero ni saldo de API. Requiere migración 0009.
+
+## Agentes individuales e interacciones (3 de octubre de 2026)
+
+Cada empleado es un especialista con modelo, instrucciones, objetivo, memoria persistente, bandeja de encargos y próxima activación propios. El motor ejecuta sus decisiones mediante herramientas delimitadas por rol: priorizar investigación/análisis, anotar riesgo, comprobar ejecución, revisar cierres, encargar trabajo a otro empleado o proponer cambios para Augusto y Cadaqui. Las propuestas individuales alimentan las reuniones y el pipeline de parches existente. Los mensajes del flujo de inversión también despiertan la bandeja del receptor.
+
+Las iniciativas usan Responses API y el runtime propio, sin procesos permanentes por empleado ni dependencia del PC. Máximo seis iniciativas ligeras por día para todo el equipo y una por hora; cada empleado decide esperar entre dos y 48 horas. Reserva máxima por iniciativa 0,0025 EUR y 4% del ritmo diario restante. Máximo teórico adicional 0,015 EUR/día (0,465 EUR en un mes de 31 días), siempre dentro del alquiler total de 10 EUR. Las funciones de inversión, reuniones y análisis profundo conservan sus límites existentes. El SDK no es requisito para separar agentes; este runtime conserva la contabilidad y las herramientas de la aplicación.
+
+Cadaqui sí prepara cambios reales en el código permitido cuando Augusto los solicita. Un controlador de GitHub Actions valida el ámbito, ejecuta pruebas en aislamiento, aplica, despliega y revierte fallos. No puede editar otras secciones ni acceder a claves o modificar la contabilidad y cotizaciones originales. La lista de fuentes permitidas incluye employee-agents.js.
+
+El juego mantiene anclajes de sprites y escala física estables, separa posiciones de tránsito de poses en sillas/sofá/baño, comprueba todos los segmentos de las rutas y bloquea muebles y paredes. Las puertas tienen estado animado y control de paso. E prioriza el objeto cercano; salir de una actividad cancela sus accesorios. Las conversaciones, gags de carga de trabajo y animaciones son locales y no invocan modelos.
