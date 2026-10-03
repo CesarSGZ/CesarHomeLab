@@ -88,3 +88,25 @@ test('native initiative functions use strict complete schemas and expose strateg
  }
  assert.throws(()=>employeeFunctionOptions('operator',['tune_strategy'],initiativeSchema),/fuera del rol/);
 });
+
+test('a specialist task created after a slow initiative is consumed in the same cycle using the current clock',async()=>{
+ const env=memoryEnv(),start=Date.parse('2026-10-03T15:00:00Z'),eventId='same-cycle-preparation',friday=Date.parse('2026-10-02T19:50:00Z'),originalNow=Date.now,originalFetch=globalThis.fetch;let clock=start;
+ // Monotonic millisecond ticks model the DB/checkpoint time before the initiative;
+ // its actual model request then takes another five seconds.
+ Date.now=()=>clock++;
+ try{
+  env._db.prepare('INSERT INTO trading_secrets(name,cipher,iv,updated_at) VALUES (?,?,?,?)').run('openai','test-only','test-only',start);
+  await locked(env,async s=>{
+   s.real.assets=[{symbol:'SMALL',name:'Small Common Stock',exchange:'NASDAQ',marketCap:300e6,price:10,dataVerified:true}];s.real.events=[{id:eventId,symbol:'SMALL',status:'verificar',confirmed:false,source:primary,date:null,kind:'Contrato',summary:'Señal pendiente de evidencia primaria',signal:{url:primary,headline:'Contrato comunicado',publishedAt:friday,strength:28},preScore:{eligible:true,score:70}}];s.real.profiles={SMALL:{checkedAt:start,fundamentals:{checkedAt:start,source:'https://data.sec.gov/test',metrics:{fcf:2e6,revenueYoY:.1,cashLatest:20e6}},market:{asOf:new Date(friday).toISOString(),averageDollarVolume:5e6}}};s.real.quotes={SMALL:{price:10,time:friday,fetchedAt:start,referenceOnly:true,currency:'USD',source:referenceSource,dollarVolume:5e6}};s.real.marketCheckedAt=start;s.real.marketProviderAt=start;s.real.book.fx={rate:1,time:friday,checkedAt:start};s.real.lastScan=start;
+   for(const a of s.agents)a.paused=a.id!=='analyst';for(const a of Object.values(s.company.agency.actors))a.nextWake=start+864e5;s.company.agency.actors.analyst.nextWake=start-1;s.company.agency.day=new Date(start).toISOString().slice(0,10);s.company.agency.runsToday=0;s.company.agency.lastDispatch=0;
+  });
+  const cycleStartedAt=clock,requests=[];let initiativeReturnedAt;
+  globalThis.fetch=async(url,options)=>{
+   assert.equal(url,'https://api.openai.com/v1/responses');const body=JSON.parse(options.body);requests.push(body);assert.equal(body.model,'gpt-6-luna');
+   if(body.tools){assert.ok(body.tools.some(t=>t.name==='prepare_plan'));clock+=5000;initiativeReturnedAt=clock;return Response.json({status:'completed',usage:{input_tokens:500,output_tokens:120},output:[{type:'function_call',name:'prepare_plan',arguments:JSON.stringify({goal:'Preparar próximas compras con rigor',decision:'Usar el perfil descargado para identificar la evidencia necesaria',target:'none',eventId,evidenceIds:[eventId],nextTask:'Comparar la señal con los fundamentales y señalar faltantes',wakeHours:4})}]});}
+   const input=JSON.parse(body.input);assert.equal(input.event.id,eventId);assert.equal(input.financialProfile.fundamentals.metrics.fcf,2e6);return Response.json({status:'completed',usage:{input_tokens:500,output_tokens:200},output:[{type:'message',content:[{type:'output_text',text:JSON.stringify({summary:'Perfil comparado; falta contraste del contrato',thesis:'La señal merece verificación antes de valoración',missingEvidence:['Documento primario del contrato'],worthFurtherWork:false,nextOwner:'auditor',nextTask:'Mantener pendiente hasta nueva evidencia'})}]}]});
+  };
+  await cycle(env);const {state:s}=await load(env),work=s.company.agency.workQueue.find(w=>w.eventId===eventId&&w.kind==='analysis'),event=s.real.events[0];
+  assert.equal(requests.length,2);assert.equal(s.company.agency.actors.analyst.lastAction.tool,'prepare_plan');assert.equal(work.phase,'preliminary');assert.equal(work.status,'complete');assert.ok(work.notBefore>cycleStartedAt,'The new task was not due at the cycle start');assert.ok(work.createdAt<=work.finishedAt);assert.ok(work.finishedAt>=initiativeReturnedAt,'Preparation must use the clock after the initiative returns');assert.ok(event.preliminary);assert.equal(event.preliminary.executable,false);assert.equal(event.plan,undefined);assert.equal(event.review,undefined);assert.equal(s.real.book.orders.length,0);
+ }finally{Date.now=originalNow;globalThis.fetch=originalFetch;env._db.close();}
+});

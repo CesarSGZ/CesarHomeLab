@@ -20,7 +20,7 @@ function shell(){root.innerHTML=`
   <nav class="ao-tabs" aria-label="Apartados del laboratorio"><button data-tab="office" aria-selected="true">Oficina</button><button data-tab="company" aria-selected="false">Informes</button><details class="ao-more"><summary>Gestión ▾</summary><div>${[['universe','Universo'],['radar','Radar y eficiencia'],['events','Oportunidades'],['portfolio','Cartera y diario'],['settings','Conexiones y ajustes']].map(([id,name])=>`<button data-tab="${id}" aria-selected="false">${name}</button>`).join('')}</div></details></nav>
   <div id="ao-body"></div><p class="ao-footer">SOLO SIMULACIÓN · SIN ENVÍO DE ÓRDENES AL BRÓKER · LOS AGENTES SE ACTIVAN POR EVENTOS Y POR CICLOS PROGRAMADOS</p>`;
   root.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>action('mode',{mode:b.dataset.mode},b));
-  root.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{tab=b.dataset.tab;root.querySelectorAll('[data-tab]').forEach(x=>x.setAttribute('aria-selected',String(x===b)));renderBody();});
+  root.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{tab=b.dataset.tab;root.querySelector('.ao-more').open=false;root.querySelectorAll('[data-tab]').forEach(x=>x.setAttribute('aria-selected',String(x===b)));renderBody();});
   root.querySelector('#ao-run').onclick=e=>action('run',{},e.currentTarget);
 
   root.querySelector('#ao-pause').onclick=e=>action('control',{paused:!state.paused},e.currentTarget);
