@@ -2,6 +2,23 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {relay} from '../scripts/office-relay.mjs';
 const base={workflow:'office-development.yml',repository:'CesarSGZ/CesarHomeLab',token:'fixture'};
+test('transient read timeout recovers without duplicate dispatches',async()=>{
+ let reads=0,posts=0;const waits=[];
+ const result=await relay({...base,pause:async ms=>waits.push(ms),fetcher:async(u,o)=>{
+  if(o.method==='POST'){posts++;return new Response(null,{status:204});}
+  if(++reads===1)throw new DOMException('timeout','TimeoutError');
+  return Response.json({workflow_runs:[]});
+ }});
+ assert.equal(result.queued,true);assert.equal(reads,2);assert.equal(posts,1);assert.deepEqual(waits,[2000]);
+});
+test('uncertain dispatch is never retried',async()=>{
+ let posts=0;
+ await assert.rejects(relay({...base,pause:async()=>{},fetcher:async(u,o)=>{
+  if(o.method==='POST'){posts++;throw new DOMException('timeout','TimeoutError');}
+  return Response.json({workflow_runs:[]});
+ }}),/timeout/);
+ assert.equal(posts,1);
+});
 test('supervisor hands over using the cheap relay mode',async()=>{
  const requests=[];const result=await relay({...base,fetcher:async(url,options)=>{requests.push({url,options});return options.method==='POST'?new Response(null,{status:204}):Response.json({workflow_runs:[{status:'completed'}]});}});
  assert.equal(result.queued,true);assert.deepEqual(JSON.parse(requests[1].options.body),{ref:'main',inputs:{relay:'true'}});

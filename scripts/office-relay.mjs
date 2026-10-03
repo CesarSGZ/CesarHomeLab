@@ -1,9 +1,17 @@
 // Infrastructure supervisor: no model call, trading decision or permanent GitHub credential.
-export async function relay({workflow,repository,token,fetcher=fetch}) {
+export async function relay({workflow,repository,token,fetcher=fetch,pause=ms=>new Promise(resolve=>setTimeout(resolve,ms))}) {
  if(!['office-cloud-cycle.yml','office-development.yml'].includes(workflow)||repository!=='CesarSGZ/CesarHomeLab'||!token)throw Error('Relevo de oficina fuera de ámbito');
  const base='https://api.github.com/repos/'+repository+'/actions/workflows/'+workflow;
  const headers={Authorization:'Bearer '+token,Accept:'application/vnd.github+json','Content-Type':'application/json'};
- const response=await fetcher(base+'/runs?branch=main&per_page=10',{headers,signal:AbortSignal.timeout(30000)});
+ let response;
+ for(let attempt=0;attempt<3;attempt++){
+  try{
+   response=await fetcher(base+'/runs?branch=main&per_page=10',{headers,signal:AbortSignal.timeout(30000)});
+   if(response.status<500&&response.status!==429)break;
+   if(attempt===2)break;
+  }catch(error){if(attempt===2)throw error;}
+  await pause(2000*(attempt+1));
+ }
  if(!response.ok)throw Error('Consulta del supervisor HTTP '+response.status);
  const runs=(await response.json()).workflow_runs;
  if(runs.some(r=>['queued','in_progress','waiting','pending','requested'].includes(r.status)))return {queued:false,reason:'Ya hay un relevo activo o en cola'};
