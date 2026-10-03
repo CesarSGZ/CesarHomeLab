@@ -6,6 +6,20 @@ const defaultWorkflow={minScore:45,researchDailyLimit:12,researchIntervalMinutes
 const finite=x=>Number.isFinite(x);
 const timestamp=x=>typeof x==='number'?x:Date.parse(x);
 const primarySource=e=>e.sources?.some(source=>{try{const u=new URL(typeof source==='string'?source:source.url);return u.protocol==='https:'&&!u.username&&!u.password;}catch{return false;}});
+const newYorkDay=t=>new Intl.DateTimeFormat('en-CA',{timeZone:'America/New_York',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(t));
+
+export function requiresDeepAnalysis(event){
+ // Regulatory boilerplate in an ordinary company's report is not a clinical catalyst.
+ return /\b(?:fda|pdufa)\b|clinical|oncolog|biotech|ensayos?\s+cl[ií]nicos?/i.test([event.kind,event.title,event.summary].filter(Boolean).join(' '));
+}
+
+export function nextDeepAnalysisAt(now=Date.now()){
+ const nextDay=new Date(Date.parse(newYorkDay(now)+'T12:00:00Z')+day).toISOString().slice(0,10),target=Date.parse(nextDay+'T00:00:00Z');let guess=target+5*hour;
+ const clock=new Intl.DateTimeFormat('en-US',{timeZone:'America/New_York',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23'});
+ for(let i=0;i<2;i++){const p=Object.fromEntries(clock.formatToParts(new Date(guess)).map(p=>[p.type,p.value])),local=Date.UTC(Number(p.year),Number(p.month)-1,Number(p.day),Number(p.hour),Number(p.minute),Number(p.second));guess+=target-local;}
+ return guess;
+}
+const deferredToday=(e,now)=>!e.plan&&e.analysisDeferred?.day===newYorkDay(now);
 
 export function validateWorkflowStrategy(value={},base=defaultWorkflow){
  if(!value||typeof value!=='object'||Array.isArray(value)||Object.keys(value).some(key=>!workflowKeys.includes(key)))throw Error('Parámetro de estrategia fuera del ámbito');
@@ -56,7 +70,7 @@ export function selectResearchCandidates(s,now=Date.now()){
 export function selectPlanningCandidates(s,now=Date.now()){
  const settings=workflowSettings(s),weekend=['Sat','Sun'].includes(new Intl.DateTimeFormat('en-US',{timeZone:'America/New_York',weekday:'short'}).format(new Date(now)));
  if(weekend&&!settings.weekendPlanning)return [];
- const rows=(s.real.events||[]).filter(e=>!closedStatuses.has(e.status)&&catalystReady(e,now)&&e.research?.worthAnalyzing!==false&&(!e.plan||finite(e.plan.expiresAt)&&e.plan.expiresAt>now)&&e.plan?.approve!==false&&e.review?.approve!==false);
+ const rows=(s.real.events||[]).filter(e=>!closedStatuses.has(e.status)&&!deferredToday(e,now)&&catalystReady(e,now)&&e.research?.worthAnalyzing!==false&&(!e.plan||finite(e.plan.expiresAt)&&e.plan.expiresAt>now)&&e.plan?.approve!==false&&e.review?.approve!==false);
  return order(s,rows,'analysis',settings,now);
 }
 
@@ -69,16 +83,17 @@ function sessionCalendar(now){
 
 export function pipelineSummary(s,now=Date.now()){
  const events=s.real.events||[],work=(s.company?.agency?.workQueue||[]).filter(workPending),planning=selectPlanningCandidates(s,now),researchQueue=selectResearchCandidates(s,now),calendar=sessionCalendar(now);
- const confirmed=events.filter(e=>!closedStatuses.has(e.status)&&catalystReady(e,now)),prepared=planning.filter(e=>e.plan),approved=prepared.filter(e=>e.review?.approve===true),riskPending=prepared.filter(e=>!e.review),supportPending=work.filter(w=>w.phase==='preliminary'||['analysis','risk','market','profile','development','strategy','code','execution'].includes(w.kind));
- const counts={signals:events.filter(e=>!closedStatuses.has(e.status)).length,researchQueue:researchQueue.length,researched:events.filter(e=>e.research).length,confirmed:confirmed.length,analysisReady:planning.filter(e=>!e.plan).length,riskPending:riskPending.length,plansPrepared:prepared.length,approvedWaiting:approved.length,supportPending:supportPending.length,positions:s.real.book?.positions?.length||0,closed:s.real.book?.closed?.length||0};
+ const confirmed=events.filter(e=>!closedStatuses.has(e.status)&&catalystReady(e,now)),deferred=confirmed.filter(e=>deferredToday(e,now)),prepared=planning.filter(e=>e.plan),approved=prepared.filter(e=>e.review?.approve===true),riskPending=prepared.filter(e=>!e.review),supportPending=work.filter(w=>w.phase==='preliminary'||['analysis','risk','market','profile','development','strategy','code','execution'].includes(w.kind));
+ const counts={signals:events.filter(e=>!closedStatuses.has(e.status)).length,researchQueue:researchQueue.length,researched:events.filter(e=>e.research).length,confirmed:confirmed.length,analysisReady:planning.filter(e=>!e.plan).length,analysisDeferred:deferred.length,riskPending:riskPending.length,plansPrepared:prepared.length,approvedWaiting:approved.length,supportPending:supportPending.length,positions:s.real.book?.positions?.length||0,closed:s.real.book?.closed?.length||0};
  let blocker='',blockerStage='';
  if(s.operating?.exhausted||s.operating?.remainingEur===0){blockerStage='budget';blocker='Presupuesto mensual de IA agotado; vigilancia por código activa';}
  else if(s.paused){blockerStage='paused';blocker='Nuevas entradas pausadas por César';}
  else if(approved.length){blockerStage=calendar.marketOpen?'execution':'session';blocker=calendar.marketOpen?'Comprobar precio y condiciones de los planes aprobados':'Planes preparados; esperar sesión y validar precio de entrada';}
  else if(riskPending.length){blockerStage='risk';blocker='Planes pendientes de la revisión independiente de María';}
  else if(planning.length){blockerStage='analysis';blocker='Catalizadores contrastados pendientes de valoración y plan de Pedro';}
+ else if(deferred.length){blockerStage='analysis_quota';blocker='Revisión profunda aplazada por cuota diaria; se reabre tras medianoche de Nueva York';}
  else if(supportPending.length){blockerStage='support';blocker='Resolver datos, comprobaciones o código solicitados por empleados';}
  else if(researchQueue.length){blockerStage='research';blocker='Santi debe contrastar las fuentes y la ventaja de las candidatas priorizadas';}
  else{blockerStage='discovery';blocker='Sin candidata preparada: buscar señales nuevas y resolver datos que falten';}
- return {at:now,...calendar,counts,researchQueue:researchQueue.length,supportPending:supportPending.length,approvedWaiting:approved.length,readyNextSession:!calendar.marketOpen?approved.length:0,blockerStage,blocker};
+ return {at:now,...calendar,counts,researchQueue:researchQueue.length,supportPending:supportPending.length,analysisDeferred:deferred.length,nextAnalysisAt:deferred.length?Math.min(...deferred.map(e=>e.analysisDeferred.nextAt||nextDeepAnalysisAt(now))):null,approvedWaiting:approved.length,readyNextSession:!calendar.marketOpen?approved.length:0,blockerStage,blocker};
 }

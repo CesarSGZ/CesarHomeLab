@@ -1,6 +1,6 @@
 import {officeState} from './office-boundary.js';
 import {initialiseEmployees,runEmployeeInitiative,employeeTools,actionDescriptions} from './employee-agents.js';
-import {selectResearchCandidates,selectPlanningCandidates,researchEvidenceFingerprint,workflowSettings,pipelineSummary} from './strategy.js';
+import {selectResearchCandidates,selectPlanningCandidates,researchEvidenceFingerprint,workflowSettings,pipelineSummary,requiresDeepAnalysis,nextDeepAnalysisAt} from './strategy.js';
 import {runPreparation,recordFinancialWork,refreshSessionPlan} from './preparation.js';
 import {initialiseCompany,holdMeeting,observeProgram,madridDay,employeeInstructions} from './company.js';
 import {discover} from './discovery.js';
@@ -175,7 +175,13 @@ export async function cycle(env,{advance=false,manual=false,quotesOnly=false}={}
       if(event.plan&&event.plan.expiresAt<=t){event.status='caducado';continue;}
       try{
       if(!event.plan){
-        const complex=/fda|clinical|oncolog|biotech|ensayo clínico|regulator/i.test(event.kind+' '+event.summary);if(s.mode==='real'&&complex&&deepUsed+deepAnalysed>=2)continue;analysed++;if(complex)deepAnalysed++;role(s,'analyst','trabajando',`Analizando ${asset.symbol}`);await checkpoint();
+        const complex=requiresDeepAnalysis(event);
+        if(s.mode==='real'&&complex&&deepUsed+deepAnalysed>=2){
+          const nextAt=nextDeepAnalysisAt(Date.now()),reason='Cuota diaria de dos revisiones profundas agotada; se reabrirá tras medianoche de Nueva York';event.status='espera';event.reasons=[reason];event.analysisDeferred={day:day(),reason,nextAt};
+          const actor=s.company.agency?.actors?.analyst;if(actor){actor.nextWake=Math.min(actor.nextWake,nextAt);actor.nextTask='Revisar '+asset.symbol+' tras el reinicio de la cuota profunda';}
+          log(s,'analyst',asset.symbol+': '+reason);await checkpoint();continue;
+        }
+        delete event.analysisDeferred;analysed++;if(complex)deepAnalysed++;role(s,'analyst','trabajando',`Analizando ${asset.symbol}`);await checkpoint();
         const answer=s.mode==='demo'?{approve:true,thesis:'Tesis ficticia para comprobar entradas, salidas y límites.',entryMin:q.ask*.985,entryMax:q.ask*1.015,stop:q.ask*.94,target:q.ask*1.18,holdingDays:14,bearCase:'Escenario ficticio: caída del 6%.',baseCase:'Escenario ficticio: avance del 8%.',bullCase:'Escenario ficticio: avance del 18%.',invalidation:'Fracaso ficticio del catalizador',reason:'Ejercicio de prueba'}:await llm(env,s,'analyst','Eres analista de un laboratorio de paper trading. Evalúa únicamente la evidencia suministrada. Puedes preparar planes fuera de sesión usando la referencia fechada suministrada (hasta siete días): no es un precio ejecutable ni una promesa de apertura. El máximo de 120 segundos NO se aplica a la preparación: la ejecución pública exige referencia nueva durante sesión. Usa el hecho primario futuro o anuncio material reciente tal como está fechado; no inventes otra fecha. Comprueba la antigüedad y ajusta el plan a la siguiente sesión. Un calendario de resultados por sí solo no demuestra ventaja. Rechaza si faltan datos financieros o evidencia para una tesis y valoración. Define escenarios y umbrales; holdingDays entre 1 y 30. approve=false si no hay base suficiente.',{asset:{symbol:asset.symbol,name:asset.name,marketCap:asset.marketCap,sector:asset.sector},event:{date:event.date,timing:event.timing||'scheduled',kind:event.kind,summary:event.summary,source:event.source,sources:event.sources,research:event.research,preliminary:event.preliminary,preRisk:event.preRisk},financialProfile:s.real.profiles?.[asset.symbol],priority:event.preScore,quote:q,config:s.config,operatingBudget:s.operating},analysisSchema,{work:true,light:!complex,outputTokens:1500});
         event.analysisVersion=2;event.analysisAt=Date.now();
         if(!answer.approve){if(event.research)s.real.stats.rejected++;event.status='descartado';event.reasons=[answer.reason];recordFinancialWork(s,event,'analysis',asset.symbol+': tesis descartada: '+answer.reason,Date.now(),'auditor');log(s,'analyst',`${asset.symbol}: ${answer.reason}`);continue;}

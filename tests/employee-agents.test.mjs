@@ -13,8 +13,9 @@ test('pipeline results become actionable mail for the receiving specialist',()=>
 
 test('employee context includes assigned fundamentals, dated prices and current controls',()=>{
  const s=fixture();s.config={riskPct:.5,minRR:3,maxPositions:20};s.policy={minScore:45,researchDailyLimit:8};s.real.profiles={TEST:{checkedAt:now,fundamentals:{metrics:{annualEnd:'2025-12-31',fcf:5e6,cashLatest:20e6},evidence:[{metric:'cash',filed:'2026-03-01'}],source:'https://data.sec.gov/facts',checkedAt:now}}};s.real.quotes={TEST:{price:5,time:now-864e5,fetchedAt:now,source:'public',referenceOnly:true}};
+ s.real.events[0].analysisDeferred={day:'2026-10-03',reason:'Cuota de dos análisis profundos agotada',nextAt:now+16*3600e3};
  const actor=initialiseEmployees(s,now).actors.analyst;actor.inbox.push({task:'Compara TEST',eventId:'e1',status:'pendiente'});
- const context=employeeContext(s,actor,now);assert.equal(context.configuration.config.riskPct,.5);assert.equal(context.configuration.policy.minScore,45);assert.equal(context.events[0].financialProfile.fundamentals.metrics.fcf,5e6);assert.equal(context.events[0].priceReference.time,now-864e5);assert.equal(context.backlog.research.count,1);assert.ok(context.tools.includes('prepare_plan'));assert.equal(context.market.planningOutsideSession,true);
+ const context=employeeContext(s,actor,now);assert.equal(context.configuration.config.riskPct,.5);assert.equal(context.configuration.policy.minScore,45);assert.equal(context.events[0].financialProfile.fundamentals.metrics.fcf,5e6);assert.equal(context.events[0].priceReference.time,now-864e5);assert.deepEqual(context.events[0].analysisDeferred,s.real.events[0].analysisDeferred);assert.equal(context.backlog.research.count,1);assert.ok(context.tools.includes('prepare_plan'));assert.equal(context.market.planningOutsideSession,true);
 });
 
 test('research retry is durable and respects cooldown or a new primary update',()=>{
