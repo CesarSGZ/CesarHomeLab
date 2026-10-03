@@ -2,7 +2,7 @@ import {officeState} from './office-boundary.js';
 import {initialiseCompany,holdMeeting,observeProgram,madridDay,employeeInstructions} from './company.js';
 import {discover} from './discovery.js';
 import {initialiseGovernance,metrics,dailyReview,visualManifest,validManifest,message} from './governance.js';
-import {refreshMarket,referenceSource} from './market-data.js';
+import {refreshMarket,referenceSource,planningReference} from './market-data.js';
 import universe from './universe.json' with {type:'json'};
 import {defaults,eligible,id,num,day,newBook,equity,allocation,fxValid,rollover,buy,sell,monitor,sample,freshQuote} from './core.js';
 import {encryptSecret,decryptSecret} from '../functions/_lib/crypto-store.js';
@@ -150,16 +150,16 @@ export async function cycle(env,{advance=false,manual=false,quotesOnly=false}={}
       if(s.paused||!agentOn('analyst')||!agentOn('risk')||analysed>=s.config.maxAnalyses||s.mode==='real'&&(deepUsed+analysed>=2||s.operating.remainingEur<.05))break;
       if(!event.confirmed){event.status='verificar';continue;}
       const asset=data.assets.find(a=>a.symbol===event.symbol);if(!asset||eligible(asset,s.config))continue;
-      const q=data.quotes[asset.symbol];if(!freshQuote(q,t,s.config)||!(s.mode==='demo'?asset.contractVerified:asset.dataVerified)){event.status='espera';event.reasons=['Esperando referencia pública válida durante la sesión'];continue;}
-      if(s.mode==='real'&&(!keyPresent||!fxValid(data.book,t)))continue;
+      const q=data.quotes[asset.symbol];if(!(s.mode==='demo'?freshQuote(q,t,s.config):planningReference(q,t))||!(s.mode==='demo'?asset.contractVerified:asset.dataVerified)){event.status='espera';event.reasons=['Esperando referencia pública fechada para preparar el análisis'];continue;}
+      if(s.mode==='real'&&!keyPresent)continue;
       if(data.book.entriesToday>=s.config.maxEntries||data.book.positions.length>=s.config.maxPositions)break;
       if(event.plan&&event.plan.expiresAt<=t){event.status='caducado';continue;}
       if(!event.plan){
         analysed++;role(s,'analyst','trabajando',`Analizando ${asset.symbol}`);await checkpoint();
-        const answer=s.mode==='demo'?{approve:true,thesis:'Tesis ficticia para comprobar entradas, salidas y límites.',entryMin:q.ask*.985,entryMax:q.ask*1.015,stop:q.ask*.94,target:q.ask*1.18,holdingDays:14,bearCase:'Escenario ficticio: caída del 6%.',baseCase:'Escenario ficticio: avance del 8%.',bullCase:'Escenario ficticio: avance del 18%.',invalidation:'Fracaso ficticio del catalizador',reason:'Ejercicio de prueba'}:await llm(env,s,'analyst','Eres analista de un laboratorio de paper trading. Evalúa únicamente la evidencia suministrada. Un calendario de resultados por sí solo no demuestra ventaja. Rechaza si faltan datos financieros o evidencia para una tesis y valoración. Define escenarios y umbrales; holdingDays entre 1 y 30. approve=false si no hay base suficiente.',{asset:{symbol:asset.symbol,name:asset.name,marketCap:asset.marketCap,sector:asset.sector},event:{date:event.date,kind:event.kind,summary:event.summary,source:event.source,sources:event.sources,research:event.research},financialProfile:s.real.profiles?.[asset.symbol],priority:event.preScore,quote:q,config:s.config,operatingBudget:s.operating},analysisSchema);
+        const answer=s.mode==='demo'?{approve:true,thesis:'Tesis ficticia para comprobar entradas, salidas y límites.',entryMin:q.ask*.985,entryMax:q.ask*1.015,stop:q.ask*.94,target:q.ask*1.18,holdingDays:14,bearCase:'Escenario ficticio: caída del 6%.',baseCase:'Escenario ficticio: avance del 8%.',bullCase:'Escenario ficticio: avance del 18%.',invalidation:'Fracaso ficticio del catalizador',reason:'Ejercicio de prueba'}:await llm(env,s,'analyst','Eres analista de un laboratorio de paper trading. Evalúa únicamente la evidencia suministrada. Puedes preparar planes fuera de sesión usando la referencia fechada suministrada: no es un precio ejecutable ni una promesa de apertura. Comprueba la antigüedad y ajusta el plan a la siguiente sesión. Un calendario de resultados por sí solo no demuestra ventaja. Rechaza si faltan datos financieros o evidencia para una tesis y valoración. Define escenarios y umbrales; holdingDays entre 1 y 30. approve=false si no hay base suficiente.',{asset:{symbol:asset.symbol,name:asset.name,marketCap:asset.marketCap,sector:asset.sector},event:{date:event.date,kind:event.kind,summary:event.summary,source:event.source,sources:event.sources,research:event.research},financialProfile:s.real.profiles?.[asset.symbol],priority:event.preScore,quote:q,config:s.config,operatingBudget:s.operating},analysisSchema);
         if(!answer.approve){if(event.research)s.real.stats.rejected++;message(s,'analyst','auditor',asset.symbol+': descartado · '+answer.reason);event.status='descartado';event.reasons=[answer.reason];log(s,'analyst',`${asset.symbol}: ${answer.reason}`);continue;}
         if(!Number.isFinite(answer.holdingDays)||answer.holdingDays<1||answer.holdingDays>30)throw Error('Duración inválida del plan');
-        event.plan={...answer,expiresAt:Math.min(t+answer.holdingDays*864e5,Date.parse(event.date)+2*864e5)};
+        event.plan={...answer,referenceAt:q.time,preparedAt:t,expiresAt:Math.min(t+answer.holdingDays*864e5,Date.parse(event.date)+2*864e5)};
       }
       if(!event.review){
         role(s,'risk','trabajando',`Revisando ${asset.symbol}`);await checkpoint();

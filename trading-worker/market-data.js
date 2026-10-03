@@ -11,6 +11,8 @@ export function parseChart(json,symbol,now){
  const avg=volumes.slice(-20);if(avg.length<5)throw Error('Historial de liquidez insuficiente');
  return {price,time,fetchedAt:now,referenceOnly:true,realtime:false,source:referenceSource,dollarVolume:avg.reduce((a,b)=>a+b,0)/avg.length,liquidityBasis:'Promedio histórico de hasta 20 sesiones',currency:'USD',symbol};
 }
+// A dated public price is sufficient for research, never for an executable entry.
+export function planningReference(q,now){return q?.referenceOnly===true&&q.source===referenceSource&&q.currency==='USD'&&q.price>0&&Number.isFinite(q.price)&&Number.isFinite(q.time)&&q.time<=now+5000&&now-q.time<=7*864e5&&Number.isFinite(q.fetchedAt)&&q.fetchedAt<=now+5000&&now-q.fetchedAt<=7*864e5;}
 export async function refreshMarket(s,{force=false,fetcher=fetch,now=Date.now()}={}){
  if(s.mode!=='real')return;
  const d=s.real;if(!force&&now-(d.marketCheckedAt||0)<15*60e3)return;
@@ -19,7 +21,7 @@ export async function refreshMarket(s,{force=false,fetcher=fetch,now=Date.now()}
  const ordered=[...d.book.positions.map(p=>p.symbol),...finalists,...watchlist];
  const symbols=[...new Set(ordered)].slice(0,28);d.marketCheckedAt=now;d.marketError=null;
  if(!symbols.length){d.marketStatus='Esperando candidatos con evidencia';return;}
- if(!force&&!regularSession(now)&&Object.keys(d.quotes).length){d.marketStatus='Mercado cerrado; referencias conservadas con su fecha';return;}
+ if(!force&&!regularSession(now)&&now-(d.marketProviderAt||0)<6*3600e3&&symbols.every(symbol=>planningReference(d.quotes[symbol],now))){d.marketStatus='Mercado cerrado; referencias conservadas con su fecha';return;}
  d.marketPurpose=d.book.positions.length?'Vigilancia de posiciones':finalists.length?'Precios para candidatas confirmadas':'Comprobación del proveedor con acciones del radar; no autoriza compras';
  let updated=0;const errors=[];
  for(let i=0;i<symbols.length;i+=4){const batch=await Promise.allSettled(symbols.slice(i,i+4).map(async symbol=>{const r=await fetcher('https://query1.finance.yahoo.com/v8/finance/chart/'+encodeURIComponent(symbol.replaceAll('.','-'))+'?interval=1d&range=1mo&includePrePost=false',{headers:{'User-Agent':'Mozilla/5.0','Accept':'application/json'},signal:AbortSignal.timeout(12000)});if(!r.ok)throw Error('Proveedor HTTP '+r.status);return {symbol,q:parseChart(await r.json(),symbol,now)};}));
