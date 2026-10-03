@@ -1,4 +1,4 @@
-import {office} from './trading-office.js?v=20261003pixel1';
+import {office} from './trading-office.js?v=20261003pixel2';
 const root=document.getElementById('trading-app');let csrf='',state=null,tab='office',selected='scout',initialised=false,search='',filter='all',stopOffice=null,polling=false,zoomOpen=false,pendingCommand=null;
 const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const usd=x=>new Intl.NumberFormat('es-ES',{style:'currency',currency:'USD',maximumFractionDigits:2}).format(x||0);
