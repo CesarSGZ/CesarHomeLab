@@ -39,10 +39,10 @@ export function researchBrief(s,event,now=Date.now()){
  return {assignments:(s.company?.agency?.workQueue||[]).filter(w=>w.kind==='research'&&w.eventId===event.id&&workPending(w)&&(!w.notBefore||w.notBefore<=now)).slice(0,3).map(w=>({from:w.from,task:w.task,reason:w.reason})),preliminary:event.preliminary?{summary:event.preliminary.summary,missingEvidence:event.preliminary.missingEvidence,nextTask:event.preliminary.nextTask}:null,preRisk:event.preRisk?{summary:event.preRisk.summary,missingEvidence:event.preRisk.missingEvidence,nextTask:event.preRisk.nextTask}:null,analysisFollowup:event.analysisFollowup?{reason:event.analysisFollowup.reason,missingEvidence:event.analysisFollowup.missingEvidence,nextTask:event.analysisFollowup.nextTask}:null};
 }
 
-export function sessionResearchPacing(s,now=Date.now()){
- const settings=workflowSettings(s),pipeline=pipelineSummary(s,now),target=2;
- const nearing=Date.parse(pipeline.nextSessionDate+'T13:30:00Z')-now<60*3600e3;
- const preparing=settings.weekendPlanning&&nearing&&pipeline.counts.approvedWaiting<target;
+function researchPacing(s,now,approvedWaiting){
+ const settings=workflowSettings(s),calendar=sessionCalendar(now),target=2;
+ const nearing=Date.parse(calendar.nextSessionDate+'T13:30:00Z')-now<60*3600e3;
+ const preparing=settings.weekendPlanning&&nearing&&approvedWaiting<target;
  const affordable=Math.max(0,Math.floor((s.operating?.paceEurPerDay||0)/.045));
  let limit=Math.min(preparing?Math.max(settings.researchDailyLimit,6):settings.researchDailyLimit,affordable);
  if(preparing&&!s.operating?.exhausted&&s.operating?.remainingEur>0&&finite(s.operating?.daySpentEur)){
@@ -51,6 +51,9 @@ export function sessionResearchPacing(s,now=Date.now()){
   if(extra>0){const pendingFollowupCount=selectResearchCandidates(s,now).filter(e=>e.confirmed&&analysisFollowupPending(e)).length;limit=Math.min(12,Math.max(limit,callsToday+Math.min(pendingFollowupCount,extra)));}
  }
  return {target,preparing,limit,intervalMinutes:preparing?Math.min(settings.researchIntervalMinutes,45):settings.researchIntervalMinutes};
+}
+export function sessionResearchPacing(s,now=Date.now()){
+ return researchPacing(s,now,selectPlanningCandidates(s,now).filter(e=>e.plan&&e.review?.approve===true).length);
 }
 
 // A future announced event and an already published catalyst are distinct facts.
@@ -90,6 +93,26 @@ export function pendingResearchAssignment(s,event,now=Date.now()){
 export function analysisFollowupPending(event){
  return !!event.analysisFollowup&&dated(event.research?.researchedAt)<=dated(event.analysisFollowup.baselineResearchAt);
 }
+const metadataKeys=new Set(['checkedAt','fetchedAt','researchedAt','costEur','_costEur','annualAgeDays','marketCapAt','extractorVersion']);
+function evidenceValue(value){
+ if(value===undefined)return null;
+ if(Array.isArray(value))return value.map(evidenceValue);
+ if(value&&typeof value==='object')return Object.fromEntries(Object.entries(value).filter(([key])=>!metadataKeys.has(key)).sort(([a],[b])=>a.localeCompare(b)).map(([key,item])=>[key,evidenceValue(item)]));
+ return value;
+}
+const evidenceSources=sources=>(sources||[]).map(evidenceValue).sort((a,b)=>JSON.stringify(a).localeCompare(JSON.stringify(b)));
+export function analysisEvidenceFingerprint(s,event){
+ const profile=s.real.profiles?.[event.symbol],f=profile?.fundamentals,m=profile?.market;
+ const marketKeys=['return5d','return21d','return63d','return1y','drawdown1y','drawdownObserved','relativeVolume','averageDollarVolume','adjustedCloseAvailable','returnBasis','definitions','seriesDiagnostic'];
+ return JSON.stringify(evidenceValue({facts:{date:event.date,timing:event.timing,kind:event.kind,summary:event.summary,source:event.source,sources:evidenceSources(event.sources)},financial:{metrics:f?.metrics||null,latestQuarter:f?.latestQuarter||null,evidence:f?.evidence||null},market:m?Object.fromEntries(marketKeys.map(key=>[key,m[key]])):null,research:{findings:event.research?.taskFindings||event.research?.supplement?.findings||null,sources:evidenceSources(event.research?.supplement?.sources)}}));
+}
+export function analysisBlockedForEvidence(s,event){
+ return !!event.analysisBlocked&&event.analysisBlocked.fingerprint===analysisEvidenceFingerprint(s,event);
+}
+function researchIntervalReadyAt(s,now,intervalMinutes){
+ const last=s.real.lastResearch||0,failed=(s.real.events||[]).some(e=>e.researchAttemptAt>=last&&e.researchAttemptAt-last<1000&&e.researchRetryAfter>now);
+ return failed?now:Math.max(now,last+intervalMinutes*60e3);
+}
 function queuedPriority(s,e,kind,now){return (s.company?.agency?.workQueue||[]).filter(w=>workPending(w)&&(!w.notBefore||w.notBefore<=now)&&w.kind===kind&&(w.eventId===e.id||w.symbol===e.symbol)).reduce((n,w)=>Math.max(n,w.time||w.createdAt||0),0);}
 function priority(s,e,kind,now){const mark=Math.max(e.employeePriority?.time||0,queuedPriority(s,e,kind,now));return finite(mark)&&mark<=now&&now-mark<=7*day?mark:0;}
 function focusBoost(e,s,settings){const sector=s.real.assets?.find(a=>a.symbol===e.symbol)?.sector||'',kind=e.kind||e.signal?.kind||'';return Number(settings.focusSectors.some(x=>sector.toLowerCase().includes(x.toLowerCase())))+Number(settings.catalystKinds.some(x=>kind.toLowerCase().includes(x.toLowerCase())));}
@@ -116,7 +139,7 @@ export function selectResearchCandidates(s,now=Date.now()){
 export function selectPlanningCandidates(s,now=Date.now()){
  const settings=workflowSettings(s),weekend=['Sat','Sun'].includes(new Intl.DateTimeFormat('en-US',{timeZone:'America/New_York',weekday:'short'}).format(new Date(now)));
  if(weekend&&!settings.weekendPlanning)return [];
- const rows=(s.real.events||[]).filter(e=>!closedStatuses.has(e.status)&&!deferredToday(e,now)&&!(e.retryAfter>now)&&!analysisFollowupPending(e)&&catalystReady(e,now)&&e.research?.worthAnalyzing!==false&&(!e.plan||finite(e.plan.expiresAt)&&e.plan.expiresAt>now)&&e.plan?.approve!==false&&e.review?.approve!==false);
+ const rows=(s.real.events||[]).filter(e=>!closedStatuses.has(e.status)&&!deferredToday(e,now)&&!(e.retryAfter>now)&&!analysisFollowupPending(e)&&!analysisBlockedForEvidence(s,e)&&catalystReady(e,now)&&e.research?.worthAnalyzing!==false&&(!e.plan||finite(e.plan.expiresAt)&&e.plan.expiresAt>now)&&e.plan?.approve!==false&&e.review?.approve!==false);
  return order(s,rows,'analysis',settings,now);
 }
 
@@ -129,8 +152,8 @@ function sessionCalendar(now){
 
 export function pipelineSummary(s,now=Date.now()){
  const events=s.real.events||[],work=(s.company?.agency?.workQueue||[]).filter(workPending),planning=selectPlanningCandidates(s,now),researchQueue=selectResearchCandidates(s,now),calendar=sessionCalendar(now);
- const confirmed=events.filter(e=>!closedStatuses.has(e.status)&&catalystReady(e,now)),deferred=confirmed.filter(e=>deferredToday(e,now)),followup=confirmed.filter(analysisFollowupPending),prepared=planning.filter(e=>e.plan),approved=prepared.filter(e=>e.review?.approve===true),riskPending=prepared.filter(e=>!e.review),supportPending=work.filter(w=>w.phase==='preliminary'||['analysis','risk','market','profile','development','strategy','code','execution'].includes(w.kind));
- const counts={signals:events.filter(e=>!closedStatuses.has(e.status)).length,researchQueue:researchQueue.length,researched:events.filter(e=>e.research).length,confirmed:confirmed.length,analysisReady:planning.filter(e=>!e.plan).length,analysisDeferred:deferred.length,researchFollowupPending:followup.length,riskPending:riskPending.length,plansPrepared:prepared.length,approvedWaiting:approved.length,supportPending:supportPending.length,positions:s.real.book?.positions?.length||0,closed:s.real.book?.closed?.length||0};
+ const confirmed=events.filter(e=>!closedStatuses.has(e.status)&&catalystReady(e,now)),deferred=confirmed.filter(e=>deferredToday(e,now)),followup=confirmed.filter(analysisFollowupPending),blocked=confirmed.filter(e=>analysisBlockedForEvidence(s,e)),prepared=planning.filter(e=>e.plan),approved=prepared.filter(e=>e.review?.approve===true),riskPending=prepared.filter(e=>!e.review),supportPending=work.filter(w=>w.phase==='preliminary'||['analysis','risk','market','profile','development','strategy','code','execution'].includes(w.kind));
+ const counts={signals:events.filter(e=>!closedStatuses.has(e.status)).length,researchQueue:researchQueue.length,researched:events.filter(e=>e.research).length,confirmed:confirmed.length,analysisReady:planning.filter(e=>!e.plan).length,analysisDeferred:deferred.length,analysisBlocked:blocked.length,researchFollowupPending:followup.length,riskPending:riskPending.length,plansPrepared:prepared.length,approvedWaiting:approved.length,supportPending:supportPending.length,positions:s.real.book?.positions?.length||0,closed:s.real.book?.closed?.length||0};
  let blocker='',blockerStage='';
  if(s.operating?.exhausted||s.operating?.remainingEur===0){blockerStage='budget';blocker='Presupuesto mensual de IA agotado; vigilancia por código activa';}
  else if(approved.length&&s.paused){blockerStage='paused';blocker='Planes preparados; nuevas entradas pausadas por César';}
@@ -139,8 +162,11 @@ export function pipelineSummary(s,now=Date.now()){
  else if(planning.length){blockerStage='analysis';blocker='Catalizadores contrastados pendientes de valoración y plan de Pedro';}
  else if(followup.length){blockerStage='research_followup';blocker='Santi debe resolver preguntas concretas de Pedro antes de repetir la valoración';}
  else if(deferred.length){blockerStage='analysis_quota';blocker='Revisión profunda aplazada por cuota diaria; se reabre tras medianoche de Nueva York';}
+ else if(blocked.length){blockerStage='analysis_evidence';blocker='Evaluación bloqueada por datos; se conserva el presupuesto hasta que cambien hechos o evidencia financiera';}
  else if(supportPending.length){blockerStage='support';blocker='Resolver datos, comprobaciones o código solicitados por empleados';}
  else if(researchQueue.length){blockerStage='research';blocker='Santi debe contrastar las fuentes y la ventaja de las candidatas priorizadas';}
  else{blockerStage='discovery';blocker='Sin candidata preparada: buscar señales nuevas y resolver datos que falten';}
- return {at:now,...calendar,counts,entriesPaused:!!s.paused,researchQueue:researchQueue.length,supportPending:supportPending.length,analysisDeferred:deferred.length,nextAnalysisAt:deferred.length?Math.min(...deferred.map(e=>e.analysisDeferred.nextAt||nextDeepAnalysisAt(now))):null,researchFollowupPending:followup.length,nextResearchAt:followup.length?Math.min(...followup.map(e=>researchReadyAt(e,now))):null,approvedWaiting:approved.length,readyNextSession:!calendar.marketOpen?approved.length:0,blockerStage,blocker};
+ const globalResearchAt=researchIntervalReadyAt(s,now,researchPacing(s,now,approved.length).intervalMinutes);
+ const nextResearchAt=followup.length?Math.max(globalResearchAt,Math.min(...followup.map(e=>Math.max(researchReadyAt(e,now),e.researchRetryAfter||0,...work.filter(w=>w.kind==='research'&&w.eventId===e.id).map(w=>w.notBefore||0))))):null;
+ return {at:now,...calendar,counts,entriesPaused:!!s.paused,researchQueue:researchQueue.length,supportPending:supportPending.length,analysisDeferred:deferred.length,analysisBlocked:blocked.length,nextAnalysisAt:deferred.length?Math.min(...deferred.map(e=>e.analysisDeferred.nextAt||nextDeepAnalysisAt(now))):null,researchFollowupPending:followup.length,nextResearchAt,approvedWaiting:approved.length,readyNextSession:!calendar.marketOpen?approved.length:0,blockerStage,blocker};
 }

@@ -2,7 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {initialState,upgradeState} from '../trading-worker/engine.js';
 import {queueEmployeeWork,pendingEmployeeWork} from '../trading-worker/employee-agents.js';
-import {runPreparation,recordFinancialWork,refreshSessionPlan,requestAnalysisEvidence,recoverDataGapRejections} from '../trading-worker/preparation.js';
+import {runPreparation,recordFinancialWork,refreshSessionPlan,requestAnalysisEvidence,recoverDataGapRejections,blockAnalysisForEvidence} from '../trading-worker/preparation.js';
+import {selectPlanningCandidates,analysisBlockedForEvidence,pipelineSummary} from '../trading-worker/strategy.js';
 import {officeState} from '../trading-worker/office-boundary.js';
 
 const now=Date.parse('2026-10-03T12:00:00Z');
@@ -32,6 +33,25 @@ test('legacy data gaps recover once while economic and risk rejections remain fi
  s.real.events=[{...base,id:'missing',reasons:['Faltan datos sobre condiciones del contrato']},{...base,id:'economics',reasons:['Datos de fechas distintas; la hipótesis no está calibrada ni ofrece una relación riesgo-recompensa atractiva']},{...base,id:'risk',review:{approve:false},reasons:['Faltan datos y riesgo de dilución']}];
  recoverDataGapRejections(s,now);assert.equal(s.real.events[0].status,'verificar');assert.equal(s.real.events[1].status,'descartado');assert.equal(s.real.events[2].status,'descartado');
  const count=s.company.agency.workQueue.length;recoverDataGapRejections(s,now+1);assert.equal(s.company.agency.workQueue.length,count);assert.equal(s.real.book.orders.length,0);
+});
+
+test('exhausted evidence requests wait for meaningful facts without another queue, approval, or economic rejection',()=>{
+ const s=fixture(),e=s.real.events[0];Object.assign(e,{confirmed:true,date:'2026-10-07T20:00:00Z',sources:[{url:'https://issuer.example/contract',claim:'Fecha y contrato primarios'}],status:'nuevo',research:{researchedAt:now-3600e3,worthAnalyzing:true},followupHistory:[{fingerprint:'first'},{fingerprint:'second'}],plan:{entryMin:4,entryMax:5,stop:3,target:8},review:{approve:false}});
+ const reply={decision:'needs_evidence',approve:false,reason:'Faltan los covenants',missingEvidence:['Covenants y vencimientos'],nextResearchTask:'Read the debt annex and identify covenants'},book=JSON.stringify(s.real.book),queue=JSON.stringify(s.company.agency.workQueue);
+ assert.equal(requestAnalysisEvidence(s,e,reply,now),false);const blocked=blockAnalysisForEvidence(s,e,reply,now,'risk');assert.equal(blocked.guard,'followup_limit');assert.equal(blocked.owner,'risk');assert.equal(e.status,'verificar');assert.equal(e.plan,undefined);assert.equal(e.review,undefined);assert.ok(e.previousPlan);assert.ok(e.previousReview);assert.equal(e.analysisAssessment.executable,false);assert.deepEqual(e.analysisBlocked.missingEvidence,reply.missingEvidence);assert.equal(e.followupHistory.length,2);assert.equal(JSON.stringify(s.company.agency.workQueue),queue);assert.equal(JSON.stringify(s.real.book),book);assert.equal(analysisBlockedForEvidence(s,e),true);assert.equal(selectPlanningCandidates(s,now).length,0);assert.equal(pipelineSummary(s,now).blockerStage,'analysis_evidence');assert.equal(pipelineSummary(s,now).counts.analysisBlocked,1);
+ s.real.profiles.TEST.checkedAt=now+1000;s.real.profiles.TEST.fundamentals.checkedAt=now+1000;s.real.profiles.TEST.fundamentals.metrics.annualAgeDays++;s.real.profiles.TEST.market.asOf='2026-10-03T20:00:00Z';s.real.profiles.TEST.market.checkedAt=now+1000;s.real.quotes.TEST={...s.real.quotes.TEST,price:6,time:now+1000,fetchedAt:now+1000};e.research.researchedAt=now+1000;e.research.costEur=.002;
+ assert.equal(analysisBlockedForEvidence(s,e),true);assert.equal(selectPlanningCandidates(s,now+2*864e5).length,0,'Time, refreshed metadata and a quote alone cannot repeat paid analysis');
+ s.real.profiles.TEST.fundamentals.metrics.cashLatest=25e6;assert.equal(analysisBlockedForEvidence(s,e),false);assert.equal(selectPlanningCandidates(s,now+1000)[0],e);
+ blockAnalysisForEvidence(s,e,reply,now+1000);assert.equal(selectPlanningCandidates(s,now+2000).length,0);assert.equal(e.analysisBlockHistory.length,2);blockAnalysisForEvidence(s,e,reply,now+3000);assert.equal(e.analysisBlockHistory.length,2);assert.equal(e.followupHistory.length,2);assert.equal(JSON.stringify(s.company.agency.workQueue),queue);
+ s.real.profiles.TEST.fundamentals.latestQuarter={end:'2026-06-30',filed:'2026-08-01',metrics:{revenue:130e6}};assert.equal(selectPlanningCandidates(s,now+4000)[0],e);blockAnalysisForEvidence(s,e,reply,now+4000);
+ s.real.profiles.TEST.market.seriesDiagnostic={adjustments:{complete:true,observedFactorChanges:0},last:{rawClose:5,adjustedClose:5}};assert.equal(selectPlanningCandidates(s,now+5000)[0],e);blockAnalysisForEvidence(s,e,reply,now+5000);
+ e.sources.push({url:'https://issuer.example/debt-annex',claim:'Fuente nueva con covenants y vencimientos'});assert.equal(selectPlanningCandidates(s,now+6000)[0],e);
+ assert.throws(()=>blockAnalysisForEvidence(s,e,{...reply,decision:'reject'},now+7000),/Solo una evaluación/);assert.equal(e.followupHistory.length,2);assert.equal(s.real.book.orders.length,0);
+});
+
+test('an unencodable evidence request is explicitly blocked without inventing a task or consuming a follow-up slot',()=>{
+ const s=fixture(),e=s.real.events[0],reply={decision:'needs_evidence',approve:false,reason:'Solicitud sin dato concreto',missingEvidence:[],nextResearchTask:''};
+ assert.equal(requestAnalysisEvidence(s,e,reply,now),false);const blocked=blockAnalysisForEvidence(s,e,reply,now);assert.equal(blocked.guard,'incomplete_request');assert.equal(blocked.nextTask,'');assert.deepEqual(blocked.missingEvidence,[]);assert.equal(e.followupHistory,undefined);assert.equal(s.company.agency.workQueue.length,0);assert.equal(e.status,'verificar');assert.equal(s.real.book.orders.length,0);
 });
 
 test('weekend preliminary work uses cached dated financial evidence and creates no orders',async()=>{

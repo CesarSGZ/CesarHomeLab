@@ -110,6 +110,15 @@ test('planning waits for the actual follow-up answer and retry date, then resume
  assert.deepEqual(selectPlanningCandidates(s,e.retryAfter),[e]);assert.equal(e.plan,undefined);assert.equal(e.review,undefined);
 });
 
+test('next research time includes global pacing, candidate cooldown and retry while allowing another company after a recent failure',()=>{
+ const baseline=now-5*3600e3,e=confirmed('next',{research:{researchedAt:baseline,worthAnalyzing:true},researchAttemptAt:baseline,analysisFollowup:{baselineResearchAt:baseline,nextTask:'Read the financing annex'}}),s=fixture([e]);
+ s.company.agency.workQueue=[{kind:'research',eventId:e.id,status:'pending',createdAt:now-3600e3,notBefore:now-3600e3,task:'Read the financing annex'}];s.real.lastResearch=now-5*60e3;
+ assert.equal(pipelineSummary(s,now).nextResearchAt,now+40*60e3);assert.equal(sessionResearchPacing(s,now).intervalMinutes,45);
+ s.company.agency.workQueue[0].notBefore=now+3600e3;assert.equal(pipelineSummary(s,now).nextResearchAt,now+3600e3);s.company.agency.workQueue[0].notBefore=now-3600e3;
+ e.researchRetryAfter=now+2*3600e3;assert.equal(pipelineSummary(s,now).nextResearchAt,now+2*3600e3);delete e.researchRetryAfter;
+ s.real.events.push(candidate('failed',{researchAttemptAt:s.real.lastResearch+1,researchRetryAfter:now+4*3600e3}));assert.equal(pipelineSummary(s,now).nextResearchAt,now,'A failed company does not impose a fresh global wait on another ready task');
+});
+
 test('employee priorities and structured research requests choose useful work without changing scores',()=>{
  const high=candidate('high',{preScore:{eligible:true,score:90}}),assigned=candidate('assigned',{preScore:{eligible:true,score:50}}),s=fixture([high,assigned]);s.company.agency.workQueue.push({id:'q1',kind:'research',eventId:'assigned',createdAt:now-1000,status:'pending',notBefore:now-1000});
  assert.deepEqual(selectResearchCandidates(s,now).map(e=>e.id),['assigned','high']);assert.equal(assigned.preScore.score,50);

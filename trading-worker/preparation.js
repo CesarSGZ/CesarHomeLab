@@ -1,5 +1,5 @@
 import {pendingEmployeeWork,queueEmployeeWork,finishEmployeeWork} from './employee-agents.js';
-import {workflowSettings,validateWorkflowStrategy,pipelineSummary,researchEvidenceFingerprint,catalystReady,quoteContext,sessionResearchPacing,analysisFollowupPending} from './strategy.js';
+import {workflowSettings,validateWorkflowStrategy,pipelineSummary,researchEvidenceFingerprint,catalystReady,quoteContext,sessionResearchPacing,analysisFollowupPending,analysisEvidenceFingerprint} from './strategy.js';
 import {prepareDevelopment} from './development.js';
 import {developmentFiles} from './office-boundary.js';
 
@@ -16,6 +16,20 @@ export function requestAnalysisEvidence(s,event,answer,now=Date.now(),owner='ana
  delete event.plan;delete event.review;event.status='verificar';event.reasons=['Investigación adicional solicitada por '+owner+': '+task];
  queueEmployeeWork(s,'research',event.id,{owner,decision:String(answer.reason||'Completar evidencia antes de planificar'),nextTask:task,evidenceIds:[event.id],strategy:null},now);
  return true;
+}
+
+export function blockAnalysisForEvidence(s,event,answer,now=Date.now(),owner='analyst'){
+ if(answer.decision!=='needs_evidence'||answer.approve!==false)throw Error('Solo una evaluación pendiente de evidencia puede bloquearse por datos');
+ const fingerprint=analysisEvidenceFingerprint(s,event),guard=(event.followupHistory?.length||0)>=2?'followup_limit':'incomplete_request';
+ const missingEvidence=(answer.missingEvidence||[]).filter(x=>typeof x==='string'&&x.trim()).slice(0,3),reason=String(answer.reason||'Falta evidencia suficiente para completar la evaluación').slice(0,1200),nextTask=String(answer.nextResearchTask||'').slice(0,1000);
+ const blocked={at:now,owner,guard,reason,missingEvidence,nextTask,fingerprint};
+ event.analysisBlockHistory??=[];
+ if(event.analysisBlocked?.fingerprint!==fingerprint)event.analysisBlockHistory.push({at:now,owner,guard,reason,missingEvidence,nextTask,fingerprint,status:event.status});
+ event.analysisBlockHistory=event.analysisBlockHistory.slice(-12);event.analysisBlocked=blocked;event.analysisAssessment={...answer,at:now,executable:false};
+ if(event.plan)event.previousPlan={...event.plan,withdrawnAt:now,reason:'Evaluación bloqueada por evidencia pendiente'};
+ if(event.review)event.previousReview={...event.review,withdrawnAt:now};
+ delete event.plan;delete event.review;event.status='verificar';event.reasons=['Bloqueado por datos: '+reason,'No se repite IA ni se crean nuevos encargos hasta recibir evidencia significativa'];
+ return blocked;
 }
 
 export function recoverDataGapRejections(s,now=Date.now()){
