@@ -30,7 +30,8 @@ test('operational-only initiatives and null economics do not create or restart a
 });
 
 test('another economic initiative remains honestly blocked while operations proceed and the existing pilot continues',async()=>{
- const s=fixture(),book=JSON.stringify(s.real.book);enqueue(s,{riskPct:.5,minRR:1.5});await prepare(s);const first=s.company.shadowProgram,start=s.company.versions[0].adaptation.startedAt;
+ const s=fixture();enqueue(s,{riskPct:.5,minRR:1.5});await prepare(s);const first=s.company.shadowProgram,start=s.company.versions[0].adaptation.startedAt;
+ s.real.book.closed.push({id:'actual-pilot-close',adaptationId:first,qty:50,entry:10,entryFx:1,pnl:0,closedAt:now+500});const book=JSON.stringify(s.real.book);
  const later=now+1000,w=enqueue(s,{riskPct:1.5,minRR:1,minScore:35,researchDailyLimit:8,focusSectors:['Technology']},later);await prepare(s,later);
  assert.equal(w.status,'blocked');assert.match(w.result,/cambios económicos diferidos/);assert.equal(s.company.shadowProgram,first);assert.equal(s.company.versions.length,1);assert.equal(s.company.versions[0].adaptation.startedAt,start);assert.equal(s.policy.researchDailyLimit,8);assert.equal(s.policy.minScore,45);assert.equal(s.config.riskPct,.35);assert.equal(s.config.minRR,2);assert.equal(workflowSettings(s).riskPct,.35);assert.deepEqual(workflowSettings(s).focusSectors,['Technology']);assert.equal(s.company.strategyHistory[0].status,'deferred');assert.equal(s.company.strategyHistory[0].requested.riskPct,1.5);
  const entries=s.company.strategyHistory.length;await prepare(s,w.notBefore);assert.equal(w.status,'blocked');assert.equal(s.company.strategyHistory.length,entries);assert.equal(s.company.versions.length,1);
@@ -38,6 +39,13 @@ test('another economic initiative remains honestly blocked while operations proc
  s.policy.researchDailyLimit=9;s.company.strategy.researchDailyLimit=9;await prepare(s,w.notBefore);assert.equal(s.policy.researchDailyLimit,9);assert.equal(s.company.strategy.researchDailyLimit,9);assert.equal(s.company.shadowProgram,first);
  observeProgram(officeState(s),now+22*day);assert.equal(s.company.shadowProgram,null);await prepare(s,now+22*day);
  assert.equal(w.status,'complete');assert.equal(s.company.versions.length,2);assert.notEqual(s.company.shadowProgram,first);assert.equal(s.company.strategyHistory[0].status,'pilot');assert.equal(s.company.versions[0].program.workflow.researchDailyLimit,9);assert.equal(s.config.riskPct,.35);assert.equal(s.policy.minScore,45);assert.equal(JSON.stringify(s.real.book),book);
+});
+
+test('employees can replace an untraded hypothesis without restarting an identical one or raising global risk',async()=>{
+ const s=fixture(),book=JSON.stringify(s.real.book);enqueue(s,{riskPct:.5,minRR:1.5});await prepare(s);const first=s.company.shadowProgram;
+ const same=enqueue(s,{riskPct:.5,minRR:1.5},now+1);await prepare(s,now+1);assert.equal(same.status,'blocked');assert.equal(s.company.shadowProgram,first);
+ const different=enqueue(s,{riskPct:.75,minRR:1.2},now+2);await prepare(s,different.notBefore);assert.equal(different.status,'complete');assert.notEqual(s.company.shadowProgram,first);
+ assert.equal(s.company.versions.find(v=>v.id===first).adaptation.phase,'reverted');assert.equal(s.company.versions[0].adaptation.effectiveSettings.riskPct,.6);assert.equal(s.config.riskPct,.35);assert.equal(JSON.stringify(s.real.book),book);
 });
 
 test('economic defaults only change after the independent pilot reviewer promotes recorded outcomes',async()=>{

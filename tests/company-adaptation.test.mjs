@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {initialState,upgradeState} from '../trading-worker/engine.js';
-import {installProgram,observeProgram,augmentScore,candidateStrategy,candidateStrategyGuard,strategyExperiments,initialiseCompany,testProgram} from '../trading-worker/company.js';
+import {installProgram,observeProgram,augmentScore,candidateStrategy,candidateStrategyGuard,strategyExperiments,initialiseCompany,testProgram,hasEconomicChange,canReplacePilot} from '../trading-worker/company.js';
 import {officeState} from '../trading-worker/office-boundary.js';
 
 const DAY=864e5,now=Date.parse('2026-10-04T17:00:00Z');
@@ -18,6 +18,58 @@ test('an active program respects later risk reductions, and rollback preserves t
  s.real.book.closed.push(close('loss',v.id,-200,now+4*DAY));observeProgram(s,now+4*DAY);
  assert.equal(v.adaptation.phase,'reverted');assert.equal(s.config.riskPct,.15);assert.equal(s.config.minRR,2.5);assert.equal(s.policy.minScore,60);assert.equal(s.company.strategy.riskPct,.15);
  const stale=event();stale.preScore={adaptationId:v.id};assert.equal(candidateStrategy(s,stale).adaptationId,null);assert.equal(candidateStrategy(s,stale).strategyVersion,null);
+});
+
+test('Equivalent economic settings apply workflow and visuals without occupying a pilot',()=>{
+ const s=state(),p=program({rules:[],workflow:{researchDailyLimit:3,researchIntervalMinutes:90,riskPct:.35,minRR:2}}),before=JSON.stringify(s.real.book);
+ assert.equal(hasEconomicChange(s,p),false);const v=installProgram(officeState(s),p,{id:'workflow-only'},now);
+ assert.equal(v.status,'solo flujo y visual');assert.equal(v.economicChange,false);assert.equal(v.adaptation,undefined);assert.equal(s.company.shadowProgram,null);assert.equal(s.policy.researchDailyLimit,3);assert.equal(s.company.ui.headline,p.visual.headline);assert.equal(JSON.stringify(s.real.book),before);
+ const actual=installProgram(s,program(),{id:'economic'},now+1000);assert.equal(actual.status,'piloto');assert.equal(s.company.shadowProgram,actual.id);
+});
+
+test('Economic equality uses the current active rules and tested risk, rather than its unapplied target',()=>{
+ const s=state(),active=installProgram(s,program(),{id:'active'},now);promote(s,active);
+ const unchanged=program({workflow:{...active.program.workflow,riskPct:s.config.riskPct}});assert.equal(hasEconomicChange(s,unchanged),false);
+ const v=installProgram(s,unchanged,{id:'same-effective'},now+4*DAY);assert.equal(v.status,'solo flujo y visual');assert.equal(s.company.shadowProgram,null);assert.equal(s.company.activeProgram,active.id);
+ assert.equal(hasEconomicChange(s,{...unchanged,rules:[{...unchanged.rules[0],points:6}]}),true);
+});
+
+test('An equivalent legacy shadow is retired once without blocking a future economic hypothesis',()=>{
+ for(const alreadyMigrated of [false,true]){
+  const s=state(),p=program({rules:[],workflow:{researchDailyLimit:6,researchIntervalMinutes:45,riskPct:.35,minRR:2}}),old={id:'equivalent-old',version:1,status:'observación',program:p,previous:{policy:{...s.policy},config:{riskPct:.35,minRR:2}},tests:testProgram(p)};
+  if(alreadyMigrated){const installed=installProgram(s,program(),{id:'temporary'},now);old.adaptation={...installed.adaptation,id:old.id,requested:{riskPct:.35,minRR:2},effectiveSettings:{riskPct:.35,minRR:2}};old.status='piloto';}
+  s.company.versions=[old];s.company.shadowProgram=old.id;delete s.company.economicPilotMigration;const bookBefore=JSON.stringify(s.real.book);initialiseCompany(officeState(s),now+1000);
+  assert.equal(s.company.shadowProgram,null);assert.equal(old.status,'solo flujo y visual');assert.equal(old.economicChange,false);assert.equal(s.company.economicPilotMigration,1);assert.match(old.gate,/equivalente/);assert.equal(JSON.stringify(s.real.book),bookBefore);
+  const reason=old.gate,history=JSON.stringify(old.adaptation?.history);initialiseCompany(s,now+DAY);assert.equal(old.gate,reason);assert.equal(JSON.stringify(old.adaptation?.history),history);
+  const next=installProgram(s,program(),{id:'real-change'},now+DAY);assert.equal(next.status,'piloto');assert.equal(s.company.shadowProgram,next.id);
+ }
+});
+
+test('Legacy provenance is preserved when an equivalent pilot already has paper operations',()=>{
+ for(const stage of ['position','closed','buy']){
+  const s=state(),p=program({rules:[],workflow:{researchDailyLimit:6,researchIntervalMinutes:45,riskPct:.35,minRR:2}}),v={id:'with-provenance',version:1,status:'observación',program:p,previous:{policy:{...s.policy},config:{riskPct:.35,minRR:2}},tests:testProgram(p)};
+  if(stage==='position'){s.real.book.positions=[{id:'open',adaptationId:v.id,qty:10,entry:50,mark:50,stop:45}];s.real.book.cash=9500;}else if(stage==='closed')s.real.book.closed=[close('past',v.id,10,now-1000)];else s.real.book.orders=[{id:'buy',side:'buy',adaptationId:v.id}];
+  s.company.versions=[v];s.company.shadowProgram=v.id;delete s.company.economicPilotMigration;delete s.company.adaptationMigration;const before=JSON.stringify(s.real.book);initialiseCompany(s,now);
+  assert.equal(s.company.shadowProgram,v.id);assert.equal(v.status,'piloto');assert.equal(canReplacePilot(s,program()),false);assert.equal(JSON.stringify(s.real.book),before);assert.match(v.gate,/procedencia/);
+ }
+});
+
+test('A different validated hypothesis can replace an untraded pilot without erasing its history or spending',()=>{
+ const s=state(),first=installProgram(s,program(),{id:'first'},now),e=event();augmentScore(s,e,asset,profile,rank,now);
+ e.plan={adaptationId:first.id,stop:45,target:65};e.review={approve:true};e.status='espera';s.real.events=[e];s.operating.spentEur=.72;
+ const alternative=program({threshold:48,rules:[{feature:'relativeVolume',op:'gt',value:2,points:9}]}),baseline=JSON.stringify(first.adaptation.base),before=JSON.stringify(s.real.book);
+ assert.equal(canReplacePilot(s,alternative),true);const second=installProgram(officeState(s),alternative,{id:'second'},now+3600e3);
+ assert.equal(second.status,'piloto');assert.equal(s.company.shadowProgram,second.id);assert.equal(first.status,'sustituido');assert.equal(first.adaptation.phase,'reverted');assert.equal(first.supersededBy,second.id);assert.equal(first.adaptation.observations.length,1);assert.equal(JSON.stringify(first.adaptation.base),baseline);assert.equal(second.adaptation.effectiveSettings.riskPct,.6);assert.equal(second.adaptation.base.aiEur,.72);assert.equal(s.operating.spentEur,.72);assert.equal(JSON.stringify(s.real.book),before);
+ assert.equal(e.plan,undefined);assert.equal(e.review,undefined);assert.equal(e.previousPlan.stop,45);assert.equal(e.previousReview.approve,true);assert.equal(e.status,'nuevo');
+ const info=strategyExperiments(s)[0];assert.equal(info.threshold,48);assert.equal(info.rules[0].points,9);assert.equal(info.rationale,alternative.rationale);
+});
+
+test('The same hypothesis cannot reset a pilot and a traded pilot cannot be replaced',()=>{
+ const s=state(),p=program(),first=installProgram(s,p,{id:'first'},now),startedAt=first.adaptation.startedAt,expiresAt=first.adaptation.expiresAt;
+ assert.equal(canReplacePilot(s,p),false);const repeated=installProgram(s,{...p,rationale:'Otra redacción',visual:{...p.visual,headline:'Solo diseño'}},{id:'same'},now+DAY);
+ assert.equal(repeated.status,'solo flujo y visual');assert.equal(s.company.shadowProgram,first.id);assert.equal(first.adaptation.startedAt,startedAt);assert.equal(first.adaptation.expiresAt,expiresAt);
+ const alternative=program({threshold:48});s.real.book.closed=[close('own-trade',first.id,10,now+DAY)];assert.equal(canReplacePilot(s,alternative),false);
+ const deferred=installProgram(s,alternative,{id:'after-trade'},now+2*DAY);assert.equal(deferred.status,'solo flujo y visual');assert.equal(deferred.adaptation,undefined);assert.equal(first.adaptation.phase,'pilot');assert.equal(s.company.shadowProgram,first.id);
 });
 
 test('Pilot scoring, metadata and candidate risk take effect immediately without changing base settings or ledger',()=>{

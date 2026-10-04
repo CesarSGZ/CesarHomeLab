@@ -2,7 +2,7 @@ import {pendingEmployeeWork,queueEmployeeWork,finishEmployeeWork} from './employ
 import {workflowSettings,validateWorkflowStrategy,pipelineSummary,researchEvidenceFingerprint,catalystReady,quoteContext,sessionResearchPacing,analysisFollowupPending,analysisEvidenceFingerprint} from './strategy.js';
 import {prepareDevelopment} from './development.js';
 import {developmentFiles} from './office-boundary.js';
-import {installProgram} from './company.js';
+import {installProgram,canReplacePilot} from './company.js';
 
 const schema={type:'object',additionalProperties:false,properties:{summary:{type:'string'},thesis:{type:'string'},missingEvidence:{type:'array',maxItems:4,items:{type:'string'}},worthFurtherWork:{type:'boolean'},nextOwner:{type:'string',enum:['scout','analyst','risk','auditor']},nextTask:{type:'string'}},required:['summary','thesis','missingEvidence','worthFurtherWork','nextOwner','nextTask']};
 const on=(s,id)=>!s.agents.find(a=>a.id===id)?.paused;
@@ -90,14 +90,15 @@ function prepareStrategyChange(s,work,log,now){
  work.strategyRequestKey=requestKey;
  const history={before,requested,after:workflowSettings(s),appliedOperationalFields,economicFields};
  if(!economicFields.length){recordStrategyDecision(s,work,{...history,status:appliedOperationalFields.length?'operational':'unchanged'},now);complete(s,work,appliedOperationalFields.length?'Ajustes operacionales aplicados y registrados; la economía vigente se conserva':'Parámetros ya vigentes; no se crea un piloto ni se repite consumo','scout',now);log(s,'auditor','Decisión operacional registrada: '+work.reason);return;}
- if(s.company.shadowProgram){
+ const proposedProgram=strategyProgram(s,requested,work.reason);
+ if(s.company.shadowProgram&&!canReplacePilot(s,proposedProgram)){
   const result=(appliedOperationalFields.length?'Ajustes operacionales aplicados; ':'')+'cambios económicos diferidos: ya existe el piloto '+s.company.shadowProgram+'. No se han aplicado ni se reinicia su observación.';
   const changed=recordStrategyDecision(s,work,{...history,status:'deferred',programId:s.company.shadowProgram},now);
   if(changed){finishEmployeeWork(s,work.id,result,{status:'blocked',target:'auditor'},now);log(s,'auditor',result,'warning');}else {work.status='blocked';work.notBefore=now+2*3600e3;}
   return;
  }
  let version;
- try{version=installProgram(s,strategyProgram(s,requested,work.reason),{id:'initiative:'+work.id},now);}
+ try{version=installProgram(s,proposedProgram,{id:'initiative:'+work.id},now);}
  catch(error){recordStrategyDecision(s,work,{...history,status:'pilot_rejected',error:error.message},now);finishEmployeeWork(s,work.id,(appliedOperationalFields.length?'Ajustes operacionales aplicados; ':'')+'piloto económico rechazado: '+error.message,{status:'failed',target:'auditor'},now);log(s,'auditor','Piloto rechazado: '+error.message,'warning');return;}
  Object.assign(version,{initiativeId:work.id,owner:work.from,reason:work.reason,evidenceIds:[...work.evidenceIds]});
  recordStrategyDecision(s,work,{...history,after:workflowSettings(s),status:'pilot',programId:version.id,pilotEffective:version.adaptation?.effectiveSettings},now);
