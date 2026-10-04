@@ -5,7 +5,31 @@ import {developmentFiles} from './office-boundary.js';
 
 const schema={type:'object',additionalProperties:false,properties:{summary:{type:'string'},thesis:{type:'string'},missingEvidence:{type:'array',maxItems:4,items:{type:'string'}},worthFurtherWork:{type:'boolean'},nextOwner:{type:'string',enum:['scout','analyst','risk','auditor']},nextTask:{type:'string'}},required:['summary','thesis','missingEvidence','worthFurtherWork','nextOwner','nextTask']};
 const on=(s,id)=>!s.agents.find(a=>a.id===id)?.paused;
-function compactProfile(p){return p?{checkedAt:p.checkedAt,market:p.market,fundamentals:p.fundamentals?{metrics:p.fundamentals.metrics,source:p.fundamentals.source,checkedAt:p.fundamentals.checkedAt,evidence:p.fundamentals.evidence?.slice(0,6),limitations:p.fundamentals.limitations?.slice(0,2)}:null,errors:p.errors?.slice(0,3)}:null;}
+export function requestAnalysisEvidence(s,event,answer,now=Date.now(),owner='analyst'){
+ const missing=Array.isArray(answer.missingEvidence)?answer.missingEvidence.filter(x=>typeof x==='string'&&x.trim()).slice(0,3):[];
+ const task=String(answer.nextResearchTask||'').trim();if(!missing.length||task.length<12)return false;
+ const fingerprint=JSON.stringify([event.summary,event.sources,s.real.profiles?.[event.symbol]?.fundamentals?.metrics,event.research?.researchedAt,missing,task]);
+ const history=event.followupHistory??=[];if(history.length>=2||history.some(h=>h.fingerprint===fingerprint))return false;
+ const followup={at:now,owner,reason:answer.reason,missingEvidence:missing,nextTask:task,baselineResearchAt:event.research?.researchedAt||event.researchAttemptAt||0,fingerprint,attempts:history.length+1};
+ history.push(followup);event.analysisFollowup=followup;event.analysisAssessment={...answer,at:now,executable:false};
+ if(event.plan)event.previousPlan={...event.plan,withdrawnAt:now,reason:'Faltan datos para la revisión'};
+ delete event.plan;delete event.review;event.status='verificar';event.reasons=['Investigación adicional solicitada por '+owner+': '+task];
+ queueEmployeeWork(s,'research',event.id,{owner,decision:String(answer.reason||'Completar evidencia antes de planificar'),nextTask:task,evidenceIds:[event.id],strategy:null},now);
+ return true;
+}
+
+export function recoverDataGapRejections(s,now=Date.now()){
+ if(s.company.dataGapRecovery===1)return;s.company.dataGapRecovery=1;
+ for(const e of s.real.events){
+  if(e.status!=='descartado'||!e.confirmed||!catalystReady(e,now)||!e.preScore?.eligible||e.plan||e.review||e.followupHistory?.length)continue;
+  const reason=(e.reasons||[]).join(' ');
+  if(!/faltan? datos|faltan? .*evidencia|insuficiencia de evidencia|evidencia insuficiente|datos .*mixtos|datos .*fechas distintas|necesita verific|exige verific/i.test(reason))continue;
+  if(/fcf negativo|sin margen|liquidez.*inferior|riesgo.*desproporcion|sin ventaja|(?:no|ni) ofrece.*riesgo.recompensa/i.test(reason))continue;
+  e.decisionHistory??=[];e.decisionHistory.push({at:now,status:e.status,reasons:e.reasons,reason:'Resolver carencia de datos; no constituye aprobación ni nueva tesis'});
+  requestAnalysisEvidence(s,e,{reason,missingEvidence:['Resolver las carencias concretas del análisis previo'],nextResearchTask:'Contrastar fuentes primarias y aportar datos fechados para resolver: '+reason.slice(0,600)},now);
+ }
+}
+function compactProfile(p){return p?{checkedAt:p.checkedAt,market:p.market,fundamentals:p.fundamentals?{latestQuarter:p.fundamentals.latestQuarter,metrics:p.fundamentals.metrics,source:p.fundamentals.source,checkedAt:p.fundamentals.checkedAt,evidence:p.fundamentals.evidence?.slice(0,6),limitations:p.fundamentals.limitations?.slice(0,2)}:null,errors:p.errors?.slice(0,3)}:null;}
 function preparationFingerprint(event,profile,quote){return JSON.stringify([researchEvidenceFingerprint(event),profile?.fundamentals?.metrics||null,profile?.market?.asOf||null,quote?.time||null,quote?.price||null]);}
 function complete(s,work,result,target,now){return finishEmployeeWork(s,work.id,result,{target,eventId:work.eventId},now);}
 export function recordFinancialWork(s,event,kind,result,now=Date.now(),target){
@@ -27,14 +51,14 @@ function seedUsefulWork(s,now){
 }
 export async function runPreparation(s,{call,checkpoint,log},now=Date.now()){
  const company=s.company,agency=company.agency;refreshSessionPlan(s,now);
- if(s.paused){await checkpoint();return;}
+ // Pausar entradas no suspende investigación, revisión ni preparación.
  for(const w of pendingEmployeeWork(s,'strategy',now).filter(w=>on(s,w.owner))){
   try{const before=workflowSettings(s),after=validateWorkflowStrategy(w.strategy,before);company.strategy=after;Object.assign(s.policy,{minScore:after.minScore,researchDailyLimit:after.researchDailyLimit,researchIntervalMinutes:after.researchIntervalMinutes});s.policy.version++;s.config.riskPct=after.riskPct;s.config.minRR=after.minRR;company.strategyHistory??=[];company.strategyHistory.unshift({time:now,owner:w.from,before,after,reason:w.reason,evidenceIds:w.evidenceIds});company.strategyHistory=company.strategyHistory.slice(0,30);complete(s,w,'Estrategia aplicada y registrada; los resultados se evaluarán con paciencia','scout',now);log(s,'auditor','Decisión autónoma aplicada: '+w.reason);}
   catch(error){finishEmployeeWork(s,w.id,'Cambio rechazado: '+error.message,{status:'failed',target:'auditor'},now);}
  }
  for(const w of pendingEmployeeWork(s,'execution',now).filter(w=>on(s,w.owner))){const e=s.real.events.find(e=>e.id===w.eventId);if(e?.plan?.expiresAt>now&&e.review?.approve&&catalystReady(e,now)&&['nuevo','espera'].includes(e.status)){complete(s,w,'Preapertura preparada para '+e.symbol+': actualizar precio y revalidar los límites en sesión','auditor',now);}else finishEmployeeWork(s,w.id,'Falta un catalizador y plan vigentes con revisión de riesgo aprobada',{status:'blocked',target:'risk'},now);}
  if(agency.preparationDay!==new Date(now).toISOString().slice(0,10)){agency.preparationDay=new Date(now).toISOString().slice(0,10);agency.preparationCalls=0;}
- if(!s.paused&&workflowSettings(s).weekendPlanning&&s.operating?.remainingEur>.01)seedUsefulWork(s,now);
+ if(workflowSettings(s).weekendPlanning&&s.operating?.remainingEur>.01)seedUsefulWork(s,now);
  for(const work of [...pendingEmployeeWork(s,'analysis',now),...pendingEmployeeWork(s,'risk',now)].filter(w=>w.phase==='preliminary')){
   if(!on(s,work.owner))continue;
   const event=s.real.events.find(e=>e.id===work.eventId);if(!event){finishEmployeeWork(s,work.id,'Candidata retirada del radar',{status:'failed',target:'auditor'},now);continue;}

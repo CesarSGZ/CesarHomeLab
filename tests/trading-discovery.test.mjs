@@ -1,6 +1,6 @@
 import test from 'node:test';import assert from 'node:assert/strict';
 import {parseFeed,matchIssuer,rankCandidate,signalKind,discover,feedNoiseReason,selectEnrichmentSymbols} from '../trading-worker/discovery.js';
-import {extractFundamentals} from '../trading-worker/fundamentals.js';
+import {extractFundamentals,fundamentalsVersion} from '../trading-worker/fundamentals.js';
 import {initialState,upgradeState,encodeState,decodeState} from '../trading-worker/engine.js';
 import {initialiseGovernance,metrics,chooseChange,applyChange,rollback,dailyReview,visualManifest,validManifest} from '../trading-worker/governance.js';
 const now=Date.parse('2026-10-02T15:00:00Z');
@@ -31,9 +31,17 @@ test('noise is dropped before enrichment and cached legal promotions cannot ente
 });
 
 test('enrichment prioritizes employee backlog and obeys the current autonomous limit',()=>{
- const s=upgradeState(initialState());s.company.strategy={enrichmentLimit:2};s.real.profiles={QUEUED:{checkedAt:now-1000,market:{}},FRESH:{checkedAt:now,fundamentals:{},market:{}}};s.company.agency.workQueue=[{kind:'analysis',eventId:'queued',status:'pending',createdAt:now,notBefore:now}];
+ const s=upgradeState(initialState());s.company.strategy={enrichmentLimit:2};s.real.profiles={QUEUED:{checkedAt:now-1000,market:{}},FRESH:{checkedAt:now,fundamentals:{extractorVersion:fundamentalsVersion},market:{extractorVersion:fundamentalsVersion}}};s.company.agency.workQueue=[{kind:'analysis',eventId:'queued',status:'pending',createdAt:now,notBefore:now}];
  const row=(symbol,strength,confirmed=false)=>({a:{...asset,symbol},e:{id:symbol.toLowerCase(),symbol,confirmed,signal:{strength}}});
  const rough=[row('NEWS',28),row('QUEUED',8),row('CONFIRMED',20,true),row('FRESH',40,true),row('NEWS',28)];
  assert.deepEqual(selectEnrichmentSymbols(s,rough,now),['QUEUED','CONFIRMED']);s.company.strategy.enrichmentLimit=1;assert.deepEqual(selectEnrichmentSymbols(s,rough,now),['QUEUED']);
  s.company.agency.workQueue[0].notBefore=now+3600e3;assert.deepEqual(selectEnrichmentSymbols(s,rough,now),['CONFIRMED']);
+});
+
+test('legacy financial extractors refresh gradually and failed downloads wait before retrying',()=>{
+ const s=upgradeState(initialState());s.company.strategy={enrichmentLimit:1};s.real.profiles={OLD:{checkedAt:now,fundamentals:{},market:{}},RETRY:{checkedAt:now,refreshFailedAt:now-1000,fundamentals:{},market:{}}};
+ const row=symbol=>({a:{...asset,symbol},e:{id:symbol,symbol,confirmed:true,signal:{strength:30}}});
+ assert.deepEqual(selectEnrichmentSymbols(s,[row('RETRY'),row('OLD')],now),['OLD']);
+ assert.deepEqual(selectEnrichmentSymbols(s,[row('RETRY')],now),[]);
+ assert.deepEqual(selectEnrichmentSymbols(s,[row('RETRY')],now+3600e3),['RETRY']);
 });

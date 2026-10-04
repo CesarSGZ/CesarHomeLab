@@ -2,20 +2,24 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {initialiseEmployees,dueEmployee,executeEmployeeDecision,runEmployeeInitiative,employeeContext,pendingEmployeeWork,finishEmployeeWork,researchReadyAt} from '../trading-worker/employee-agents.js';
 import {message} from '../trading-worker/governance.js';
+import {selectResearchCandidates,selectPlanningCandidates} from '../trading-worker/strategy.js';
 const now=Date.parse('2026-10-03T12:00:00Z');
 function fixture(){return {agents:['scout','analyst','risk','operator','auditor','designer'].map(id=>({id,name:id,paused:false})),company:{tasks:[]},governance:{messages:[]},messages:[],real:{events:[{id:'e1',symbol:'TEST',preScore:{eligible:true,score:80},confirmed:false}],book:{cash:10000,positions:[],closed:[]}},operating:{remainingEur:9,paceEurPerDay:.3},paused:false};}
 const decision=(tool,extra={})=>({goal:'Comprobar evidencia',decision:'Falta fecha primaria',tool,target:'none',eventId:'',evidenceIds:['discovery'],nextTask:'Contrastar fecha',wakeHours:4,strategy:null,...extra});
 test('employees have separate memories, mailboxes and wake schedules',()=>{const s=fixture(),a=initialiseEmployees(s,now);executeEmployeeDecision(s,'scout',decision('handoff',{target:'analyst',eventId:'e1',evidenceIds:['e1']}),now);assert.equal(a.actors.scout.memory.length,1);assert.equal(a.actors.analyst.memory.length,0);assert.equal(a.actors.analyst.inbox[0].from,'scout');assert.equal(a.actors.scout.nextWake,now+4*3600e3);assert.equal(a.actors.analyst.nextWake,now);});
 test('an employee can prioritize real evidence without altering funds or approving trades',()=>{const s=fixture(),book=JSON.stringify(s.real.book);executeEmployeeDecision(s,'scout',decision('prioritize_research',{eventId:'e1',evidenceIds:['e1']}),now);assert.equal(s.real.events[0].employeePriority.owner,'scout');assert.equal(JSON.stringify(s.real.book),book);assert.throws(()=>executeEmployeeDecision(s,'operator',decision('prioritize_research',{eventId:'e1'}),now));assert.throws(()=>executeEmployeeDecision(s,'analyst',decision('prioritize_analysis',{eventId:'e1'}),now));assert.throws(()=>executeEmployeeDecision(s,'scout',decision('propose_change',{evidenceIds:['invented']}),now));});
 test('idle initiatives have a shared daily ceiling, pacing, and individual pauses',()=>{const s=fixture(),a=initialiseEmployees(s,now);assert.equal(dueEmployee(s,now).id,'scout');s.agents[0].paused=true;assert.equal(dueEmployee(s,now).id,'analyst');a.lastDispatch=now;assert.equal(dueEmployee(s,now+30*60e3),null);a.runsToday=6;assert.equal(dueEmployee(s,now+2*3600e3),null);s.operating.remainingEur=0;assert.equal(dueEmployee(s,now+864e5),null);});
+test('pausing new entries does not suspend useful employee initiatives',()=>{const s=fixture();s.paused=true;assert.equal(dueEmployee(s,now).id,'scout');for(const employee of s.agents)employee.paused=true;assert.equal(dueEmployee(s,now),null);});
 test('one bounded paid initiative records its actual decision and cost',async()=>{const s=fixture();let calls=0,checkpoints=0;await runEmployeeInitiative(s,{call:async(id,instructions,payload,schema,options)=>{calls++;assert.equal(id,'scout');assert.ok(options.capEur<=.0025);assert.equal(options.light,true);assert.ok(payload.tools.includes('wait'));return {...decision('wait'),_costEur:.0004};},checkpoint:async()=>checkpoints++,log:()=>{}},now);assert.equal(calls,1);assert.equal(s.company.agency.actors.scout.costEur,.0004);assert.equal(s.company.agency.actors.scout.lastAction.tool,'wait');assert.equal(s.agents[0].status,'esperando');assert.equal(checkpoints,2);});
 test('pipeline results become actionable mail for the receiving specialist',()=>{const s=fixture(),a=initialiseEmployees(s,now);a.actors.analyst.nextWake=now+864e5;message(s,'scout','analyst','TEST: evidencia contrastada disponible',now);assert.equal(a.actors.analyst.inbox.length,1);assert.equal(a.actors.analyst.inbox[0].status,'pendiente');assert.equal(a.actors.analyst.nextWake,now);});
 
 test('employee context includes assigned fundamentals, dated prices and current controls',()=>{
  const s=fixture();s.config={riskPct:.5,minRR:3,maxPositions:20};s.policy={minScore:45,researchDailyLimit:8};s.real.profiles={TEST:{checkedAt:now,fundamentals:{metrics:{annualEnd:'2025-12-31',fcf:5e6,cashLatest:20e6},evidence:[{metric:'cash',filed:'2026-03-01'}],source:'https://data.sec.gov/facts',checkedAt:now}}};s.real.quotes={TEST:{price:5,time:now-864e5,fetchedAt:now,source:'public',referenceOnly:true}};
+ s.real.profiles.TEST.fundamentals.latestQuarter={start:'2026-04-01',end:'2026-06-30',filed:'2026-08-01',metrics:{revenue:13e6,revenueYoY:.3},evidence:[{metric:'revenue',start:'2026-04-01',end:'2026-06-30',filed:'2026-08-01'}],limitations:'Explicit quarter only'};
  s.real.events[0].analysisDeferred={day:'2026-10-03',reason:'Cuota de dos análisis profundos agotada',nextAt:now+16*3600e3};
  const actor=initialiseEmployees(s,now).actors.analyst;actor.inbox.push({task:'Compara TEST',eventId:'e1',status:'pendiente'});
  const context=employeeContext(s,actor,now);assert.equal(context.configuration.config.riskPct,.5);assert.equal(context.configuration.policy.minScore,45);assert.equal(context.events[0].financialProfile.fundamentals.metrics.fcf,5e6);assert.equal(context.events[0].priceReference.time,now-864e5);assert.equal(context.events[0].priceReference.timeISO,new Date(now-864e5).toISOString());assert.equal(context.events[0].priceReference.fetchedAtISO,new Date(now).toISOString());assert.deepEqual(context.events[0].analysisDeferred,s.real.events[0].analysisDeferred);assert.equal(context.backlog.research.count,1);assert.ok(context.tools.includes('prepare_plan'));assert.equal(context.market.planningOutsideSession,true);
+ assert.equal(context.events[0].financialProfile.fundamentals.latestQuarter.end,'2026-06-30');assert.equal(context.events[0].financialProfile.fundamentals.latestQuarter.metrics.revenueYoY,.3);assert.equal(context.events[0].financialProfile.fundamentals.latestQuarter.evidence[0].start,'2026-04-01');
 });
 
 test('research retry is durable and respects cooldown or a new primary update',()=>{
@@ -24,6 +28,26 @@ test('research retry is durable and respects cooldown or a new primary update',(
  const work=s.company.agency.workQueue[0];assert.equal(work.notBefore,now+22*3600e3);assert.equal(pendingEmployeeWork(s,'research',now).length,0);assert.equal(pendingEmployeeWork(s,'research',work.notBefore).length,1);assert.equal(e.researchAttemptAt,now-2*3600e3);
  e.primaryUpdatedAt=now-3600e3;assert.equal(researchReadyAt(e,now),now);
  executeEmployeeDecision(s,'scout',decision('request_research',{eventId:'e1',evidenceIds:['e1']}),now+3600e3);assert.equal(s.company.agency.workQueue.length,1);assert.equal(work.notBefore,now+3600e3);assert.equal(pendingEmployeeWork(s,'research',now+3600e3).length,1);assert.equal(e.employeePriority.notBefore,now+3600e3);
+});
+
+test('Santi can resolve a confirmed analyst follow-up once without reopening rejected trades',()=>{
+ const s=fixture(),e=s.real.events[0],at=now-2*3600e3;e.confirmed=true;e.status='verificar';e.date='2026-10-07T20:00:00Z';e.sources=[{url:'https://issuer.example/agreement',claim:'Material agreement'}];e.research={researchedAt:at,worthAnalyzing:true};e.researchAttemptAt=at;e.analysisFollowup={at:now-1000,baselineResearchAt:at,missingEvidence:['Consideration'],nextTask:'Read the annex and check consideration and financing'};
+ const task=e.analysisFollowup.nextTask,request=decision('request_research',{eventId:e.id,evidenceIds:[e.id],nextTask:task}),book=JSON.stringify(s.real.book);
+ executeEmployeeDecision(s,'scout',request,now);const work=s.company.agency.workQueue[0];assert.equal(work.notBefore,at+4*3600e3);assert.equal(pendingEmployeeWork(s,'research',now).length,0);assert.equal(selectResearchCandidates(s,now).length,0);assert.equal(selectPlanningCandidates(s,now).length,0);
+ const context=employeeContext(s,s.company.agency.actors.scout,now);assert.equal(context.events[0].analysisFollowup.nextTask,task);assert.equal(context.workQueue[0].task,task);assert.ok(context.workQueue[0].reason);
+ assert.deepEqual(selectResearchCandidates(s,work.notBefore),[e]);
+ e.research.researchedAt=work.notBefore+1000;e.researchAttemptAt=e.research.researchedAt;finishEmployeeWork(s,work.id,'Annex read; consideration and funding confirmed',{target:'analyst'},e.research.researchedAt);
+ assert.equal(selectPlanningCandidates(s,e.research.researchedAt)[0],e);assert.ok(work.evidenceFingerprintAtFinish);
+ const replay=executeEmployeeDecision(s,'scout',request,e.research.researchedAt+5*3600e3);assert.match(replay,/ya respondida/);assert.equal(s.company.agency.workQueue.length,1);assert.equal(selectResearchCandidates(s,e.research.researchedAt+5*3600e3).length,0);
+ e.status='descartado';assert.throws(()=>executeEmployeeDecision(s,'scout',request,e.research.researchedAt+5*3600e3),/no apta/);assert.equal(JSON.stringify(s.real.book),book);assert.equal(e.plan,undefined);assert.equal(e.review,undefined);
+});
+
+test('a new supplemental question replaces stale queued work without losing its history',()=>{
+ const s=fixture(),e=s.real.events[0];e.research={researchedAt:now-5*3600e3};e.researchAttemptAt=e.research.researchedAt;
+ executeEmployeeDecision(s,'scout',decision('request_research',{eventId:e.id,nextTask:'Confirm the original catalyst publication'}),now-6*3600e3);const work=s.company.agency.workQueue[0],created=work.createdAt;
+ e.confirmed=true;e.date='2026-10-07T20:00:00Z';e.sources=[{url:'https://issuer.example/agreement'}];
+ executeEmployeeDecision(s,'scout',decision('request_research',{eventId:e.id,nextTask:'Read the contract annex and determine consideration'}),now);
+ assert.equal(s.company.agency.workQueue.length,1);assert.equal(work.createdAt,created);assert.equal(work.updatedAt,now);assert.equal(selectResearchCandidates(s,now)[0],e);
 });
 
 test('weekend analysis and risk support are preliminary until evidence and approval exist',()=>{

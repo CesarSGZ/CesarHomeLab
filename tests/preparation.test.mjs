@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {initialState,upgradeState} from '../trading-worker/engine.js';
 import {queueEmployeeWork,pendingEmployeeWork} from '../trading-worker/employee-agents.js';
-import {runPreparation,recordFinancialWork,refreshSessionPlan} from '../trading-worker/preparation.js';
+import {runPreparation,recordFinancialWork,refreshSessionPlan,requestAnalysisEvidence,recoverDataGapRejections} from '../trading-worker/preparation.js';
 import {officeState} from '../trading-worker/office-boundary.js';
 
 const now=Date.parse('2026-10-03T12:00:00Z');
@@ -15,6 +15,23 @@ function fixture(){
 }
 const answer={summary:'Caja positiva, guidance pendiente de contrastar',thesis:'La señal merece verificar fuente primaria antes de valorar una entrada',missingEvidence:['Fuente y fecha del guidance'],worthFurtherWork:true,nextOwner:'scout',nextTask:'Consultar anuncio de resultados y guidance del emisor',_costEur:.0008};
 const hooks=call=>({call,checkpoint:async()=>{},log:()=>{}});
+
+test('missing analyst evidence becomes a bounded concrete scout assignment, not approval or final rejection',()=>{
+ const s=fixture(),e=s.real.events[0];Object.assign(e,{confirmed:true,research:{researchedAt:now-5*3600e3},plan:{entryMin:4,entryMax:5,stop:3,target:8},review:{approve:false}});
+ const book=JSON.stringify(s.real.book),reply={reason:'Agreement terms missing',missingEvidence:['Closing terms'],nextResearchTask:'Read the primary agreement and identify closing conditions'};
+ assert.equal(requestAnalysisEvidence(s,e,reply,now),true);assert.equal(e.status,'verificar');assert.equal(e.confirmed,true);assert.equal(e.plan,undefined);assert.equal(e.review,undefined);assert.equal(e.analysisAssessment.executable,false);
+ assert.equal(s.company.agency.workQueue.find(w=>w.kind==='research').task,reply.nextResearchTask);assert.equal(JSON.stringify(s.real.book),book);
+ assert.equal(requestAnalysisEvidence(s,e,reply,now+1),false);assert.equal(e.followupHistory.length,1);
+ e.research.researchedAt=now+2;assert.equal(requestAnalysisEvidence(s,e,{...reply,missingEvidence:['Incremental margin'],nextResearchTask:'Verify incremental margin in the latest filing'},now+3),true);
+ e.research.researchedAt=now+4;assert.equal(requestAnalysisEvidence(s,e,{...reply,nextResearchTask:'A third expensive repeated assignment'},now+5),false);
+});
+
+test('legacy data gaps recover once while economic and risk rejections remain final',()=>{
+ const s=fixture(),base={...s.real.events[0],confirmed:true,date:'2026-10-06T20:00:00Z',sources:[{url:'https://issuer.example/results'}],status:'descartado',research:{researchedAt:now-864e5},analysisVersion:2};
+ s.real.events=[{...base,id:'missing',reasons:['Faltan datos sobre condiciones del contrato']},{...base,id:'economics',reasons:['Datos de fechas distintas; la hipótesis no está calibrada ni ofrece una relación riesgo-recompensa atractiva']},{...base,id:'risk',review:{approve:false},reasons:['Faltan datos y riesgo de dilución']}];
+ recoverDataGapRejections(s,now);assert.equal(s.real.events[0].status,'verificar');assert.equal(s.real.events[1].status,'descartado');assert.equal(s.real.events[2].status,'descartado');
+ const count=s.company.agency.workQueue.length;recoverDataGapRejections(s,now+1);assert.equal(s.company.agency.workQueue.length,count);assert.equal(s.real.book.orders.length,0);
+});
 
 test('weekend preliminary work uses cached dated financial evidence and creates no orders',async()=>{
  const s=fixture(),book=JSON.stringify(s.real.book);let calls=0;
@@ -35,12 +52,12 @@ test('preliminary cache avoids new calls until meaningful financial evidence cha
  s.operating.exhausted=true;s.operating.remainingEur=0;request();await runPreparation(s,runHooks,now+4000);assert.equal(calls,2);assert.equal(pendingEmployeeWork(s,'analysis',now+4000).length,0);
 });
 
-test('paused employees do not block a different specialist and global pause spends no tokens',async()=>{
+test('paused employees do not block another specialist and entry pause keeps preparation working',async()=>{
  const s=fixture();s.agents.find(a=>a.id==='analyst').paused=true;
  for(const [kind,owner] of [['analysis','analyst'],['risk','risk']])queueEmployeeWork(s,kind,'e1',{owner,decision:'Comparar',nextTask:'Revisar',evidenceIds:['e1']},now);
  let calls=0;await runPreparation(s,hooks(async id=>{calls++;assert.equal(id,'risk');return answer;}),now);
  assert.equal(calls,1);assert.equal(pendingEmployeeWork(s,'analysis',now).length,1);assert.ok(s.real.events[0].preRisk);
- s.paused=true;await runPreparation(s,hooks(async()=>assert.fail('Global pause must not call the model')),now+3600e3);
+ s.paused=true;s.agents.find(a=>a.id==='analyst').paused=false;s.company.agency.preparationCalls=0;await runPreparation(s,hooks(async()=>{calls++;return answer;}),now+3600e3);assert.equal(calls,2);assert.equal(s.real.book.orders.length,0);
 });
 
 test('an unusable profile requests enrichment instead of paying for an empty analysis',async()=>{

@@ -5,6 +5,10 @@ on:
       relay:
         type: boolean
         default: false
+      resume_entries:
+        description: Resume owner-authorized paper entries
+        type: boolean
+        default: false
   schedule:
     - cron: '7,22,37,52 * * * *'
 permissions:
@@ -34,6 +38,7 @@ jobs:
       - name: Cadaqui infrastructure watchdog and recovery
         env:
           OFFICE_DEV_TOKEN: ${{ secrets.OFFICE_DEV_TOKEN }}
+          OFFICE_RESUME_ENTRIES: ${{ github.event_name == 'workflow_dispatch' && inputs.resume_entries && '1' || '0' }}
         run: node scripts/office-recover.mjs
       - name: Verify cloud worker deployment credentials
         if: github.event_name == 'workflow_dispatch' && !inputs.relay

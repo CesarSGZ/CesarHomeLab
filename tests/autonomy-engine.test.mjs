@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';
 import {readFileSync} from 'node:fs';
 import {llm,initialState,upgradeState,verifyResearch,planProblems,reconsiderLegacyPlanning,cycle,locked,load,employeeFunctionOptions} from '../trading-worker/engine.js';
-import {day} from '../trading-worker/core.js';
+import {day,assess,freshQuote} from '../trading-worker/core.js';
 import {referenceSource} from '../trading-worker/market-data.js';
 import {queueEmployeeWork,employeeTools,initiativeSchema} from '../trading-worker/employee-agents.js';
 import {requiresDeepAnalysis,nextDeepAnalysisAt,selectPlanningCandidates} from '../trading-worker/strategy.js';
@@ -14,7 +14,9 @@ function memoryEnv(){
  return {OPENAI_RUNTIME_KEY:'test-only-not-a-live-key',CONTROL_DB:{prepare:wrap,async batch(ops){db.exec('BEGIN');try{const result=[];for(const op of ops)result.push(await op.run());db.exec('COMMIT');return result;}catch(error){db.exec('ROLLBACK');throw error;}}},_db:db};
 }
 const now=Date.parse('2026-10-03T12:00:00Z'),primary='https://ir.issuer.example/contract';
-const researchAnswer=extra=>({confirmed:true,eventDate:new Date(now-864e5).toISOString(),timing:'announced',kind:'Contrato material',catalyst:'Contrato publicado ayer',primaryDomain:'issuer.example',sources:[{url:primary,claim:'El emisor publicó el contrato en la fecha indicada'}],_retrieved:[primary],summary:'Hecho primario anunciado con su fecha literal y riesgos aún pendientes de valoración. '.repeat(3),probabilityPositive:55,upsidePct:12,downsidePct:10,confidence:'baja',uncertainties:'No es una probabilidad calibrada',worthAnalyzing:true,...extra});
+const researchAnswer=extra=>({confirmed:true,eventDate:new Date(now-864e5).toISOString(),timing:'announced',kind:'Contrato material',catalyst:'Contrato publicado ayer',primaryDomain:'issuer.example',sources:[{url:primary,claim:'El emisor publicó el contrato en la fecha indicada'}],_retrieved:[primary],summary:'Hecho primario anunciado con su fecha literal y riesgos aún pendientes de valoración. '.repeat(3),probabilityPositive:55,upsidePct:12,downsidePct:10,confidence:'baja',uncertainties:'No es una probabilidad calibrada',worthAnalyzing:true,taskResolved:true,taskFindings:'El documento primario respalda el hecho fechado',missingEvidence:[],...extra});
+const preparedAnswer=extra=>({decision:'prepare',missingEvidence:[],nextResearchTask:'',approve:true,thesis:'Tesis de fixture contrastada con un documento primario y datos fechados',entryMin:9.8,entryMax:10.2,stop:9.5,target:12,holdingDays:7,bearCase:'El contrato no genera el flujo previsto',baseCase:'Ingresos según el contrato',bullCase:'Ejecución superior a la estimada',invalidation:'Cancelación o financiación fuera de los términos',reason:'Escenarios de fixture con relación beneficio/riesgo válida',...extra});
+const reviewedAnswer=extra=>({decision:'approve',missingEvidence:[],nextResearchTask:'',approve:true,reason:'Caja, condiciones, tamaño y escenarios de la fixture comprobados',...extra});
 
 test('operational analysis ignores old administrative instructions and accounts only its bounded Luna call',async()=>{
  const env=memoryEnv(),s=upgradeState(initialState());s.real.book.fx={rate:1};s.company.tasks=[{owner:'analyst',task:'Esperar siete días antes de pensar en compras'}];let request;
@@ -54,7 +56,7 @@ test('an invalid prepared plan does not call risk, invent an approval, or claim 
   s.real.assets=[{symbol:'SMALL',name:'Small Common Stock',exchange:'NASDAQ',marketCap:300e6,price:10,dataVerified:true}];s.real.events=[{id:eventId,symbol:'SMALL',status:'nuevo',confirmed:true,source:primary,sources:[{url:primary,claim:'Fecha primaria'}],date:new Date(t+864e5).toISOString(),summary:'Evento futuro contrastado con fuentes',preScore:{eligible:true,score:70}}];s.real.quotes={SMALL:{price:10,time:t-3600e3,fetchedAt:t,referenceOnly:true,currency:'USD',source:referenceSource,dollarVolume:5e6}};s.real.marketCheckedAt=t;s.real.marketProviderAt=t;s.real.book.fx={rate:1,time:t,checkedAt:t};s.real.lastScan=t;
   for(const a of s.agents)a.paused=!['analyst','risk','operator'].includes(a.id);s.company.agency.day=new Date(t).toISOString().slice(0,10);s.company.agency.runsToday=6;queueEmployeeWork(s,'analysis',eventId,{owner:'analyst',decision:'Valorar datos disponibles',nextTask:'Preparar plan',evidenceIds:[eventId],strategy:null},t);
  });
- let calls=0;const original=globalThis.fetch;globalThis.fetch=async(url,options)=>{assert.equal(url,'https://api.openai.com/v1/responses');const request=JSON.parse(options.body);calls++;assert.equal(request.model,'gpt-6-luna');return Response.json({status:'completed',usage:{input_tokens:500,output_tokens:200},output:[{type:'message',content:[{type:'output_text',text:JSON.stringify({approve:true,thesis:'Fixture con RR insuficiente',entryMin:9.9,entryMax:10.1,stop:9,target:11,holdingDays:7,bearCase:'Riesgo',baseCase:'Plano',bullCase:'Subida',invalidation:'Falla tesis',reason:'Fixture inválida'})}]}]});};
+ let calls=0;const original=globalThis.fetch;globalThis.fetch=async(url,options)=>{assert.equal(url,'https://api.openai.com/v1/responses');const request=JSON.parse(options.body);calls++;assert.equal(request.model,'gpt-6-luna');return Response.json({status:'completed',usage:{input_tokens:500,output_tokens:200},output:[{type:'message',content:[{type:'output_text',text:JSON.stringify({decision:'prepare',missingEvidence:[],nextResearchTask:'',approve:true,thesis:'Fixture con RR insuficiente',entryMin:9.9,entryMax:10.1,stop:9,target:11,holdingDays:7,bearCase:'Riesgo',baseCase:'Plano',bullCase:'Subida',invalidation:'Falla tesis',reason:'Fixture inválida'})}]}]});};
  try{await cycle(env);const {state:s}=await load(env),e=s.real.events[0],work=s.company.agency.workQueue.find(w=>w.eventId===eventId);assert.equal(calls,1);assert.equal(e.status,'descartado');assert.equal(e.plan,undefined);assert.equal(e.review,undefined);assert.equal(s.real.book.orders.length,0);assert.match(work.result,/riesgo insuficiente/i);assert.doesNotMatch(work.result,/plan elaborado/i);
  }finally{globalThis.fetch=original;env._db.close();}
 });
@@ -73,7 +75,7 @@ test('ordinary weekend planning uses Luna despite a full Sol quota, obtains inde
   });
   const requests=[];globalThis.fetch=async(url,options)=>{
    assert.equal(url,'https://api.openai.com/v1/responses');const body=JSON.parse(options.body),input=JSON.parse(body.input);requests.push(body);assert.equal(body.model,'gpt-6-luna');assert.equal(input.financialProfile.fundamentals.metrics.fcf,2e6);assert.equal(input.quote.time,friday);assert.equal(input.quote.timeISO,'2026-10-02T19:50:00.000Z');assert.equal(input.quote.fetchedAtISO,'2026-10-03T15:00:00.000Z');
-   const answer=body.text.format.schema.properties.holdingDays?{approve:true,thesis:'Tesis de fixture con escenarios y fecha primaria',entryMin:9.8,entryMax:10.2,stop:9.5,target:12,holdingDays:7,bearCase:'Guía incumplida',baseCase:'Plano',bullCase:'Resultados superiores',invalidation:'Falla guía',reason:'Datos suficientes en fixture'}:{approve:true,reason:'Revisión independiente de la fixture: lote y escenarios válidos'};
+   const answer=body.text.format.schema.properties.holdingDays?{decision:'prepare',missingEvidence:[],nextResearchTask:'',approve:true,thesis:'Tesis de fixture con escenarios y fecha primaria',entryMin:9.8,entryMax:10.2,stop:9.5,target:12,holdingDays:7,bearCase:'Guía incumplida',baseCase:'Plano',bullCase:'Resultados superiores',invalidation:'Falla guía',reason:'Datos suficientes en fixture'}:{decision:'approve',missingEvidence:[],nextResearchTask:'',approve:true,reason:'Revisión independiente de la fixture: lote y escenarios válidos'};
    return Response.json({status:'completed',usage:{input_tokens:500,output_tokens:200},output:[{type:'message',content:[{type:'output_text',text:JSON.stringify(answer)}]}]});
   };
   await cycle(env);const {state:s}=await load(env),event=s.real.events[0];assert.equal(requests.length,2);assert.equal(event.status,'espera');assert.ok(event.plan);assert.equal(event.review.approve,true);assert.equal(event.plan.referenceAt,friday);assert.equal(s.real.book.orders.length,0);assert.equal(s.company.sessionPlan.ready.length,1);assert.equal(s.company.pipeline.readyNextSession,1);assert.equal(s.company.sessionPlan.date,'2026-10-05');
@@ -88,6 +90,57 @@ test('native initiative functions use strict complete schemas and expose strateg
   else assert.equal(tool.parameters.properties.strategy,undefined);
  }
  assert.throws(()=>employeeFunctionOptions('operator',['tune_strategy'],initiativeSchema),/fuera del rol/);
+});
+
+test('a real cycle hands missing evidence to Santi, spends nothing while pending, then prepares and reviews after the one supplementary answer',async()=>{
+ const env=memoryEnv(),start=Date.parse('2026-10-03T15:00:00Z'),friday=Date.parse('2026-10-02T19:50:00Z'),eventId='supplementary-cycle',originalNow=Date.now,originalFetch=globalThis.fetch;let clock=start;Date.now=()=>clock;
+ const task='Read the signed contract annex and identify the cash consideration and financing';
+ try{
+  env._db.prepare('INSERT INTO trading_secrets(name,cipher,iv,updated_at) VALUES (?,?,?,?)').run('openai','test-only','test-only',start);
+  await locked(env,async s=>{
+   s.real.assets=[{symbol:'SMALL',name:'Small Common Stock',exchange:'NASDAQ',marketCap:300e6,price:10,dataVerified:true}];
+   s.real.events=[{id:eventId,symbol:'SMALL',status:'nuevo',confirmed:true,timing:'announced',kind:'Contrato material',source:primary,sources:[{url:primary,claim:'Contrato material publicado por el emisor el viernes'}],date:new Date(friday).toISOString(),summary:'Contrato material anunciado con fecha comprobada; faltan las condiciones del anexo.',research:{worthAnalyzing:true,researchedAt:start-2*3600e3},researchAttemptAt:start-2*3600e3,preScore:{eligible:true,score:70}}];
+   s.real.profiles={SMALL:{checkedAt:start,fundamentals:{checkedAt:start,source:'https://data.sec.gov/test',metrics:{fcf:2e6,revenueYoY:.1,cashLatest:20e6,annualAgeDays:180}},market:{asOf:new Date(friday).toISOString(),averageDollarVolume:5e6}}};s.real.quotes={SMALL:{price:10,time:friday,fetchedAt:start,referenceOnly:true,currency:'USD',source:referenceSource,dollarVolume:5e6}};s.real.marketCheckedAt=start;s.real.marketProviderAt=start;s.real.book.fx={rate:1,time:friday,checkedAt:start};s.real.lastScan=start;
+   for(const a of s.agents)a.paused=!['scout','analyst','risk','operator'].includes(a.id);s.company.agency.day=new Date(start).toISOString().slice(0,10);s.company.agency.runsToday=6;s.company.agency.preparationDay=new Date(start).toISOString().slice(0,10);s.company.agency.preparationCalls=2;
+  });
+  const requests=[];let analysisCalls=0;
+  globalThis.fetch=async(url,options)=>{
+   assert.equal(url,'https://api.openai.com/v1/responses');const body=JSON.parse(options.body),payload=JSON.parse(body.input);requests.push(body);assert.equal(body.model,'gpt-6-luna');let answer,web=[];
+   if(body.tools?.[0]?.type==='web_search'){
+    assert.equal(payload.assignedWork.assignments.length,1);assert.equal(payload.assignedWork.assignments[0].task,task);assert.equal(payload.assignedWork.analysisFollowup.nextTask,task);assert.equal(payload.priorConfirmation.date,new Date(friday).toISOString());
+    answer=researchAnswer({eventDate:new Date(friday).toISOString(),summary:'El anexo primario especifica la contraprestación en efectivo y la financiación disponible. No hay emisión nueva de acciones según los términos consultados. '.repeat(2),taskFindings:'El anexo aporta contraprestación y condiciones de financiación.',taskResolved:true});delete answer._retrieved;web=[{type:'web_search_call',action:{sources:[{url:primary}]}}];
+   }else if(body.text.format.schema.properties.holdingDays){
+    analysisCalls++;answer=analysisCalls===1?preparedAnswer({decision:'needs_evidence',approve:false,entryMin:0,entryMax:0,stop:0,target:0,missingEvidence:['Cash consideration and funding conditions in the signed annex'],nextResearchTask:task,reason:'La señal es plausible, pero aún faltan condiciones concretas del contrato'}):preparedAnswer();
+    if(analysisCalls===2){assert.equal(payload.event.research.supplement.taskResolved,true);assert.ok(payload.event.research.researchedAt>start-2*3600e3);}
+   }else answer=reviewedAnswer();
+   assert.deepEqual(new Set(Object.keys(answer)),new Set(body.text.format.schema.required),'The mocked model follows the strict production decision schema');
+   return Response.json({status:'completed',usage:{input_tokens:500,output_tokens:200},output:[...web,{type:'message',content:[{type:'output_text',text:JSON.stringify(answer)}]}]});
+  };
+  await cycle(env);let s=(await load(env)).state,e=s.real.events[0],researchWork=s.company.agency.workQueue.find(w=>w.kind==='research'&&w.eventId===eventId);
+  assert.equal(requests.length,1);assert.equal(e.status,'verificar');assert.equal(e.confirmed,true);assert.equal(e.analysisAssessment.decision,'needs_evidence');assert.equal(e.plan,undefined);assert.equal(researchWork.status,'pending');assert.equal(researchWork.task,task);assert.equal(researchWork.notBefore,start+2*3600e3);assert.equal(s.company.pipeline.counts.researchFollowupPending,1);
+  const spent=env._db.prepare('SELECT spent_eur FROM trading_operating_budget').get().spent_eur;
+  clock=start+5*60e3;await cycle(env);s=(await load(env)).state;assert.equal(requests.length,1);assert.equal(env._db.prepare('SELECT spent_eur FROM trading_operating_budget').get().spent_eur,spent);assert.equal(s.real.events[0].plan,undefined);assert.equal(s.real.book.orders.length,0);
+  clock=researchWork.notBefore+1000;await locked(env,async state=>{state.real.lastScan=clock;state.real.marketCheckedAt=clock;state.real.book.fx.checkedAt=clock;});
+  await cycle(env);s=(await load(env)).state;e=s.real.events[0];researchWork=s.company.agency.workQueue.find(w=>w.id===researchWork.id);
+  assert.equal(requests.length,4);assert.equal(analysisCalls,2);assert.equal(e.research.supplement.taskResolved,true);assert.equal(researchWork.status,'complete');assert.ok(researchWork.evidenceFingerprintAtFinish);assert.ok(e.plan);assert.equal(e.review.approve,true);assert.equal(e.status,'espera');assert.equal(s.real.book.orders.length,0);assert.equal(s.company.sessionPlan.ready.length,1);assert.equal(s.company.pipeline.counts.researchFollowupPending,0);
+  const finalSpent=env._db.prepare('SELECT spent_eur FROM trading_operating_budget').get().spent_eur;assert.ok(finalSpent>spent&&finalSpent<10);
+  await cycle(env);assert.equal(requests.length,4);assert.equal(env._db.prepare('SELECT spent_eur FROM trading_operating_budget').get().spent_eur,finalSpent);assert.equal((await load(env)).state.real.book.orders.length,0);
+ }finally{Date.now=originalNow;globalThis.fetch=originalFetch;env._db.close();}
+});
+
+test('an entry pause permits complete analysis and risk review during an open session but prevents an otherwise valid paper buy',async()=>{
+ const env=memoryEnv(),t=Date.parse('2026-10-05T15:00:00Z'),eventId='paused-entry-preparation',originalNow=Date.now,originalFetch=globalThis.fetch;Date.now=()=>t;
+ try{
+  env._db.prepare('INSERT INTO trading_secrets(name,cipher,iv,updated_at) VALUES (?,?,?,?)').run('openai','test-only','test-only',t);
+  await locked(env,async s=>{
+   s.paused=true;s.real.assets=[{symbol:'SMALL',name:'Small Common Stock',exchange:'NASDAQ',marketCap:300e6,price:10,dataVerified:true}];s.real.events=[{id:eventId,symbol:'SMALL',status:'nuevo',confirmed:true,timing:'scheduled',kind:'Contrato',source:primary,sources:[{url:primary,claim:'Condiciones y fecha del contrato confirmadas por el emisor'}],date:'2026-10-07T20:00:00Z',summary:'Un contrato con fecha futura y términos primarios verificables.',research:{worthAnalyzing:true},preScore:{eligible:true,score:70}}];s.real.profiles={SMALL:{checkedAt:t,fundamentals:{checkedAt:t,source:'https://data.sec.gov/test',metrics:{fcf:2e6,cashLatest:20e6}}}};s.real.quotes={SMALL:{price:10,time:t-60e3,fetchedAt:t,referenceOnly:true,currency:'USD',source:referenceSource,dollarVolume:5e6}};s.real.marketCheckedAt=t;s.real.marketProviderAt=t;s.real.book.fx={rate:1,time:t,checkedAt:t};s.real.lastScan=t;
+   for(const a of s.agents)a.paused=!['analyst','risk','operator'].includes(a.id);s.company.agency.day=new Date(t).toISOString().slice(0,10);s.company.agency.runsToday=6;
+  });
+  let calls=0;globalThis.fetch=async(url,options)=>{assert.equal(url,'https://api.openai.com/v1/responses');const body=JSON.parse(options.body);calls++;const answer=body.text.format.schema.properties.holdingDays?preparedAnswer():reviewedAnswer();assert.deepEqual(new Set(Object.keys(answer)),new Set(body.text.format.schema.required));return Response.json({status:'completed',usage:{input_tokens:500,output_tokens:200},output:[{type:'message',content:[{type:'output_text',text:JSON.stringify(answer)}]}]});};
+  await cycle(env);let s=(await load(env)).state,e=s.real.events[0];assert.equal(calls,2);assert.ok(e.plan);assert.equal(e.review.approve,true);assert.equal(e.status,'espera');assert.equal(s.paused,true);assert.equal(s.company.sessionPlan.ready.length,1);assert.equal(s.company.pipeline.blockerStage,'paused');assert.match(e.reasons[0],/nuevas entradas pausadas/i);assert.equal(s.real.book.orders.length,0);assert.equal(s.real.book.positions.length,0);assert.equal(s.real.book.cash,10000);
+  assert.equal(freshQuote(s.real.quotes.SMALL,t,s.config),true);assert.equal(assess(s.real.book,s.real.assets[0],e,e.plan,s.real.quotes.SMALL,s.config,t).ok,true,'The pause is the actual blocker, not a stale quote or invalid plan');
+  await cycle(env);s=(await load(env)).state;assert.equal(calls,2);assert.equal(s.real.book.orders.length,0);assert.equal(s.real.book.positions.length,0);assert.equal(s.paused,true);
+ }finally{Date.now=originalNow;globalThis.fetch=originalFetch;env._db.close();}
 });
 
 test('a specialist task created after a slow initiative is consumed in the same cycle using the current clock',async()=>{
@@ -125,7 +178,7 @@ test('clinical analysis exhausts its actual daily quota explicitly and automatic
   await cycle(env);s=(await load(env)).state;assert.equal(calls,0);assert.equal(s.logs.filter(l=>/cuota diaria de dos revisiones profundas agotada/i.test(l.text)).length,1);
   clock=e.analysisDeferred.nextAt+1000;assert.equal(selectPlanningCandidates(s,clock)[0].id,eventId);
   await locked(env,async s=>{s.real.marketCheckedAt=clock;s.real.marketProviderAt=clock;s.real.book.fx.checkedAt=clock;s.company.agency.day=new Date(clock).toISOString().slice(0,10);s.company.agency.runsToday=6;});
-  globalThis.fetch=async(url,options)=>{calls++;assert.equal(url,'https://api.openai.com/v1/responses');assert.equal(JSON.parse(options.body).model,'gpt-6.1-sol');return Response.json({status:'completed',usage:{input_tokens:500,output_tokens:200},output:[{type:'message',content:[{type:'output_text',text:JSON.stringify({approve:false,thesis:'Fixture',entryMin:0,entryMax:0,stop:0,target:0,holdingDays:7,bearCase:'Riesgo clínico',baseCase:'Pendiente',bullCase:'Hipótesis',invalidation:'Falta evidencia',reason:'El análisis profundo no justifica entrada'})}]}]});};
+  globalThis.fetch=async(url,options)=>{calls++;assert.equal(url,'https://api.openai.com/v1/responses');assert.equal(JSON.parse(options.body).model,'gpt-6.1-sol');return Response.json({status:'completed',usage:{input_tokens:500,output_tokens:200},output:[{type:'message',content:[{type:'output_text',text:JSON.stringify({decision:'reject',missingEvidence:[],nextResearchTask:'',approve:false,thesis:'Fixture',entryMin:0,entryMax:0,stop:0,target:0,holdingDays:7,bearCase:'Riesgo clínico',baseCase:'Pendiente',bullCase:'Hipótesis',invalidation:'Falta evidencia',reason:'El análisis profundo no justifica entrada'})}]}]});};
   await cycle(env);s=(await load(env)).state;e=s.real.events[0];assert.equal(calls,1);assert.equal(e.analysisDeferred,undefined);assert.equal(e.status,'descartado');assert.equal(env._db.prepare('SELECT COUNT(*) AS n FROM trading_calls WHERE day=? AND model=?').get(day(clock),'gpt-6.1-sol').n,1);assert.equal(s.real.book.orders.length,0);
  }finally{Date.now=originalNow;globalThis.fetch=originalFetch;env._db.close();}
 });

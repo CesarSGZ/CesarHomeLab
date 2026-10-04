@@ -36,7 +36,7 @@ export function workflowSettings(s){
 }
 
 export function researchBrief(s,event,now=Date.now()){
- return {assignments:(s.company?.agency?.workQueue||[]).filter(w=>w.kind==='research'&&w.eventId===event.id&&workPending(w)&&w.notBefore<=now).slice(0,3).map(w=>({from:w.from,task:w.task,reason:w.reason})),preliminary:event.preliminary?{summary:event.preliminary.summary,missingEvidence:event.preliminary.missingEvidence,nextTask:event.preliminary.nextTask}:null};
+ return {assignments:(s.company?.agency?.workQueue||[]).filter(w=>w.kind==='research'&&w.eventId===event.id&&workPending(w)&&(!w.notBefore||w.notBefore<=now)).slice(0,3).map(w=>({from:w.from,task:w.task,reason:w.reason})),preliminary:event.preliminary?{summary:event.preliminary.summary,missingEvidence:event.preliminary.missingEvidence,nextTask:event.preliminary.nextTask}:null,preRisk:event.preRisk?{summary:event.preRisk.summary,missingEvidence:event.preRisk.missingEvidence,nextTask:event.preRisk.nextTask}:null,analysisFollowup:event.analysisFollowup?{reason:event.analysisFollowup.reason,missingEvidence:event.analysisFollowup.missingEvidence,nextTask:event.analysisFollowup.nextTask}:null};
 }
 
 export function sessionResearchPacing(s,now=Date.now()){
@@ -62,6 +62,28 @@ export function researchEvidenceFingerprint(e){
 
 const lastAttempt=e=>Math.max(finite(e.researchAttemptAt)?e.researchAttemptAt:0,finite(e.research?.researchedAt)?e.research.researchedAt:0);
 const workPending=w=>['queued','pending','running','blocked','pendiente','asignada'].includes(w.status||'queued');
+const dated=x=>{const value=timestamp(x);return finite(value)?value:0;};
+const taskKey=task=>String(task||'').trim().replace(/\s+/g,' ').toLowerCase();
+const requestTime=w=>Math.max(dated(w.createdAt),dated(w.updatedAt));
+export function primaryResearchUpdateAt(event,now=Date.now()){
+ const updates=[dated(event.primaryUpdatedAt),dated(event.signal?.primaryUpdatedAt),...(event.sources||[]).map(source=>primarySource({sources:[source]})?dated(source.publishedAt||source.updatedAt):0)];
+ return Math.max(0,...updates.filter(at=>at<=now));
+}
+export function researchReadyAt(event,now=Date.now()){
+ const previous=lastAttempt(event);
+ return !previous||primaryResearchUpdateAt(event,now)>previous?now:Math.max(now,previous+(event.confirmed?4:24)*hour);
+}
+export function researchAssignmentAnswered(s,event,task){
+ const key=taskKey(task),fingerprint=researchEvidenceFingerprint(event);
+ return !!key&&(s.company?.agency?.workQueue||[]).some(w=>w.kind==='research'&&w.eventId===event.id&&w.status==='complete'&&taskKey(w.task)===key&&w.evidenceFingerprintAtFinish===fingerprint);
+}
+export function pendingResearchAssignment(s,event,now=Date.now()){
+ const previous=lastAttempt(event),retryDue=finite(event.researchRetryAfter)&&event.researchRetryAfter<=now;
+ return (s.company?.agency?.workQueue||[]).filter(w=>w.kind==='research'&&w.eventId===event.id&&workPending(w)&&(!w.notBefore||w.notBefore<=now)&&(requestTime(w)>previous||retryDue&&requestTime(w)>dated(event.research?.researchedAt))&&taskKey(w.task).length>=12&&!researchAssignmentAnswered(s,event,w.task)).sort((a,b)=>requestTime(b)-requestTime(a))[0]||null;
+}
+export function analysisFollowupPending(event){
+ return !!event.analysisFollowup&&dated(event.research?.researchedAt)<=dated(event.analysisFollowup.baselineResearchAt);
+}
 function queuedPriority(s,e,kind,now){return (s.company?.agency?.workQueue||[]).filter(w=>workPending(w)&&(!w.notBefore||w.notBefore<=now)&&w.kind===kind&&(w.eventId===e.id||w.symbol===e.symbol)).reduce((n,w)=>Math.max(n,w.time||w.createdAt||0),0);}
 function priority(s,e,kind,now){const mark=Math.max(e.employeePriority?.time||0,queuedPriority(s,e,kind,now));return finite(mark)&&mark<=now&&now-mark<=7*day?mark:0;}
 function focusBoost(e,s,settings){const sector=s.real.assets?.find(a=>a.symbol===e.symbol)?.sector||'',kind=e.kind||e.signal?.kind||'';return Number(settings.focusSectors.some(x=>sector.toLowerCase().includes(x.toLowerCase())))+Number(settings.catalystKinds.some(x=>kind.toLowerCase().includes(x.toLowerCase())));}
@@ -71,19 +93,24 @@ export function selectResearchCandidates(s,now=Date.now()){
  const settings=workflowSettings(s),events=s.real.events||[],companyAttempts=new Map();
  for(const e of events)companyAttempts.set(e.symbol,Math.max(companyAttempts.get(e.symbol)||0,lastAttempt(e)));
  const rows=events.filter(e=>{
-  if(e.confirmed||closedStatuses.has(e.status)||!e.preScore?.eligible)return false;
-  const companyAt=companyAttempts.get(e.symbol)||0;if(companyAt&&now-companyAt<day)return false;
+  if(closedStatuses.has(e.status)||!e.preScore?.eligible||e.researchRetryAfter>now)return false;
+  const companyAt=companyAttempts.get(e.symbol)||0,newPrimary=primaryResearchUpdateAt(e,now)>companyAt;
+  if(e.confirmed){
+   if(e.plan||e.review?.approve===false||e.research?.worthAnalyzing===false||!pendingResearchAssignment(s,e,now))return false;
+   return newPrimary||!companyAt||now-companyAt>=4*hour;
+  }
+  if(companyAt&&now-companyAt<day&&!newPrimary)return false;
   const attempted=lastAttempt(e);if(!attempted||!e.research)return true;
   const explicitlyQueued=priority(s,e,'research',now)>attempted;
   const changed=e.researchFingerprint?e.researchFingerprint!==researchEvidenceFingerprint(e):(e.evidenceUpdatedAt||e.signal?.publishedAt||0)>attempted;
-  return explicitlyQueued||changed||now-attempted>=2*day;
+  return explicitlyQueued||changed||newPrimary||now-attempted>=2*day;
  });return order(s,rows,'research',settings,now);
 }
 
 export function selectPlanningCandidates(s,now=Date.now()){
  const settings=workflowSettings(s),weekend=['Sat','Sun'].includes(new Intl.DateTimeFormat('en-US',{timeZone:'America/New_York',weekday:'short'}).format(new Date(now)));
  if(weekend&&!settings.weekendPlanning)return [];
- const rows=(s.real.events||[]).filter(e=>!closedStatuses.has(e.status)&&!deferredToday(e,now)&&catalystReady(e,now)&&e.research?.worthAnalyzing!==false&&(!e.plan||finite(e.plan.expiresAt)&&e.plan.expiresAt>now)&&e.plan?.approve!==false&&e.review?.approve!==false);
+ const rows=(s.real.events||[]).filter(e=>!closedStatuses.has(e.status)&&!deferredToday(e,now)&&!(e.retryAfter>now)&&!analysisFollowupPending(e)&&catalystReady(e,now)&&e.research?.worthAnalyzing!==false&&(!e.plan||finite(e.plan.expiresAt)&&e.plan.expiresAt>now)&&e.plan?.approve!==false&&e.review?.approve!==false);
  return order(s,rows,'analysis',settings,now);
 }
 
@@ -96,17 +123,18 @@ function sessionCalendar(now){
 
 export function pipelineSummary(s,now=Date.now()){
  const events=s.real.events||[],work=(s.company?.agency?.workQueue||[]).filter(workPending),planning=selectPlanningCandidates(s,now),researchQueue=selectResearchCandidates(s,now),calendar=sessionCalendar(now);
- const confirmed=events.filter(e=>!closedStatuses.has(e.status)&&catalystReady(e,now)),deferred=confirmed.filter(e=>deferredToday(e,now)),prepared=planning.filter(e=>e.plan),approved=prepared.filter(e=>e.review?.approve===true),riskPending=prepared.filter(e=>!e.review),supportPending=work.filter(w=>w.phase==='preliminary'||['analysis','risk','market','profile','development','strategy','code','execution'].includes(w.kind));
- const counts={signals:events.filter(e=>!closedStatuses.has(e.status)).length,researchQueue:researchQueue.length,researched:events.filter(e=>e.research).length,confirmed:confirmed.length,analysisReady:planning.filter(e=>!e.plan).length,analysisDeferred:deferred.length,riskPending:riskPending.length,plansPrepared:prepared.length,approvedWaiting:approved.length,supportPending:supportPending.length,positions:s.real.book?.positions?.length||0,closed:s.real.book?.closed?.length||0};
+ const confirmed=events.filter(e=>!closedStatuses.has(e.status)&&catalystReady(e,now)),deferred=confirmed.filter(e=>deferredToday(e,now)),followup=confirmed.filter(analysisFollowupPending),prepared=planning.filter(e=>e.plan),approved=prepared.filter(e=>e.review?.approve===true),riskPending=prepared.filter(e=>!e.review),supportPending=work.filter(w=>w.phase==='preliminary'||['analysis','risk','market','profile','development','strategy','code','execution'].includes(w.kind));
+ const counts={signals:events.filter(e=>!closedStatuses.has(e.status)).length,researchQueue:researchQueue.length,researched:events.filter(e=>e.research).length,confirmed:confirmed.length,analysisReady:planning.filter(e=>!e.plan).length,analysisDeferred:deferred.length,researchFollowupPending:followup.length,riskPending:riskPending.length,plansPrepared:prepared.length,approvedWaiting:approved.length,supportPending:supportPending.length,positions:s.real.book?.positions?.length||0,closed:s.real.book?.closed?.length||0};
  let blocker='',blockerStage='';
  if(s.operating?.exhausted||s.operating?.remainingEur===0){blockerStage='budget';blocker='Presupuesto mensual de IA agotado; vigilancia por código activa';}
- else if(s.paused){blockerStage='paused';blocker='Nuevas entradas pausadas por César';}
+ else if(approved.length&&s.paused){blockerStage='paused';blocker='Planes preparados; nuevas entradas pausadas por César';}
  else if(approved.length){blockerStage=calendar.marketOpen?'execution':'session';blocker=calendar.marketOpen?'Comprobar precio y condiciones de los planes aprobados':'Planes preparados; esperar sesión y validar precio de entrada';}
  else if(riskPending.length){blockerStage='risk';blocker='Planes pendientes de la revisión independiente de María';}
  else if(planning.length){blockerStage='analysis';blocker='Catalizadores contrastados pendientes de valoración y plan de Pedro';}
+ else if(followup.length){blockerStage='research_followup';blocker='Santi debe resolver preguntas concretas de Pedro antes de repetir la valoración';}
  else if(deferred.length){blockerStage='analysis_quota';blocker='Revisión profunda aplazada por cuota diaria; se reabre tras medianoche de Nueva York';}
  else if(supportPending.length){blockerStage='support';blocker='Resolver datos, comprobaciones o código solicitados por empleados';}
  else if(researchQueue.length){blockerStage='research';blocker='Santi debe contrastar las fuentes y la ventaja de las candidatas priorizadas';}
  else{blockerStage='discovery';blocker='Sin candidata preparada: buscar señales nuevas y resolver datos que falten';}
- return {at:now,...calendar,counts,researchQueue:researchQueue.length,supportPending:supportPending.length,analysisDeferred:deferred.length,nextAnalysisAt:deferred.length?Math.min(...deferred.map(e=>e.analysisDeferred.nextAt||nextDeepAnalysisAt(now))):null,approvedWaiting:approved.length,readyNextSession:!calendar.marketOpen?approved.length:0,blockerStage,blocker};
+ return {at:now,...calendar,counts,entriesPaused:!!s.paused,researchQueue:researchQueue.length,supportPending:supportPending.length,analysisDeferred:deferred.length,nextAnalysisAt:deferred.length?Math.min(...deferred.map(e=>e.analysisDeferred.nextAt||nextDeepAnalysisAt(now))):null,researchFollowupPending:followup.length,nextResearchAt:followup.length?Math.min(...followup.map(e=>researchReadyAt(e,now))):null,approvedWaiting:approved.length,readyNextSession:!calendar.marketOpen?approved.length:0,blockerStage,blocker};
 }

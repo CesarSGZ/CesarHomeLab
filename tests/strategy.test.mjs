@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {catalystReady,researchEvidenceFingerprint,selectResearchCandidates,selectPlanningCandidates,workflowSettings,validateWorkflowStrategy,pipelineSummary,researchBrief,sessionResearchPacing} from '../trading-worker/strategy.js';
+import {catalystReady,researchEvidenceFingerprint,selectResearchCandidates,selectPlanningCandidates,workflowSettings,validateWorkflowStrategy,pipelineSummary,researchBrief,sessionResearchPacing,analysisFollowupPending} from '../trading-worker/strategy.js';
 const now=Date.parse('2026-10-03T12:00:00Z'),day=864e5;
 const candidate=(id,extra={})=>({id,symbol:id,status:'verificar',confirmed:false,preScore:{eligible:true,score:60},...extra});
 const confirmed=(id,extra={})=>candidate(id,{confirmed:true,status:'nuevo',date:'2026-10-07T20:00:00Z',timing:'scheduled',sources:[{url:'https://issuer.example/investors/results',claim:'Fecha publicada por el emisor'}],...extra});
@@ -45,6 +45,49 @@ test('new evidence reopens research after the 24-hour company cooldown',()=>{
  e.researchAttemptAt=now-3600e3;assert.equal(selectResearchCandidates(fixture([e]),now).length,0);
 });
 
+test('a dated primary update bypasses cooldown but a headline rewrite does not',()=>{
+ const e=candidate('updated',{researchAttemptAt:now-3600e3,research:{researchedAt:now-3600e3},source:'https://issuer.example/old'}),s=fixture([e]);e.researchFingerprint=researchEvidenceFingerprint(e);e.title='A different model summary';
+ assert.equal(selectResearchCandidates(s,now).length,0);
+ e.primaryUpdatedAt=now-1800e3;assert.equal(selectResearchCandidates(s,now)[0],e);
+ e.primaryUpdatedAt=now+3600e3;assert.equal(selectResearchCandidates(s,now).length,0);
+});
+
+test('confirmed research needs a new concrete assignment and four-hour cooldown without reopening final rejections',()=>{
+ const at=now-5*3600e3,e=confirmed('supplement',{researchAttemptAt:at,research:{researchedAt:at,worthAnalyzing:true}}),s=fixture([e]);
+ assert.equal(selectResearchCandidates(s,now).length,0);
+ const work={id:'supplement-work',kind:'research',eventId:e.id,status:'pending',createdAt:now-3600e3,notBefore:now-3600e3,task:'Read the agreement annex and determine consideration and financing'};s.company.agency.workQueue.push(work);
+ assert.deepEqual(selectResearchCandidates(s,now),[e]);
+ work.createdAt=at;assert.equal(selectResearchCandidates(s,now).length,0);work.createdAt=now-3600e3;
+ e.researchAttemptAt=now-2*3600e3;e.research.researchedAt=e.researchAttemptAt;assert.equal(selectResearchCandidates(s,now).length,0);
+ e.primaryUpdatedAt=now-1800e3;assert.deepEqual(selectResearchCandidates(s,now),[e]);
+ for(const status of ['descartado','caducado','abierto']){e.status=status;assert.equal(selectResearchCandidates(s,now).length,0);}e.status='nuevo';
+ e.review={approve:false};assert.equal(selectResearchCandidates(s,now).length,0);delete e.review;
+ e.plan={approve:true};assert.equal(selectResearchCandidates(s,now).length,0);delete e.plan;
+ e.research.worthAnalyzing=false;assert.equal(selectResearchCandidates(s,now).length,0);
+});
+
+test('a completed supplemental question is not paid again against unchanged evidence',()=>{
+ const at=now-5*3600e3,e=confirmed('answered',{researchAttemptAt:at,research:{researchedAt:at,worthAnalyzing:true}}),s=fixture([e]),task='Read the agreement annex and determine consideration';
+ s.company.agency.workQueue=[{kind:'research',eventId:e.id,status:'complete',task,finishedAt:at,evidenceFingerprintAtFinish:researchEvidenceFingerprint(e)},{kind:'research',eventId:e.id,status:'pending',task:'  READ the agreement annex and determine consideration  ',createdAt:now-1000,notBefore:now-1000}];
+ assert.equal(selectResearchCandidates(s,now).length,0);
+ s.company.agency.workQueue[1].task='Check the newly reported cash financing terms';assert.deepEqual(selectResearchCandidates(s,now),[e]);
+});
+
+test('a transport failure retries the unanswered supplementary task after its delay without another employee decision',()=>{
+ const successAt=now-8*3600e3,failedAt=now-3600e3,e=confirmed('retry',{research:{researchedAt:successAt,worthAnalyzing:true},researchAttemptAt:failedAt,researchRetryAfter:failedAt+4*3600e3}),s=fixture([e]);
+ s.company.agency.workQueue=[{kind:'research',eventId:e.id,status:'pending',task:'Read the annex and check actual consideration',createdAt:now-2*3600e3,notBefore:now-2*3600e3}];
+ assert.equal(selectResearchCandidates(s,now).length,0);assert.equal(selectResearchCandidates(s,e.researchRetryAfter-1).length,0);assert.deepEqual(selectResearchCandidates(s,e.researchRetryAfter),[e]);
+ s.company.agency.workQueue[0].status='complete';assert.equal(selectResearchCandidates(s,e.researchRetryAfter).length,0);
+});
+
+test('planning waits for the actual follow-up answer and retry date, then resumes without changing approval',()=>{
+ const at=now-5*3600e3,e=confirmed('followup',{research:{researchedAt:at,worthAnalyzing:true},analysisFollowup:{at:now-3600e3,baselineResearchAt:at,missingEvidence:['Agreement consideration']}}),s=fixture([e]);
+ assert.equal(analysisFollowupPending(e),true);assert.equal(selectPlanningCandidates(s,now).length,0);assert.equal(pipelineSummary(s,now).counts.analysisReady,0);assert.equal(pipelineSummary(s,now).blockerStage,'research_followup');assert.equal(pipelineSummary(s,now).counts.researchFollowupPending,1);
+ e.research.researchedAt=at+1000;assert.equal(analysisFollowupPending(e),false);assert.deepEqual(selectPlanningCandidates(s,now),[e]);
+ e.retryAfter=now+3600e3;assert.equal(selectPlanningCandidates(s,now).length,0);assert.equal(pipelineSummary(s,now).counts.analysisReady,0);
+ assert.deepEqual(selectPlanningCandidates(s,e.retryAfter),[e]);assert.equal(e.plan,undefined);assert.equal(e.review,undefined);
+});
+
 test('employee priorities and structured research requests choose useful work without changing scores',()=>{
  const high=candidate('high',{preScore:{eligible:true,score:90}}),assigned=candidate('assigned',{preScore:{eligible:true,score:50}}),s=fixture([high,assigned]);s.company.agency.workQueue.push({id:'q1',kind:'research',eventId:'assigned',createdAt:now-1000,status:'pending',notBefore:now-1000});
  assert.deepEqual(selectResearchCandidates(s,now).map(e=>e.id),['assigned','high']);assert.equal(assigned.preScore.score,50);
@@ -67,4 +110,11 @@ test('pipeline summary explains next work and counts only real approved plans fo
  const plan=confirmed('ready',{status:'espera',plan:{expiresAt:now+5*day},review:{approve:true}}),review=confirmed('review',{plan:{expiresAt:now+5*day}}),screen=confirmed('screen'),research=candidate('research'),s=fixture([plan,review,screen,research]);s.company.agency.workQueue.push({kind:'analysis',phase:'preliminary',status:'pending',eventId:'research'});
  const summary=pipelineSummary(s,now);assert.equal(summary.marketOpen,false);assert.equal(summary.nextSessionDate,'2026-10-05');assert.equal(summary.readyNextSession,1);assert.equal(summary.counts.analysisReady,1);assert.equal(summary.counts.riskPending,1);assert.equal(summary.counts.researchQueue,1);assert.equal(summary.counts.supportPending,1);assert.equal(summary.blockerStage,'session');
  s.operating.exhausted=true;assert.equal(pipelineSummary(s,now).blockerStage,'budget');
+});
+
+test('pausing entries leaves research and planning visible and only pauses execution of approved plans',()=>{
+ const s=fixture([confirmed('plan-me')]);s.paused=true;
+ assert.equal(pipelineSummary(s,now).blockerStage,'analysis');assert.equal(pipelineSummary(s,now).entriesPaused,true);assert.equal(selectPlanningCandidates(s,now).length,1);
+ s.real.events=[candidate('research-me')];assert.equal(pipelineSummary(s,now).blockerStage,'research');assert.equal(selectResearchCandidates(s,now).length,1);
+ s.real.events=[confirmed('ready',{plan:{expiresAt:now+day},review:{approve:true},status:'espera'})];assert.equal(pipelineSummary(s,now).blockerStage,'paused');assert.equal(pipelineSummary(s,now).readyNextSession,1);assert.match(pipelineSummary(s,now).blocker,/Planes preparados/);
 });
