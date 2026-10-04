@@ -44,7 +44,13 @@ export function sessionResearchPacing(s,now=Date.now()){
  const nearing=Date.parse(pipeline.nextSessionDate+'T13:30:00Z')-now<60*3600e3;
  const preparing=settings.weekendPlanning&&nearing&&pipeline.counts.approvedWaiting<target;
  const affordable=Math.max(0,Math.floor((s.operating?.paceEurPerDay||0)/.045));
- return {target,preparing,limit:Math.min(preparing?Math.max(settings.researchDailyLimit,6):settings.researchDailyLimit,affordable),intervalMinutes:preparing?Math.min(settings.researchIntervalMinutes,45):settings.researchIntervalMinutes};
+ let limit=Math.min(preparing?Math.max(settings.researchDailyLimit,6):settings.researchDailyLimit,affordable);
+ if(preparing&&!s.operating?.exhausted&&s.operating?.remainingEur>0&&finite(s.operating?.daySpentEur)){
+  const callsToday=s.real.researchDay===newYorkDay(now)&&finite(s.real.researchCalls)?Math.max(0,Math.floor(s.real.researchCalls)):0;
+  const spare=Math.max(0,(s.operating.paceEurPerDay||0)-s.operating.daySpentEur),extra=Math.floor(spare/.045);
+  if(extra>0){const pendingFollowupCount=selectResearchCandidates(s,now).filter(e=>e.confirmed&&analysisFollowupPending(e)).length;limit=Math.min(12,Math.max(limit,callsToday+Math.min(pendingFollowupCount,extra)));}
+ }
+ return {target,preparing,limit,intervalMinutes:preparing?Math.min(settings.researchIntervalMinutes,45):settings.researchIntervalMinutes};
 }
 
 // A future announced event and an already published catalyst are distinct facts.
@@ -87,7 +93,7 @@ export function analysisFollowupPending(event){
 function queuedPriority(s,e,kind,now){return (s.company?.agency?.workQueue||[]).filter(w=>workPending(w)&&(!w.notBefore||w.notBefore<=now)&&w.kind===kind&&(w.eventId===e.id||w.symbol===e.symbol)).reduce((n,w)=>Math.max(n,w.time||w.createdAt||0),0);}
 function priority(s,e,kind,now){const mark=Math.max(e.employeePriority?.time||0,queuedPriority(s,e,kind,now));return finite(mark)&&mark<=now&&now-mark<=7*day?mark:0;}
 function focusBoost(e,s,settings){const sector=s.real.assets?.find(a=>a.symbol===e.symbol)?.sector||'',kind=e.kind||e.signal?.kind||'';return Number(settings.focusSectors.some(x=>sector.toLowerCase().includes(x.toLowerCase())))+Number(settings.catalystKinds.some(x=>kind.toLowerCase().includes(x.toLowerCase())));}
-function order(s,rows,kind,settings,now){return rows.sort((a,b)=>Number(!!priority(s,b,kind,now))-Number(!!priority(s,a,kind,now))||focusBoost(b,s,settings)-focusBoost(a,s,settings)||(b.preScore?.score||0)-(a.preScore?.score||0)||priority(s,b,kind,now)-priority(s,a,kind,now)||(timestamp(a.date)||now+45*day)-(timestamp(b.date)||now+45*day));}
+function order(s,rows,kind,settings,now){return rows.sort((a,b)=>(kind==='research'?Number(b.confirmed&&analysisFollowupPending(b))-Number(a.confirmed&&analysisFollowupPending(a)):0)||Number(!!priority(s,b,kind,now))-Number(!!priority(s,a,kind,now))||focusBoost(b,s,settings)-focusBoost(a,s,settings)||(b.preScore?.score||0)-(a.preScore?.score||0)||priority(s,b,kind,now)-priority(s,a,kind,now)||(timestamp(a.date)||now+45*day)-(timestamp(b.date)||now+45*day));}
 
 export function selectResearchCandidates(s,now=Date.now()){
  const settings=workflowSettings(s),events=s.real.events||[],companyAttempts=new Map();

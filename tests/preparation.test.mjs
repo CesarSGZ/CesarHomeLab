@@ -21,6 +21,7 @@ test('missing analyst evidence becomes a bounded concrete scout assignment, not 
  const book=JSON.stringify(s.real.book),reply={reason:'Agreement terms missing',missingEvidence:['Closing terms'],nextResearchTask:'Read the primary agreement and identify closing conditions'};
  assert.equal(requestAnalysisEvidence(s,e,reply,now),true);assert.equal(e.status,'verificar');assert.equal(e.confirmed,true);assert.equal(e.plan,undefined);assert.equal(e.review,undefined);assert.equal(e.analysisAssessment.executable,false);
  assert.equal(s.company.agency.workQueue.find(w=>w.kind==='research').task,reply.nextResearchTask);assert.equal(JSON.stringify(s.real.book),book);
+ const watch=refreshSessionPlan(s,now).watchlist[0];assert.equal(watch.stage,'research');assert.equal(watch.nextTask,reply.nextResearchTask);assert.equal(watch.executable,false);
  assert.equal(requestAnalysisEvidence(s,e,reply,now+1),false);assert.equal(e.followupHistory.length,1);
  e.research.researchedAt=now+2;assert.equal(requestAnalysisEvidence(s,e,{...reply,missingEvidence:['Incremental margin'],nextResearchTask:'Verify incremental margin in the latest filing'},now+3),true);
  e.research.researchedAt=now+4;assert.equal(requestAnalysisEvidence(s,e,{...reply,nextResearchTask:'A third expensive repeated assignment'},now+5),false);

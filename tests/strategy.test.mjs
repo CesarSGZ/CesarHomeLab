@@ -15,10 +15,32 @@ test('next session preparation increases useful research within the daily allowa
  s.company.strategy={weekendPlanning:false};s.operating.paceEurPerDay=.3;assert.equal(sessionResearchPacing(s,sunday).limit,2);
 });
 
+test('next-session preparation can finish concrete confirmed follow-ups using spare daily allowance without resetting counters',()=>{
+ const sunday=Date.parse('2026-10-04T12:00:00Z'),baseline=sunday-5*3600e3,events=Array.from({length:4},(_,i)=>confirmed('supplement-'+i,{research:{researchedAt:baseline,worthAnalyzing:true},researchAttemptAt:baseline,analysisFollowup:{at:sunday-3*3600e3,baselineResearchAt:baseline,nextTask:'Read the annex and check consideration and financing'}})),s=fixture(events);
+ s.company.agency.workQueue=events.map(e=>({kind:'research',eventId:e.id,status:'pending',task:e.analysisFollowup.nextTask,createdAt:sunday-3*3600e3,notBefore:sunday-3600e3}));
+ s.real.researchDay='2026-10-04';s.real.researchCalls=6;s.operating.paceEurPerDay=.3;s.operating.daySpentEur=.16;
+ const before=JSON.stringify({book:s.real.book,researchCalls:s.real.researchCalls,operating:s.operating});const pacing=sessionResearchPacing(s,sunday);
+ assert.equal(pipelineSummary(s,sunday).marketOpen,false);assert.equal(pacing.preparing,true);assert.equal(pacing.limit,9);assert.equal(pacing.intervalMinutes,45);assert.equal(JSON.stringify({book:s.real.book,researchCalls:s.real.researchCalls,operating:s.operating}),before);assert.equal(events.some(e=>e.plan),false);
+ s.company.strategy={researchDailyLimit:1};assert.equal(sessionResearchPacing(s,sunday).limit,9,'The adaptive base of one does not strand concrete follow-ups');
+ s.operating.daySpentEur=.26;assert.equal(sessionResearchPacing(s,sunday).limit,6);s.operating.daySpentEur=undefined;assert.equal(sessionResearchPacing(s,sunday).limit,6);
+ s.operating.daySpentEur=.16;s.operating.remainingEur=0;assert.equal(sessionResearchPacing(s,sunday).limit,6);s.operating.remainingEur=9;s.operating.exhausted=true;assert.equal(sessionResearchPacing(s,sunday).limit,6);s.operating.exhausted=false;
+ s.real.researchDay='2026-10-03';assert.equal(sessionResearchPacing(s,sunday).limit,6);assert.equal(s.real.researchCalls,6);s.real.researchDay='2026-10-04';s.real.researchCalls=11;assert.equal(sessionResearchPacing(s,sunday).limit,12);
+ s.real.researchCalls=6;for(const e of events)e.status='descartado';assert.equal(sessionResearchPacing(s,sunday).limit,6,'Final rejections never create extra research allowance');
+ for(const e of events)e.status='nuevo';for(const w of s.company.agency.workQueue)w.notBefore=sunday+3600e3;assert.equal(sessionResearchPacing(s,sunday).limit,6,'The increase does not bypass task cooldowns');assert.equal(sessionResearchPacing(s,sunday+3600e3).limit,9);
+ s.company.strategy={researchDailyLimit:1,weekendPlanning:false};assert.equal(sessionResearchPacing(s,sunday).limit,1);
+ s.company.strategy={researchDailyLimit:1};const fridayEvening=Date.parse('2026-10-02T20:30:00Z');assert.equal(sessionResearchPacing(s,fridayEvening).preparing,false);assert.equal(sessionResearchPacing(s,fridayEvening).limit,1,'No increase when the next session is more than sixty hours away');
+});
+
 test('Santi receives the analyst questions for the selected company only',()=>{
  const e=candidate('A',{preliminary:{summary:'Agreement needs terms',missingEvidence:['Read the annex'],nextTask:'Find consideration and closing conditions'}}),s=fixture([e]);
  s.company.agency.workQueue=[{kind:'research',eventId:'A',status:'pending',notBefore:now-1,from:'analyst',task:'Read the material agreement',reason:'Missing terms'},{kind:'research',eventId:'B',status:'pending',notBefore:now-1,task:'Other company'},{kind:'research',eventId:'A',status:'complete',notBefore:now-1,task:'Old'}];
  const brief=researchBrief(s,e,now);assert.equal(brief.assignments.length,1);assert.equal(brief.assignments[0].task,'Read the material agreement');assert.equal(brief.preliminary.missingEvidence[0],'Read the annex');
+});
+
+test('concrete ready analyst follow-ups receive their additional research capacity before a new broad search',()=>{
+ const baseline=now-5*3600e3,followup=confirmed('followup',{preScore:{eligible:true,score:55},research:{researchedAt:baseline,worthAnalyzing:true},analysisFollowup:{baselineResearchAt:baseline,nextTask:'Read the annex and validate financing and cash'}}),fresh=candidate('fresh',{preScore:{eligible:true,score:90}}),s=fixture([fresh,followup]);
+ s.company.agency.workQueue=[{kind:'research',eventId:followup.id,status:'pending',createdAt:now-3600e3,notBefore:now-1,task:followup.analysisFollowup.nextTask},{kind:'research',eventId:fresh.id,status:'pending',createdAt:now-1000,notBefore:now-1,task:'Search for the primary date of this new opportunity'}];
+ assert.deepEqual(selectResearchCandidates(s,now).map(e=>e.id),['followup','fresh']);
 });
 
 test('a primary dated announcement can be analyzed after publication without inventing a future date',()=>{
