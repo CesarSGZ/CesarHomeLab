@@ -25,7 +25,7 @@ const deferredToday=(e,now)=>!e.plan&&e.analysisDeferred?.day===newYorkDay(now);
 export function validateWorkflowStrategy(value={},base=defaultWorkflow){
  if(!value||typeof value!=='object'||Array.isArray(value)||Object.keys(value).some(key=>!workflowKeys.includes(key)))throw Error('Parámetro de estrategia fuera del ámbito');
  const settings={...defaultWorkflow,...base};for(const key of workflowKeys)if(value[key]!==null&&value[key]!==undefined)settings[key]=value[key];
- for(const [key,min,max,integer] of [['minScore',30,90,false],['researchDailyLimit',1,12,true],['researchIntervalMinutes',30,240,true],['minRR',2,8,false],['riskPct',.1,1,false],['researchBatchSize',1,3,true],['enrichmentLimit',1,8,true]])if(!finite(settings[key])||settings[key]<min||settings[key]>max||integer&&!Number.isInteger(settings[key]))throw Error('Estrategia inválida: '+key);
+ for(const [key,min,max,integer] of [['minScore',30,90,false],['researchDailyLimit',1,12,true],['researchIntervalMinutes',30,240,true],['minRR',1,8,false],['riskPct',.1,2,false],['researchBatchSize',1,3,true],['enrichmentLimit',1,8,true]])if(!finite(settings[key])||settings[key]<min||settings[key]>max||integer&&!Number.isInteger(settings[key]))throw Error('Estrategia inválida: '+key);
  for(const [key,max] of [['focusSectors',4],['catalystKinds',6]]){const list=settings[key];if(!Array.isArray(list)||list.length>max||new Set(list).size!==list.length||list.some(x=>typeof x!=='string'||!x.trim()||x.length>80))throw Error('Estrategia inválida: '+key);settings[key]=list.map(x=>x.trim());}
  if(typeof settings.weekendPlanning!=='boolean')throw Error('Estrategia inválida: weekendPlanning');return settings;
 }

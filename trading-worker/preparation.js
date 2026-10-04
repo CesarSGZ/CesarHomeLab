@@ -2,6 +2,7 @@ import {pendingEmployeeWork,queueEmployeeWork,finishEmployeeWork} from './employ
 import {workflowSettings,validateWorkflowStrategy,pipelineSummary,researchEvidenceFingerprint,catalystReady,quoteContext,sessionResearchPacing,analysisFollowupPending,analysisEvidenceFingerprint} from './strategy.js';
 import {prepareDevelopment} from './development.js';
 import {developmentFiles} from './office-boundary.js';
+import {installProgram} from './company.js';
 
 const schema={type:'object',additionalProperties:false,properties:{summary:{type:'string'},thesis:{type:'string'},missingEvidence:{type:'array',maxItems:4,items:{type:'string'}},worthFurtherWork:{type:'boolean'},nextOwner:{type:'string',enum:['scout','analyst','risk','auditor']},nextTask:{type:'string'}},required:['summary','thesis','missingEvidence','worthFurtherWork','nextOwner','nextTask']};
 const on=(s,id)=>!s.agents.find(a=>a.id===id)?.paused;
@@ -63,11 +64,50 @@ function seedUsefulWork(s,now){
  const event=s.real.events.filter(e=>!e.confirmed&&e.preScore?.eligible&&!['descartado','caducado','abierto'].includes(e.status)&&s.real.profiles?.[e.symbol]&&!e.preliminary).sort((a,b)=>(b.preScore?.score||0)-(a.preScore?.score||0))[0];
  if(event&&on(s,'analyst'))queueEmployeeWork(s,'analysis',event.id,{owner:'analyst',decision:'Preanálisis del radar con datos ya disponibles',nextTask:'Identificar tesis, riesgos y evidencia específica que debe contrastar Santi',evidenceIds:[event.id,'discovery'],strategy:null},now);
 }
+const economicSettings=['minScore','riskPct','minRR'];
+const operationalSettings=['researchDailyLimit','researchIntervalMinutes','researchBatchSize','enrichmentLimit','focusSectors','catalystKinds','weekendPlanning'];
+const settingChanged=(a,b)=>JSON.stringify(a)!==JSON.stringify(b);
+function strategyProgram(s,requested,reason){
+ const active=s.company.versions?.find(v=>v.id===s.company.activeProgram)?.program;
+ const visual=s.company.ui||active?.visual||{focus:'economics',theme:'mint',headline:'Aprendizaje con capital ficticio',panels:['report','efficiency'],lighting:'warm'};
+ return {scope:'agent-office',rationale:reason.slice(0,1500),threshold:requested.minScore,rules:structuredClone(active?.rules||[]),workflow:{researchDailyLimit:s.policy.researchDailyLimit,researchIntervalMinutes:s.policy.researchIntervalMinutes,riskPct:requested.riskPct,minRR:requested.minRR},visual:structuredClone(visual)};
+}
+function recordStrategyDecision(s,work,entry,now){
+ const key=JSON.stringify([work.strategyRequestKey,entry.status,entry.programId,entry.after,entry.requested]);if(work.strategyDecisionKey===key)return false;
+ work.strategyDecisionKey=key;s.company.strategyHistory??=[];s.company.strategyHistory.unshift({time:now,workId:work.id,owner:work.from,reason:work.reason,evidenceIds:[...work.evidenceIds],...entry});s.company.strategyHistory=s.company.strategyHistory.slice(0,30);return true;
+}
+function prepareStrategyChange(s,work,log,now){
+ const known=new Set([...s.real.events.map(e=>e.id),...s.real.book.positions.flatMap(p=>[p.id,p.symbol]),...s.real.book.closed.flatMap(t=>[t.id,t.symbol]),'kpis','budget','discovery','configuration']);
+ if(typeof work.reason!=='string'||!work.reason.trim())throw Error('Falta motivo para modificar la estrategia');
+ if(!Array.isArray(work.evidenceIds)||!work.evidenceIds.length||work.evidenceIds.some(id=>!known.has(id)))throw Error('Falta evidencia válida para modificar la estrategia');
+ // Economic settings always describe the current baseline, never an unpromoted proposal.
+ const before={...workflowSettings(s),minScore:s.policy.minScore,riskPct:s.config.riskPct,minRR:s.config.minRR},requested=validateWorkflowStrategy(work.strategy,before),economicFields=economicSettings.filter(k=>settingChanged(before[k],requested[k]));
+ const requestKey=JSON.stringify([work.strategy,work.reason,work.evidenceIds]),freshRequest=work.strategyRequestKey!==requestKey;
+ const appliedOperationalFields=freshRequest?operationalSettings.filter(k=>settingChanged(before[k],requested[k])):[];
+ const immediate=validateWorkflowStrategy(freshRequest?Object.fromEntries(operationalSettings.map(k=>[k,requested[k]])):{},before);
+ s.company.strategy=immediate;
+ if(appliedOperationalFields.length){Object.assign(s.policy,{researchDailyLimit:immediate.researchDailyLimit,researchIntervalMinutes:immediate.researchIntervalMinutes});s.policy.version++;work.strategyOperationalAppliedAt=now;}
+ work.strategyRequestKey=requestKey;
+ const history={before,requested,after:workflowSettings(s),appliedOperationalFields,economicFields};
+ if(!economicFields.length){recordStrategyDecision(s,work,{...history,status:appliedOperationalFields.length?'operational':'unchanged'},now);complete(s,work,appliedOperationalFields.length?'Ajustes operacionales aplicados y registrados; la economía vigente se conserva':'Parámetros ya vigentes; no se crea un piloto ni se repite consumo','scout',now);log(s,'auditor','Decisión operacional registrada: '+work.reason);return;}
+ if(s.company.shadowProgram){
+  const result=(appliedOperationalFields.length?'Ajustes operacionales aplicados; ':'')+'cambios económicos diferidos: ya existe el piloto '+s.company.shadowProgram+'. No se han aplicado ni se reinicia su observación.';
+  const changed=recordStrategyDecision(s,work,{...history,status:'deferred',programId:s.company.shadowProgram},now);
+  if(changed){finishEmployeeWork(s,work.id,result,{status:'blocked',target:'auditor'},now);log(s,'auditor',result,'warning');}else {work.status='blocked';work.notBefore=now+2*3600e3;}
+  return;
+ }
+ let version;
+ try{version=installProgram(s,strategyProgram(s,requested,work.reason),{id:'initiative:'+work.id},now);}
+ catch(error){recordStrategyDecision(s,work,{...history,status:'pilot_rejected',error:error.message},now);finishEmployeeWork(s,work.id,(appliedOperationalFields.length?'Ajustes operacionales aplicados; ':'')+'piloto económico rechazado: '+error.message,{status:'failed',target:'auditor'},now);log(s,'auditor','Piloto rechazado: '+error.message,'warning');return;}
+ Object.assign(version,{initiativeId:work.id,owner:work.from,reason:work.reason,evidenceIds:[...work.evidenceIds]});
+ recordStrategyDecision(s,work,{...history,after:workflowSettings(s),status:'pilot',programId:version.id,pilotEffective:version.adaptation?.effectiveSettings},now);
+ complete(s,work,'Piloto económico v'+version.version+' iniciado; la economía global sigue vigente hasta promoción. '+(appliedOperationalFields.length?'Ajustes operacionales aplicados. ':'' )+'Resultados reales y costes determinarán la revisión.','auditor',now);log(s,'auditor','Piloto validado para la propuesta: '+work.reason);
+}
 export async function runPreparation(s,{call,checkpoint,log},now=Date.now()){
  const company=s.company,agency=company.agency;refreshSessionPlan(s,now);
  // Pausar entradas no suspende investigación, revisión ni preparación.
  for(const w of pendingEmployeeWork(s,'strategy',now).filter(w=>on(s,w.owner))){
-  try{const before=workflowSettings(s),after=validateWorkflowStrategy(w.strategy,before);company.strategy=after;Object.assign(s.policy,{minScore:after.minScore,researchDailyLimit:after.researchDailyLimit,researchIntervalMinutes:after.researchIntervalMinutes});s.policy.version++;s.config.riskPct=after.riskPct;s.config.minRR=after.minRR;company.strategyHistory??=[];company.strategyHistory.unshift({time:now,owner:w.from,before,after,reason:w.reason,evidenceIds:w.evidenceIds});company.strategyHistory=company.strategyHistory.slice(0,30);complete(s,w,'Estrategia aplicada y registrada; los resultados se evaluarán con paciencia','scout',now);log(s,'auditor','Decisión autónoma aplicada: '+w.reason);}
+  try{prepareStrategyChange(s,w,log,now);}
   catch(error){finishEmployeeWork(s,w.id,'Cambio rechazado: '+error.message,{status:'failed',target:'auditor'},now);}
  }
  for(const w of pendingEmployeeWork(s,'execution',now).filter(w=>on(s,w.owner))){const e=s.real.events.find(e=>e.id===w.eventId);if(e?.plan?.expiresAt>now&&e.review?.approve&&catalystReady(e,now)&&['nuevo','espera'].includes(e.status)){complete(s,w,'Preapertura preparada para '+e.symbol+': actualizar precio y revalidar los límites en sesión','auditor',now);}else finishEmployeeWork(s,w.id,'Falta un catalizador y plan vigentes con revisión de riesgo aprobada',{status:'blocked',target:'risk'},now);}

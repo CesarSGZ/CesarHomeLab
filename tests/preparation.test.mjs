@@ -99,7 +99,7 @@ test('validated autonomous strategy changes are applied while protected accounti
  const s=fixture();s.real.events=[];const book=JSON.stringify(s.real.book),budget=s.config.dailyBudget;
  queueEmployeeWork(s,'strategy','',{owner:'auditor',decision:'Enriquecer más fichas y espaciar llamadas',nextTask:'Observar conversión del radar',evidenceIds:['discovery'],strategy:{enrichmentLimit:6,researchDailyLimit:8,researchIntervalMinutes:60,minScore:50}},now);
  await runPreparation(officeState(s),hooks(async()=>assert.fail('Validated parameters require no model call')),now);
- assert.equal(s.company.strategy.enrichmentLimit,6);assert.equal(s.policy.researchDailyLimit,8);assert.equal(s.policy.minScore,50);assert.equal(s.company.strategyHistory.length,1);assert.equal(s.config.dailyBudget,budget);assert.equal(JSON.stringify(s.real.book),book);
+ assert.equal(s.company.strategy.enrichmentLimit,6);assert.equal(s.policy.researchDailyLimit,8);assert.equal(s.policy.minScore,45);assert.equal(s.company.versions.find(v=>v.id===s.company.shadowProgram).program.threshold,50);assert.equal(s.company.strategyHistory.length,1);assert.equal(s.config.dailyBudget,budget);assert.equal(JSON.stringify(s.real.book),book);
  queueEmployeeWork(s,'strategy','',{owner:'auditor',decision:'Invalid unsafe change',nextTask:'Reject',evidenceIds:['budget'],strategy:{dailyBudget:100}},now+1);await runPreparation(officeState(s),hooks(async()=>assert.fail('Unsafe strategy must not call')),now+1);assert.equal(s.company.agency.workQueue.find(w=>w.status==='failed').kind,'strategy');assert.equal(s.config.dailyBudget,budget);assert.equal(s.company.strategy.enrichmentLimit,6);
 });
 
