@@ -2,6 +2,14 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {relay} from '../scripts/office-relay.mjs';
 const base={workflow:'office-development.yml',repository:'CesarSGZ/CesarHomeLab',token:'fixture'};
+test('a dispatch accepted before timeout is reconciled without another POST',async()=>{
+ let reads=0,posts=0;
+ const result=await relay({...base,pause:async()=>{},fetcher:async(u,o)=>{
+  if(o.method==='POST'){posts++;throw new DOMException('timeout','TimeoutError');}
+  return Response.json({workflow_runs:++reads===1?[{id:1,status:'completed'}]:[{id:2,status:'queued'},{id:1,status:'completed'}]});
+ }});
+ assert.equal(result.reconciled,true);assert.equal(posts,1);
+});
 test('transient read timeout recovers without duplicate dispatches',async()=>{
  let reads=0,posts=0;const waits=[];
  const result=await relay({...base,pause:async ms=>waits.push(ms),fetcher:async(u,o)=>{

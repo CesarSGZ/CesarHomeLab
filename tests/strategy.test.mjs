@@ -1,10 +1,25 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {catalystReady,researchEvidenceFingerprint,selectResearchCandidates,selectPlanningCandidates,workflowSettings,validateWorkflowStrategy,pipelineSummary} from '../trading-worker/strategy.js';
+import {catalystReady,researchEvidenceFingerprint,selectResearchCandidates,selectPlanningCandidates,workflowSettings,validateWorkflowStrategy,pipelineSummary,researchBrief,sessionResearchPacing} from '../trading-worker/strategy.js';
 const now=Date.parse('2026-10-03T12:00:00Z'),day=864e5;
 const candidate=(id,extra={})=>({id,symbol:id,status:'verificar',confirmed:false,preScore:{eligible:true,score:60},...extra});
 const confirmed=(id,extra={})=>candidate(id,{confirmed:true,status:'nuevo',date:'2026-10-07T20:00:00Z',timing:'scheduled',sources:[{url:'https://issuer.example/investors/results',claim:'Fecha publicada por el emisor'}],...extra});
 const fixture=events=>({real:{events,assets:events.map(e=>({symbol:e.symbol,sector:'Technology'})),book:{positions:[],closed:[]}},config:{minRR:2,riskPct:.35},policy:{minScore:45,researchDailyLimit:6,researchIntervalMinutes:60},company:{agency:{workQueue:[]}},operating:{remainingEur:9,exhausted:false},paused:false});
+
+test('next session preparation increases useful research within the daily allowance, not approval',()=>{
+ const s=fixture([candidate('A')]);s.policy.researchDailyLimit=2;s.operating.paceEurPerDay=.3;
+ const sunday=Date.parse('2026-10-04T12:00:00Z');let pace=sessionResearchPacing(s,sunday);
+ assert.equal(pace.target,2);assert.equal(pace.limit,6);assert.equal(pace.intervalMinutes,45);assert.equal(s.real.events[0].plan,undefined);
+ s.operating.paceEurPerDay=.09;assert.equal(sessionResearchPacing(s,sunday).limit,2);
+ s.operating.paceEurPerDay=.01;assert.equal(sessionResearchPacing(s,sunday).limit,0);
+ s.company.strategy={weekendPlanning:false};s.operating.paceEurPerDay=.3;assert.equal(sessionResearchPacing(s,sunday).limit,2);
+});
+
+test('Santi receives the analyst questions for the selected company only',()=>{
+ const e=candidate('A',{preliminary:{summary:'Agreement needs terms',missingEvidence:['Read the annex'],nextTask:'Find consideration and closing conditions'}}),s=fixture([e]);
+ s.company.agency.workQueue=[{kind:'research',eventId:'A',status:'pending',notBefore:now-1,from:'analyst',task:'Read the material agreement',reason:'Missing terms'},{kind:'research',eventId:'B',status:'pending',notBefore:now-1,task:'Other company'},{kind:'research',eventId:'A',status:'complete',notBefore:now-1,task:'Old'}];
+ const brief=researchBrief(s,e,now);assert.equal(brief.assignments.length,1);assert.equal(brief.assignments[0].task,'Read the material agreement');assert.equal(brief.preliminary.missingEvidence[0],'Read the annex');
+});
 
 test('a primary dated announcement can be analyzed after publication without inventing a future date',()=>{
  assert.equal(catalystReady(confirmed('future'),now),true);

@@ -35,6 +35,18 @@ export function workflowSettings(s){
  return validateWorkflowStrategy(s.company?.strategy||{},base);
 }
 
+export function researchBrief(s,event,now=Date.now()){
+ return {assignments:(s.company?.agency?.workQueue||[]).filter(w=>w.kind==='research'&&w.eventId===event.id&&workPending(w)&&w.notBefore<=now).slice(0,3).map(w=>({from:w.from,task:w.task,reason:w.reason})),preliminary:event.preliminary?{summary:event.preliminary.summary,missingEvidence:event.preliminary.missingEvidence,nextTask:event.preliminary.nextTask}:null};
+}
+
+export function sessionResearchPacing(s,now=Date.now()){
+ const settings=workflowSettings(s),pipeline=pipelineSummary(s,now),target=2;
+ const nearing=Date.parse(pipeline.nextSessionDate+'T13:30:00Z')-now<60*3600e3;
+ const preparing=settings.weekendPlanning&&nearing&&pipeline.counts.approvedWaiting<target;
+ const affordable=Math.max(0,Math.floor((s.operating?.paceEurPerDay||0)/.045));
+ return {target,preparing,limit:Math.min(preparing?Math.max(settings.researchDailyLimit,6):settings.researchDailyLimit,affordable),intervalMinutes:preparing?Math.min(settings.researchIntervalMinutes,45):settings.researchIntervalMinutes};
+}
+
 // A future announced event and an already published catalyst are distinct facts.
 // An analyst's holding horizon never becomes a date supposedly announced by an issuer.
 export function catalystReady(e,now=Date.now()){

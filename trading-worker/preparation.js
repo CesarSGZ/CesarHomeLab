@@ -1,5 +1,5 @@
 import {pendingEmployeeWork,queueEmployeeWork,finishEmployeeWork} from './employee-agents.js';
-import {workflowSettings,validateWorkflowStrategy,pipelineSummary,researchEvidenceFingerprint,catalystReady,quoteContext} from './strategy.js';
+import {workflowSettings,validateWorkflowStrategy,pipelineSummary,researchEvidenceFingerprint,catalystReady,quoteContext,sessionResearchPacing} from './strategy.js';
 import {prepareDevelopment} from './development.js';
 import {developmentFiles} from './office-boundary.js';
 
@@ -17,7 +17,7 @@ export function recordFinancialWork(s,event,kind,result,now=Date.now(),target){
 export function refreshSessionPlan(s,now=Date.now()){
  const pipeline=pipelineSummary(s,now),plans=s.real.events.filter(e=>e.plan?.expiresAt>now&&e.review?.approve&&catalystReady(e,now)&&['nuevo','espera'].includes(e.status));
  s.company.pipeline=pipeline;
- s.company.sessionPlan={at:now,date:pipeline.nextSessionDate,calendarBasis:pipeline.sessionCalendarBasis,ready:plans.map(e=>({eventId:e.id,symbol:e.symbol,entryMin:e.plan.entryMin,entryMax:e.plan.entryMax,stop:e.plan.stop,target:e.plan.target,expiresAt:e.plan.expiresAt,referenceAt:e.plan.referenceAt,conditions:e.reasons||[]})),steps:plans.length?['Actualizar referencia en sesión','Revalidar entrada, liquidez, riesgo y capital','Registrar compra ficticia solo si se mantienen las condiciones']:['Contrastar catalizadores de la cola','Valorar las tesis y revisar riesgos','Preparar entradas solo con ventaja suficiente']};
+ s.company.sessionPlan={at:now,date:pipeline.nextSessionDate,calendarBasis:pipeline.sessionCalendarBasis,ready:plans.map(e=>({eventId:e.id,symbol:e.symbol,entryMin:e.plan.entryMin,entryMax:e.plan.entryMax,stop:e.plan.stop,target:e.plan.target,expiresAt:e.plan.expiresAt,referenceAt:e.plan.referenceAt,conditions:e.reasons||[]})),target:2,shortfall:Math.max(0,2-plans.length),researchPacing:sessionResearchPacing(s,now),watchlist:s.real.events.filter(e=>e.preScore?.eligible&&!['descartado','caducado','abierto'].includes(e.status)).sort((a,b)=>(b.preScore?.score||0)-(a.preScore?.score||0)).slice(0,2).map(e=>({eventId:e.id,symbol:e.symbol,stage:!e.confirmed?'research':!e.plan?'analysis':!e.review?'risk':'review',nextTask:e.preliminary?.nextTask||'Contrastar catalizador, ventaja y escenarios',executable:false})),steps:plans.length?['Actualizar referencia en sesión','Revalidar entrada, liquidez, riesgo y capital','Registrar compra ficticia solo si se mantienen las condiciones']:['Contrastar catalizadores de la cola','Valorar las tesis y revisar riesgos','Preparar entradas solo con ventaja suficiente']};
  return s.company.sessionPlan;
 }
 function seedUsefulWork(s,now){

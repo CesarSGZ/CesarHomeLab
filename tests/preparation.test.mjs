@@ -22,6 +22,7 @@ test('weekend preliminary work uses cached dated financial evidence and creates 
   calls++;assert.equal(id,'analyst');assert.equal(options.light,true);assert.equal(options.work,true);assert.ok(options.capEur<=.0035);assert.equal(payload.financialProfile.checkedAt,now-60000);assert.equal(payload.financialProfile.fundamentals.checkedAt,now-60000);assert.equal(payload.financialProfile.fundamentals.metrics.fcf,5e6);assert.equal(payload.financialProfile.fundamentals.evidence[0].filed,'2026-03-01');assert.equal(payload.quote.time,now-864e5);return answer;
  }),now);
  assert.equal(calls,1);assert.equal(s.real.events[0].preliminary.executable,false);assert.equal(s.real.events[0].preliminary.costEur,.0008);assert.equal(s.real.events[0].plan,undefined);assert.equal(JSON.stringify(s.real.book),book);
+ assert.equal(s.company.sessionPlan.target,2);assert.equal(s.company.sessionPlan.shortfall,2);assert.equal(s.company.sessionPlan.ready.length,0);assert.equal(s.company.sessionPlan.watchlist[0].executable,false);
  const mail=s.company.agency.actors.scout.inbox.find(m=>m.from==='analyst');assert.equal(mail.eventId,'e1');assert.match(mail.task,/guidance/);assert.equal(pendingEmployeeWork(s,'research',now)[0].from,'analyst');
 });
 
