@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';
 import {readFileSync} from 'node:fs';
-import {llm,initialState,upgradeState,verifyResearch,planProblems,reconsiderLegacyPlanning,cycle,locked,load,employeeFunctionOptions,planningRiskContext,constrainEntryRange,reconsiderRangeValidation,requestPlanRevision,reconsiderRiskRevisions} from '../trading-worker/engine.js';
+import {llm,initialState,upgradeState,verifyResearch,planProblems,reconsiderLegacyPlanning,cycle,locked,load,employeeFunctionOptions,planningRiskContext,constrainEntryRange,reconsiderRangeValidation,requestPlanRevision,reconsiderRiskRevisions,requestRiskClarification,reconsiderMechanicalReviews} from '../trading-worker/engine.js';
 import {day,assess,freshQuote} from '../trading-worker/core.js';
 import {referenceSource} from '../trading-worker/market-data.js';
 import {queueEmployeeWork,employeeTools,initiativeSchema} from '../trading-worker/employee-agents.js';
@@ -317,4 +317,16 @@ test('Pedro receives the actual risk veto and María reviews a repaired plan wit
  assert.deepEqual(new Set(Object.keys(answer)),new Set(body.text.format.schema.required));return Response.json({status:'completed',usage:{input_tokens:500,output_tokens:200},output:[{type:'message',content:[{type:'output_text',text:JSON.stringify(answer)}]}]});};
  await cycle(env);const s=(await load(env)).state,e=s.real.events[0];assert.equal(calls,2);assert.equal(e.review.approve,true);assert.equal(e.status,'espera');assert.equal(e.planReviewHistory.length,1);assert.equal(s.company.sessionPlan.ready.length,1);assert.equal(s.real.book.orders.length,0);assert.equal(s.real.book.cash,10000);
  }finally{Date.now=originalNow;globalThis.fetch=originalFetch;env._db.close();}
+});
+
+test('a mathematically valid revise-plan veto receives only one independent clarification without changing levels or inventing approval',()=>{
+ const t=Date.parse('2026-10-05T08:00:00Z'),s=upgradeState(initialState()),plan={...preparedAnswer(),expiresAt:t+2*864e5},review=reviewedAnswer({decision:'revise_plan',approve:false,reason:'Cálculos válidos pero aclara el redondeo de la prosa'}),e={id:'clarify',symbol:'SMALL',status:'descartado',confirmed:true,timing:'scheduled',date:'2026-10-08T20:00:00Z',source:primary,sources:[{url:primary,claim:'Evento confirmado'}],summary:'Evento futuro',preScore:{eligible:true,score:70},plan,review};s.real.book.fx={rate:1.1227,time:t};s.real.events=[e];const before=JSON.stringify(plan);
+ reconsiderMechanicalReviews(s,t);assert.equal(e.status,'nuevo');assert.equal(e.review,undefined);assert.equal(JSON.stringify(e.plan),before);assert.equal(e.reviewClarification.previousReview.approve,false);assert.equal(e.reviewClarification.mechanicalFacts.planMath.withinGrossRiskLimit,true);assert.equal(s.company.agency.workQueue[0].owner,'risk');
+ e.review=review;e.status='descartado';assert.equal(requestRiskClarification(s,e,review,t+1),false);assert.equal(e.status,'descartado');
+ const unsafe={...e,id:'unsafe',plan:{...plan,stop:8},reviewClarification:undefined};assert.equal(requestRiskClarification(s,unsafe,review,t),false);const factual={...e,id:'factual',reviewClarification:undefined};assert.equal(requestRiskClarification(s,factual,{...review,decision:'needs_evidence'},t),false);assert.equal(s.real.book.orders.length,0);
+});
+test('exceptional risk reasoning uses Sol low within the same two-call quota and monthly budget as deep analysis',async()=>{
+ const env=memoryEnv(),s=upgradeState(initialState()),original=globalThis.fetch;s.real.book.fx={rate:1};let calls=0;globalThis.fetch=async(url,options)=>{calls++;assert.equal(url,'https://api.openai.com/v1/responses');const body=JSON.parse(options.body);assert.equal(body.model,'gpt-6.1-sol');assert.equal(body.reasoning.effort,'low');return Response.json({status:'completed',usage:{input_tokens:500,output_tokens:200},output:[{type:'message',content:[{type:'output_text',text:'{"approve":false}'}]}]});};
+ try{const schema={type:'object',additionalProperties:false,properties:{approve:{type:'boolean'}},required:['approve']};await llm(env,s,'risk','Aclara el veto',{},schema,{work:true,deep:true,outputTokens:1400});await llm(env,s,'risk','Aclara el segundo veto',{},schema,{work:true,deep:true,outputTokens:1400});await assert.rejects(()=>llm(env,s,'risk','No repetir',{},schema,{work:true,deep:true}),/Dos análisis profundos/);await assert.rejects(()=>llm(env,s,'analyst','No sobrepasar la cuota compartida',{},schema,{work:true}),/Dos análisis profundos/);assert.equal(calls,2);assert.equal(s.real.book.orders.length,0);assert.ok(env._db.prepare('SELECT spent_eur FROM trading_operating_budget').get().spent_eur<10);}
+ finally{globalThis.fetch=original;env._db.close();}
 });
