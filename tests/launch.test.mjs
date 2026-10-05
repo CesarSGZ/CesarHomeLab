@@ -4,6 +4,7 @@ import {initialState,upgradeState} from '../trading-worker/engine.js';
 import {refreshLaunch,launchContext} from '../trading-worker/launch.js';
 import {installProgram} from '../trading-worker/company.js';
 import {officeState} from '../trading-worker/office-boundary.js';
+import {analysisEvidenceFingerprint,selectPlanningCandidates} from '../trading-worker/strategy.js';
 import {referenceSource} from '../trading-worker/market-data.js';
 
 const now=Date.parse('2026-10-05T14:00:00Z'),DAY=864e5;
@@ -52,7 +53,7 @@ test('Verified debt is not itself a veto, and missing primary evidence or identi
  }
 });
 test('A real existing pilot and already approved plans are preserved instead of being replaced by launch defaults',()=>{
- const s=state();s.real.stats.researched=4;const e=candidate(s,'ready');e.status='espera';e.plan={approve:true,expiresAt:now+DAY,entryMin:9.8,entryMax:10.2,stop:9.4,target:12};e.review={approve:true};const result=refreshLaunch(s,now);
+ const s=state();s.real.stats.researched=4;const e=candidate(s,'ready');e.status='espera';e.research.worthAnalyzing=true;e.plan={approve:true,expiresAt:now+DAY,entryMin:9.8,entryMax:10.2,stop:9.4,target:12};e.review={approve:true};const result=refreshLaunch(s,now);
  assert.equal(result.ready,1);assert.equal(result.priorityUseful,true);assert.equal(s.company.versions.length,0);assert.equal(e.plan.stop,9.4);
  const other=state();other.real.stats.researched=4;const program={scope:'agent-office',rationale:'Hipótesis independiente ya en revisión',threshold:40,rules:[],workflow:{researchDailyLimit:6,researchIntervalMinutes:45,riskPct:.35,minRR:1.5},visual:{focus:'pipeline',theme:'mint',headline:'Piloto propio',panels:['report','efficiency'],lighting:'day'}};
  const v=installProgram(other,program,{id:'existing'},now-1000),open=candidate(other,'existing');const launch=refreshLaunch(other,now);assert.equal(launch.pilotId,v.id);assert.equal(other.company.versions.length,1);assert.equal(v.program.workflow.minRR,1.5);assert.equal(open.preScore.adaptationId,v.id);
@@ -66,4 +67,45 @@ test('A live pilot remains experimental after the two initial purchases and keep
  const s=state();s.real.stats.researched=3;const e=candidate(s,'pilot');refreshLaunch(s,now);const pilotId=e.preScore.adaptationId;
  s.real.book.orders.push({id:'first',side:'buy',adaptationId:pilotId},{id:'second',side:'buy',adaptationId:pilotId});
  assert.equal(refreshLaunch(s,now+1000).active,false);const context=launchContext(s,e);assert.equal(context.experimental,true);assert.equal(context.hypothesis.programId,pilotId);assert.match(context.goal,/Evaluar el piloto/);assert.equal(s.company.versions.length,1);
+});
+test('Actual unresolved price-series and lending questions remain essential even when adjustment factors exist',()=>{
+ const hardQuestions=[
+  'La caída de 88,7% no está corroborada ni explicada; faltan escenarios calibrados.',
+  'Serie histórica independiente de precios y registro completo de acciones corporativas para confirmar o explicar la caída del 88,7%.',
+  'El texto y cálculo de headroom de los covenants aplicables, ya que el 10-Q solo confirma cumplimiento.',
+  'Covenants y headroom pendientes; consenso no disponible.',
+  'Los términos completos de deuda no están cotejados; falta calibración.',
+  'Información financiera posterior a la adquisición para cuantificar deuda consolidada, caja y coste financiero.'
+ ];
+ for(const question of hardQuestions){
+  const s=state();s.real.stats.researched=3;const e=candidate(s,'actual','Falta calibración de escenarios');e.analysisAssessment.missingEvidence=[question];
+  s.real.profiles[e.symbol].market.return1y=-.8818;s.real.profiles[e.symbol].market.seriesDiagnostic.corporateActions={reporting:'not_provided',splits:[],dividends:[]};
+  refreshLaunch(s,now);assert.equal(e.launchReevaluation,undefined,question);assert.ok(launchContext(s,e).missing.essential.some(x=>x===question),question);assert.equal(s.real.book.orders.length,0);
+ }
+});
+
+test('A newer balance-sheet request without a material transaction does not invalidate the latest dated reported balance',()=>{
+ const s=state();s.real.stats.researched=3;const e=candidate(s,'dated','Falta consenso comparable y escenarios calibrados');
+ const request='Confirmación de efectivo y deuda neta posteriores al 30 de abril de 2026, o evidencia SEC de que no hubo cambios materiales.';
+ e.analysisAssessment.missingEvidence=[request];e.research.missingEvidence=[request];refreshLaunch(s,now);assert.equal(e.status,'nuevo');assert.equal(s.real.book.orders.length,0);
+ const material=state();material.real.stats.researched=3;const bad=candidate(material,'acquire','Falta consenso comparable y escenarios calibrados');bad.analysisAssessment.missingEvidence=[request,'Información financiera posterior a la adquisición que permita evaluar deuda consolidada y caja.'];refreshLaunch(material,now);assert.equal(bad.launchReevaluation,undefined);
+});
+
+test('Hard outcomes free the two economic slots immediately, with four lifetime unique attempts and no repeat model work',()=>{
+ const s=state();s.real.stats.researched=5;const first=candidate(s,'first'),second=candidate(s,'second');refreshLaunch(s,now);const pilotId=s.company.launch.pilotId;
+ for(const e of [first,second]){e.status='verificar';e.analysisBlocked={reason:'La caída de 88,7% no está corroborada ni explicada',missingEvidence:['Serie histórica independiente de precios y registro de acciones corporativas'],fingerprint:analysisEvidenceFingerprint(s,e)};e.reasons=[e.analysisBlocked.reason];}
+ const apog=candidate(s,'apog','El calendario no demuestra ventaja; la reacción no está calibrada'),ango=candidate(s,'ango','Faltan expectativas verificadas y ventaja demostrable'),odc=candidate(s,'odc','Falta consenso comparable');apog.preScore.score=55;odc.preScore.score=54;ango.preScore.score=50;
+ const budget=JSON.stringify(s.operating),before=JSON.stringify(s.real.book);const result=refreshLaunch(s,now+1000);
+ assert.equal(result.pilotId,pilotId);assert.equal(result.reevaluatedIds.length,4);assert.equal(result.reevaluationCapacity.hardBlocked,2);assert.equal(apog.status,'nuevo');assert.equal(odc.status,'nuevo');assert.equal(ango.status,'descartado');assert.equal(first.launchHistory.length,1);assert.equal(second.launchHistory.length,1);assert.equal(s.company.versions.length,1);
+ for(const e of [apog,odc]){e.status='verificar';e.analysisBlocked={reason:'Headroom pendiente',missingEvidence:['Covenants pendientes'],fingerprint:analysisEvidenceFingerprint(s,e)};e.reasons=['Covenants pendientes'];}
+ refreshLaunch(s,now+DAY);assert.equal(result.reevaluatedIds.length,4);assert.equal(ango.status,'descartado');assert.equal(JSON.stringify(s.operating),budget);assert.equal(JSON.stringify(s.real.book),before);
+});
+
+test('Blocked evidence, unanswered followups and future retries do not masquerade as useful planning priority',()=>{
+ const s=state();s.real.stats.researched=3;const blocked=candidate(s,'blocked'),followup=candidate(s,'followup');refreshLaunch(s,now);
+ blocked.status='verificar';blocked.analysisBlocked={reason:'No se repite evaluación hasta nueva evidencia',missingEvidence:['Calibración'],fingerprint:analysisEvidenceFingerprint(s,blocked)};
+ followup.status='verificar';followup.analysisFollowup={baselineResearchAt:followup.research.researchedAt,missingEvidence:['Consenso'],nextTask:'Contrastar el siguiente informe'};
+ const retry=candidate(s,'retry');retry.status='nuevo';retry.research.worthAnalyzing=true;retry.retryAfter=now+DAY;
+ assert.equal(selectPlanningCandidates(s,now+1000).length,0);const result=refreshLaunch(s,now+1000);assert.equal(result.ready,0);assert.equal(result.priorityUseful,false);
+ delete retry.retryAfter;assert.equal(refreshLaunch(s,now+2000).priorityUseful,true);
 });

@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';
 import {readFileSync} from 'node:fs';
-import {llm,initialState,upgradeState,verifyResearch,planProblems,reconsiderLegacyPlanning,cycle,locked,load,employeeFunctionOptions} from '../trading-worker/engine.js';
+import {llm,initialState,upgradeState,verifyResearch,planProblems,reconsiderLegacyPlanning,cycle,locked,load,employeeFunctionOptions,planningRiskContext} from '../trading-worker/engine.js';
 import {day,assess,freshQuote} from '../trading-worker/core.js';
 import {referenceSource} from '../trading-worker/market-data.js';
 import {queueEmployeeWork,employeeTools,initiativeSchema} from '../trading-worker/employee-agents.js';
@@ -279,4 +279,13 @@ test('launch prepares two independently reviewed experimental plans outside sess
   assert.ok(Math.abs(s.real.book.cash+s.real.book.positions.reduce((n,p)=>n+p.qty*p.entry+p.entryFee,0)-10000)<1e-8);
   assert.ok(env._db.prepare('SELECT spent_eur FROM trading_operating_budget').get().spent_eur<10);
  }finally{Date.now=originalNow;globalThis.fetch=originalFetch;env._db.close();}
+});
+
+
+test('conditional paper risk arithmetic is known from a dated reference without claiming an executable price or creating a plan',()=>{
+ const s=initialState();s.real.book.fx={rate:1.12};const before=JSON.stringify(s.real.book),q={price:90,time:now-864e5},r=planningRiskContext(s.real.book,q,s.config);
+ assert.equal(r.known,true);assert.equal(r.wholeSharesAtReference,6);assert.equal(r.lotBudgetEur,500);assert.equal(r.maximumStopLossEur,35);
+ assert.ok(Math.abs((r.assumedEntryUSD-r.minimumStopUSDAtReference)*r.wholeSharesAtReference/1.12-35)<1e-8);
+ assert.match(r.basis,/No es orden/);assert.equal(r.referenceAt,q.time);assert.equal(JSON.stringify(s.real.book),before);
+ assert.equal(planningRiskContext(s.real.book,{},s.config).known,false);
 });

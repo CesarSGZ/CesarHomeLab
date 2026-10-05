@@ -1,5 +1,5 @@
 import {installProgram} from './company.js';
-import {catalystReady,workflowSettings,analysisFollowupPending} from './strategy.js';
+import {catalystReady,workflowSettings,analysisFollowupPending,selectPlanningCandidates} from './strategy.js';
 import {eligible} from './core.js';
 
 const DAY=864e5;
@@ -11,20 +11,34 @@ const hard=[
  /insolvenc|bankrupt|chapter\s*11|quiebra|going concern|riesgo de continuidad/,
  /(?:deuda|financiacion|funding|vencimientos?|covenants|caja).{0,80}(?:desconocid|inciert|sin verificar|no verificada|sin confirmar|no confirmada|sin datos|pendiente|faltan|no consta|no reconciliad)/,
  /(?:falta|faltan|desconocid|no consta|sin datos|sin evidencia|no se conoce).{0,80}(?:deuda|financiacion|funding|vencimientos?|covenants|caja)/,
- /deuda.{0,30}(?:critica|posterior|post.?transaccion|post.?adquisicion|impago)|financiacion.{0,30}(?:critica|necesaria)|debt.{0,40}(?:unknown|uncertain|unverified|critical|maturity|covenant)|funding gap/,
+ /deuda.{0,30}(?:critica|post.?transaccion|post.?adquisicion|impago)|financiacion.{0,30}(?:critica|necesaria)|debt.{0,40}(?:unknown|uncertain|unverified|critical|maturity|covenant)|funding gap/,
  /dilucion|dilution|emision.{0,25}(?:incierta|pendiente)|split|ajuste.{0,30}corporativo|corporate action|precio.{0,30}(?:anomal|inconsisten|errone|no reconcili)|serie.{0,30}(?:inconsisten|sin reconciliar)|price.{0,25}(?:anomal|inconsisten)/,
  /identidad.{0,40}(?:ausente|desconoc|pendiente|no verificada)|fuente.{0,40}(?:ausente|no verificada|sin confirmar)|liquidez.{0,35}(?:insuficiente|inferior)|patrimonio.{0,30}(?:negativo|no positivo)/
 ];
-function answerLines(e){
- const lines=[...(e.reasons||[]),e.analysisAssessment?.reason,e.review?.reason,e.analysisBlocked?.reason,...(e.analysisAssessment?.missingEvidence||[]),...(e.review?.missingEvidence||[]),...(e.analysisBlocked?.missingEvidence||[]),...(e.research?.missingEvidence||[])];
- if(analysisFollowupPending(e))lines.push(e.analysisFollowup?.reason,...(e.analysisFollowup?.missingEvidence||[]),e.analysisFollowup?.nextTask);
+function pendingEvidenceLines(e){
+ const lines=[...(e.analysisAssessment?.missingEvidence||[]),...(e.review?.missingEvidence||[]),...(e.analysisBlocked?.missingEvidence||[]),...(e.research?.missingEvidence||[]),...(e.research?.supplement?.missingEvidence||[])];
+ if(analysisFollowupPending(e))lines.push(...(e.analysisFollowup?.missingEvidence||[]));
  return [...new Set(lines.filter(x=>typeof x==='string'&&x.trim()).map(x=>x.trim()))];
 }
-function unresolvedHard(line){
+function answerLines(e){
+ const lines=[...(e.reasons||[]),e.analysisAssessment?.reason,e.review?.reason,e.analysisBlocked?.reason,...pendingEvidenceLines(e)];
+ if(analysisFollowupPending(e))lines.push(e.analysisFollowup?.reason,e.analysisFollowup?.nextTask);
+ return [...new Set(lines.filter(x=>typeof x==='string'&&x.trim()).map(x=>x.trim()))];
+}
+function unresolvedHard(line,pending=false){
  const clean=text(line)
-  .replace(/(?:deuda|caja|financiacion|dilucion|split|ajuste corporativo|accion corporativa)\s+(?:ya\s+)?(?:verificad[oa]|contrastad[oa]|confirmad[oa]|conocid[oa]|reconciliad[oa])/g,'hecho confirmado')
+  .replace(/(?:deuda|caja|financiacion|dilucion|split|ajuste corporativo|accion corporativa|headroom|covenants)\s+(?:ya\s+)?(?:verificad[oa]s?|contrastad[oa]s?|confirmad[oa]s?|conocid[oa]s?|reconciliad[oa]s?)/g,'hecho confirmado')
   .replace(/(?:sin|ausencia de|no hay)\s+dilucion(?:\s+(?:relevante|significativa))?(?=\s*[,.;]|\s*$)/g,'hecho confirmado');
- return hard.some(pattern=>pattern.test(clean));
+ const missingFacts=/serie\s+(?:historica\s+)?independiente(?:\s+de\s+precios)?|registro.{0,35}acciones corporativas|\bcovenants\b|\bheadroom\b|terminos.{0,25}deuda|acuerdo.{0,25}prestamo|contrato.{0,25}abl/;
+ const priceGap=/(?:caida|desplome|serie|precio).{0,130}(?:no (?:esta |estan )?(?:corroborad|explicad)|sin (?:corroborar|explicar)|no explica|anomal|no resuelt)/;
+ const debtGap=/(?:covenants|headroom|terminos(?: completos)?).{0,100}(?:pendiente|no (?:estan |han sido )?(?:cotejad|verificad)|sin (?:cotejar|verificar))|(?:informacion|estados|situacion|deuda|financiacion).{0,100}(?:posterior|despues).{0,60}(?:adquisicion|compra|integracion)/;
+ return hard.some(pattern=>pattern.test(clean))||priceGap.test(clean)||debtGap.test(clean)||pending&&missingFacts.test(clean);
+}
+function balanceRefreshRequest(s,e,line,now){
+ const m=s.real.profiles?.[e.symbol]?.fundamentals?.metrics;
+ const fresh=m&&[[m.cashLatest,m.cashDate],[m.equityLatest,m.equityDate]].every(([value,date])=>finite(value)&&value>0&&finite(Date.parse(date))&&Date.parse(date)<=now&&now-Date.parse(date)<=180*DAY);
+ const wording=text(line),material=answerLines(e).some(x=>/(?:adquisicion|post.?adquisicion|compra|integracion).{0,100}(?:deuda|financia|caja|consolidada)|(?:deuda|financia|caja|consolidada).{0,100}(?:adquisicion|post.?adquisicion|compra|integracion)/.test(text(x)));
+ return !!fresh&&!material&&/(?:caja|efectivo|cash|deuda|balance)/.test(wording)&&/posterior(?:es)?\s+al?\s+\d/.test(wording)&&!/covenants|headroom|impago|critica|insolvenc/.test(wording);
 }
 function evidenceState(s,e,now){
  const essential=[],lines=answerLines(e),asset=(s.real.assets||[]).find(a=>a.symbol===e.symbol),profile=s.real.profiles?.[e.symbol],m=profile?.fundamentals?.metrics,q=s.real.quotes?.[e.symbol];
@@ -42,16 +56,17 @@ function evidenceState(s,e,now){
  if(!priced)essential.push('Referencia pública válida y fechada pendiente para preparar');
  const volume=q?.dollarVolume??profile?.market?.averageDollarVolume;if(!finite(volume)||volume<s.config.minDollarVolume)essential.push('Liquidez verificable suficiente pendiente');
  if(profile?.market?.seriesDiagnostic?.adjustments?.complete===false)essential.push('Serie sin ajustes completos; reconciliar acciones corporativas antes de experimentar');
- for(const line of lines)if(unresolvedHard(line))essential.push(line);
- return {essential:[...new Set(essential)].slice(0,12),uncertain:lines.filter(line=>soft.test(text(line))&&!unresolvedHard(line)).slice(0,8),lines};
+ const pending=new Set(pendingEvidenceLines(e));
+ for(const line of lines)if(!balanceRefreshRequest(s,e,line,now)&&unresolvedHard(line,pending.has(line)))essential.push(line);
+ return {essential:[...new Set(essential)].slice(0,12),uncertain:lines.filter(line=>balanceRefreshRequest(s,e,line,now)||soft.test(text(line))&&!unresolvedHard(line,pending.has(line))).slice(0,8),lines};
 }
-const readyEvents=(s,now)=>(s.real.events||[]).filter(e=>['nuevo','espera'].includes(e.status)&&e.plan?.expiresAt>now&&e.review?.approve===true&&catalystReady(e,now));
+const readyEvents=(s,now)=>selectPlanningCandidates(s,now).filter(e=>e.plan?.expiresAt>now&&e.review?.approve===true&&evidenceState(s,e,now).essential.length===0);
 function archiveSoftResearch(s,e,now){
  const archived=[];
  for(const w of s.company.agency?.workQueue||[]){
   if(w.eventId!==e.id||w.kind!=='research'||!['pending','running','blocked'].includes(w.status))continue;
   const wording=[w.task,w.reason].filter(Boolean).join(' ');
-  if(!soft.test(text(wording))||unresolvedHard(wording))continue;
+  if(!balanceRefreshRequest(s,e,wording,now)&&(!soft.test(text(wording))||unresolvedHard(wording,true)))continue;
   w.status='archived';w.finishedAt=now;w.launchArchived=true;w.result='Consulta blanda archivada para reevaluación experimental; no se afirma resuelta';archived.push(w.id);
  }
  return archived;
@@ -82,12 +97,21 @@ export function refreshLaunch(s,now=Date.now()){
   const version=installProgram(s,program,{id:'launch:initial-paper-plans'},now);launch.createdProgramId=version.id;
   if(version.adaptation?.phase==='pilot'){pilot=version;launch.pilotId=version.id;launch.pilotOrigin='launch';}else launch.reason=version.gate;
  }
- if(pilot&&launch.ready===0&&launch.reevaluatedIds.length<2){
-  const candidates=events.filter(e=>!e.plan&&!['abierto','caducado'].includes(e.status)&&!e.launchReevaluation&&['descartado','verificar','espera'].includes(e.status)&&e.preScore?.blocked!==true).map(e=>({e,missing:evidenceState(s,e,now)})).filter(x=>x.missing.essential.length===0&&x.missing.uncertain.length>0).sort((a,b)=>(b.e.preScore?.score||0)-(a.e.preScore?.score||0));
-  for(const {e,missing} of candidates.slice(0,2-launch.reevaluatedIds.length)){reopen(s,e,pilot,now,missing);launch.reevaluatedIds.push(e.id);}
+ // Up to two economic cases at once. A hard-data failure frees its slot, but four unique attempts is the lifetime ceiling.
+ const tried=new Set(launch.reevaluatedIds);
+ for(const e of events)if(e.launchReevaluation)tried.add(e.id);
+ launch.reevaluatedIds=[...tried];
+ const hardFailures=events.filter(e=>tried.has(e.id)&&evidenceState(s,e,now).essential.length>0);
+ const economicUsed=launch.reevaluatedIds.length-hardFailures.length;
+ launch.reevaluationCapacity={maximum:4,total:launch.reevaluatedIds.length,economicUsed,hardBlocked:hardFailures.length};
+ if(pilot&&launch.ready===0&&economicUsed<2&&launch.reevaluatedIds.length<4){
+  const candidates=events.filter(e=>!e.plan&&!['abierto','caducado'].includes(e.status)&&!tried.has(e.id)&&!e.launchReevaluation&&['descartado','verificar','espera'].includes(e.status)&&e.preScore?.blocked!==true).map(e=>({e,missing:evidenceState(s,e,now)})).filter(x=>x.missing.essential.length===0&&x.missing.uncertain.length>0).sort((a,b)=>(b.e.preScore?.score||0)-(a.e.preScore?.score||0));
+  const capacity=Math.min(2-economicUsed,4-launch.reevaluatedIds.length);
+  for(const {e,missing} of candidates.slice(0,capacity)){reopen(s,e,pilot,now,missing);launch.reevaluatedIds.push(e.id);}
+  launch.reevaluationCapacity={maximum:4,total:launch.reevaluatedIds.length,economicUsed:economicUsed+Math.min(capacity,candidates.length),hardBlocked:hardFailures.length};
  }
  launch.phase=launch.ready?'plans_ready':pilot?'experimental':'gathering_evidence';
- const useful=events.some(e=>!['descartado','caducado','abierto'].includes(e.status)&&catalystReady(e,now)&&evidenceState(s,e,now).essential.length===0);
+ const useful=selectPlanningCandidates(s,now).some(e=>evidenceState(s,e,now).essential.length===0);
  launch.priorityUseful=launch.ready>0||useful&&s.operating?.exhausted!==true&&s.operating?.remainingEur>.01;
  return launch;
 }
