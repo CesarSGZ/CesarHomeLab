@@ -9,6 +9,9 @@ on:
         description: Resume owner-authorized paper entries
         type: boolean
         default: false
+  workflow_run:
+    workflows: ['Agent Office cloud cycles']
+    types: [completed]
   schedule:
     - cron: '7,22,37,52 * * * *'
 permissions:
@@ -19,6 +22,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   develop:
+    if: ${{ github.event_name != 'workflow_run' || (github.event.workflow_run.conclusion == 'failure' && github.event.workflow_run.head_branch == 'main' && github.event.workflow_run.head_repository.full_name == github.repository) }}
     runs-on: ubuntu-latest
     timeout-minutes: 18
     steps:
@@ -49,7 +53,7 @@ jobs:
           OFFICE_DEV_TOKEN: ${{ secrets.OFFICE_DEV_TOKEN }}
         run: node scripts/office-live-audit.mjs
       - uses: actions/upload-artifact@v4
-        if: github.event_name == 'workflow_dispatch' && !inputs.relay
+        if: always() && github.event_name == 'workflow_dispatch' && !inputs.relay
         with:
           name: office-live-audit
           path: /tmp/office-live-audit.json
