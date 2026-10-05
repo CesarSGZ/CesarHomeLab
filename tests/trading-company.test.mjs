@@ -68,3 +68,57 @@ test('Meeting and developer contexts separate the executable base, owned pilot a
  assert.equal(calls,14);assert.deepEqual(chairPayload.currentCode,context.program);assert.deepEqual(designerPayload.currentProgram,context.program);assert.equal(designerPayload.context.programState.pilot.id,pilot.id);assert.equal(designerPayload.context.programState.latestProposal.id,latest.id);
  assert.equal(s.company.meetings[0].status,'completa');assert.equal(s.company.shadowProgram,pilot.id);assert.equal(s.real.book.orders.length,1);assert.equal(s.config.riskPct,.35);
 });
+test('Larger discussion limits resume four remembered voices immediately and preserve every prior paid contribution and cost',async()=>{
+ const s=state(),now=Date.parse('2026-10-05T21:15:00Z');delete s.company.discussionHeadroomMigration;s.company.chairRecoveryMigration=1;s.operating={month:'2026-10',spentEur:.011,remainingEur:9.989};
+ const voices=staff.slice(0,4).map(agent=>({agent,name:s.agents.find(a=>a.id===agent).name,facts:'Dato contrastado',idea:'Idea ya pagada de '+agent,evidence:['configuration'],uncertainty:'Sin cierres',nextTask:'Revisar',time:now-60000})),saved=structuredClone(voices);
+ const m={id:'2026-10-05:closing',day:'2026-10-05',slot:'closing',scheduledTime:'22:30',status:'parcial',attempts:1,error:'Respuesta de IA incompleta: max_output_tokens',retryAt:now+3600e3,voices,responses:[],costEur:.011};s.company.meetings.push(m);
+ const pending=dueMeeting(s,now);assert.equal(pending.id,m.id);assert.equal(m.retryAt,now);assert.equal(m.discussionRecoveryPending,true);
+ const requested=[];await holdMeeting(officeState(s),{budget:async()=>({...s.operating,paceEurPerDay:.3}),checkpoint:async()=>{},log:()=>{},call:async(id,instructions,payload,_schema,options)=>{
+  requested.push({id,round:payload.allIdeas?'response':payload.context&&payload.voices?'chair':'voice',tokens:options.outputTokens});s.operating.spentEur+=.0006;
+  assert.ok(options.capEur<=.025-.011+1e-12,'Existing paid cost consumes the same meeting cap');
+  if(payload.voices)return {summary:'Continuar investigación eficiente',decisions:[{kind:'hold'}],assignments:[],reportToCesar:'Debate recuperado con cuatro aportaciones anteriores',codeFiles:[],codeRationale:''};
+  if(payload.allIdeas){assert.equal(options.outputTokens,600);assert.match(instructions,/65 palabras/);}else{assert.equal(options.outputTokens,1000);assert.match(instructions,/120 palabras/);}
+  return {facts:'Referencia guardada',evidence:['configuration'],idea:'Propuesta recuperada',replyTo:'Contrastar alternativas',uncertainty:'Muestra preliminar',nextTask:'Investigar sin repetir'};
+ }},now);
+ assert.deepEqual(m.voices.slice(0,4),saved);assert.deepEqual(requested.filter(r=>r.round==='voice').map(r=>r.id),staff.slice(4));assert.equal(requested.filter(r=>r.round==='response').length,6);assert.equal(requested.filter(r=>r.round==='chair').length,1);
+ assert.equal(requested.length,9);assert.equal(m.attempts,2);assert.equal(m.status,'completa');assert.equal(m.discussionRecoveryPending,false);assert.equal(m.discussionRecoveryAttemptedAt,now);assert.ok(Math.abs(m.costEur-(.011+9*.0006))<1e-10);assert.ok(m.costEur<=.025);assert.equal(s.real.book.orders.length,0);
+});
+
+test('A current-day omitted second round receives one headroom recovery and never repeats completed voices or replies after another truncation',async()=>{
+ const s=state(),now=Date.parse('2026-10-05T21:15:00Z');delete s.company.discussionHeadroomMigration;s.company.chairRecoveryMigration=1;s.operating={month:'2026-10',spentEur:.014,remainingEur:9.986};
+ const voices=staff.map(agent=>({agent,name:s.agents.find(a=>a.id===agent).name,facts:'Hecho',idea:'Idea '+agent,evidence:[],uncertainty:'Sin muestra',nextTask:'Contrastar'})),responses=voices.slice(0,2).map(v=>({...v,replyTo:'Respuesta pagada'})),saved=JSON.stringify({voices,responses});
+ const m={id:'2026-10-05:planning',day:'2026-10-05',slot:'planning',scheduledTime:'11:00',status:'omitida',attempts:2,error:'Respuesta de IA incompleta: max_output_tokens',voices,responses,costEur:.014};s.company.meetings.push(m);
+ assert.equal(dueMeeting(s,now).id,m.id);let calls=0;
+ await holdMeeting(s,{budget:async()=>({...s.operating,paceEurPerDay:.3}),checkpoint:async()=>{},log:()=>{},call:async(id,_instructions,payload,_schema,options)=>{calls++;assert.equal(id,staff[2]);assert.ok(payload.allIdeas);assert.equal(options.outputTokens,600);s.operating.spentEur+=.0007;throw Error('Respuesta de IA incompleta: max_output_tokens');}},now);
+ assert.equal(calls,1);assert.equal(m.status,'omitida');assert.equal(m.attempts,3);assert.equal(m.discussionRecoveryPending,false);assert.equal(JSON.stringify({voices:m.voices,responses:m.responses}),saved);assert.ok(Math.abs(m.costEur-.0147)<1e-10);
+ assert.equal(dueMeeting(s,now+60000)?.id,'2026-10-05:closing','The failed morning meeting is not reopened again');initialiseCompany(s,now+60000);assert.equal(m.status,'omitida');assert.equal(m.discussionRecoveryPending,false);
+});
+
+test('Headroom recovery does not bypass meeting spend limits, historical days or the previously consumed chair exception',async()=>{
+ const now=Date.parse('2026-10-05T21:15:00Z');
+ for(const extra of [{day:'2026-10-04'},{error:'Tope de gasto de reunión alcanzado'},{error:'Respuesta de IA incompleta: content_filter'},{chairRecoveryGrantedAt:now-1000},{discussionRecoveryGrantedAt:now-1000}]){
+  const s=state();delete s.company.discussionHeadroomMigration;s.company.chairRecoveryMigration=1;const m={id:'2026-10-05:planning',day:'2026-10-05',status:'omitida',attempts:2,error:'Respuesta de IA incompleta: max_output_tokens',voices:[],responses:[],costEur:.02,...extra};s.company.meetings.push(m);initialiseCompany(s,now);assert.equal(m.status,'omitida');assert.equal(m.discussionRecoveryPending,undefined);
+ }
+ const s=state();delete s.company.discussionHeadroomMigration;s.company.chairRecoveryMigration=1;s.operating={month:'2026-10',spentEur:.0247,remainingEur:9.9753};
+ const m={id:'2026-10-05:closing',day:'2026-10-05',slot:'closing',scheduledTime:'22:30',status:'omitida',attempts:2,error:'Respuesta de IA incompleta: max_output_tokens',voices:[],responses:[],costEur:.0247};s.company.meetings.push(m);let calls=0;
+ await holdMeeting(s,{budget:async()=>({...s.operating,paceEurPerDay:.3}),checkpoint:async()=>{},log:()=>{},call:async()=>{calls++;}},now);
+ assert.equal(calls,0);assert.equal(m.costEur,.0247);assert.equal(m.status,'omitida');assert.match(m.error,/Tope de gasto/);assert.equal(m.capEur,.025);assert.equal(m.discussionRecoveryPending,false);
+});
+test('Meeting context sends learning once and bounded evidence/source examples without losing real totals or mutating the source',()=>{
+ const s=state(),now=Date.parse('2026-10-05T21:15:00Z'),source={url:'https://issuer.example/news',claim:'Fuente primaria'};
+ s.kpis={closed:2,grossPnl:12,learning:{marker:'UNIQUE_LEARNING_CONTEXT',funnel:{paperBuys:2},limitations:'Muestra pequeña'}};
+ s.real.events=Array.from({length:34},(_,i)=>({id:'fact-'+i,symbol:'T'+i,date:new Date(now+864e5).toISOString(),confirmed:true,status:'nuevo',sources:[source],preScore:{eligible:true,score:65},research:{costEur:.01}}));
+ s.real.discovery={lastAt:now,universe:2280,enriched:250,queued:12,newSignals:2,qualification:{evaluated:34,blocked:3},sources:Object.fromEntries(Array.from({length:9},(_,i)=>['Source '+i,{at:now,items:20,matched:2,filteredNoise:1,error:i===0?'unavailable '.repeat(30):null,unneededBody:'large detail '.repeat(100)}]))};
+ const before=JSON.stringify({kpis:s.kpis,events:s.real.events,discovery:s.real.discovery}),context=compactContext(s,now);
+ assert.equal(JSON.stringify(context).split('UNIQUE_LEARNING_CONTEXT').length-1,1);assert.deepEqual(context.learning,s.kpis.learning);assert.equal(context.kpis.learning,undefined);assert.equal(context.kpis.grossPnl,12);
+ assert.equal(context.evidenceProtocol.count,34);assert.equal(context.evidenceProtocol.rows.length,8);assert.equal(context.evidenceProtocol.omitted,26);assert.equal(context.evidenceProtocol.groups[0].count,34);assert.equal(context.evidenceProtocol.groups[0].costed,34);
+ assert.equal(context.sources.universe,2280);assert.equal(context.sources.queued,12);assert.equal(context.sources.sourceCount,9);assert.equal(Object.keys(context.sources.sources).length,6);assert.equal(context.sources.omittedSources,3);assert.equal(context.sources.sources['Source 0'].error.length,180);assert.equal(context.sources.sources['Source 0'].unneededBody,undefined);
+ assert.equal(context.programState.currentProgram,undefined,'The complete baseline appears once under context.program');assert.equal(JSON.stringify({kpis:s.kpis,events:s.real.events,discovery:s.real.discovery}),before);
+});
+
+test('Both truncated meetings can recover once, with the already scheduled closing discussion taking priority',()=>{
+ const s=state(),now=Date.parse('2026-10-05T21:15:00Z');delete s.company.discussionHeadroomMigration;s.company.chairRecoveryMigration=1;
+ s.company.meetings=['planning','closing'].map(slot=>({id:'2026-10-05:'+slot,day:'2026-10-05',slot,status:'omitida',attempts:2,error:'Respuesta de IA incompleta: max_output_tokens',voices:[],responses:[],costEur:.01}));
+ const due=dueMeeting(s,now);assert.equal(due.id,'2026-10-05:closing');assert.equal(s.company.meetings[0].discussionRecoveryPending,true);assert.equal(s.company.meetings[1].discussionRecoveryPending,true);
+ s.company.meetings[1].status='completa';assert.equal(dueMeeting(s,now).id,'2026-10-05:planning');assert.equal(s.company.meetings[0].costEur,.01);
+});
