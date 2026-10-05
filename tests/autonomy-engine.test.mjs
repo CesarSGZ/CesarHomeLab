@@ -238,3 +238,45 @@ test('partial research findings cannot claim the assigned evidence is fully reso
  const result=verifyResearch(reply,{date:null},now);assert.equal(result.confirmed,true);assert.equal(result.research.taskResolved,false);assert.deepEqual(result.research.missingEvidence,reply.missingEvidence);assert.equal(result.research.taskFindings,reply.taskFindings);
  assert.equal(verifyResearch(researchAnswer({taskResolved:true,missingEvidence:[]}),{date:null},now).research.taskResolved,true);
 });
+
+
+test('day-only announcements are accepted today without inventing a future publication hour and optional forecasts can remain unknown',()=>{
+ const t=Date.parse('2026-10-05T12:00:00Z'),event={date:null};
+ const reply=researchAnswer({eventDate:'2026-10-05',probabilityPositive:null,upsidePct:null,downsidePct:null});
+ const v=verifyResearch(reply,event,t);assert.equal(v.confirmed,true);assert.equal(v.datePrecision,'day');assert.equal(v.date,'2026-10-05T00:00:00.000Z');assert.equal(v.research.probabilityPositive,null);
+ assert.equal(verifyResearch({...reply,eventDate:'2026-10-06'},event,t).confirmed,false);
+ assert.equal(verifyResearch({...reply,_retrieved:[]},event,t).confirmed,false);
+ assert.throws(()=>verifyResearch({...reply,upsidePct:-1},event,t),/Estimaciones/);
+});
+
+test('launch prepares two independently reviewed experimental plans outside session then uses real references for paper entries without more model calls',async()=>{
+ const env=memoryEnv(),weekend=Date.parse('2026-10-03T15:00:00Z'),friday=Date.parse('2026-10-02T19:50:00Z'),originalNow=Date.now,originalFetch=globalThis.fetch;let clock=weekend;Date.now=()=>clock;
+ try{
+  env._db.prepare('INSERT INTO trading_secrets(name,cipher,iv,updated_at) VALUES (?,?,?,?)').run('openai','test-only','test-only',clock);
+  await locked(env,async s=>{
+   s.real.assets=['TESTA','TESTB','HARD'].map(symbol=>({symbol,name:symbol+' Common Stock',exchange:'NASDAQ',sector:'Technology',marketCap:300e6,price:10,dataVerified:true}));
+   s.real.events=s.real.assets.map(a=>({id:a.symbol,symbol:a.symbol,status:'descartado',confirmed:true,timing:'scheduled',kind:'Resultados',source:primary,sources:[{url:primary,claim:'La empresa confirma el hecho y su fecha'}],date:'2026-10-07T20:00:00Z',summary:'Resultados fechados y guía anterior contrastados con fuentes primarias. La reacción del mercado sigue siendo una hipótesis incierta.',preScore:{eligible:true,score:60},research:{worthAnalyzing:true,researchedAt:clock-3600e3},analysisAssessment:{reason:a.symbol==='HARD'?'Financiación desconocida y riesgo de insolvencia':'Falta consenso de analistas y una probabilidad calibrada'},reasons:[a.symbol==='HARD'?'Financiación desconocida y riesgo de insolvencia':'Falta consenso y ventaja demostrada']}));
+   s.real.profiles=Object.fromEntries(s.real.assets.map(a=>[a.symbol,{checkedAt:clock,fundamentals:{checkedAt:clock,metrics:{annualEnd:'2025-12-31',annualAgeDays:180,fcf:2e6,revenueYoY:.1,netMargin:.15,equityLatest:30e6,equityDate:'2026-06-30',cashLatest:20e6,cashDate:'2026-06-30',shareGrowth:.01}},market:{averageDollarVolume:5e6,return1y:.1,seriesDiagnostic:{adjustments:{complete:true}}}}]));
+   s.real.quotes=Object.fromEntries(s.real.assets.map(a=>[a.symbol,{symbol:a.symbol,price:10,time:friday,fetchedAt:clock,referenceOnly:true,currency:'USD',source:referenceSource,dollarVolume:5e6}]));
+   s.real.marketCheckedAt=clock;s.real.marketProviderAt=clock;s.real.book.fx={rate:1,time:friday,checkedAt:clock};s.real.lastScan=clock;
+   for(const a of s.agents)a.paused=!['analyst','risk','operator'].includes(a.id);
+   s.company.agency.day=new Date(clock).toISOString().slice(0,10);s.company.agency.runsToday=6;s.company.agency.preparationDay=new Date(clock).toISOString().slice(0,10);s.company.agency.preparationCalls=2;
+  });
+  let calls=0;globalThis.fetch=async(url,options)=>{
+   assert.equal(url,'https://api.openai.com/v1/responses');calls++;const body=JSON.parse(options.body),input=JSON.parse(body.input);
+   assert.equal(body.model,'gpt-6-luna');assert.equal(body.tools,undefined);assert.equal(input.launch.experimental,true);assert.ok(input.launch.hypothesis.rationale);assert.equal(input.config.minRR,1.3);
+   const answer=body.text.format.schema.properties.holdingDays?preparedAnswer({target:11.3,reason:'Experimento incierto, no ventaja demostrada'}):reviewedAnswer({reason:'Revisión independiente: riesgo acotado, consenso no imprescindible'});
+   return Response.json({status:'completed',usage:{input_tokens:500,output_tokens:200},output:[{type:'message',content:[{type:'output_text',text:JSON.stringify(answer)}]}]});
+  };
+  await cycle(env);let s=(await load(env)).state;
+  assert.equal(calls,4);assert.equal(s.company.sessionPlan.ready.length,2);assert.equal(s.real.book.orders.length,0);assert.equal(s.real.events.find(e=>e.symbol==='HARD').plan,undefined);
+  const pilot=s.company.shadowProgram;assert.ok(pilot);assert.equal(s.company.versions.filter(v=>v.adaptation?.phase==='pilot').length,1);
+  clock=Date.parse('2026-10-05T15:00:00Z');
+  await locked(env,async s=>{s.real.lastScan=clock;s.real.marketCheckedAt=clock;s.real.marketProviderAt=clock;s.real.book.fx={rate:1,time:clock,checkedAt:clock};for(const q of Object.values(s.real.quotes)){q.time=clock;q.fetchedAt=clock;}s.company.agency.day=new Date(clock).toISOString().slice(0,10);s.company.agency.runsToday=6;});
+  await cycle(env);s=(await load(env)).state;
+  assert.equal(calls,4);assert.equal(s.real.book.positions.length,2);assert.equal(s.real.book.orders.length,2);assert.equal(s.real.book.entriesToday,2);
+  for(const p of s.real.book.positions){assert.equal(p.adaptationId,pilot);assert.equal(p.forecast.uncalibrated,true);assert.equal(p.forecast.target,11.3);}
+  assert.ok(Math.abs(s.real.book.cash+s.real.book.positions.reduce((n,p)=>n+p.qty*p.entry+p.entryFee,0)-10000)<1e-8);
+  assert.ok(env._db.prepare('SELECT spent_eur FROM trading_operating_budget').get().spent_eur<10);
+ }finally{Date.now=originalNow;globalThis.fetch=originalFetch;env._db.close();}
+});

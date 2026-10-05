@@ -1,5 +1,5 @@
 import {pendingEmployeeWork,queueEmployeeWork,finishEmployeeWork} from './employee-agents.js';
-import {workflowSettings,validateWorkflowStrategy,pipelineSummary,researchEvidenceFingerprint,catalystReady,quoteContext,sessionResearchPacing,analysisFollowupPending,analysisEvidenceFingerprint} from './strategy.js';
+import {workflowSettings,validateWorkflowStrategy,pipelineSummary,researchEvidenceFingerprint,catalystReady,quoteContext,sessionResearchPacing,analysisFollowupPending,analysisEvidenceFingerprint,selectPlanningCandidates} from './strategy.js';
 import {prepareDevelopment} from './development.js';
 import {developmentFiles} from './office-boundary.js';
 import {installProgram,canReplacePilot} from './company.js';
@@ -113,13 +113,15 @@ export async function runPreparation(s,{call,checkpoint,log},now=Date.now()){
  }
  for(const w of pendingEmployeeWork(s,'execution',now).filter(w=>on(s,w.owner))){const e=s.real.events.find(e=>e.id===w.eventId);if(e?.plan?.expiresAt>now&&e.review?.approve&&catalystReady(e,now)&&['nuevo','espera'].includes(e.status)){complete(s,w,'Preapertura preparada para '+e.symbol+': actualizar precio y revalidar los límites en sesión','auditor',now);}else finishEmployeeWork(s,w.id,'Falta un catalizador y plan vigentes con revisión de riesgo aprobada',{status:'blocked',target:'risk'},now);}
  if(agency.preparationDay!==new Date(now).toISOString().slice(0,10)){agency.preparationDay=new Date(now).toISOString().slice(0,10);agency.preparationCalls=0;}
- if(workflowSettings(s).weekendPlanning&&s.operating?.remainingEur>.01)seedUsefulWork(s,now);
+ const launchAnalystPriority=!!company.launch?.active&&on(s,'analyst')&&selectPlanningCandidates(s,now).some(e=>!e.plan);
+ if(!launchAnalystPriority&&workflowSettings(s).weekendPlanning&&s.operating?.remainingEur>.01)seedUsefulWork(s,now);
  for(const work of [...pendingEmployeeWork(s,'analysis',now),...pendingEmployeeWork(s,'risk',now)].filter(w=>w.phase==='preliminary')){
   if(!on(s,work.owner))continue;
   const event=s.real.events.find(e=>e.id===work.eventId);if(!event){finishEmployeeWork(s,work.id,'Candidata retirada del radar',{status:'failed',target:'auditor'},now);continue;}
   const profile=s.real.profiles?.[event.symbol],fingerprint=preparationFingerprint(event,profile,s.real.quotes?.[event.symbol]),field=work.kind==='risk'?'preRisk':'preliminary';
   if(event[field]?.fingerprint===fingerprint){complete(s,work,'Se reutiliza el preanálisis guardado; no se repite consumo',event[field].nextOwner,now);continue;}
   if(!profile||!profile.fundamentals?.metrics&&!profile.market){finishEmployeeWork(s,work.id,'Falta ficha financiera utilizable; enriquecimiento solicitado a Santi',{status:'blocked',target:'scout'},now);continue;}
+  if(launchAnalystPriority&&!event.confirmed){work.launchDeferredAt??=now;work.launchPriorityReason='Primero preparar los planes de candidatas confirmadas; el preanálisis permanece en cola sin consumo';continue;}
   if(agency.preparationCalls>=2||s.operating?.exhausted||!(s.operating?.remainingEur>.01))continue;
   work.status='running';work.attempts++;agency.preparationCalls++;const employee=s.agents.find(a=>a.id===work.owner);employee.status='trabajando';employee.task=(work.kind==='risk'?'Precomprobación de riesgo ':'Preanálisis de ')+event.symbol;await checkpoint();
   try{
@@ -130,7 +132,7 @@ export async function runPreparation(s,{call,checkpoint,log},now=Date.now()){
   employee.status='esperando';employee.task=agency.actors[work.owner]?.nextTask||'Trabajo preliminar registrado';await checkpoint();
  }
  const work=pendingEmployeeWork(s,'code',now).find(w=>on(s,'designer'));
- if(work&&s.operating?.remainingEur>.04&&!company.development?.some(j=>['queued','running'].includes(j.status))&&company.lastCodeDay!==new Date(now).toISOString().slice(0,10)){
+ if(work&&!(company.launch?.active&&company.launch.priorityUseful)&&s.operating?.remainingEur>.04&&!company.development?.some(j=>['queued','running'].includes(j.status))&&company.lastCodeDay!==new Date(now).toISOString().slice(0,10)){
   try{const files=/estrategia|selecci|catalizador|radar|flujo/i.test(work.task+' '+work.reason)?['trading-worker/strategy.js','trading-worker/preparation.js']:['control/trading.js'];const request={id:work.id,day:new Date(now).toISOString().slice(0,10),chair:{codeFiles:files.filter(f=>developmentFiles.includes(f)),decisions:[{title:work.reason,owner:work.from,evidence:work.evidenceIds}],codeRationale:work.task}};const job=await prepareDevelopment(s,request,(id,instructions,payload,schema,tokens)=>call(id,instructions,payload,schema,{light:true,work:true,outputTokens:tokens,capEur:.02}),checkpoint,now);complete(s,work,job?'Parche real en cola de pruebas y despliegue: '+job.summary:request.codeOutcome||'No procede parche adicional hoy','auditor',now);}
   catch(error){finishEmployeeWork(s,work.id,'Desarrollo aplazado: '+error.message,{status:'failed',target:'designer'},now);log(s,'designer','Desarrollo aplazado: '+error.message,'warning');}
  }

@@ -137,6 +137,12 @@ export function executeEmployeeDecision(s,id,decision,now=Date.now()){
 }
 
 export async function runEmployeeInitiative(s,{call,checkpoint,log},now=Date.now()){
+ if(s.company?.launch?.active&&s.company.launch.priorityUseful){
+  const agency=initialiseEmployees(s,now),counts=s.company.pipeline?.counts||{},owner=counts.analysisReady?'analyst':counts.riskPending?'risk':counts.approvedWaiting?'operator':'scout';
+  const work=agency.workQueue.filter(w=>w.owner===owner&&['research','analysis','risk','execution'].includes(w.kind)&&w.phase!=='preliminary'&&['pending','running','blocked'].includes(w.status)&&w.notBefore<=now).sort((a,b)=>a.createdAt-b.createdAt)[0],agent=s.agents.find(a=>a.id===owner);
+  if(agent&&!agent.paused&&agent.status!=='trabajando'){agent.status='pendiente';agent.task='Prioridad operativa: '+(work?.task||({analyst:'Preparar planes fundamentados con los datos disponibles',risk:'Revisar los planes pendientes de forma independiente',operator:'Comprobar los planes preparados y sus condiciones de ejecución',scout:'Contrastar las candidatas priorizadas con fuentes primarias'}[owner]));}
+  await checkpoint();return null;
+ }
  const actor=dueEmployee(s,now);if(!actor)return null;
  const agency=s.company.agency,agent=s.agents.find(a=>a.id===actor.id),cap=Math.min(.0025,(s.operating.paceEurPerDay||0)*.04);
  if(cap<.0008)return null;

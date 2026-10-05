@@ -149,3 +149,12 @@ test('pausing entries leaves research and planning visible and only pauses execu
  s.real.events=[candidate('research-me')];assert.equal(pipelineSummary(s,now).blockerStage,'research');assert.equal(selectResearchCandidates(s,now).length,1);
  s.real.events=[confirmed('ready',{plan:{expiresAt:now+day},review:{approve:true},status:'espera'})];assert.equal(pipelineSummary(s,now).blockerStage,'paused');assert.equal(pipelineSummary(s,now).readyNextSession,1);assert.match(pipelineSummary(s,now).blocker,/Planes preparados/);
 });
+
+
+test('Santi rotates away after two paid research attempts per company and day across duplicated signals',()=>{
+ const spent=candidate('same-1',{symbol:'SAME',researchAttempts:{day:'2026-10-03',count:1}}),duplicate=candidate('same-2',{symbol:'SAME',researchAttempts:{day:'2026-10-03',count:1}}),fresh=candidate('OTHER'),s=fixture([spent,duplicate,fresh]);
+ assert.deepEqual(selectResearchCandidates(s,now).map(e=>e.symbol),['OTHER']);
+ for(const e of [spent,duplicate])e.researchAttempts.day='2026-10-02';
+ assert.equal(selectResearchCandidates(s,now).length,3);
+ assert.equal(s.real.book.positions.length,0);
+});

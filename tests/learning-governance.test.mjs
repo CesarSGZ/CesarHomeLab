@@ -81,3 +81,43 @@ test('Actual losses preserve automatic risk reduction independently of data bott
  const k=metrics(s,{confirmed:.1,reserved:0},now);assert.equal(k.closedPnl,-110);assert.equal(chooseChange(s,k).action,'reduceRisk');
  const paper=JSON.stringify(s.real.book),budget=s.config.dailyBudget;applyChange(s,chooseChange(s,k),k,now);assert.equal(s.config.riskPct,.3);assert.equal(s.config.dailyBudget,budget);assert.equal(JSON.stringify(s.real.book),paper);
 });
+
+const forecast=()=>({preparedAt:now-5*864e5,referenceAt:now-6*864e5,entryMin:9.8,entryMax:10.2,stop:9,target:14,holdingDays:8,bearCase:'La reacción puede revertir',baseCase:'Comprobar continuidad tras el anuncio',bullCase:'Nueva guía puede mejorar expectativas',invalidation:'Pérdida del nivel de soporte',probabilityPositive:55,upsidePct:20,downsidePct:10,uncalibrated:true});
+
+test('Forecast learning compares captured scenarios with price returns and explicitly separates FX and realized ledger P/L',()=>{
+ const s=state();s.real.book.closed=[{id:'trade',symbol:'SMALL',entry:10,exit:12,entryFx:1,exitFx:1.2,openedAt:now-4*864e5,closedAt:now,reason:'objetivo',pnl:-2,forecast:forecast()}];
+ s.real.events=[{id:'mutated',plan:{target:999,stop:1,bullCase:'An invented later plan'}}];const before=JSON.stringify(s),d=learningDigest(s,{},now),f=d.outcomes.forecast,row=f.rows[0];
+ assert.equal(f.knownForecastClosed,1);assert.equal(f.actualReturnKnown,1);assert.ok(Math.abs(f.meanActualReturnPct-20)<1e-10);
+ assert.equal(f.meanActualCapitalReturnPct,0);assert.equal(f.baseCurrency,'EUR');assert.match(f.actualReturnBasis,/USD/);assert.match(f.actualCapitalReturnBasis,/recorded entryFx and exitFx/);
+ assert.equal(row.plannedTarget,14);assert.equal(row.plannedStop,9);assert.equal(row.realizedR,2);assert.equal(row.holdingDays,4);assert.equal(row.plannedHoldingDays,8);
+ assert.ok(Math.abs(row.upsideScenarioGapPp)<1e-10);assert.ok(Math.abs(row.downsideScenarioGapPp-30)<1e-10);assert.equal(row.uncalibrated,true);
+ assert.equal(row.hypothesis.bull,forecast().bullCase);assert.equal(d.outcomes.realizedPnl,-2);assert.equal(JSON.stringify(s),before);
+});
+
+test('Missing forecasts, prices, FX and numerical estimates remain unknown rather than zero or inferred from current events',()=>{
+ const s=state();s.real.book.closed=[
+  {id:'first',eventId:'e',symbol:'A',entry:10,exit:11,openedAt:now-864e5,closedAt:now,reason:'tiempo',forecast:{...forecast(),probabilityPositive:null,upsidePct:null,downsidePct:null}},
+  {id:'second',symbol:'B',entry:10,exit:null,openedAt:now+1,closedAt:now,reason:'stop',forecast:forecast()},
+  {id:'historic',eventId:'e',symbol:'C',entry:10,exit:20,reason:'manual'}
+ ];s.real.events=[{id:'e',plan:forecast()}];const f=learningDigest(s,{},now).outcomes.forecast;
+ assert.equal(f.knownForecastClosed,2);assert.equal(f.unknownForecastClosed,1);assert.equal(f.actualReturnKnown,1);assert.equal(f.actualCapitalReturnKnown,0);assert.equal(f.meanActualCapitalReturnPct,null);
+ assert.equal(f.scenarioComparisons.upsideKnown,0);assert.equal(f.scenarioComparisons.downsideKnown,0);assert.equal(f.scenarioComparisons.meanUpsideGapPp,null);
+ const a=f.rows.find(r=>r.symbol==='A'),b=f.rows.find(r=>r.symbol==='B');assert.equal(a.estimatedUpsidePct,null);assert.equal(a.probabilityPositive,null);assert.equal(a.actualCapitalReturnPct,null);assert.equal(b.actualReturnPct,null);assert.equal(b.holdingDays,null);
+ assert.equal(f.holdingKnown,1);assert.equal(f.meanHoldingDays,1);assert.match(f.limitations,/stay unknown/);
+});
+
+test('Forecast averages, scenario distances, exit counts and holding medians use only their stated observed samples',()=>{
+ const s=state(),durations=[1,3,5,7],exits=[9,10,11,12],reasons=['stop','tiempo','objetivo','manual'];
+ s.real.book.closed=durations.map((holding,i)=>({id:'t'+i,symbol:'A'+i,entry:10,exit:exits[i],entryFx:1,exitFx:1,openedAt:now-holding*864e5,closedAt:now,reason:reasons[i],forecast:forecast()}));
+ const f=learningDigest(s,{},now).outcomes.forecast;assert.equal(f.knownForecastClosed,4);assert.equal(f.meanHoldingDays,4);assert.equal(f.medianHoldingDays,4);
+ assert.ok(Math.abs(f.meanActualReturnPct-5)<1e-10);assert.ok(Math.abs(f.meanActualCapitalReturnPct-5)<1e-10);assert.equal(f.meanRealizedR,.5);
+ assert.deepEqual(f.exits,{target:1,stop:1,time:1,other:1});assert.equal(f.scenarioComparisons.upsideKnown,4);assert.equal(f.scenarioComparisons.downsideKnown,4);
+ assert.ok(Math.abs(f.scenarioComparisons.meanUpsideGapPp+15)<1e-10);assert.ok(Math.abs(f.scenarioComparisons.meanDownsideGapPp-15)<1e-10);
+ assert.match(f.scenarioComparisons.basis,/not errors of a calibrated prediction/);assert.match(f.limitations,/do not establish calibrated probabilities/);
+});
+
+test('Pedro receives the measurable experiment objective without changing paper capital or monthly budget',()=>{
+ const s=state();s.agents=[{id:'analyst'}];const before=JSON.stringify({book:s.real.book,operating:s.operating,config:s.config});initialiseGovernance(s);
+ assert.equal(s.agents[0].objective,'Preparar experimentos medibles con datos reales, escenarios e invalidación; registrar incertidumbres y riesgo');
+ assert.equal(JSON.stringify({book:s.real.book,operating:s.operating,config:s.config}),before);
+});

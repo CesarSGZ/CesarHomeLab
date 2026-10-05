@@ -119,10 +119,11 @@ function focusBoost(e,s,settings){const sector=s.real.assets?.find(a=>a.symbol==
 function order(s,rows,kind,settings,now){return rows.sort((a,b)=>(kind==='research'?Number(b.confirmed&&analysisFollowupPending(b))-Number(a.confirmed&&analysisFollowupPending(a)):0)||Number(!!priority(s,b,kind,now))-Number(!!priority(s,a,kind,now))||focusBoost(b,s,settings)-focusBoost(a,s,settings)||(b.preScore?.score||0)-(a.preScore?.score||0)||priority(s,b,kind,now)-priority(s,a,kind,now)||(timestamp(a.date)||now+45*day)-(timestamp(b.date)||now+45*day));}
 
 export function selectResearchCandidates(s,now=Date.now()){
- const settings=workflowSettings(s),events=s.real.events||[],companyAttempts=new Map();
+ const settings=workflowSettings(s),events=s.real.events||[],companyAttempts=new Map(),dailyAttempts=new Map();
+ for(const e of events)if(e.researchAttempts?.day===newYorkDay(now))dailyAttempts.set(e.symbol,(dailyAttempts.get(e.symbol)||0)+e.researchAttempts.count);
  for(const e of events)companyAttempts.set(e.symbol,Math.max(companyAttempts.get(e.symbol)||0,lastAttempt(e)));
  const rows=events.filter(e=>{
-  if(closedStatuses.has(e.status)||!e.preScore?.eligible||e.researchRetryAfter>now)return false;
+  if(closedStatuses.has(e.status)||!e.preScore?.eligible||e.researchRetryAfter>now||(dailyAttempts.get(e.symbol)||0)>=2)return false;
   const companyAt=companyAttempts.get(e.symbol)||0,newPrimary=primaryResearchUpdateAt(e,now)>companyAt;
   if(e.confirmed){
    if(e.plan||e.review?.approve===false||e.research?.worthAnalyzing===false||!pendingResearchAssignment(s,e,now))return false;
