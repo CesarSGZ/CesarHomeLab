@@ -158,3 +158,44 @@ test('Santi rotates away after two paid research attempts per company and day ac
  assert.equal(selectResearchCandidates(s,now).length,3);
  assert.equal(s.real.book.positions.length,0);
 });
+
+function launchFixture(costs,extra={}){
+ const events=[...costs.map((cost,i)=>candidate('observed-'+i,{status:'descartado',research:{costEur:cost,researchedAt:now-day}})),...Array.from({length:22},(_,i)=>candidate('fresh-'+i))],s=fixture(events);
+ s.company.launch={active:true,target:2,ready:0};s.policy.researchDailyLimit=1;s.real.researchDay='2026-10-03';s.real.researchCalls=6;s.operating={...s.operating,paceEurPerDay:.3,daySpentEur:.1,...extra};return s;
+}
+
+test('launch opens new-company research slots using observed costs while reserving thirty percent for analysis',()=>{
+ const s=launchFixture([.01,.01,.01]),before=JSON.stringify(s),pacing=sessionResearchPacing(s,now);
+ assert.equal(pacing.estimatedResearchCostEur,.015);assert.equal(pacing.observedCostSamples,3);assert.equal(pacing.limit,12);
+ assert.equal(pacing.researchAllowanceEur,.21);assert.equal(pacing.reservedForAnalysisEur,.09);assert.ok(Math.abs(pacing.availableResearchEur-.11)<1e-12);assert.equal(pacing.intervalMinutes,45);
+ assert.equal(JSON.stringify(s),before);assert.equal(s.real.events.some(e=>e.plan),false);
+});
+
+test('launch estimates the next investigation conservatively and extends new signals rather than only follow-ups',()=>{
+ const s=launchFixture([.02,.025,.03],{daySpentEur:.14}),pacing=sessionResearchPacing(s,now);
+ assert.ok(Math.abs(pacing.estimatedResearchCostEur-.0325)<1e-12);assert.equal(pacing.limit,8);assert.equal(selectResearchCandidates(s,now).length,22);
+ s.company.launch.active=false;assert.equal(sessionResearchPacing(s,now).limit,6,'The existing non-launch policy remains unchanged');
+});
+
+test('launch uses the legacy cost estimate until three actual finite observations exist',()=>{
+ for(const costs of [[],[.001,.001],[.001,null,NaN,-.01]]){
+  const s=launchFixture(costs),pacing=sessionResearchPacing(s,now);assert.equal(pacing.estimatedResearchCostEur,.045);assert.equal(pacing.limit,8);
+ }
+});
+
+test('launch leaves no paid research headroom when the reserved daily budget or monthly allowance is unavailable',()=>{
+ for(const operating of [{daySpentEur:.21},{daySpentEur:.3},{daySpentEur:null},{exhausted:true},{remainingEur:0}]){
+  const s=launchFixture([.01,.01,.01],operating),before=s.real.researchCalls;
+  assert.equal(sessionResearchPacing(s,now).limit,before);assert.equal(s.real.researchCalls,before);
+ }
+ const s=launchFixture([.01,.01,.01],{remainingEur:.025});assert.equal(sessionResearchPacing(s,now).limit,7);
+});
+
+test('launch expansion respects per-company attempts and cooldown while retaining counters and paid cost history',()=>{
+ const s=launchFixture([.01,.01,.01]);for(const e of s.real.events.filter(e=>e.status!=='descartado'))e.researchAttempts={day:'2026-10-03',count:2};
+ assert.equal(sessionResearchPacing(s,now).limit,6);
+ const e=s.real.events.find(e=>e.id==='fresh-0');delete e.researchAttempts;e.research={costEur:.02,researchedAt:now-3600e3};e.researchAttemptAt=now-3600e3;
+ assert.equal(sessionResearchPacing(s,now).limit,6,'A recent investigation cannot be repeated simply because launch needs plans');
+ delete e.research;delete e.researchAttemptAt;assert.equal(sessionResearchPacing(s,now).limit,7);
+ assert.equal(s.real.researchCalls,6);assert.equal(s.real.events.find(e=>e.id==='observed-0').research.costEur,.01);
+});

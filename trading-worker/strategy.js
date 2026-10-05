@@ -45,6 +45,15 @@ function researchPacing(s,now,approvedWaiting){
  const preparing=settings.weekendPlanning&&nearing&&approvedWaiting<target;
  const affordable=Math.max(0,Math.floor((s.operating?.paceEurPerDay||0)/.045));
  let limit=Math.min(preparing?Math.max(settings.researchDailyLimit,6):settings.researchDailyLimit,affordable);
+ if(s.company?.launch?.active){
+  const callsToday=s.real.researchDay===newYorkDay(now)&&finite(s.real.researchCalls)?Math.max(0,Math.floor(s.real.researchCalls)):0;
+  const costs=(s.real.events||[]).map(e=>e.research?.costEur).filter(cost=>finite(cost)&&cost>0),costEstimate=costs.length>=3?Math.max(.015,costs.reduce((sum,cost)=>sum+cost,0)/costs.length*1.3):.045;
+  const pace=finite(s.operating?.paceEurPerDay)?Math.max(0,s.operating.paceEurPerDay):0,researchAllowance=pace*.7,reservedForAnalysis=pace*.3;
+  const knownSpend=finite(s.operating?.daySpentEur)&&s.operating.daySpentEur>=0,spare=knownSpend?Math.max(0,Math.min(researchAllowance-s.operating.daySpentEur,s.operating.remainingEur||0)):0;
+  const eligibleCount=new Set(selectResearchCandidates(s,now).map(e=>e.symbol)).size,extra=!s.operating?.exhausted&&s.operating?.remainingEur>0?Math.min(eligibleCount,Math.floor(spare/costEstimate)):0;
+  limit=Math.min(12,callsToday+extra);
+  return {target,preparing,limit,intervalMinutes:preparing?Math.min(settings.researchIntervalMinutes,45):settings.researchIntervalMinutes,estimatedResearchCostEur:costEstimate,observedCostSamples:costs.length,researchAllowanceEur:researchAllowance,reservedForAnalysisEur:reservedForAnalysis,availableResearchEur:spare};
+ }
  if(preparing&&!s.operating?.exhausted&&s.operating?.remainingEur>0&&finite(s.operating?.daySpentEur)){
   const callsToday=s.real.researchDay===newYorkDay(now)&&finite(s.real.researchCalls)?Math.max(0,Math.floor(s.real.researchCalls)):0;
   const spare=Math.max(0,(s.operating.paceEurPerDay||0)-s.operating.daySpentEur),extra=Math.floor(spare/.045);
