@@ -17,12 +17,12 @@ on:
 permissions:
   contents: write
   actions: write
-concurrency:
-  group: office-cloud-controller
-  cancel-in-progress: false
 jobs:
   develop:
     if: ${{ github.event_name != 'workflow_run' || (github.event.workflow_run.conclusion == 'failure' && github.event.workflow_run.head_branch == 'main' && github.event.workflow_run.head_repository.full_name == github.repository) }}
+    concurrency:
+      group: office-cloud-controller
+      cancel-in-progress: false
     runs-on: ubuntu-latest
     timeout-minutes: 18
     steps:

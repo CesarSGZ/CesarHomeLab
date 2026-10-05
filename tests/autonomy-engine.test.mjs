@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';
 import {readFileSync} from 'node:fs';
-import {llm,initialState,upgradeState,verifyResearch,planProblems,reconsiderLegacyPlanning,cycle,locked,load,employeeFunctionOptions,planningRiskContext} from '../trading-worker/engine.js';
+import {llm,initialState,upgradeState,verifyResearch,planProblems,reconsiderLegacyPlanning,cycle,locked,load,employeeFunctionOptions,planningRiskContext,constrainEntryRange,reconsiderRangeValidation} from '../trading-worker/engine.js';
 import {day,assess,freshQuote} from '../trading-worker/core.js';
 import {referenceSource} from '../trading-worker/market-data.js';
 import {queueEmployeeWork,employeeTools,initiativeSchema} from '../trading-worker/employee-agents.js';
@@ -288,4 +288,15 @@ test('conditional paper risk arithmetic is known from a dated reference without 
  assert.ok(Math.abs((r.assumedEntryUSD-r.minimumStopUSDAtReference)*r.wholeSharesAtReference/1.12-35)<1e-8);
  assert.match(r.basis,/No es orden/);assert.equal(r.referenceAt,q.time);assert.equal(JSON.stringify(s.real.book),before);
  assert.equal(planningRiskContext(s.real.book,{},s.config).known,false);
+});
+
+
+test('entry-range arithmetic narrows only the approved price cap, preserving the analyst hypothesis, stop and target for independent review',()=>{
+ const plan=preparedAnswer({entryMin:89,entryMax:92,stop:86,target:95}),before=JSON.stringify(plan),fixed=constrainEntryRange(plan,{minRR:1.3});
+ assert.equal(fixed.entryMin,89);assert.equal(fixed.stop,86);assert.equal(fixed.target,95);assert.ok(fixed.entryMax<92);assert.deepEqual(planProblems(fixed,{minRR:1.3}),[]);
+ assert.equal(fixed.rangeAdjustment.originalEntryMax,92);assert.equal(JSON.stringify(plan),before);
+ assert.equal(constrainEntryRange({...plan,entryMin:91},{minRR:1.3}).entryMax,92);
+ assert.equal(constrainEntryRange({...plan,target:85},{minRR:1.3}).target,85);
+ const e={id:'math',confirmed:true,status:'descartado',date:'2026-10-07T20:00:00Z',sources:[{url:primary}],launchReevaluation:{pilotId:'fixture'},reasons:['Beneficio/riesgo insuficiente antes de revisar']},s={real:{events:[e]}};
+ reconsiderRangeValidation(s,now);assert.equal(e.status,'nuevo');assert.equal(e.plan,undefined);e.status='descartado';e.reasons=['Beneficio/riesgo insuficiente antes de revisar'];reconsiderRangeValidation(s,now+1);assert.equal(e.status,'descartado');assert.equal(e.decisionHistory.length,1);
 });
