@@ -46,3 +46,25 @@ test('Meeting context distinguishes dated announcements from future events and d
  const proof=measureEvidence(s,now);assert.equal(proof.rows[0].status,'elegible');assert.equal(proof.rows[0].timing,'announced');assert.equal(proof.rows[1].status,'pausada');assert.equal(proof.rows[2].status,'elegible');assert.equal(proof.groups[0].unknownCosts,1);
  const context=compactContext(s,now);assert.equal(context.snapshotAt,new Date(now).toISOString());assert.equal(context.strategy.enrichmentLimit,6);assert.equal(context.pipeline.counts.supportPending,1);assert.equal(context.pipeline.counts.analysisReady,2);assert.equal(context.evidence[0].timing,'announced');assert.equal(context.evidenceProtocol.rows[0].date,s.real.events[0].date);
 });
+
+test('Meeting and developer contexts separate the executable base, owned pilot and unapplied latest proposal',async()=>{
+ const s=state(),now=Date.parse('2026-10-05T09:01:00Z');s.operating={month:'2026-10',spentEur:.2,remainingEur:9.8};
+ const pilotProgram={...program(),threshold:35,workflow:{researchDailyLimit:6,researchIntervalMinutes:45,riskPct:1.2,minRR:1.3}},pilot=installProgram(s,pilotProgram,{id:'pilot'},now-1000);
+ s.real.book.orders.push({id:'paper-buy',side:'buy',adaptationId:pilot.id});
+ const proposal={...program(),threshold:60,rules:[{feature:'relativeVolume',op:'gt',value:2,points:18}],workflow:{researchDailyLimit:2,researchIntervalMinutes:180,riskPct:2,minRR:1.1}},latest=installProgram(s,proposal,{id:'blocked-economics'},now);
+ assert.equal(latest.status,'solo flujo y visual');assert.equal(s.company.shadowProgram,pilot.id);
+ const before=JSON.stringify({book:s.real.book,config:s.config,versions:s.company.versions,operating:s.operating}),context=compactContext(s,now);
+ assert.equal(context.program.threshold,s.policy.minScore);assert.deepEqual(context.program.rules,[]);assert.equal(context.program.workflow.riskPct,.35);assert.equal(context.program.workflow.minRR,2);
+ assert.equal(context.program.workflow.researchDailyLimit,2);assert.equal(context.program.workflow.researchIntervalMinutes,180,'The operational change did apply despite the economic gate');
+ assert.equal(context.programState.active,null);assert.equal(context.programState.pilot.id,pilot.id);assert.equal(context.programState.pilot.program.threshold,35);assert.equal(context.programState.pilot.effectiveSettings.riskPct,.6);assert.equal(context.programState.pilot.effectiveSettings.minRR,1.3);
+ assert.equal(context.programState.latestProposal.id,latest.id);assert.equal(context.programState.latestProposal.economicApplication,'not_applied');assert.equal(context.programState.latestProposal.program.workflow.riskPct,2);assert.equal(context.programState.latestProposal.effectiveSettings,null);assert.match(context.programState.latestProposal.gate,/operaciones propias/);
+ assert.equal(JSON.stringify({book:s.real.book,config:s.config,versions:s.company.versions,operating:s.operating}),before,'Context creation is read-only');
+ let calls=0,chairPayload,designerPayload;
+ await holdMeeting(officeState(s),{budget:async()=>({...s.operating,paceEurPerDay:.3}),checkpoint:async()=>{},log:()=>{},call:async(id,instructions,payload)=>{
+  calls++;if(calls<=12)return {facts:'Un piloto tiene una compra ficticia',evidence:['configuration'],idea:'Conservar economía y mejorar claridad',replyTo:'',uncertainty:'Sin cierres',nextTask:'Mostrar estados separados'};
+  if(id==='auditor'){chairPayload=payload;return {summary:'Actualizar interfaz sin confundir propuestas',decisions:[{kind:'visual'}],assignments:[],reportToCesar:'El piloto sigue en evaluación',codeFiles:[],codeRationale:''};}
+  designerPayload=payload;assert.match(instructions,/base realmente ejecutable/);return {...payload.currentProgram,rationale:'Conservar economía y actualizar visualización'};
+ }},now);
+ assert.equal(calls,14);assert.deepEqual(chairPayload.currentCode,context.program);assert.deepEqual(designerPayload.currentProgram,context.program);assert.equal(designerPayload.context.programState.pilot.id,pilot.id);assert.equal(designerPayload.context.programState.latestProposal.id,latest.id);
+ assert.equal(s.company.meetings[0].status,'completa');assert.equal(s.company.shadowProgram,pilot.id);assert.equal(s.real.book.orders.length,1);assert.equal(s.config.riskPct,.35);
+});

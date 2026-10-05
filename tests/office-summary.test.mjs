@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 // The UI module registers listeners at import time; no page or API is created.
 const savedDocument=globalThis.document,savedWindow=globalThis.window;
 globalThis.document={getElementById(){return null;}};globalThis.window={addEventListener(){}};
-const {officeSummary,employeeWorkView,sessionPreparation,sessionOpening}=await import('../control/trading.js');
+const {officeSummary,employeeWorkView,sessionPreparation,sessionOpening,officeRuntimeUnavailable,reconcileRuntimeFeedback}=await import('../control/trading.js');
 globalThis.document=savedDocument;globalThis.window=savedWindow;
 
 function fixture(){return {agents:[{id:'analyst',task:'Vieja tarea administrativa',status:'esperando',objective:'Comparar oportunidades con evidencia'}],events:[],company:{meetings:[{status:'completa',chair:{officeStatus:'Esperar siete días',concerns:'Antigua preocupación',goals:[{title:'Viejo objetivo',owner:'analyst'}]}}],agency:{actors:{analyst:{nextTask:'Esperar siete días',lastAction:{time:10,result:'Espera antigua'}}},workQueue:[]}}};}
@@ -65,4 +65,35 @@ test('planned New York opening is converted with US daylight saving time, includ
   const s=fixture();s.company.sessionPlan={date:day,ready:[]};assert.equal(new Date(sessionOpening(s)).toISOString(),iso);
  }
  assert.equal(sessionOpening(fixture()),null);
+});
+
+test('an intentionally stopped scheduler is not a stale-cycle incident while automatic cycle failures remain visible',()=>{
+ const s={automatic:true,lastTick:now-16*60e3,connections:{serviceHealthy:true}};
+ assert.equal(officeRuntimeUnavailable(s,now),true);s.paused=true;assert.equal(officeRuntimeUnavailable(s,now),true,'Pausing entries does not stop the scheduler');
+ s.automatic=false;assert.equal(officeRuntimeUnavailable(s,now),false);
+ s.connections.serviceHealthy=false;assert.equal(officeRuntimeUnavailable(s,now),true,'An explicit service failure remains an incident even when cycles are stopped');
+ s.connections.serviceHealthy=true;delete s.automatic;assert.equal(officeRuntimeUnavailable(s,now),true,'Older snapshots still require recent cycles');
+ s.lastTick=now-10*60e3;assert.equal(officeRuntimeUnavailable(s,now),false);
+});
+
+function feedbackElement(text='',error=false){
+ const classes=new Set(error?['error']:[]);return {textContent:text,classList:{contains:name=>classes.has(name),toggle(name,on){if(on)classes.add(name);else classes.delete(name);}}};
+}
+
+test('a recovered cycle clears only the runtime error it previously displayed',()=>{
+ const element=feedbackElement(),failure={lastError:'Ciclo fallido: D1 remoto',runtimeUnavailable:true};
+ let displayed=reconcileRuntimeFeedback(failure,element,null);assert.equal(element.textContent,failure.lastError);assert.equal(element.classList.contains('error'),true);
+ displayed=reconcileRuntimeFeedback({lastError:null,runtimeUnavailable:false},element,displayed);
+ assert.equal(displayed,null);assert.equal(element.textContent,'');assert.equal(element.classList.contains('error'),false);
+});
+
+test('runtime feedback retains actual stale incidents and never erases a newer command result',()=>{
+ const element=feedbackElement();let displayed=reconcileRuntimeFeedback({lastError:'Error del ciclo',runtimeUnavailable:true},element,null);
+ displayed=reconcileRuntimeFeedback({lastError:null,runtimeUnavailable:true},element,displayed);
+ assert.equal(displayed,'Error del ciclo');assert.equal(element.textContent,'Error del ciclo');assert.equal(element.classList.contains('error'),true);
+ for(const [text,error] of [['Solicitud ejecutada en la nube.',false],['No hay precios recientes para cerrar',true]]){
+  const newer=feedbackElement(text,error);assert.equal(reconcileRuntimeFeedback({lastError:null,runtimeUnavailable:false},newer,displayed),null);
+  assert.equal(newer.textContent,text);assert.equal(newer.classList.contains('error'),error);
+ }
+ displayed=reconcileRuntimeFeedback({lastError:null,runtimeUnavailable:false},element,displayed);assert.equal(displayed,null);assert.equal(element.textContent,'');
 });

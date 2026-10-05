@@ -4,7 +4,7 @@ import {initialState,upgradeState} from '../trading-worker/engine.js';
 import {refreshLaunch,launchContext} from '../trading-worker/launch.js';
 import {installProgram} from '../trading-worker/company.js';
 import {officeState} from '../trading-worker/office-boundary.js';
-import {analysisEvidenceFingerprint,selectPlanningCandidates} from '../trading-worker/strategy.js';
+import {analysisEvidenceFingerprint,selectPlanningCandidates,sessionResearchPacing} from '../trading-worker/strategy.js';
 import {referenceSource} from '../trading-worker/market-data.js';
 
 const now=Date.parse('2026-10-05T14:00:00Z'),DAY=864e5;
@@ -108,4 +108,11 @@ test('Blocked evidence, unanswered followups and future retries do not masquerad
  const retry=candidate(s,'retry');retry.status='nuevo';retry.research.worthAnalyzing=true;retry.retryAfter=now+DAY;
  assert.equal(selectPlanningCandidates(s,now+1000).length,0);const result=refreshLaunch(s,now+1000);assert.equal(result.ready,0);assert.equal(result.priorityUseful,false);
  delete retry.retryAfter;assert.equal(refreshLaunch(s,now+2000).priorityUseful,true);
+});
+test('starting launch preserves a deliberately slower employee research cadence and never changes its paid ceiling',()=>{
+ const s=state();s.real.stats.researched=3;candidate(s,'soft');
+ s.company.strategy={researchDailyLimit:2,researchIntervalMinutes:180};s.operating.paceEurPerDay=.3;s.operating.daySpentEur=.01;
+ const before=JSON.stringify({book:s.real.book,budget:s.operating});const launch=refreshLaunch(officeState(s),now);const pacing=sessionResearchPacing(s,now);
+ assert.ok(launch.pilotId);assert.equal(s.policy.researchDailyLimit,2);assert.equal(s.policy.researchIntervalMinutes,180);assert.equal(pacing.limit,0,'The reopened company is already researched; a pilot never creates new research eligibility');assert.equal(pacing.intervalMinutes,180);
+ assert.equal(JSON.stringify({book:s.real.book,budget:s.operating}),before);assert.equal(s.company.versions.length,1);
 });

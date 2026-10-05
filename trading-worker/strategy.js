@@ -44,7 +44,7 @@ function researchPacing(s,now,approvedWaiting){
  const nearing=Date.parse(calendar.nextSessionDate+'T13:30:00Z')-now<60*3600e3;
  const preparing=settings.weekendPlanning&&nearing&&approvedWaiting<target;
  const affordable=Math.max(0,Math.floor((s.operating?.paceEurPerDay||0)/.045));
- let limit=Math.min(preparing?Math.max(settings.researchDailyLimit,6):settings.researchDailyLimit,affordable);
+ let limit=Math.min(settings.researchDailyLimit,affordable);
  if(s.company?.launch?.active){
   const callsToday=s.real.researchDay===newYorkDay(now)&&finite(s.real.researchCalls)?Math.max(0,Math.floor(s.real.researchCalls)):0;
   const costs=(s.real.events||[]).map(e=>e.research?.costEur).filter(cost=>finite(cost)&&cost>0),costEstimate=costs.length>=3?Math.max(.015,costs.reduce((sum,cost)=>sum+cost,0)/costs.length*1.3):.045;
@@ -52,15 +52,15 @@ function researchPacing(s,now,approvedWaiting){
   const pace=finite(s.operating?.paceEurPerDay)?Math.max(0,s.operating.paceEurPerDay):0,researchAllowance=pace*(planningReserveNeeded ? .7 : 1),reservedForAnalysis=pace*(planningReserveNeeded ? .3 : 0);
   const knownSpend=finite(s.operating?.daySpentEur)&&s.operating.daySpentEur>=0,dailyRemainingEur=knownSpend?Math.max(0,pace-s.operating.daySpentEur):null,spare=knownSpend?Math.max(0,Math.min(researchAllowance-s.operating.daySpentEur,s.operating.remainingEur||0)):0;
   const eligibleCount=new Set(selectResearchCandidates(s,now).map(e=>e.symbol)).size,extra=!s.operating?.exhausted&&s.operating?.remainingEur>0?Math.min(eligibleCount,Math.floor(spare/costEstimate)):0;
-  limit=Math.min(12,callsToday+extra);
-  return {target,preparing,limit,intervalMinutes:preparing?Math.min(settings.researchIntervalMinutes,45):settings.researchIntervalMinutes,estimatedResearchCostEur:costEstimate,observedCostSamples:costs.length,researchAllowanceEur:researchAllowance,reservedForAnalysisEur:reservedForAnalysis,availableResearchEur:spare,dailyRemainingEur,reserveReleased:!planningReserveNeeded,reserveReason:planningReserveNeeded?'Reserva para valoración o revisión independiente pendiente':'Sin valoración o revisión lista; margen diario disponible para investigación'};
+  limit=Math.min(settings.researchDailyLimit,callsToday+extra);
+  return {target,preparing,limit,intervalMinutes:settings.researchIntervalMinutes,estimatedResearchCostEur:costEstimate,observedCostSamples:costs.length,researchAllowanceEur:researchAllowance,reservedForAnalysisEur:reservedForAnalysis,availableResearchEur:spare,dailyRemainingEur,reserveReleased:!planningReserveNeeded,reserveReason:planningReserveNeeded?'Reserva para valoración o revisión independiente pendiente':'Sin valoración o revisión lista; margen diario disponible para investigación'};
  }
  if(preparing&&!s.operating?.exhausted&&s.operating?.remainingEur>0&&finite(s.operating?.daySpentEur)){
   const callsToday=s.real.researchDay===newYorkDay(now)&&finite(s.real.researchCalls)?Math.max(0,Math.floor(s.real.researchCalls)):0;
   const spare=Math.max(0,(s.operating.paceEurPerDay||0)-s.operating.daySpentEur),extra=Math.floor(spare/.045);
-  if(extra>0){const pendingFollowupCount=selectResearchCandidates(s,now).filter(e=>e.confirmed&&analysisFollowupPending(e)).length;limit=Math.min(12,Math.max(limit,callsToday+Math.min(pendingFollowupCount,extra)));}
+  if(extra>0){const pendingFollowupCount=selectResearchCandidates(s,now).filter(e=>e.confirmed&&analysisFollowupPending(e)).length;limit=Math.min(settings.researchDailyLimit,Math.max(limit,callsToday+Math.min(pendingFollowupCount,extra)));}
  }
- return {target,preparing,limit,intervalMinutes:preparing?Math.min(settings.researchIntervalMinutes,45):settings.researchIntervalMinutes};
+ return {target,preparing,limit,intervalMinutes:settings.researchIntervalMinutes};
 }
 export function sessionResearchPacing(s,now=Date.now()){
  return researchPacing(s,now,selectPlanningCandidates(s,now).filter(e=>e.plan&&e.review?.approve===true).length);

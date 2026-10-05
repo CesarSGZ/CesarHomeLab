@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {initialState,upgradeState} from '../trading-worker/engine.js';
-import {installProgram,observeProgram,augmentScore,candidateStrategy,candidateStrategyGuard,strategyExperiments,initialiseCompany,testProgram,hasEconomicChange,canReplacePilot} from '../trading-worker/company.js';
+import {installProgram,observeProgram,augmentScore,candidateStrategy,candidateStrategyGuard,validateProgram,strategyExperiments,initialiseCompany,testProgram,hasEconomicChange,canReplacePilot,compactContext} from '../trading-worker/company.js';
 import {officeState} from '../trading-worker/office-boundary.js';
 
 const DAY=864e5,now=Date.parse('2026-10-04T17:00:00Z');
@@ -137,4 +137,17 @@ test('Reverting a promoted replacement restores the previous active program as w
  s.real.book.closed.push(close('replacement-loss',replacement.id,-140,now+8*DAY));s.real.book.cash-=140;observeProgram(s,now+8*DAY);
  assert.equal(replacement.status,'revertido');assert.equal(s.company.activeProgram,active.id);assert.equal(s.config.riskPct,.6);assert.equal(s.config.minRR,1.5);assert.equal(s.policy.minScore,45);
  const e=event('after-rollback'),score=augmentScore(s,e,asset,profile,rank,now+8*DAY);assert.equal(score.score,45);assert.equal(score.adaptationId,active.id);
+});
+
+test('Meeting baseline uses active rules and current global risk while retaining requested versus tested pilot settings',()=>{
+ const s=state(),active=installProgram(s,program({threshold:47}),{id:'active'},now);promote(s,active);s.config.riskPct=.2;s.config.minRR=2.5;
+ const pilot=installProgram(s,program({threshold:39,rules:[{feature:'relativeVolume',op:'gt',value:2,points:12}]}),{id:'next-pilot'},now+4*DAY);
+ s.real.book.orders.push({id:'owned',side:'buy',adaptationId:pilot.id});
+ const latest=installProgram(s,program({threshold:70,rules:[],workflow:{researchDailyLimit:3,researchIntervalMinutes:120,riskPct:2,minRR:1}}),{id:'not-applied'},now+5*DAY);
+ const context=compactContext(s,now+5*DAY);
+ assert.equal(context.program.threshold,47);assert.deepEqual(context.program.rules,active.program.rules);assert.equal(context.program.workflow.riskPct,.2);assert.equal(context.program.workflow.minRR,2.5);
+ assert.equal(context.program.workflow.researchDailyLimit,3);assert.equal(context.programState.active.id,active.id);assert.equal(context.programState.active.effectiveSettings.riskPct,.2);assert.equal(context.programState.active.program.workflow.riskPct,1.2,'Original request remains a historical request, not the risk now in force');
+ assert.equal(context.programState.pilot.id,pilot.id);assert.equal(context.programState.pilot.program.workflow.riskPct,1.2);assert.equal(context.programState.pilot.effectiveSettings.riskPct,.45);assert.equal(context.programState.pilot.effectiveSettings.minRR,1.5);
+ assert.equal(context.programState.latestProposal.id,latest.id);assert.equal(context.programState.latestProposal.economicApplication,'not_applied');assert.equal(context.programState.latestProposal.effectiveSettings,null);
+ assert.equal(context.strategy.minScore,47);assert.equal(context.strategy.riskPct,.2);assert.equal(context.strategy.minRR,2.5);validateProgram(context.program);
 });

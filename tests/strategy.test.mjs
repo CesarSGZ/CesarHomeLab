@@ -6,31 +6,33 @@ const candidate=(id,extra={})=>({id,symbol:id,status:'verificar',confirmed:false
 const confirmed=(id,extra={})=>candidate(id,{confirmed:true,status:'nuevo',date:'2026-10-07T20:00:00Z',timing:'scheduled',sources:[{url:'https://issuer.example/investors/results',claim:'Fecha publicada por el emisor'}],...extra});
 const fixture=events=>({real:{events,assets:events.map(e=>({symbol:e.symbol,sector:'Technology'})),book:{positions:[],closed:[]}},config:{minRR:2,riskPct:.35},policy:{minScore:45,researchDailyLimit:6,researchIntervalMinutes:60},company:{agency:{workQueue:[]}},operating:{remainingEur:9,exhausted:false},paused:false});
 
-test('next session preparation increases useful research within the daily allowance, not approval',()=>{
- const s=fixture([candidate('A')]);s.policy.researchDailyLimit=2;s.operating.paceEurPerDay=.3;
+test('next session preparation respects employee research limits and cadence while preserving budget safeguards',()=>{
+ const s=fixture([candidate('A')]);s.company.strategy={researchDailyLimit:2,researchIntervalMinutes:120};s.operating.paceEurPerDay=.3;
  const sunday=Date.parse('2026-10-04T12:00:00Z');let pace=sessionResearchPacing(s,sunday);
- assert.equal(pace.target,2);assert.equal(pace.limit,6);assert.equal(pace.intervalMinutes,45);assert.equal(s.real.events[0].plan,undefined);
+ assert.equal(pace.target,2);assert.equal(pace.preparing,true);assert.equal(pace.limit,2);assert.equal(pace.intervalMinutes,120);assert.equal(s.real.events[0].plan,undefined);
  s.operating.paceEurPerDay=.09;assert.equal(sessionResearchPacing(s,sunday).limit,2);
  s.operating.paceEurPerDay=.01;assert.equal(sessionResearchPacing(s,sunday).limit,0);
- s.company.strategy={weekendPlanning:false};s.operating.paceEurPerDay=.3;assert.equal(sessionResearchPacing(s,sunday).limit,2);
+ s.company.strategy.weekendPlanning=false;s.operating.paceEurPerDay=.3;assert.equal(sessionResearchPacing(s,sunday).limit,2);assert.equal(sessionResearchPacing(s,sunday).intervalMinutes,120);
+ delete s.company.strategy;delete s.policy.researchDailyLimit;delete s.policy.researchIntervalMinutes;s.operating.paceEurPerDay=.6;
+ assert.equal(sessionResearchPacing(s,sunday).limit,12,'The existing default capacity remains available when affordable');assert.equal(sessionResearchPacing(s,sunday).intervalMinutes,30);
 });
 
-test('next-session preparation can finish concrete confirmed follow-ups using spare daily allowance without resetting counters',()=>{
+test('confirmed follow-ups can use spare daily allowance only within the employee daily ceiling without resetting counters',()=>{
  const sunday=Date.parse('2026-10-04T12:00:00Z'),baseline=sunday-5*3600e3,events=Array.from({length:4},(_,i)=>confirmed('supplement-'+i,{research:{researchedAt:baseline,worthAnalyzing:true},researchAttemptAt:baseline,analysisFollowup:{at:sunday-3*3600e3,baselineResearchAt:baseline,nextTask:'Read the annex and check consideration and financing'}})),s=fixture(events);
+ s.company.strategy={researchDailyLimit:12,researchIntervalMinutes:90};
  s.company.agency.workQueue=events.map(e=>({kind:'research',eventId:e.id,status:'pending',task:e.analysisFollowup.nextTask,createdAt:sunday-3*3600e3,notBefore:sunday-3600e3}));
  s.real.researchDay='2026-10-04';s.real.researchCalls=6;s.operating.paceEurPerDay=.3;s.operating.daySpentEur=.16;
  const before=JSON.stringify({book:s.real.book,researchCalls:s.real.researchCalls,operating:s.operating});const pacing=sessionResearchPacing(s,sunday);
- assert.equal(pipelineSummary(s,sunday).marketOpen,false);assert.equal(pacing.preparing,true);assert.equal(pacing.limit,9);assert.equal(pacing.intervalMinutes,45);assert.equal(JSON.stringify({book:s.real.book,researchCalls:s.real.researchCalls,operating:s.operating}),before);assert.equal(events.some(e=>e.plan),false);
- s.company.strategy={researchDailyLimit:1};assert.equal(sessionResearchPacing(s,sunday).limit,9,'The adaptive base of one does not strand concrete follow-ups');
+ assert.equal(pipelineSummary(s,sunday).marketOpen,false);assert.equal(pacing.preparing,true);assert.equal(pacing.limit,9);assert.equal(pacing.intervalMinutes,90);assert.equal(JSON.stringify({book:s.real.book,researchCalls:s.real.researchCalls,operating:s.operating}),before);assert.equal(events.some(e=>e.plan),false);
+ s.company.strategy.researchDailyLimit=1;assert.equal(sessionResearchPacing(s,sunday).limit,1,'Concrete follow-ups do not override an explicit spending cadence');assert.equal(s.real.researchCalls,6,'Reducing the ceiling never erases already paid research');s.company.strategy.researchDailyLimit=12;
  s.operating.daySpentEur=.26;assert.equal(sessionResearchPacing(s,sunday).limit,6);s.operating.daySpentEur=undefined;assert.equal(sessionResearchPacing(s,sunday).limit,6);
  s.operating.daySpentEur=.16;s.operating.remainingEur=0;assert.equal(sessionResearchPacing(s,sunday).limit,6);s.operating.remainingEur=9;s.operating.exhausted=true;assert.equal(sessionResearchPacing(s,sunday).limit,6);s.operating.exhausted=false;
  s.real.researchDay='2026-10-03';assert.equal(sessionResearchPacing(s,sunday).limit,6);assert.equal(s.real.researchCalls,6);s.real.researchDay='2026-10-04';s.real.researchCalls=11;assert.equal(sessionResearchPacing(s,sunday).limit,12);
  s.real.researchCalls=6;for(const e of events)e.status='descartado';assert.equal(sessionResearchPacing(s,sunday).limit,6,'Final rejections never create extra research allowance');
- for(const e of events)e.status='nuevo';for(const w of s.company.agency.workQueue)w.notBefore=sunday+3600e3;assert.equal(sessionResearchPacing(s,sunday).limit,6,'The increase does not bypass task cooldowns');assert.equal(sessionResearchPacing(s,sunday+3600e3).limit,9);
+ for(const e of events)e.status='nuevo';for(const w of s.company.agency.workQueue)w.notBefore=sunday+3600e3;assert.equal(sessionResearchPacing(s,sunday).limit,6,'The allowance does not bypass task cooldowns');assert.equal(sessionResearchPacing(s,sunday+3600e3).limit,9);
  s.company.strategy={researchDailyLimit:1,weekendPlanning:false};assert.equal(sessionResearchPacing(s,sunday).limit,1);
- s.company.strategy={researchDailyLimit:1};const fridayEvening=Date.parse('2026-10-02T20:30:00Z');assert.equal(sessionResearchPacing(s,fridayEvening).preparing,false);assert.equal(sessionResearchPacing(s,fridayEvening).limit,1,'No increase when the next session is more than sixty hours away');
+ s.company.strategy={researchDailyLimit:1};const fridayEvening=Date.parse('2026-10-02T20:30:00Z');assert.equal(sessionResearchPacing(s,fridayEvening).preparing,false);assert.equal(sessionResearchPacing(s,fridayEvening).limit,1);
 });
-
 test('Santi receives the analyst questions for the selected company only',()=>{
  const e=candidate('A',{preliminary:{summary:'Agreement needs terms',missingEvidence:['Read the annex'],nextTask:'Find consideration and closing conditions'}}),s=fixture([e]);
  s.company.agency.workQueue=[{kind:'research',eventId:'A',status:'pending',notBefore:now-1,from:'analyst',task:'Read the material agreement',reason:'Missing terms'},{kind:'research',eventId:'B',status:'pending',notBefore:now-1,task:'Other company'},{kind:'research',eventId:'A',status:'complete',notBefore:now-1,task:'Old'}];
@@ -113,7 +115,7 @@ test('planning waits for the actual follow-up answer and retry date, then resume
 test('next research time includes global pacing, candidate cooldown and retry while allowing another company after a recent failure',()=>{
  const baseline=now-5*3600e3,e=confirmed('next',{research:{researchedAt:baseline,worthAnalyzing:true},researchAttemptAt:baseline,analysisFollowup:{baselineResearchAt:baseline,nextTask:'Read the financing annex'}}),s=fixture([e]);
  s.company.agency.workQueue=[{kind:'research',eventId:e.id,status:'pending',createdAt:now-3600e3,notBefore:now-3600e3,task:'Read the financing annex'}];s.real.lastResearch=now-5*60e3;
- assert.equal(pipelineSummary(s,now).nextResearchAt,now+40*60e3);assert.equal(sessionResearchPacing(s,now).intervalMinutes,45);
+ assert.equal(pipelineSummary(s,now).nextResearchAt,now+55*60e3);assert.equal(sessionResearchPacing(s,now).intervalMinutes,60);
  s.company.agency.workQueue[0].notBefore=now+3600e3;assert.equal(pipelineSummary(s,now).nextResearchAt,now+3600e3);s.company.agency.workQueue[0].notBefore=now-3600e3;
  e.researchRetryAfter=now+2*3600e3;assert.equal(pipelineSummary(s,now).nextResearchAt,now+2*3600e3);delete e.researchRetryAfter;
  s.real.events.push(candidate('failed',{researchAttemptAt:s.real.lastResearch+1,researchRetryAfter:now+4*3600e3}));assert.equal(pipelineSummary(s,now).nextResearchAt,now,'A failed company does not impose a fresh global wait on another ready task');
@@ -161,13 +163,13 @@ test('Santi rotates away after two paid research attempts per company and day ac
 
 function launchFixture(costs,extra={}){
  const events=[...costs.map((cost,i)=>candidate('observed-'+i,{status:'descartado',research:{costEur:cost,researchedAt:now-day}})),...Array.from({length:22},(_,i)=>candidate('fresh-'+i))],s=fixture(events);
- s.company.launch={active:true,target:2,ready:0};s.policy.researchDailyLimit=1;s.real.researchDay='2026-10-03';s.real.researchCalls=6;s.operating={...s.operating,paceEurPerDay:.3,daySpentEur:.1,...extra};return s;
+ s.company.launch={active:true,target:2,ready:0};s.policy.researchDailyLimit=12;s.real.researchDay='2026-10-03';s.real.researchCalls=6;s.operating={...s.operating,paceEurPerDay:.3,daySpentEur:.1,...extra};return s;
 }
 
 test('launch opens new-company research slots using observed costs while reserving thirty percent for analysis',()=>{
  const s=launchFixture([.01,.01,.01]);s.real.events.push(confirmed('pending-analysis'));const before=JSON.stringify(s),pacing=sessionResearchPacing(s,now);
  assert.equal(pacing.estimatedResearchCostEur,.015);assert.equal(pacing.observedCostSamples,3);assert.equal(pacing.limit,12);
- assert.equal(pacing.researchAllowanceEur,.21);assert.equal(pacing.reservedForAnalysisEur,.09);assert.ok(Math.abs(pacing.availableResearchEur-.11)<1e-12);assert.equal(pacing.intervalMinutes,45);
+ assert.equal(pacing.researchAllowanceEur,.21);assert.equal(pacing.reservedForAnalysisEur,.09);assert.ok(Math.abs(pacing.availableResearchEur-.11)<1e-12);assert.equal(pacing.intervalMinutes,60);
  assert.equal(JSON.stringify(s),before);assert.equal(s.real.events.some(e=>e.plan),false);
 });
 
@@ -227,4 +229,14 @@ test('launch releases unused reserve for evidence waits and stops at the total d
  let pacing=sessionResearchPacing(s,now);assert.equal(pacing.reserveReleased,true);assert.equal(pacing.reservedForAnalysisEur,0);assert.equal(pacing.limit,8);
  s.operating.daySpentEur=.3;pacing=sessionResearchPacing(s,now);assert.equal(pacing.dailyRemainingEur,0);assert.equal(pacing.availableResearchEur,0);assert.equal(pacing.limit,6);
  s.operating.daySpentEur=null;pacing=sessionResearchPacing(s,now);assert.equal(pacing.dailyRemainingEur,null);assert.equal(pacing.availableResearchEur,0);assert.equal(pacing.limit,6,'No estimate replaces the total spend recorded by the database');
+});
+
+test('launch respects explicit research ceilings and intervals even when observed cheap costs leave unused budget',()=>{
+ const s=launchFixture([.01,.01,.01]);s.company.strategy={researchDailyLimit:2,researchIntervalMinutes:180};
+ const before=JSON.stringify({book:s.real.book,operating:s.operating,calls:s.real.researchCalls});let pacing=sessionResearchPacing(s,now);
+ assert.equal(pacing.preparing,true);assert.equal(pacing.limit,2);assert.equal(pacing.intervalMinutes,180);assert.equal(pacing.reserveReleased,true);assert.ok(pacing.availableResearchEur>0);
+ assert.equal(JSON.stringify({book:s.real.book,operating:s.operating,calls:s.real.researchCalls}),before);
+ s.real.researchCalls=0;s.real.events.push(confirmed('ready-analysis'));pacing=sessionResearchPacing(s,now);
+ assert.equal(pacing.limit,2);assert.equal(pacing.intervalMinutes,180);assert.equal(pacing.reserveReleased,false);assert.equal(pacing.reservedForAnalysisEur,.09);
+ s.company.strategy={researchDailyLimit:12,researchIntervalMinutes:30};assert.equal(sessionResearchPacing(s,now).limit,7,'An employee can increase the ceiling, but the retained analysis reserve still bounds research');
 });

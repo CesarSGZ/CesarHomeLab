@@ -6,6 +6,7 @@ import {developmentFiles,validateEdits} from '../trading-worker/office-boundary.
 import {cloudDatabase} from './office-cloud-db.mjs';
 import {locked} from '../trading-worker/engine.js';
 import {developmentAction} from '../trading-worker/development.js';
+import {runOfficeTaskWhenAvailable} from './office-availability.mjs';
 const command=process.argv[2],endpoint='https://cesar-solla.pages.dev/api/trading/development';
 const api=async body=>{const r=await fetch(endpoint,{method:'POST',headers:{Authorization:'Bearer '+process.env.OFFICE_DEV_TOKEN,'Content-Type':'application/json'},body:JSON.stringify(body)});if(!r.ok)throw Error('Control de desarrollo HTTP '+r.status);return r.json();};
 const validAuth=config=>typeof config==='string'&&/oauth_token\s*=\s*"[^"]+"/.test(config)&&/refresh_token\s*=\s*"[^"]+"/.test(config);
@@ -24,7 +25,7 @@ if(command==='auth'){
  await api({action:'deployment-auth',config});mkdirSync(process.env.HOME+'/.config/.wrangler/config',{recursive:true});writeFileSync(process.env.HOME+'/.config/.wrangler/config/default.toml',config,{mode:0o600});
 }
 if(command==='save-auth'){const config=readFileSync(process.env.HOME+'/.config/.wrangler/config/default.toml','utf8');if(validAuth(config))await api({action:'deployment-auth',config});else console.log('Se conserva la credencial anterior; la sesión actual está vacía.');}
-const localDevelopment=async body=>{const env={CONTROL_DB:cloudDatabase()};const row=await env.CONTROL_DB.prepare('SELECT lock_until FROM trading_state WHERE id=1').first();if(row?.lock_until>Date.now())return {job:null,busy:true};let result;await locked(env,s=>{result=developmentAction(s,body);});return result;};
+const localDevelopment=async body=>{const env={CONTROL_DB:cloudDatabase()},outcome=await runOfficeTaskWhenAvailable({db:env.CONTROL_DB,run:async()=>{let result;await locked(env,s=>{result=developmentAction(s,body);});return result;}});return outcome.status==='busy'?{job:null,busy:true,retryAt:outcome.retryAt}:outcome.result;};
 if(command==='lease'){const {job}=await localDevelopment({action:'lease'});writeFileSync('/tmp/office-job.json',JSON.stringify(job));appendFileSync(process.env.GITHUB_OUTPUT,'has_job='+!!job+'\n');}
 if(command==='apply'){
  const job=JSON.parse(readFileSync('/tmp/office-job.json','utf8'));validateEdits(job.edits);const changed=new Map();
