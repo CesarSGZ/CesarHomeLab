@@ -24,7 +24,7 @@ test('launch operational priority skips paid initiatives and preserves counters,
 });
 
 test('without useful operational priority employees still take bounded independent initiatives',async()=>{
- for(const launch of [{active:true,priorityUseful:false,ready:0},{active:false,priorityUseful:true,ready:2}]){
+ for(const launch of [{active:true,priorityUseful:false,ready:0},{active:false,priorityUseful:true,ready:2},{active:true,priorityUseful:true,ready:2}]){
   const s=fixture();s.company.launch=launch;let calls=0;
   await runEmployeeInitiative(s,hooks(async()=>{calls++;return decision;}),now);
   assert.equal(calls,1);assert.equal(s.company.agency.runsToday,1);assert.equal(s.company.agency.actors.scout.costEur,.0004);assert.equal(s.company.agency.actors.scout.lastAction.tool,'wait');
@@ -53,7 +53,15 @@ test('cached preliminary results are reused free even when launch prioritizes a 
 });
 
 test('launch preserves queued code work without spending on patch generation',async()=>{
- const s=fixture();s.company.launch={active:true,target:2,priorityUseful:true,ready:0};const work=queueEmployeeWork(s,'code','',{owner:'designer',decision:'Mejorar los informes',nextTask:'Mostrar el avance de los planes en la oficina',evidenceIds:['kpis']},now);
+ const s=fixture();s.real.events.push(confirmed());s.company.launch={active:true,target:2,priorityUseful:true,ready:0};const work=queueEmployeeWork(s,'code','',{owner:'designer',decision:'Mejorar los informes',nextTask:'Mostrar el avance de los planes en la oficina',evidenceIds:['kpis']},now);
  let calls=0;await runPreparation(s,hooks(async()=>{calls++;return answer;}),now);
- assert.equal(calls,1,'The useful preliminary call can run when no confirmed candidate is ready');assert.equal(work.status,'pending');assert.equal(work.attempts,0);assert.equal(s.company.development,undefined);
+ assert.equal(calls,0,'Confirmed planning work takes precedence over patch generation');assert.equal(work.status,'pending');assert.equal(work.attempts,0);assert.equal(s.company.development,undefined);
+});
+
+test('approved waiting plans do not suspend independent initiatives or spend new analysis tokens',async()=>{
+ const s=fixture();s.company.launch={active:true,priorityUseful:true,ready:1};
+ s.real.events.push({...confirmed(),plan:{approve:true,entryMin:9,entryMax:10,stop:8,target:13,expiresAt:now+864e5},review:{approve:true}});
+ s.company.pipeline={counts:{approvedWaiting:1,analysisReady:0,riskPending:0}};const before=JSON.stringify(s.real.book);let calls=0;
+ await runEmployeeInitiative(s,hooks(async()=>{calls++;return decision;}),now);
+ assert.equal(calls,1);assert.equal(s.company.agency.runsToday,1);assert.equal(JSON.stringify(s.real.book),before);
 });

@@ -48,11 +48,12 @@ function researchPacing(s,now,approvedWaiting){
  if(s.company?.launch?.active){
   const callsToday=s.real.researchDay===newYorkDay(now)&&finite(s.real.researchCalls)?Math.max(0,Math.floor(s.real.researchCalls)):0;
   const costs=(s.real.events||[]).map(e=>e.research?.costEur).filter(cost=>finite(cost)&&cost>0),costEstimate=costs.length>=3?Math.max(.015,costs.reduce((sum,cost)=>sum+cost,0)/costs.length*1.3):.045;
-  const pace=finite(s.operating?.paceEurPerDay)?Math.max(0,s.operating.paceEurPerDay):0,researchAllowance=pace*.7,reservedForAnalysis=pace*.3;
-  const knownSpend=finite(s.operating?.daySpentEur)&&s.operating.daySpentEur>=0,spare=knownSpend?Math.max(0,Math.min(researchAllowance-s.operating.daySpentEur,s.operating.remainingEur||0)):0;
+  const planningReserveNeeded=selectPlanningCandidates(s,now).some(e=>!e.plan||!e.review);
+  const pace=finite(s.operating?.paceEurPerDay)?Math.max(0,s.operating.paceEurPerDay):0,researchAllowance=pace*(planningReserveNeeded ? .7 : 1),reservedForAnalysis=pace*(planningReserveNeeded ? .3 : 0);
+  const knownSpend=finite(s.operating?.daySpentEur)&&s.operating.daySpentEur>=0,dailyRemainingEur=knownSpend?Math.max(0,pace-s.operating.daySpentEur):null,spare=knownSpend?Math.max(0,Math.min(researchAllowance-s.operating.daySpentEur,s.operating.remainingEur||0)):0;
   const eligibleCount=new Set(selectResearchCandidates(s,now).map(e=>e.symbol)).size,extra=!s.operating?.exhausted&&s.operating?.remainingEur>0?Math.min(eligibleCount,Math.floor(spare/costEstimate)):0;
   limit=Math.min(12,callsToday+extra);
-  return {target,preparing,limit,intervalMinutes:preparing?Math.min(settings.researchIntervalMinutes,45):settings.researchIntervalMinutes,estimatedResearchCostEur:costEstimate,observedCostSamples:costs.length,researchAllowanceEur:researchAllowance,reservedForAnalysisEur:reservedForAnalysis,availableResearchEur:spare};
+  return {target,preparing,limit,intervalMinutes:preparing?Math.min(settings.researchIntervalMinutes,45):settings.researchIntervalMinutes,estimatedResearchCostEur:costEstimate,observedCostSamples:costs.length,researchAllowanceEur:researchAllowance,reservedForAnalysisEur:reservedForAnalysis,availableResearchEur:spare,dailyRemainingEur,reserveReleased:!planningReserveNeeded,reserveReason:planningReserveNeeded?'Reserva para valoración o revisión independiente pendiente':'Sin valoración o revisión lista; margen diario disponible para investigación'};
  }
  if(preparing&&!s.operating?.exhausted&&s.operating?.remainingEur>0&&finite(s.operating?.daySpentEur)){
   const callsToday=s.real.researchDay===newYorkDay(now)&&finite(s.real.researchCalls)?Math.max(0,Math.floor(s.real.researchCalls)):0;
@@ -180,3 +181,5 @@ export function pipelineSummary(s,now=Date.now()){
  const nextResearchAt=followup.length?Math.max(globalResearchAt,Math.min(...followup.map(e=>Math.max(researchReadyAt(e,now),e.researchRetryAfter||0,...work.filter(w=>w.kind==='research'&&w.eventId===e.id).map(w=>w.notBefore||0))))):null;
  return {at:now,...calendar,counts,entriesPaused:!!s.paused,researchQueue:researchQueue.length,supportPending:supportPending.length,analysisDeferred:deferred.length,analysisBlocked:blocked.length,nextAnalysisAt:deferred.length?Math.min(...deferred.map(e=>e.analysisDeferred.nextAt||nextDeepAnalysisAt(now))):null,researchFollowupPending:followup.length,nextResearchAt,approvedWaiting:approved.length,readyNextSession:!calendar.marketOpen?approved.length:0,blockerStage,blocker};
 }
+
+export function planningFeedback(s,limit=4){return {expiredWithoutEntryTotal:s.company?.planLifecycle?.expiredWithoutEntryTotal||0,recent:(s.company?.planningOutcomes||[]).slice(0,limit).map(o=>({symbol:o.symbol,kind:o.kind,preparedAt:o.preparedAt,expiredAt:o.expiredAt,reviewApproved:o.reviewApproved,entryMin:o.entryMin??null,entryMax:o.entryMax??null,lastBlockers:o.lastBlockers||[],lastReference:o.lastReference||null,adaptationId:o.adaptationId||null,reason:o.reason})),interpretation:'Planes sin entrada son resultados de preparación, no pérdidas ni beneficios realizados; revisad filtros, plazos y entradas con evidencia, sin perseguir el precio.'};}

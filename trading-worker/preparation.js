@@ -1,4 +1,4 @@
-import {pendingEmployeeWork,queueEmployeeWork,finishEmployeeWork} from './employee-agents.js';
+import {pendingEmployeeWork,queueEmployeeWork,finishEmployeeWork,launchHasPlanningWork} from './employee-agents.js';
 import {workflowSettings,validateWorkflowStrategy,pipelineSummary,researchEvidenceFingerprint,catalystReady,quoteContext,sessionResearchPacing,analysisFollowupPending,analysisEvidenceFingerprint,selectPlanningCandidates} from './strategy.js';
 import {prepareDevelopment} from './development.js';
 import {developmentFiles} from './office-boundary.js';
@@ -50,8 +50,12 @@ function complete(s,work,result,target,now){return finishEmployeeWork(s,work.id,
 export function recordFinancialWork(s,event,kind,result,now=Date.now(),target){
  const owner={research:'scout',analysis:'analyst',risk:'risk',execution:'operator'}[kind];if(!owner)throw Error('Tipo de trabajo financiero desconocido');
  let works=s.company.agency.workQueue.filter(w=>w.kind===kind&&w.eventId===event.id&&['pending','running','blocked'].includes(w.status));
+ const resultText=String(result).slice(0,1000),planFingerprint=JSON.stringify([event.plan?.preparedAt,event.plan?.entryMin,event.plan?.entryMax,event.plan?.stop,event.plan?.target,event.plan?.expiresAt]);
+ const previous=kind==='execution'?event.executionCheck:null,previousWork=previous&&s.company.agency.workQueue.find(w=>w.id===previous.workId&&w.status==='complete');
+ if(!works.length&&previousWork&&previous.result===resultText&&previous.planFingerprint===planFingerprint){previous.at=now;previous.checks++;previousWork.lastCheckedAt=now;previousWork.checks=previous.checks;return previousWork;}
  if(!works.length)works=[queueEmployeeWork(s,kind,event.id,{owner,decision:'Trabajo operativo seleccionado por el flujo de la empresa',nextTask:({research:'Contrastar fuentes de ',analysis:'Valorar y preparar tesis de ',risk:'Revisar independientemente el plan de ',execution:'Comprobar la ejecución ficticia de '}[kind])+event.symbol,evidenceIds:[event.id],strategy:null},now)];
  for(const work of works)complete(s,work,result,target||(kind==='research'?(catalystReady(event,now)?'analyst':'scout'):undefined),now);
+ if(kind==='execution')event.executionCheck={at:now,result:resultText,planFingerprint,workId:works[0].id,checks:1};
 }
 export function refreshSessionPlan(s,now=Date.now()){
  const pipeline=pipelineSummary(s,now),plans=s.real.events.filter(e=>e.plan?.expiresAt>now&&e.review?.approve&&catalystReady(e,now)&&['nuevo','espera'].includes(e.status));
@@ -132,7 +136,7 @@ export async function runPreparation(s,{call,checkpoint,log},now=Date.now()){
   employee.status='esperando';employee.task=agency.actors[work.owner]?.nextTask||'Trabajo preliminar registrado';await checkpoint();
  }
  const work=pendingEmployeeWork(s,'code',now).find(w=>on(s,'designer'));
- if(work&&!(company.launch?.active&&company.launch.priorityUseful)&&s.operating?.remainingEur>.04&&!company.development?.some(j=>['queued','running'].includes(j.status))&&company.lastCodeDay!==new Date(now).toISOString().slice(0,10)){
+ if(work&&!launchHasPlanningWork(s,now)&&s.operating?.remainingEur>.04&&!company.development?.some(j=>['queued','running'].includes(j.status))&&company.lastCodeDay!==new Date(now).toISOString().slice(0,10)){
   try{const files=/estrategia|selecci|catalizador|radar|flujo/i.test(work.task+' '+work.reason)?['trading-worker/strategy.js','trading-worker/preparation.js']:['control/trading.js'];const request={id:work.id,day:new Date(now).toISOString().slice(0,10),chair:{codeFiles:files.filter(f=>developmentFiles.includes(f)),decisions:[{title:work.reason,owner:work.from,evidence:work.evidenceIds}],codeRationale:work.task}};const job=await prepareDevelopment(s,request,(id,instructions,payload,schema,tokens)=>call(id,instructions,payload,schema,{light:true,work:true,outputTokens:tokens,capEur:.02}),checkpoint,now);complete(s,work,job?'Parche real en cola de pruebas y despliegue: '+job.summary:request.codeOutcome||'No procede parche adicional hoy','auditor',now);}
   catch(error){finishEmployeeWork(s,work.id,'Desarrollo aplazado: '+error.message,{status:'failed',target:'designer'},now);log(s,'designer','Desarrollo aplazado: '+error.message,'warning');}
  }

@@ -15,3 +15,30 @@ test('A recent primary announcement may support an entry without fabricating a f
  const weekend=Date.parse('2026-10-03T15:00:00Z');assert.equal(assess(newBook(weekend),asset,ev,plan,{...q,fetchedAt:weekend},defaults,weekend).ok,false);
  assert.equal(ev.date,new Date(now-864e5).toISOString());
 });
+
+test('historical bought events cannot displace approved pending plans and open positions refresh first',async()=>{
+ const historical=Array.from({length:12},(_,i)=>({id:'old-'+i,symbol:'OLD'+i,status:'abierto',confirmed:true,date:new Date(now-10*864e5+i*1000).toISOString(),preScore:{eligible:true,score:100}}));
+ const pending=['NEXT1','NEXT2'].map((symbol,i)=>({id:'new-'+i,symbol,status:'espera',confirmed:true,date:new Date(now+(i+1)*864e5).toISOString(),preScore:{eligible:true,score:60},plan:{expiresAt:now+3*864e5},review:{approve:true}}));
+ const booked={id:'booked-stale',symbol:'BOOKED',status:'espera',confirmed:true,date:new Date(now-864e5).toISOString(),preScore:{eligible:true,score:100}};
+ const book=newBook(now);book.positions=[{id:'position',eventId:historical[0].id,symbol:historical[0].symbol}];book.orders=[...historical,booked].map(e=>({id:'buy-'+e.id,side:'buy',eventId:e.id,symbol:e.symbol}));
+ const s={mode:'real',real:{book,events:[...historical,booked,...pending],assets:[...historical,booked,...pending].map(e=>({symbol:e.symbol})),quotes:{}}},before=JSON.stringify(book),called=[];
+ await refreshMarket(s,{now,fetcher:async url=>{const symbol=decodeURIComponent(new URL(url).pathname.split('/').at(-1));called.push(symbol);const data=fixture();data.chart.result[0].meta.symbol=symbol;return Response.json(data);}});
+ assert.deepEqual(called,['OLD0','NEXT1','NEXT2']);assert.equal(called[0],book.positions[0].symbol);
+ for(const e of pending){assert.equal(s.real.quotes[e.symbol].source,referenceSource);assert.equal(s.real.assets.find(a=>a.symbol===e.symbol).dataVerified,true);}
+ assert.equal(s.real.quotes.OLD0.price,10);assert.equal(s.real.quotes.BOOKED,undefined);assert.equal(JSON.stringify(book),before,'Refreshing prices never creates or changes a paper order');
+});
+
+test('a bought event excludes only its old thesis and does not suppress a new event for the same stock',async()=>{
+ const book=newBook(now);book.orders=[{eventId:'old-thesis',symbol:'SMALL',side:'buy'}];
+ const s={mode:'real',real:{book,events:[{id:'old-thesis',symbol:'SMALL',status:'espera',confirmed:true,date:new Date(now-864e5).toISOString()},{id:'new-thesis',symbol:'SMALL',status:'nuevo',confirmed:true,date:new Date(now+864e5).toISOString()}],assets:[{symbol:'SMALL'}],quotes:{}}};let calls=0;
+ await refreshMarket(s,{now,fetcher:async()=>{calls++;return Response.json(fixture());}});
+ assert.equal(calls,1);assert.equal(s.real.quotes.SMALL.price,10);assert.equal(book.orders.length,1);assert.equal(book.positions.length,0);
+});
+
+test('valid pending plans retain priority over earlier confirmed signals within the quote shortlist',async()=>{
+ const signals=Array.from({length:10},(_,i)=>({id:'signal-'+i,symbol:'SIGNAL'+i,status:'nuevo',confirmed:true,date:new Date(now+(i+1)*1000).toISOString()}));
+ const plans=['PLAN1','PLAN2'].map((symbol,i)=>({id:'plan-'+i,symbol,status:'espera',confirmed:true,date:new Date(now+864e5).toISOString(),plan:{expiresAt:now+2*864e5},review:{approve:true}}));
+ const s={mode:'real',real:{book:newBook(now),events:[...signals,...plans],assets:[],quotes:{}}},called=[];
+ await refreshMarket(s,{now,fetcher:async url=>{const symbol=decodeURIComponent(new URL(url).pathname.split('/').at(-1));called.push(symbol);const data=fixture();data.chart.result[0].meta.symbol=symbol;return Response.json(data);}});
+ assert.deepEqual(called.slice(0,2),['PLAN1','PLAN2']);assert.equal(called.length,8);assert.ok(s.real.quotes.PLAN1&&s.real.quotes.PLAN2);assert.equal(s.real.book.orders.length,0);
+});

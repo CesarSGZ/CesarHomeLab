@@ -165,26 +165,26 @@ function launchFixture(costs,extra={}){
 }
 
 test('launch opens new-company research slots using observed costs while reserving thirty percent for analysis',()=>{
- const s=launchFixture([.01,.01,.01]),before=JSON.stringify(s),pacing=sessionResearchPacing(s,now);
+ const s=launchFixture([.01,.01,.01]);s.real.events.push(confirmed('pending-analysis'));const before=JSON.stringify(s),pacing=sessionResearchPacing(s,now);
  assert.equal(pacing.estimatedResearchCostEur,.015);assert.equal(pacing.observedCostSamples,3);assert.equal(pacing.limit,12);
  assert.equal(pacing.researchAllowanceEur,.21);assert.equal(pacing.reservedForAnalysisEur,.09);assert.ok(Math.abs(pacing.availableResearchEur-.11)<1e-12);assert.equal(pacing.intervalMinutes,45);
  assert.equal(JSON.stringify(s),before);assert.equal(s.real.events.some(e=>e.plan),false);
 });
 
 test('launch estimates the next investigation conservatively and extends new signals rather than only follow-ups',()=>{
- const s=launchFixture([.02,.025,.03],{daySpentEur:.14}),pacing=sessionResearchPacing(s,now);
+ const s=launchFixture([.02,.025,.03],{daySpentEur:.14});s.real.events.push(confirmed('pending-review',{plan:{expiresAt:now+day}}));const pacing=sessionResearchPacing(s,now);
  assert.ok(Math.abs(pacing.estimatedResearchCostEur-.0325)<1e-12);assert.equal(pacing.limit,8);assert.equal(selectResearchCandidates(s,now).length,22);
  s.company.launch.active=false;assert.equal(sessionResearchPacing(s,now).limit,6,'The existing non-launch policy remains unchanged');
 });
 
 test('launch uses the legacy cost estimate until three actual finite observations exist',()=>{
  for(const costs of [[],[.001,.001],[.001,null,NaN,-.01]]){
-  const s=launchFixture(costs),pacing=sessionResearchPacing(s,now);assert.equal(pacing.estimatedResearchCostEur,.045);assert.equal(pacing.limit,8);
+  const s=launchFixture(costs),pacing=sessionResearchPacing(s,now);assert.equal(pacing.estimatedResearchCostEur,.045);assert.equal(pacing.limit,10);
  }
 });
 
-test('launch leaves no paid research headroom when the reserved daily budget or monthly allowance is unavailable',()=>{
- for(const operating of [{daySpentEur:.21},{daySpentEur:.3},{daySpentEur:null},{exhausted:true},{remainingEur:0}]){
+test('launch leaves no paid research headroom when the total daily budget or monthly allowance is unavailable',()=>{
+ for(const operating of [{daySpentEur:.3},{daySpentEur:.35},{daySpentEur:null},{exhausted:true},{remainingEur:0}]){
   const s=launchFixture([.01,.01,.01],operating),before=s.real.researchCalls;
   assert.equal(sessionResearchPacing(s,now).limit,before);assert.equal(s.real.researchCalls,before);
  }
@@ -198,4 +198,33 @@ test('launch expansion respects per-company attempts and cooldown while retainin
  assert.equal(sessionResearchPacing(s,now).limit,6,'A recent investigation cannot be repeated simply because launch needs plans');
  delete e.research;delete e.researchAttemptAt;assert.equal(sessionResearchPacing(s,now).limit,7);
  assert.equal(s.real.researchCalls,6);assert.equal(s.real.events.find(e=>e.id==='observed-0').research.costEur,.01);
+});
+
+test('launch preserves the analysis reserve while Pedro or María has actionable work',()=>{
+ for(const pending of [confirmed('pending-analysis'),confirmed('pending-review',{plan:{expiresAt:now+day}})]){
+  const s=launchFixture([.03,.03,.03],{daySpentEur:.2});s.real.events.push(pending);
+  const before=JSON.stringify(s),pacing=sessionResearchPacing(s,now);
+  assert.equal(pacing.reserveReleased,false);assert.equal(pacing.reservedForAnalysisEur,.09);assert.equal(pacing.researchAllowanceEur,.21);
+  assert.ok(Math.abs(pacing.dailyRemainingEur-.1)<1e-12);assert.ok(Math.abs(pacing.availableResearchEur-.01)<1e-12);assert.equal(pacing.limit,6);
+  assert.equal(JSON.stringify(s),before,'Budget, plans, paid counters and paper ledger remain unchanged');
+ }
+});
+
+test('launch releases unused analysis reserve when approved plans only await execution',()=>{
+ const s=launchFixture([.03,.03,.03],{daySpentEur:.2});
+ s.real.events.push(...['first','second'].map(id=>confirmed(id,{status:'espera',plan:{expiresAt:now+day},review:{approve:true}})));
+ const before=JSON.stringify(s),pacing=sessionResearchPacing(s,now);
+ assert.equal(pipelineSummary(s,now).counts.approvedWaiting,2);assert.equal(pacing.reserveReleased,true);assert.equal(pacing.reservedForAnalysisEur,0);
+ assert.equal(pacing.researchAllowanceEur,.3);assert.ok(Math.abs(pacing.availableResearchEur-.1)<1e-12);assert.equal(pacing.limit,8);
+ assert.ok((pacing.limit-s.real.researchCalls)*pacing.estimatedResearchCostEur<=pacing.dailyRemainingEur);
+ assert.equal(JSON.stringify(s),before,'Approved terms and every existing paid cost remain unchanged');
+});
+
+test('launch releases unused reserve for evidence waits and stops at the total daily pace',()=>{
+ const baseline=now-5*3600e3,s=launchFixture([.03,.03,.03],{daySpentEur:.2});
+ s.real.events.push(confirmed('waiting-data',{research:{researchedAt:baseline,worthAnalyzing:true},analysisFollowup:{baselineResearchAt:baseline,nextTask:'Verify exact financing terms before valuation'}}));
+ assert.equal(selectPlanningCandidates(s,now).length,0,'An unanswered evidence request is not ready analysis');
+ let pacing=sessionResearchPacing(s,now);assert.equal(pacing.reserveReleased,true);assert.equal(pacing.reservedForAnalysisEur,0);assert.equal(pacing.limit,8);
+ s.operating.daySpentEur=.3;pacing=sessionResearchPacing(s,now);assert.equal(pacing.dailyRemainingEur,0);assert.equal(pacing.availableResearchEur,0);assert.equal(pacing.limit,6);
+ s.operating.daySpentEur=null;pacing=sessionResearchPacing(s,now);assert.equal(pacing.dailyRemainingEur,null);assert.equal(pacing.availableResearchEur,0);assert.equal(pacing.limit,6,'No estimate replaces the total spend recorded by the database');
 });

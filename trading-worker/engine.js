@@ -1,5 +1,6 @@
 import {officeState} from './office-boundary.js';
 import {planRiskArithmetic,planExpiry} from './planning-math.js';
+import {expireUnfilledPlans} from './plan-lifecycle.js';
 import {refreshLaunch,launchContext} from './launch.js';
 import {initialiseEmployees,runEmployeeInitiative,employeeTools,actionDescriptions,queueEmployeeWork} from './employee-agents.js';
 import {selectResearchCandidates,selectPlanningCandidates,researchEvidenceFingerprint,workflowSettings,pipelineSummary,requiresDeepAnalysis,nextDeepAnalysisAt,quoteContext,researchBrief,sessionResearchPacing,catalystReady as catalystReadyForSupplement} from './strategy.js';
@@ -191,6 +192,7 @@ export async function cycle(env,{advance=false,manual=false,quotesOnly=false}={}
     }
     if(s.mode==='real'&&s.real.book.fx?.rate>0)await env.CONTROL_DB.prepare('INSERT OR IGNORE INTO trading_operating_budget(month,spent_eur,updated_at) SELECT ?,COALESCE(SUM(COALESCE(actual,reserved)),0)/?,? FROM trading_calls WHERE day LIKE ?').bind(day().slice(0,7),s.real.book.fx.rate,Date.now(),day().slice(0,7)+'%').run();
     const data=s[s.mode],t=s.mode==='demo'?data.time:Date.now();rollover(data.book,t);
+    if(s.mode==='real')for(const outcome of expireUnfilledPlans(officeState(s),t)){recordFinancialWork(s,s.real.events.find(e=>e.id===outcome.eventId),'execution',outcome.symbol+': plan vencido sin entrada; historial archivado para revisión agregada',t,'auditor');log(s,'operator',outcome.symbol+': plan vencido sin entrada; historial conservado');}
     const closed=agentOn('operator')?monitor(data.book,data.quotes,s.config,t):[];for(const trade of closed)log(s,'operator',`${trade.symbol}: cierre ${trade.reason}, ${trade.pnl.toFixed(2)} ${data.book.currency||'USD'} ficticios`);
     await checkpoint();
     if(quotesOnly){sample(data.book,t);return {ok:true};}

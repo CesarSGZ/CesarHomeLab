@@ -116,3 +116,19 @@ test('a developer request queues a concrete patch for the existing deployment pi
  await runPreparation(s,hooks(async(id,instructions,payload,schema,options)=>{calls++;assert.equal(id,'designer');assert.equal(payload.sources[0].sha,sha);assert.ok(options.capEur<=.02);return {summary:'Título claro para César',edits:[{file:'control/trading.js',baseSha:sha,find:'"Oficina"',replace:'"Estado de la oficina"'}]};}),now);
  assert.equal(calls,1);assert.equal(s.company.development[0].status,'queued');assert.equal(s.company.development[0].edits[0].baseSha,sha);assert.equal(s.company.agency.workQueue[0].status,'complete');assert.equal(JSON.stringify(s.real.book),book);
 });
+
+test('unchanged execution checks stay observable without flooding employee memory and the work journal',()=>{
+ const s=fixture(),event=s.real.events[0],book=JSON.stringify(s.real.book);
+ event.plan={preparedAt:now,entryMin:4,entryMax:5,stop:3,target:8,expiresAt:now+864e5};
+ const result='TEST: Precio fuera de la zona de entrada';recordFinancialWork(s,event,'execution',result,now);
+ for(let i=1;i<=300;i++)recordFinancialWork(s,event,'execution',result,now+i*300000);
+ const agency=s.company.agency;assert.equal(agency.workQueue.length,1);assert.equal(agency.journal.length,1);assert.equal(agency.actors.operator.memory.length,1);assert.equal(agency.actors.auditor.inbox.length,1);
+ assert.equal(event.executionCheck.checks,301);assert.equal(event.executionCheck.at,now+300*300000);assert.equal(agency.workQueue[0].lastCheckedAt,event.executionCheck.at);assert.equal(JSON.stringify(s.real.book),book);
+ recordFinancialWork(s,event,'execution','TEST: compra ficticia registrada',now+301*300000);assert.equal(agency.journal.length,2);assert.equal(agency.actors.auditor.inbox.length,2);
+ event.plan.preparedAt++;recordFinancialWork(s,event,'execution','TEST: compra ficticia registrada',now+302*300000);assert.equal(agency.journal.length,3);assert.equal(JSON.stringify(s.real.book),book);
+});
+test('an explicit pending execution assignment completes even if its result matches a previous check',()=>{
+ const s=fixture(),event=s.real.events[0],result='TEST: Esperar sesión';recordFinancialWork(s,event,'execution',result,now);
+ const assigned=queueEmployeeWork(s,'execution',event.id,{owner:'operator',decision:'Nueva comprobación solicitada',nextTask:'Comprobar la vigencia de TEST',evidenceIds:[event.id]},now+1);
+ recordFinancialWork(s,event,'execution',result,now+2);assert.equal(assigned.status,'complete');assert.equal(assigned.finishedAt,now+2);assert.equal(s.company.agency.journal.length,2);
+});

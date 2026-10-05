@@ -16,9 +16,10 @@ export function planningReference(q,now){return q?.referenceOnly===true&&q.sourc
 export async function refreshMarket(s,{force=false,fetcher=fetch,now=Date.now()}={}){
  if(s.mode!=='real')return;
  const d=s.real;if(!force&&now-(d.marketCheckedAt||0)<15*60e3)return;
- const finalists=[...new Set(d.events.filter(e=>e.confirmed&&['nuevo','espera','abierto'].includes(e.status)).sort((a,b)=>Date.parse(a.date)-Date.parse(b.date)).map(e=>e.symbol))].slice(0,8);
+ const boughtEvents=new Set((d.book.orders||[]).filter(o=>o.side==='buy'&&o.eventId).map(o=>o.eventId)),newEntry=e=>e.status!=='abierto'&&!boughtEvents.has(e.id);
+ const finalists=[...new Set(d.events.filter(e=>newEntry(e)&&e.confirmed&&['nuevo','espera'].includes(e.status)).sort((a,b)=>Number(b.plan?.expiresAt>now)-Number(a.plan?.expiresAt>now)||Date.parse(a.date)-Date.parse(b.date)).map(e=>e.symbol))].slice(0,8);
  const requested=new Set((s.company?.agency?.workQueue||[]).filter(w=>['pending','blocked','running'].includes(w.status)&&['analysis','risk','research'].includes(w.kind)&&w.notBefore<=now).map(w=>w.eventId));
- const watchlist=[...new Set(d.events.filter(e=>e.preScore?.eligible&&!['descartado','caducado'].includes(e.status)).sort((a,b)=>Number(requested.has(b.id))-Number(requested.has(a.id))||(b.preScore?.score||0)-(a.preScore?.score||0)).map(e=>e.symbol))].slice(0,4);
+ const watchlist=[...new Set(d.events.filter(e=>newEntry(e)&&e.preScore?.eligible&&!['descartado','caducado'].includes(e.status)).sort((a,b)=>Number(requested.has(b.id))-Number(requested.has(a.id))||(b.preScore?.score||0)-(a.preScore?.score||0)).map(e=>e.symbol))].slice(0,4);
  const ordered=[...d.book.positions.map(p=>p.symbol),...finalists,...watchlist];
  const symbols=[...new Set(ordered)].slice(0,28);d.marketCheckedAt=now;d.marketError=null;
  if(!symbols.length){d.marketStatus='Esperando candidatos con evidencia';return;}
