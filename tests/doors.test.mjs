@@ -177,9 +177,9 @@ test('Room limits, host-only controls, no late joins, and safe input limits are 
   assert.equal(room.chat[0].message, '<script>alert(1)</script>'); // Stored as text; UI escapes it.
 });
 
-function database() {
+function database(initialise = true) {
   const sqlite = new DatabaseSync(':memory:');
-  sqlite.exec(readFileSync(new URL('../migrations/0012_doors_game.sql', import.meta.url), 'utf8'));
+  if (initialise) sqlite.exec(readFileSync(new URL('../migrations/0012_doors_game.sql', import.meta.url), 'utf8'));
   return {
     sqlite, env: { CONTROL_DB: { prepare(sql) {
       return { bind(...bindings) {
@@ -210,5 +210,15 @@ test('API enforces authentication, CSRF, membership and optimistic concurrency a
   const snapshot = await (await request(env, users[0], `/${room.code}`)).json();
   assert.equal(snapshot.room.players.length, 3); assert.equal(snapshot.room.version, 3);
   assert.equal((await request(env, users[3], '/invalid')).status, 404);
+  sqlite.close();
+});
+test('Authenticated startup initialises only the game schema, with no broader deployment credentials', async () => {
+  const {env,sqlite} = database(false);
+  assert.equal((await request(env,null)).status,401);
+  assert.equal(sqlite.prepare("SELECT COUNT(*) AS n FROM sqlite_master WHERE type='table'").get().n,0);
+  const response = await request(env,users[0]); assert.equal(response.status,200);
+  assert.deepEqual((await response.json()).rooms,[]);
+  assert.deepEqual(sqlite.prepare("SELECT name FROM sqlite_master WHERE type='table'").all().map(x=>x.name),['doors_rooms']);
+  assert.equal((await request(env,users[0])).status,200);
   sqlite.close();
 });

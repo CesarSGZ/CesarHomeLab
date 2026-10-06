@@ -3,6 +3,24 @@ import { json, readJson, methodNotAllowed } from '../../../_lib/http.js';
 import { GameError, createRoom, applyAction, fulfillEnemyRequest, publicRoom } from '../../../_lib/doors-engine.js';
 
 const CODE = /^[A-Z2-9]{6}$/;
+const schemas = new WeakMap();
+// The existing runtime D1 binding can initialise its own game table without
+// broadening the Pages-only CI token or exposing a migration/admin endpoint.
+async function ensureSchema(db) {
+  if (!schemas.has(db)) {
+    const pending = (async () => {
+      await db.prepare(`CREATE TABLE IF NOT EXISTS doors_rooms (
+        code TEXT PRIMARY KEY, host_user_id TEXT NOT NULL, title TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'lobby', state_json TEXT NOT NULL,
+        version INTEGER NOT NULL DEFAULT 1, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL
+      )`).bind().run();
+      await db.prepare('CREATE INDEX IF NOT EXISTS doors_rooms_activity ON doors_rooms(status, updated_at)').bind().run();
+    })();
+    schemas.set(db, pending);
+    pending.catch(() => schemas.delete(db));
+  }
+  await schemas.get(db);
+}
 function roomCode() {
   const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   return [...crypto.getRandomValues(new Uint8Array(6))].map(n => alphabet[n % alphabet.length]).join('');
@@ -17,6 +35,7 @@ export async function onRequest(context) {
   if (!['GET', 'POST'].includes(request.method)) return methodNotAllowed(['GET', 'POST']);
   if (request.method === 'POST' && !validCsrf(request, session)) return json({ ok: false, error: 'Sesión de seguridad caducada. Recarga la página.' }, { status: 403 });
   try {
+    await ensureSchema(env.CONTROL_DB);
     const segments = new URL(request.url).pathname.split('/api/doors')[1].split('/').filter(Boolean);
     const code = segments[0]?.toUpperCase();
     if (segments.length > 1 || (code && !CODE.test(code))) throw new GameError('Código de sala no válido.', 404);

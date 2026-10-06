@@ -39,8 +39,10 @@ If an absent player cannot return, the host can explicitly close the match and c
 
 ## Deployment and checks
 
-The main deployment workflow runs regression tests, idempotently creates the D1 table
-using `migrations/0012_doors_game.sql`, and then publishes Pages.
+The main deployment workflow runs regression tests and publishes Pages. The first
+authenticated game request idempotently creates only the game table/index through
+the existing runtime D1 binding. No extra CI token permissions are needed.
+`migrations/0012_doors_game.sql` is the equivalent explicit administrative migration.
 
 ```sh
 node --test tests/doors.test.mjs
