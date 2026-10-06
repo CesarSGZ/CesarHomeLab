@@ -122,3 +122,26 @@ test('Both truncated meetings can recover once, with the already scheduled closi
  const due=dueMeeting(s,now);assert.equal(due.id,'2026-10-05:closing');assert.equal(s.company.meetings[0].discussionRecoveryPending,true);assert.equal(s.company.meetings[1].discussionRecoveryPending,true);
  s.company.meetings[1].status='completa';assert.equal(dueMeeting(s,now).id,'2026-10-05:planning');assert.equal(s.company.meetings[0].costEur,.01);
 });
+
+test('a current malformed-JSON discussion resumes once, reuses its paid voice and retains the same total cost cap',async()=>{
+ const s=state(),now=Date.parse('2026-10-06T16:50:00Z');delete s.company.meetingJsonRecoveryMigration;s.operating={month:'2026-10',spentEur:.004,remainingEur:9.996};
+ const saved={agent:'scout',name:'Santi',facts:'Ya guardado',evidence:['pipeline'],idea:'Investigar candidatos',replyTo:'',uncertainty:'Sin cierres',nextTask:'Comparar'};
+ const m={id:'2026-10-06:planning',day:'2026-10-06',slot:'planning',scheduledTime:'11:00',status:'omitida',attempts:2,error:'Unexpected non-whitespace character after JSON at position 2009',voices:[saved],responses:[],costEur:.004};s.company.meetings.push(m);
+ assert.equal(dueMeeting(s,now).id,m.id);let calls=0;
+ await holdMeeting(s,{budget:async()=>({...s.operating,paceEurPerDay:.3}),checkpoint:async()=>{},log:()=>{},call:async(_id,_instructions,payload,_schema,options)=>{
+  calls++;assert.equal(options.repairMeetingJson,true);assert.ok(options.capEur<=.021+1e-10);s.operating.spentEur+=.0005;
+  if(payload.voices)return {summary:'Debate terminado',decisions:[{kind:'hold'}],assignments:[],reportToCesar:'Continuamos con referencias válidas',codeFiles:[],codeRationale:''};
+  return {facts:'Dato guardado',evidence:['pipeline'],idea:'Comparar',replyTo:'De acuerdo',uncertainty:'Muestra pequeña',nextTask:'Revisar'};
+ }},now);
+ assert.equal(calls,12);assert.equal(m.voices[0],saved);assert.equal(m.voices.length,6);assert.equal(m.responses.length,6);assert.equal(m.status,'completa');assert.equal(m.attempts,3);assert.equal(m.jsonRecoveryPending,false);assert.equal(m.capEur,.025);assert.ok(Math.abs(m.costEur-.01)<1e-10);assert.equal(s.real.book.orders.length,0);
+});
+
+test('JSON recovery is one attempt, never resets paid work and cannot bypass the meeting budget',async()=>{
+ const now=Date.parse('2026-10-06T16:50:00Z');
+ for(const startingCost of [.004,.0247]){
+  const s=state();delete s.company.meetingJsonRecoveryMigration;s.operating={month:'2026-10',spentEur:startingCost,remainingEur:10-startingCost};
+  const m={id:'2026-10-06:planning',day:'2026-10-06',slot:'planning',status:'omitida',attempts:2,error:'Unexpected non-whitespace character after JSON at position 2009',voices:[],responses:[],costEur:startingCost};s.company.meetings.push(m);let calls=0;
+  await holdMeeting(s,{budget:async()=>({...s.operating,paceEurPerDay:.3}),checkpoint:async()=>{},log:()=>{},call:async()=>{calls++;throw new SyntaxError('Unexpected non-whitespace character after JSON at position 20');}},now);
+  assert.equal(calls,startingCost>.024?0:1);assert.equal(m.status,'omitida');assert.equal(m.costEur,startingCost);assert.equal(m.jsonRecoveryPending,false);assert.equal(dueMeeting(s,now+60000),null);
+ }
+});
