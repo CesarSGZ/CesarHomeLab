@@ -1,10 +1,19 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {catalystReady,researchEvidenceFingerprint,selectResearchCandidates,selectPlanningCandidates,workflowSettings,validateWorkflowStrategy,pipelineSummary,researchBrief,sessionResearchPacing,analysisFollowupPending} from '../trading-worker/strategy.js';
+import {catalystReady,researchEvidenceFingerprint,selectResearchCandidates,selectPlanningCandidates,workflowSettings,validateWorkflowStrategy,pipelineSummary,researchBrief,sessionResearchPacing,analysisFollowupPending,analysisEvidenceFingerprint,analysisBlockedForEvidence} from '../trading-worker/strategy.js';
 const now=Date.parse('2026-10-03T12:00:00Z'),day=864e5;
 const candidate=(id,extra={})=>({id,symbol:id,status:'verificar',confirmed:false,preScore:{eligible:true,score:60},...extra});
 const confirmed=(id,extra={})=>candidate(id,{confirmed:true,status:'nuevo',date:'2026-10-07T20:00:00Z',timing:'scheduled',sources:[{url:'https://issuer.example/investors/results',claim:'Fecha publicada por el emisor'}],...extra});
 const fixture=events=>({real:{events,assets:events.map(e=>({symbol:e.symbol,sector:'Technology'})),book:{positions:[],closed:[]}},config:{minRR:2,riskPct:.35},policy:{minScore:45,researchDailyLimit:6,researchIntervalMinutes:60},company:{agency:{workQueue:[]}},operating:{remainingEur:9,exhausted:false},paused:false});
+
+test('legacy financial evidence blocks ignore new market snapshots and price-derived ratios without rewriting history',()=>{
+ const e=confirmed('legacy'),s=fixture([e]);s.real.profiles={legacy:{fundamentals:{metrics:{cashLatest:20e6,marketCap:300e6,pe:15,pb:2,evToEbitda:10}},market:{return5d:.1,relativeVolume:1,seriesDiagnostic:{adjustments:{complete:false}}}}};
+ e.analysisBlocked={guard:'followup_limit',missingEvidence:['Post-acquisition debt and cash'],fingerprint:analysisEvidenceFingerprint(s,e)};const history=JSON.stringify(e.analysisBlocked);
+ s.real.profiles.legacy.market.return5d=.2;s.real.profiles.legacy.market.relativeVolume=3;s.real.profiles.legacy.market.seriesDiagnostic.adjustments.complete=true;
+ Object.assign(s.real.profiles.legacy.fundamentals.metrics,{marketCap:320e6,pe:16,pb:2.2,evToEbitda:11});
+ assert.equal(analysisBlockedForEvidence(s,e),true);assert.equal(selectPlanningCandidates(s,now).length,0);assert.equal(JSON.stringify(e.analysisBlocked),history);
+ s.real.profiles.legacy.fundamentals.metrics.cashLatest=25e6;assert.equal(analysisBlockedForEvidence(s,e),false);assert.deepEqual(selectPlanningCandidates(s,now),[e]);assert.equal(e.plan,undefined);assert.equal(s.real.book.positions.length,0);
+});
 
 test('next session preparation respects employee research limits and cadence while preserving budget safeguards',()=>{
  const s=fixture([candidate('A')]);s.company.strategy={researchDailyLimit:2,researchIntervalMinutes:120};s.operating.paceEurPerDay=.3;
