@@ -1,7 +1,7 @@
 // Agent Office v2 · contabilidad de la cartera ficticia.
 // Las únicas reglas son contables: precios reales recientes, caja (o margen) suficiente,
 // deslizamiento y comisión. Qué comprar, cuánto y con qué riesgo lo deciden los agentes.
-import {equity, freshQuote, fxValid, rollover, sell, monitor, id} from '../core.js';
+import {equity, freshQuote, fxValid, rollover, sell, monitor, id, referencePrice} from '../core.js';
 
 export const invested = book => book.positions.reduce((sum, p) => sum + p.qty * (p.mark ?? p.entry) / (p.markFx || p.entryFx || 1), 0);
 export const buyingPower = (book, leverage = 1) => Math.max(0, equity(book) * leverage - invested(book));
@@ -55,6 +55,8 @@ export function adjustPosition(book, symbol, {stopPct, targetPct, days}, t = Dat
 
 // Stops, objetivos y plazos se cumplen por código en cada ciclo con precio reciente.
 export function settlePositions(book, quotes, config, policy, t = Date.now()) {
+  // Stop dinámico acordado por el equipo: con precio reciente el stop sube detrás del precio y nunca baja.
+  if (policy.trailPct > 0) for (const p of book.positions) { const q = quotes[p.symbol]; if (!freshQuote(q, t, config)) continue; const trail = referencePrice(q) * (1 - policy.trailPct / 100); if (trail > p.stop) p.stop = trail; }
   const trades = monitor(book, quotes, config, t);
   // Llamada de margen: con apalancamiento, si el capital cae por debajo del 30 % de lo invertido se liquida todo.
   const inv = invested(book);

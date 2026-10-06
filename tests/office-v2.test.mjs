@@ -151,3 +151,46 @@ test('el reparto de turnos respeta lo que queda de presupuesto para hoy', () => 
   assert.ok(scarce.reduce((a, b) => a + b, 0) <= 6, 'con poco saldo se espacian los turnos: ' + scarce.join(''));
   s.v2.policy.pace = 'intensivo'; assert.equal(planTurns(s, {phase: 'session', leftToday: 1, now: T0}), 4);
 });
+
+test('pulso sin IA: stop dinámico, marcador por estrategia, contadores y regalo de César', async () => {
+  clockAt(T0); const f = fixture();
+  try {
+    f.script['turn:SANTI'] = c => c.input.ideasEnCurso.length ? turn([act('wait', {value: '60'})])() : turn([act('pitch', {symbol: 'AAPL', text: 'Resultados el jueves y viene con volumen fuerte'})])();
+    f.script['turn:PEDRO'] = c => c.input.pendientes.length ? turn([act('plan', {symbol: 'AAPL', eur: 2000, stopPct: 10, targetPct: 80, days: 9, text: 'Tendencia'})])() : turn([act('wait', {value: '60'})])();
+    f.script['turn:MARÍA'] = c => c.input.planesPorRevisar.length ? turn([act('approve', {symbol: 'AAPL', text: 'Adelante'})])() : turn([act('wait', {value: '60'})])();
+    f.script['turn:YARI'] = c => c.input.listasParaComprar.length ? turn([act('buy', {symbol: 'AAPL'})])() : turn([act('wait', {value: '60'})])();
+    f.script['turn:AUGUSTO'] = c => c.input.reglas.trailPct ? turn([act('wait', {value: '60'})])() : turn([act('apply', {param: 'trailPct', value: '5', text: 'Que el stop persiga al precio'})])();
+    for (let i = 0; i < 4; i++) { await cycle(f.env, f.opts); mock.timers.tick(5 * 60e3); }
+    let live = await status(f.env);
+    assert.equal(live.positions.length, 1); assert.equal(live.policy.trailPct, 5); assert.match(live.board.lines[1], /STOP 8~/);
+    assert.equal(live.life.agents.scout.pitches, 1); assert.equal(live.life.agents.risk.approvals, 1); assert.equal(live.life.agents.operator.buys, 1); assert.equal(live.life.agents.auditor.ruleChanges, 1);
+    assert.equal(live.life.daysSinceTrade, 0); assert.equal(live.life.everTraded, true); assert.equal(live.life.streak, null);
+    // sube un 20 %: el stop sube detrás (5 % por debajo de 120) sin ninguna llamada
+    f.prices.AAPL = 120; f.script.turn = turn([act('wait', {value: '240'})]); for (const k of Object.keys(f.script)) if (k.startsWith('turn:')) delete f.script[k];
+    await cycle(f.env, f.opts); live = await status(f.env);
+    assert.ok(Math.abs(live.positions[0].stop - 114) < 0.01, 'stop dinámico en ' + live.positions[0].stop);
+    // cae a 113: salta el stop con beneficio y se apunta a la estrategia vigente
+    f.prices.AAPL = 113; mock.timers.tick(5 * 60e3); await cycle(f.env, f.opts); live = await status(f.env);
+    assert.equal(live.positions.length, 0); assert.equal(live.closed[0].reason, 'stop'); assert.ok(live.closed[0].pnl > 150);
+    assert.deepEqual(live.life.strategies.map(x => [x.name, x.trades, x.wins, x.current]), [['Catalizadores cercanos', 1, 1, true]]);
+    assert.deepEqual(live.life.streak, {kind: 'win', n: 1}); assert.equal(live.life.lastStop.symbol, 'AAPL'); assert.equal(live.life.agents.scout.ideasClosed, 1);
+    assert.match(f.calls.at(-1).input.empresa.pulso || 'estrategias: Catalizadores', /Catalizadores/);
+    // regalo de César: aparece en la oficina y la caja no cambia
+    const cash = live.company.cash;
+    await locked(f.env, s => { ownerCommand(s, '/gift', {item: 'gato'}); assert.throws(() => ownerCommand(s, '/gift', {item: 'gato'}), /ya está/); assert.throws(() => ownerCommand(s, '/gift', {item: 'yate'}), /catálogo/); });
+    live = await status(f.env); assert.deepEqual(live.office.upgrades, ['gato']); assert.equal(live.company.cash, cash); assert.ok(live.timeline.some(e => e.type === 'upgrade' && e.item === 'gato'));
+  } finally { mock.timers.reset(); }
+});
+
+test('sin novedades no se gasta una ronda: se espera cuatro veces más', async () => {
+  clockAt(Date.parse('2026-10-07T10:00:00Z')); const f = fixture(); // mediodía en Madrid, mercado cerrado
+  try {
+    f.script.turn = turn([]); // nadie hace nada ni pide descanso
+    for (let i = 0; i < 6; i++) { await cycle(f.env, {...f.opts, radar: async () => {}}); mock.timers.tick(5 * 60e3); }
+    const first = f.calls.length; assert.equal(first, 6, 'primera ronda: uno por ciclo fuera de sesión');
+    for (let i = 0; i < 12; i++) { await cycle(f.env, {...f.opts, radar: async () => {}}); mock.timers.tick(5 * 60e3); } // una hora más sin nada nuevo
+    assert.equal(f.calls.length, first, 'sin eventos, radar ni precios nuevos nadie repite turno antes de 4× su cadencia');
+    await locked(f.env, s => ownerCommand(s, '/owner', {text: 'Buenos días a todos'}));
+    await cycle(f.env, {...f.opts, radar: async () => {}}); assert.equal(f.calls.at(-1).who, 'AUGUSTO'); assert.equal(f.calls.length, first + 1);
+  } finally { mock.timers.reset(); }
+});

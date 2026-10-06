@@ -31,4 +31,7 @@ try{
 }catch(error){failure=error;}
 finally{try{live=await progress.finish();}catch(error){if(!failure)failure=error;}}
 if(failure)throw failure;
-console.log(JSON.stringify({cycleStatus:outcome.status,retryAt:outcome.retryAt||null,lastTick:live.lastTick?new Date(live.lastTick).toISOString():null,error:live.lastError,cycle:outcome.result||null,positions:live.positions.length,orders:live.orders.length,closed:live.closed.length,equity:Math.round(live.company.equity),monthPnl:Math.round(live.company.monthPnl),mood:live.company.mood,market:live.market.status,remainingEur:live.budget.remainingEur,ai:live.budget.ai,meeting:live.meetings[0]?.topic||null,lastEvent:live.timeline.at(-1)?.text||null}));
+const summary={cycleStatus:outcome.status,retryAt:outcome.retryAt||null,lastTick:live.lastTick?new Date(live.lastTick).toISOString():null,error:live.lastError,cycle:outcome.result||null,positions:live.positions.length,orders:live.orders.length,closed:live.closed.length,equity:Math.round(live.company.equity),monthPnl:Math.round(live.company.monthPnl),mood:live.company.mood,market:live.market.status,remainingEur:Number(live.budget.remainingEur.toFixed(3)),ai:live.budget.ai,turnsToday:Object.fromEntries(live.agents.map(a=>[a.name,a.today?.calls||0])),ideas:live.life?.ideas,meeting:live.meetings[0]?.topic||null,lastEvent:live.timeline.at(-1)?.text||null};
+console.log(JSON.stringify(summary));
+// El mismo resumen como aviso de la ejecución: se lee desde la página de Actions sin abrir el log.
+if(process.env.GITHUB_ACTIONS==='true')console.log('::notice title=Agent Office::'+JSON.stringify(summary).replace(/%/g,'%25').replace(/\r/g,'%0D').replace(/\n/g,'%0A').slice(0,3500));

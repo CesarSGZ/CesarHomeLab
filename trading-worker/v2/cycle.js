@@ -8,7 +8,7 @@ import {equity, day, sample, freshQuote, fxValid} from '../core.js';
 import {regularSession, parseChart, referenceSource} from '../market-data.js';
 import {openPosition, closePosition, settlePositions, positionEur, positionPnl, invested, buyingPower, bookStats} from './book.js';
 import {callModel} from './llm.js';
-import {STAFF, staffById, RENT_TARGET, OFFICE_CATALOG, initCompany, emit, tell, expireIdeas, madrid, companyMood, eur, boardLines, policyLabel} from './company.js';
+import {STAFF, staffById, RENT_TARGET, OFFICE_CATALOG, initCompany, emit, tell, expireIdeas, madrid, companyMood, eur, boardLines, policyLabel, creditStrategy, lifeStats} from './company.js';
 import {takeTurn, workFor, brief, HOUSE} from './agents.js';
 import {meetingDue, holdMeeting} from './meeting.js';
 
@@ -50,6 +50,7 @@ export async function refreshQuotes(s, symbols, {now = Date.now(), fetcher = fet
 function onClosed(s, trade, now) {
   const v2 = s.v2, pctMove = (trade.exit / trade.entry - 1) * 100, why = {stop: 'saltó el stop', objetivo: 'tocó el objetivo', tiempo: 'se acabó el plazo', margen: 'llamada de margen'}[trade.reason] || 'venta decidida';
   const idea = v2.ideas.find(i => i.id === trade.eventId); if (idea) { idea.status = 'cerrada'; idea.updatedAt = now; idea.result = Math.round(trade.pnl); }
+  creditStrategy(v2, trade, now);
   emit(v2, 'trade', {agent: 'operator', side: 'sell', symbol: trade.symbol, pnl: Math.round(trade.pnl * 100) / 100, pnlPct: Math.round(pctMove * 10) / 10, reason: trade.reason, text: `${trade.symbol}: ${why}. ${trade.pnl >= 0 ? 'Ganamos' : 'Perdemos'} ${eur(Math.abs(trade.pnl))}.`}, now);
   log(s, 'operator', `${trade.symbol}: cierre ${trade.reason}, ${trade.pnl.toFixed(2)} EUR ficticios`);
   if (['stop', 'objetivo', 'tiempo', 'margen'].includes(trade.reason)) tell(v2, 'operator', 'system', `${trade.symbol} se cerró solo (${why}): ${eur(trade.pnl)}`, now);
@@ -76,12 +77,21 @@ export function processOrders(s, now = Date.now()) {
   return done;
 }
 
-function cadenceDue(s, id, phase, now) { return now - s.v2.agents[id].lastAt >= CADENCE[phase][id] * 60e3; }
+// Una ronda solo se gasta si hay algo nuevo que mirar: movimiento en la oficina, radar
+// recién barrido o precios que se han movido. Si no, se espera cuatro veces más.
+function news(s, id, session) {
+  const v2 = s.v2, a = v2.agents[id];
+  if (v2.timeline.some(e => e.id > (a.seenSeq || 0) && ['trade', 'strategy', 'meeting', 'owner', 'upgrade'].includes(e.type) && e.agent !== id)) return true;
+  if (id === 'scout') return (s.real.lastScan || 0) > a.lastAt;
+  if ((id === 'operator' || id === 'risk') && session) return s.real.book.positions.some(p => { const ref = a.marks?.[p.symbol]; return !ref || Math.abs((p.mark ?? p.entry) / ref - 1) >= 0.015; });
+  return false;
+}
+function cadenceDue(s, id, phase, now, session) { const gap = now - s.v2.agents[id].lastAt, every = CADENCE[phase][id] * 60e3; return gap >= every * 4 || (gap >= every && news(s, id, session)); }
 export function pickAgents(s, phase, now) {
   const v2 = s.v2;
   return STAFF.map(m => {
     const a = v2.agents[m.id]; if (a.paused) return null;
-    const inbox = a.inbox.length, work = workFor(s, m.id).length, due = cadenceDue(s, m.id, phase, now), waiting = a.waitUntil > now;
+    const inbox = a.inbox.length, work = workFor(s, m.id).length, due = cadenceDue(s, m.id, phase, now, phase === 'session'), waiting = a.waitUntil > now;
     if (!inbox && !work && (waiting || !due)) return null;
     if (phase === 'night' && !inbox && !work) return null;
     return {m, score: inbox * 30 + work * 40 + (due ? 10 + Math.min(60, (now - a.lastAt) / 60e3) : 0)};
@@ -199,10 +209,10 @@ export async function status(env) {
     closed: book.closed.slice(-40).reverse().map(c => ({symbol: c.symbol, pnl: c.pnl, pnlPct: (c.exit / c.entry - 1) * 100, reason: c.reason, openedAt: c.openedAt, closedAt: c.closedAt})),
     ideas: v2.ideas.slice(0, 40).map(i => ({id: i.id, symbol: i.symbol, name: i.name, status: i.status, by: i.by, thesis: i.thesis, plan: i.plan, risk: i.risk, research: i.research && {summary: i.research.summary, sentiment: i.research.sentiment, sources: i.research.sources}, updatedAt: i.updatedAt, result: i.result ?? null})),
     timeline: v2.timeline.slice(-220), meetings: v2.meetings.slice(0, 14), proposals: v2.proposals.slice(0, 12), lessons: v2.lessons,
-    days: Object.values(v2.days).sort((a, b) => b.day.localeCompare(a.day)).slice(0, 30), office: {upgrades: v2.office.upgrades, purchases: v2.office.purchases, catalog: OFFICE_CATALOG}, owner: v2.owner.slice(-5),
+    life: lifeStats(s, now), days: Object.values(v2.days).sort((a, b) => b.day.localeCompare(a.day)).slice(0, 30), office: {upgrades: v2.office.upgrades, purchases: v2.office.purchases, catalog: OFFICE_CATALOG}, owner: v2.owner.slice(-5),
     curve: book.curve.slice(-300), radar: {events: s.real.events.length, lastScan: s.real.lastScan, sources: s.real.discovery?.sources || {}},
     universe: {total: s.real.assets.length},
-    connections: {openai: configured.has('openai'), encryption: !!env.TRADING_ENCRYPTION_SECRET, market: Object.values(s.real.quotes).some(q => freshQuote(q, now, s.config)), source: referenceSource, marketAt: s.real.marketAt, marketStatus: s.real.marketStatus, marketError: s.real.marketError, pcRequired: false, fx: fxValid(book, now), scheduler: s.lastTick ? now - s.lastTick < 10 * 60e3 : false}
+    connections: {openai: configured.has('openai'), market: Object.values(s.real.quotes).some(q => freshQuote(q, now, s.config)), source: referenceSource, fx: fxValid(book, now), scheduler: s.lastTick ? now - s.lastTick < 10 * 60e3 : false}
   };
 }
 
@@ -211,5 +221,11 @@ export function ownerCommand(s, path, body, now = Date.now()) {
   const v2 = initCompany(s, now);
   if (path === '/owner') { const text = short(body.text, 400); if (text.length < 3) throw Error('Mensaje vacío'); v2.owner.push({text, at: now}); v2.owner = v2.owner.slice(-10); tell(v2, 'auditor', 'cesar', text, now); v2.agents.auditor.waitUntil = 0; emit(v2, 'owner', {text}, now); return; }
   if (path === '/meeting') { const topic = short(body.topic, 90) || 'Reunión convocada por César'; v2.meetingRequests = [{topic, by: 'auditor', at: now, owner: true}, ...v2.meetingRequests.filter(r => !r.owner)].slice(0, 3); emit(v2, 'owner', {text: 'César convoca reunión: ' + topic}, now); return; }
+  if (path === '/gift') {
+    const key = String(body.item || '').toLowerCase(), item = OFFICE_CATALOG[key]; if (!item) throw Error('Eso no está en el catálogo');
+    if (v2.office.upgrades.includes(key)) throw Error('Eso ya está en la oficina');
+    v2.office.upgrades.push(key); v2.office.purchases.push({item: key, eur: 0, at: now, by: 'cesar'}); // regalo del dueño: no toca la caja
+    emit(v2, 'upgrade', {agent: 'cesar', item: key, label: item.label + ' (regalo de César)', text: 'César regala ' + item.label}, now); return;
+  }
   throw Error('Acción desconocida');
 }

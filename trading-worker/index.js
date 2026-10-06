@@ -40,8 +40,8 @@ export default {
         } else if (path === '/agent') {
           const member = staffById(body.id); if (!member || typeof body.paused !== 'boolean') throw Error('Empleado no válido');
           v2.agents[member.id].paused = body.paused; log(s, 'boss', member.name + (body.paused ? ' en pausa' : ' vuelve al trabajo'));
-        } else if (path === '/owner' || path === '/meeting') {
-          ownerCommand(s, path, body); log(s, 'boss', path === '/owner' ? 'Mensaje de César al equipo' : 'César convoca reunión');
+        } else if (path === '/owner' || path === '/meeting' || path === '/gift') {
+          ownerCommand(s, path, body); log(s, 'boss', path === '/owner' ? 'Mensaje de César al equipo' : path === '/gift' ? 'César regala algo a la oficina' : 'César convoca reunión');
         } else if (path === '/close') {
           const p = s.real.book.positions.find(p => p.id === body.id); if (!p) throw Error('Posición no encontrada');
           await refreshQuotes(s, [p.symbol]);
