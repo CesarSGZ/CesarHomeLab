@@ -139,7 +139,7 @@ async function refreshCatalog(s){
   for(const exchange of ['NASDAQ','NYSE','AMEX']){const list=await nasdaq(`https://api.nasdaq.com/api/screener/stocks?tableonly=true&limit=10000&exchange=${exchange.toLowerCase()}`);const erows=list.data?.rows||list.data?.table?.rows;if(!Array.isArray(erows)||!erows.length)throw Error('Respuesta de bolsa incompleta');counts[exchange]=erows.length;for(const r of erows){const d=bySymbol.get(r.symbol)||r;const old=s.real.assets.find(a=>a.symbol===r.symbol);next.push({symbol:r.symbol,name:r.name,exchange,marketCap:num(r.marketCap),price:num(r.lastsale),volume:num(d.volume),sector:d.sector||'Sin sector',source:`https://www.nasdaq.com${r.url}`,fetchedAt:Date.now(),dataVerified:!!old?.dataVerified});}}
   s.real.assets=[...new Map(next.map(a=>[a.symbol,a])).values()];s.real.total=s.real.assets.length;s.real.counts=counts;s.real.catalogAt=Date.now();
 }
-async function scout(s){
+export async function scout(s){
   role(s,'scout','trabajando','Buscando catalizadores en todo el universo');
   if(Date.now()-s.real.catalogAt>864e5){try{await refreshCatalog(s);}catch(e){log(s,'scout',e.message+'; se conserva el último catálogo','warning');}}
   const assets=new Set(s.real.assets.filter(a=>!eligible(a,s.config)).map(a=>a.symbol));let found=0;let errors=0;

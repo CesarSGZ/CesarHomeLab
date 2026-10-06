@@ -127,15 +127,6 @@ test('real pipeline outcomes create durable records even without an earlier init
  const work=s.company.agency.workQueue[0];assert.equal(work.owner,'analyst');assert.equal(work.status,'complete');assert.equal(s.company.agency.actors.auditor.inbox.at(-1).task,'Tesis descartada: no hay ventaja suficiente');assert.equal(s.company.agency.actors.risk.inbox.length,0);assert.match(s.company.agency.actors.analyst.nextTask,/seguir el encargo/);assert.equal(s.company.agency.actors.analyst.memory.at(-1).workId,work.id);
 });
 
-test('a developer request queues a concrete patch for the existing deployment pipeline',async t=>{
- const s=fixture();s.real.events=[];const sha='a'.repeat(40),source='export const officeTitle = "Oficina";';
- t.mock.method(globalThis,'fetch',async url=>{assert.match(url,/api.github.com\/repos\/CesarSGZ\/CesarHomeLab\/contents\/control\/trading\.js/);return Response.json({sha,content:btoa(source)});});
- queueEmployeeWork(s,'code','',{owner:'designer',decision:'Mostrar los bloqueos útiles',nextTask:'Mejorar claridad del panel',evidenceIds:['kpis']},now);
- const book=JSON.stringify(s.real.book);let calls=0;
- await runPreparation(s,hooks(async(id,instructions,payload,schema,options)=>{calls++;assert.equal(id,'designer');assert.equal(payload.sources[0].sha,sha);assert.ok(options.capEur<=.02);return {summary:'Título claro para César',edits:[{file:'control/trading.js',baseSha:sha,find:'"Oficina"',replace:'"Estado de la oficina"'}]};}),now);
- assert.equal(calls,1);assert.equal(s.company.development[0].status,'queued');assert.equal(s.company.development[0].edits[0].baseSha,sha);assert.equal(s.company.agency.workQueue[0].status,'complete');assert.equal(JSON.stringify(s.real.book),book);
-});
-
 test('unchanged execution checks stay observable without flooding employee memory and the work journal',()=>{
  const s=fixture(),event=s.real.events[0],book=JSON.stringify(s.real.book);
  event.plan={preparedAt:now,entryMin:4,entryMax:5,stop:3,target:8,expiresAt:now+864e5};

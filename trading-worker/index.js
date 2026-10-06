@@ -2,9 +2,10 @@ import {runtimeDatabase,readRuntimeBody} from './runtime-db.js';
 import {auditLiveOffice} from './live-audit.js';
 import {publicDataUrl} from './public-data-proxy.js';
 import {authorisedDeveloper,developmentAction} from './development.js';
-import {refreshMarket} from './market-data.js';
-import {status,load,locked,cycle,storeSecret,secret,validateConfig,log} from './engine.js';
-import {id,eligible,sell,day,freshQuote} from './core.js';
+import {load,locked,storeSecret,secret,validateConfig,log} from './engine.js';
+import {status,cycle,ownerCommand,processOrders,refreshQuotes} from './v2/cycle.js';
+import {initCompany} from './v2/company.js';
+import {id,eligible,day} from './core.js';
 import {json} from '../functions/_lib/http.js';
 export default {
   async fetch(request,env,ctx){
@@ -31,13 +32,14 @@ export default {
         if(path==='/config'){s.config=validateConfig(body,s.config);log(s,'system','Configuración guardada');}
         else if(path==='/control'){if(typeof body.paused==='boolean')s.paused=body.paused;if(typeof body.automatic==='boolean')s.automatic=body.automatic;log(s,'system',s.paused?'Nuevas entradas pausadas':'Nuevas entradas activadas');}
         else if(path==='/mode'){if(body.mode!=='real')throw Error('Modo inválido');s.mode=body.mode;for(const a of s.agents){a.status=a.paused?'pausado':'esperando';a.task='Esperando próximo ciclo';}log(s,'system',`Modo ${body.mode}: cartera independiente`);}
-        else if(path==='/agent'){const a=s.agents.find(a=>a.id===body.id);if(!a||typeof body.paused!=='boolean')throw Error('Agente inválido');a.paused=body.paused;a.status=a.paused?'pausado':'esperando';log(s,a.id,a.paused?'Agente pausado':'Agente activado');}
+        else if(path==='/agent'){const a=s.agents.find(a=>a.id===body.id);if(!a||typeof body.paused!=='boolean')throw Error('Agente inválido');a.paused=body.paused;a.status=a.paused?'pausado':'esperando';initCompany(s).agents[a.id].paused=body.paused;log(s,a.id,a.paused?'Agente pausado':'Agente activado');}
+        else if(path==='/owner'||path==='/meeting'){ownerCommand(s,path,body);log(s,'boss',path==='/owner'?'Mensaje de César al equipo':'César convoca reunión');}
         else if(path==='/event'){
           if(s.mode!=='real')throw Error('Los eventos verificados se añaden en modo real');const symbol=String(body.symbol||'').toUpperCase();if(!s.real.assets.some(a=>a.symbol===symbol&&!eligible(a,s.config)))throw Error('Símbolo fuera del universo');
           const date=Date.parse(body.date);if(!Number.isFinite(date)||date<=Date.now()||date>Date.now()+s.config.horizonDays*864e5)throw Error('Fecha fuera de la ventana');const source=new URL(body.source);if(source.protocol!=='https:')throw Error('La fuente debe ser HTTPS');if(!body.confirmed||String(body.summary||'').length<50)throw Error('Confirma la fuente y aporta evidencia suficiente');
           const old=s.real.events.find(e=>e.symbol===symbol&&day(Date.parse(e.date))===day(date));const event={id:old?.id||id(symbol,date,body.kind),symbol,date:new Date(date).toISOString(),kind:String(body.kind||'Catalizador').slice(0,80),title:String(body.title||'Catalizador verificado').slice(0,200),summary:String(body.summary).slice(0,12000),source:source.href,confirmed:true,estimated:false,status:'nuevo',plan:null,review:null,reasons:[],createdAt:Date.now()};
           if(old&&s.real.book.orders.some(o=>o.eventId===old.id))throw Error('Este evento ya tiene operaciones; no se puede reabrir');if(old)Object.assign(old,event);else s.real.events.unshift(event);log(s,'scout',`${symbol}: evidencia añadida por el propietario`);
-        }else if(path==='/close'){if(s.mode==='real')await refreshMarket(s);const data=s[s.mode],p=data.book.positions.find(p=>p.id===body.id);if(!p)throw Error('Posición no encontrada');const q=data.quotes[p.symbol],t=s.mode==='demo'?data.time:Date.now();const trade=sell(data.book,p,q,s.config,t,'manual');if(!trade)throw Error('No hay precios recientes para cerrar');log(s,'operator',`${p.symbol}: cierre manual simulado`);}
+        }else if(path==='/close'){const v2=initCompany(s),p=s.real.book.positions.find(p=>p.id===body.id);if(!p)throw Error('Posición no encontrada');await refreshQuotes(s,[p.symbol]);if(!v2.orders.some(o=>o.side==='sell'&&o.symbol===p.symbol))v2.orders.push({id:'o'+(++v2.seq),side:'sell',symbol:p.symbol,by:'cesar',at:Date.now(),expiresAt:Date.now()+30*3600e3,said:'Cierre ordenado por César'});processOrders(s);log(s,'boss',`${p.symbol}: César ordena cerrar`);}
         else throw Error('Acción desconocida');
       });return json({ok:true});
     }catch(e){return json({ok:false,error:e.message==='Ya hay una tarea en ejecución'?e.message:String(e.message).slice(0,200)},{status:400});}

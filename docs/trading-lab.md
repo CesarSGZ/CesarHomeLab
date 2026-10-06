@@ -1,64 +1,86 @@
-# TRD-01 · Agent Office
+# TRD-01 · Agent Office (v2)
 
-Owner-only Mission Control module at `/control/#trading`. All trades are simulated in Cloudflare D1. No broker connection or order API exists. The PC can remain off.
+Módulo privado en `/control/#trading`. Seis agentes de IA llevan una empresa de inversión
+simulada: dinero ficticio, precios reales de la bolsa de EEUU. No existe conexión a ningún bróker.
 
-## Runtime
+## La regla del juego
 
-Pages Functions check the owner capability and CSRF before forwarding requests through the private `TRADING_SERVICE` service binding. `cesar-trading-lab` has no public Worker URL. Its cron runs every five minutes even when the browser is closed. D1 stores the real-data paper ledger, events, proposals, a mutation lease and API spend. The lease serializes state transitions. Reference quotes are fetched by the Worker and persisted with original provider timestamps.
+- Capital ficticio en EUR (la cartera no se reinicia entre meses).
+- Alquiler: 10.000 € ficticios de beneficio por mes natural (día de Nueva York), equivalentes a
+  los 10 € reales de tokens de OpenAI que tiene el equipo para ese mes.
+- Al cambiar de mes se anota si el alquiler se pagó (`v2.months`). No se descuenta de la caja.
 
-The initial catalogue contains NASDAQ, NYSE and AMEX instruments from the Nasdaq screener, captured with a timestamp. It is refreshed daily where the provider permits access. Explicit filters select ordinary shares, exclude special securities, and prioritize $100M–$2B market caps with a secondary range through $5B. Catalogue prices are never used as executable quotes. New listing data, capitalization and access coverage depend on the provider; outages preserve the last complete catalogue and are recorded.
+## Dónde corre
 
-The explorer scans ten future earnings dates per cycle, rotating through a 45-day window. Calendar dates remain estimated until Santi or the owner supplies consulted primary evidence. Santi researches one eligible candidate per 30-minute interval, up to 12 daily, using GPT-6 Luna and Responses web search with at most two tool calls. Earnings dates from the calendar remain provisional until research finds consulted primary sources on the issuer domain or SEC and a future event date. Other catalysts are also searched. Probabilities and upside/downside hypotheses are explicitly labelled uncalibrated estimates. Candidates without evidence remain pending. The manual evidence form is optional. There is no structured SEC bulk ingestion, historical backtest or benchmark yet.
+| Pieza | Sitio |
+| --- | --- |
+| Ciclo cada ~5 min | GitHub Actions (`office-cloud-cycle.yml` + relevo) ejecutando `scripts/office-cloud-cycle.mjs` |
+| Estado, ledger de tokens, cola de órdenes | Cloudflare D1, a través del puente `runtime-db` (lista cerrada de SQL) |
+| Dashboard y API | Cloudflare Pages + Functions |
 
-## Agents and controls
+El PC no interviene. La clave de OpenAI está cifrada en D1.
 
-Santi filters with deterministic queries and researches with Luna/web search; Pedro uses Sol for at most two deep analyses per US day; María uses Luna for risk review; Erea executes deterministic paper orders; Augusto uses Luna for closed-trade reviews. Output budgets are 1600/1800/500/900 tokens for scout/analyst/risk/auditor; reasoning is disabled for lightweight roles and low for analyst. Research is cached for 24 hours. The website starts in real-data mode with an empty EUR 10,000 ledger. Synthetic demo controls and API activation are disabled; legacy demo history is discarded on schema upgrade. Synthetic data exists only as explicitly seeded unit-test fixtures. Characters and tasks reflect the configured runtime, not five continuously running model processes.
+## Motor (`trading-worker/v2/`)
 
-Global pause stops entries while the operator still processes exits. Pausing the operator or disabling all automatic cycles also stops automatic exits. No daily entry quota is filled. Defaults: maximum two entries per US session, twenty positions, 0.35% planned capital risk per trade, tiered EUR lots up to available cash, 2% daily loss threshold. Yahoo reference prices are queried every 15 minutes during the regular US session for up to 20 positions and eight confirmed candidates. Symbol, EQUITY type, USD currency and US exchange must match. Mean historical traded dollar volume from at least five and up to 20 completed sessions must exceed the liquidity threshold. References older than 35 minutes or downloads older than 20 minutes cannot execute. No bid/ask is fabricated: spread and order-book depth are unknown. Paper fills use observed price with 25 basis points adverse estimated slippage per side and USD 1 commission. Stops are checked at observations and can fill beyond the threshold. Weekends, outside-session or holiday-stale prices cannot execute. This first simulator does not implement corporate actions, dividends, order-book depth or limit-order queues.
+| Archivo | Qué hace |
+| --- | --- |
+| `cycle.js` | Ciclo, reparto de turnos, órdenes pendientes, diario, `status()` para el dashboard |
+| `agents.js` | Un turno de un empleado: contexto por puesto → una llamada ligera → acciones validadas |
+| `meeting.js` | Reuniones: una intervención por asistente, votos, cierre de Augusto, acuerdos aplicados |
+| `company.js` | Plantilla, reglas modificables y sus límites, ideas, cronología, ánimo |
+| `book.js` | Contabilidad: compra/venta, margen, stops y objetivos |
+| `llm.js` | Única puerta a OpenAI: reserva el coste antes y liquida con el uso real |
 
-## EUR allocation and office
+Cada ciclo: (1) datos sin IA — radar de señales (SEC 8-K, PR Newswire, calendario de resultados),
+cambio BCE, precios Yahoo, stops/objetivos/plazos y órdenes pendientes; (2) IA — reunión si toca y,
+si no, turnos de los empleados con trabajo o a los que les toca ronda; (3) diario y estado.
 
-New entries use a EUR 500 total budget including commission, increasing to EUR 750 at EUR 15,000 equity and EUR 1,000 at EUR 20,000 (then +250 per further 5,000). The tier decreases when equity falls. Existing positions are not resized. Whole-share quantities leave unused cash; no position is required to fill a quota. Plans exceeding the permitted stop risk are rejected, rather than silently shrinking the requested lot. USD security prices remain separate from EUR accounting. A timestamped daily ECB EUR/USD reference rate converts valuations, purchase cost and exit proceeds; it is informational, not executable FX. Missing or more-than-seven-day-old FX blocks execution. FX changes are reflected in EUR results.
+### Empleados
 
-The Three.js 0.170.0 WebGL office is locally vendored under its MIT licence. It uses antialiasing, device-pixel rendering, shadow lighting, detailed furniture and articulated characters. Sharp DOM labels and data HUDs display live EUR equity, P/L, positions and connection status. The camera supports rotation and zoom; characters can be clicked or selected with accessible controls. Idle walks, coffee, breathing, clock hands and aquarium fish are clearly ambient animation; typing and movement to desks only follow recorded working status. Actual log changes trigger activity pulses. Hidden tabs stop rendering and reduced motion is respected.
+Santi (explorador) trae candidatas; Pedro (analista) las convierte en plan; María (riesgo) aprueba,
+recorta o veta; Yari (trader) ejecuta y gestiona posiciones; Augusto (dirección) saca lecciones,
+cambia reglas, convoca reuniones y puede levantar vetos; Cadaqui (finanzas y tokens) controla el
+ritmo de gasto, escribe el resumen diario y decide gastos de oficina.
 
-## Credentials
+### Libertad del equipo
 
-OpenAI keys are submitted over authenticated HTTPS, encrypted with AES-GCM in D1 and never returned. `TRADING_ENCRYPTION_SECRET` is generated once by the deployment workflow and preserved across deployments. Do not rotate or remove it without migrating encrypted secrets. The $3 default daily API budget reserves a conservative maximum before each request and records confirmed input/output usage and web-search fees ($0.01 per tool call). Web requests reserve the full Luna context input cost plus capped output and two tool calls. Confirmed cost and uncertain reservations are displayed separately. Failed requests with unknown usage retain their reservation. Prices are configurable in code; the initial standard short-context rates are taken from https://developers.openai.com/api/docs/pricing. Data subscriptions, hosting and taxes are outside that inference counter.
+Pueden cambiar, por acción directa de Augusto o por acuerdo de reunión: nombre y foco de la
+estrategia, reglas de la casa, tamaño por posición (2–100 % del capital), posiciones máximas (1–12),
+apalancamiento (×1–×2), stop, objetivo y plazo por defecto, si María debe aprobar (`riskGate`),
+ritmo de trabajo y número de reuniones. Una propuesta rechazada por mayoría no puede aplicarse en
+esa reunión. No modifican código: la autoprogramación de la versión anterior está retirada.
 
-## Public market reference data
+Intocable: precios reales y recientes para ejecutar (referencia de menos de 35 min en sesión
+regular), caja o margen suficiente, deslizamiento de 25 pb y 1 USD de comisión por lado, máximo el
+10 % del volumen medio diario por compra, solo posiciones largas, y el presupuesto de 10 €.
+Con apalancamiento, si el capital cae por debajo del 30 % de lo invertido se liquida todo.
 
-The Worker calls Yahoo Finance chart data directly using JavaScript; it does not install or run yfinance/Python. The source is a public, unofficial integration without an availability guarantee. No data key is needed. HTTP errors (including 429) preserve timestamped old data and block stale execution. Fetches are bounded to 28 symbols with concurrency four and a 15-minute cache. Provider timestamps are never replaced by fetch timestamps. Yahoo data may be delayed; simulated fills are explicitly labelled reference-based assumptions. Catalogue prices alone cannot trade. Broker purchasing permissions are not verified. Corporate actions/dividends are not handled.
+### Presupuesto de IA
 
-The IBKR kit, bridge and local preview processes were retired. The bridge ingestion endpoint returns 410 and the old pairing verifier is revoked. Java already present on the computer was not uninstalled. OpenAI credentials and ledger are preserved.
+Asignación diaria = saldo restante / días restantes × ritmo (ahorro 0,6 · normal 1 · intensivo 1,5).
+Turnos por ciclo: hasta 3 en sesión y 1 fuera (2/1 en ahorro, 4/2 en intensivo); de noche solo si
+alguien tiene trabajo pendiente. Si el saldo de hoy no alcanza, los turnos se espacian; agotado,
+solo quedan las rutinas por código. Un turno usa `gpt-6-luna` (~0,0003 €); la búsqueda web de Santi
+es la única llamada cara (límite diario 1/3/6 según ritmo, y se desactiva tras dos fallos).
 
-## Deployment and verification
+## Dashboard (`control/office/`)
 
-Daily controllers use the existing scoped `OFFICE_DEV_TOKEN` through an authenticated database bridge in Pages. The bridge accepts an exact list of parameter-bound office queries; it cannot query other website tables, read encrypted credentials or change authentication. There is no OAuth renewal in cloud cycles, audits or development workflows. The existing `CLOUDFLARE_API_TOKEN` is used only for deployment; it does not require direct D1 administration access. The backend was initially provisioned with an authorised local OAuth session. An optional manual `deploy-trading.yml` workflow for fresh provisioning requires a separate `CLOUDFLARE_TRADING_API_TOKEN` with D1 and Worker permissions. Tests: `node --test tests/*.test.mjs`. Verify actual cycle completion, a subsequent automatically triggered cycle, and rejection of unauthorised API calls before declaring recovery.
+`art.js` dibuja el pixel art por código (sin imágenes), `office.js` es la simulación visual y
+`app.js` los paneles. La oficina representa los eventos reales de `timeline` (traspasos, compras,
+reuniones con su transcripción, cambios de estrategia); el lote que llega cada ciclo se reparte en
+el tiempo. Cafés, paseos y charlas de pasillo son vida local sin IA, y su tono depende del ánimo
+real (ritmo del alquiler, resultado del día y tokens). César puede escribir al equipo, convocar una
+reunión, pausar compras o empleados y cerrar posiciones.
 
-Development results are persisted by job ID and lease before updating office state. If the office lease is busy, the next supervisor confirms that result before leasing another patch; uncertain writes are reconciled by reading the unique result rather than repeating the mutation. This records applied/rejected only after the protected state checkpoint succeeds.
+## Código heredado
 
+`trading-worker/*.js` fuera de `v2/` conserva lo que el motor nuevo reutiliza: bloqueo y estado
+(`engine.js: locked/load`), contabilidad base (`core.js`), radar (`discovery.js`, `fundamentals.js`),
+precios (`market-data.js`) y el puente (`runtime-db.js`). El resto (`company.js`, `governance.js`,
+`preparation.js`, `launch.js`, `employee-agents.js`…) ya no se ejecuta en producción y puede
+eliminarse, junto con sus pruebas, cuando la v2 lleve unos días estable.
 
-## Radar y mejora diaria (2 de octubre de 2026)
+## Verificación
 
-El radar cruza el universo elegible completo con SEC 8-K y PR Newswire cada 15 minutos. Enriquece cuatro empresas por barrido con companyfacts SEC y cierres Yahoo; caché de fundamentales de siete días e histórico de seis horas. El calendario cubre cuatro fechas por barrido. La puntuación es prioridad de investigación, no probabilidad. Santi solo investiga candidatos que superan el umbral, con caché de 24 horas por empresa; no hay selección aleatoria. Fuentes sin respuesta se muestran como fallos de cobertura.
-
-Augusto calcula diariamente KPIs y cambios tipados: reducir riesgo con al menos diez cierres perdedores, endurecer prioridad tras veinte investigaciones y 80% de descartes, o reducir gasto después de doce investigaciones con equivalencia neta negativa. Observación mínima de siete días; reversión tras diez cierres nuevos y deterioro de P/L superior al 2% del capital inicial. Es una heurística conservadora, no una prueba de causalidad. No aumenta presupuesto o exposición. Auditoría Luna de cierres como máximo una vez al día.
-
-Cadaqui genera un manifiesto visual validado, limitado a Agent Office, sin llamadas a IA. Puede elegir foco de riesgo, economía o pipeline; muestra KPIs, versiones, motivos, reversión y mensajes entre empleados. No dispone de escritura en el repositorio ni puede ejecutar código arbitrario. La automejora modifica reglas ejecutables y manifiestos dentro del motor versionado. Objetivos y personalidades se registran por empleado; los mensajes son entregas del flujo real, no conversaciones simuladas para decorar.
-
-Coste IA acumulado se registra en USD y se convierte a EUR con referencia BCE actual (aproximado, no tipo histórico). P/L simulado menos IA y equivalencia 1.000 EUR ficticios = 1 EUR de objetivo se presentan separadamente. No se garantiza rentabilidad. Alojamiento, dividendos y ajustes corporativos no incluidos.
-
-
-### Alquiler mensual
-El presupuesto operativo real es 10 EUR por mes calendario de Nueva York, equivalentes a 10.000 unidades internas. Un ledger D1 independiente reserva EUR antes de cada llamada, reconcilia el coste con el cambio de la reserva y conserva reservas inciertas. Las llamadas se detienen al agotarse; datos, filtros y salidas siguen por código. La cartera no se reinicia. El ritmo de Santi usa saldo/días restantes con estimación conservadora de 0,045 EUR por investigación. La cobertura del alquiler compara beneficio ficticio del mes / 1.000 con 10 EUR; no crea dinero ni saldo de API. Requiere migración 0009.
-
-## Agentes individuales e interacciones (3 de octubre de 2026)
-
-Cada empleado es un especialista con modelo, instrucciones, objetivo, memoria persistente, bandeja de encargos y próxima activación propios. El motor ejecuta sus decisiones mediante herramientas delimitadas por rol: priorizar investigación/análisis, anotar riesgo, comprobar ejecución, revisar cierres, encargar trabajo a otro empleado o proponer cambios para Augusto y Cadaqui. Las propuestas individuales alimentan las reuniones y el pipeline de parches existente. Los mensajes del flujo de inversión también despiertan la bandeja del receptor.
-
-Las iniciativas usan Responses API y el runtime propio, sin procesos permanentes por empleado ni dependencia del PC. Máximo seis iniciativas ligeras por día para todo el equipo y una por hora; cada empleado decide esperar entre dos y 48 horas. Reserva máxima por iniciativa 0,0025 EUR y 4% del ritmo diario restante. Máximo teórico adicional 0,015 EUR/día (0,465 EUR en un mes de 31 días), siempre dentro del alquiler total de 10 EUR. Las funciones de inversión, reuniones y análisis profundo conservan sus límites existentes. El SDK no es requisito para separar agentes; este runtime conserva la contabilidad y las herramientas de la aplicación.
-
-Cadaqui sí prepara cambios reales en el código permitido cuando Augusto los solicita. Un controlador de GitHub Actions valida el ámbito, ejecuta pruebas en aislamiento, aplica, despliega y revierte fallos. No puede editar otras secciones ni acceder a claves o modificar la contabilidad y cotizaciones originales. La lista de fuentes permitidas incluye employee-agents.js.
-
-El juego mantiene anclajes de sprites y escala física estables, separa posiciones de tránsito de poses en sillas/sofá/baño, comprueba todos los segmentos de las rutas y bloquea muebles y paredes. Las puertas tienen estado animado y control de paso. E prioriza el objeto cercano; salir de una actividad cancela sus accesorios. Las conversaciones, gags de carga de trabajo y animaciones son locales y no invocan modelos.
+`node --test tests/*.test.mjs`. `tests/office-v2.test.mjs` ejecuta ciclos completos sobre SQLite
+con el validador real del puente y una IA simulada.

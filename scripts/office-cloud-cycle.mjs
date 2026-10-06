@@ -1,5 +1,6 @@
 import {cloudDatabase} from './office-cloud-db.mjs';
-import {cycle,status,locked,log} from '../trading-worker/engine.js';
+import {locked,log} from '../trading-worker/engine.js';
+import {cycle,status} from '../trading-worker/v2/cycle.js';
 import worker from '../trading-worker/index.js';
 import {installPublicDataBridge} from './office-cloud-fetch.mjs';
 import {startOfficeProgress} from './office-progress.mjs';
@@ -25,9 +26,9 @@ try{
   if(!response.ok)await locked(env,s=>log(s,'system','Orden del dashboard rechazada: '+String(response.error).slice(0,160),'error'));
   if(command.path==='/run'&&response.ok)ran=true;
  }
- if(!ran)await cycle(env);
+ return ran?{manual:true}:await cycle(env);
  }});
 }catch(error){failure=error;}
 finally{try{live=await progress.finish();}catch(error){if(!failure)failure=error;}}
 if(failure)throw failure;
-console.log(JSON.stringify({cycleStatus:outcome.status,retryAt:outcome.retryAt||null,lastTick:live.lastTick?new Date(live.lastTick).toISOString():null,error:live.lastError,universe:live.universe.eligible,positions:live.book.positions.length,orders:live.book.orders.length,closed:live.book.closed.length,equity:live.equity,market:live.connections.marketStatus,remainingEur:live.operating.remainingEur,plans:live.company.sessionPlan?.ready?.map(p=>({symbol:p.symbol,entryMin:p.entryMin,entryMax:p.entryMax,stop:p.stop,target:p.target})),launch:live.company.launch&&{phase:live.company.launch.phase,pilotId:live.company.launch.pilotId,ready:live.company.launch.ready,priorityUseful:live.company.launch.priorityUseful},meeting:live.company.meetings[0]?.status}));
+console.log(JSON.stringify({cycleStatus:outcome.status,retryAt:outcome.retryAt||null,lastTick:live.lastTick?new Date(live.lastTick).toISOString():null,error:live.lastError,cycle:outcome.result||null,positions:live.positions.length,orders:live.orders.length,closed:live.closed.length,equity:Math.round(live.company.equity),monthPnl:Math.round(live.company.monthPnl),mood:live.company.mood,market:live.market.status,remainingEur:live.budget.remainingEur,ai:live.budget.ai,meeting:live.meetings[0]?.topic||null,lastEvent:live.timeline.at(-1)?.text||null}));
