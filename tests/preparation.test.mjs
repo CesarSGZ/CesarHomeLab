@@ -44,9 +44,28 @@ test('exhausted evidence requests wait for meaningful facts without another queu
  s.real.profiles.TEST.fundamentals.metrics.cashLatest=25e6;assert.equal(analysisBlockedForEvidence(s,e),false);assert.equal(selectPlanningCandidates(s,now+1000)[0],e);
  blockAnalysisForEvidence(s,e,reply,now+1000);assert.equal(selectPlanningCandidates(s,now+2000).length,0);assert.equal(e.analysisBlockHistory.length,2);blockAnalysisForEvidence(s,e,reply,now+3000);assert.equal(e.analysisBlockHistory.length,2);assert.equal(e.followupHistory.length,2);assert.equal(JSON.stringify(s.company.agency.workQueue),queue);
  s.real.profiles.TEST.fundamentals.latestQuarter={end:'2026-06-30',filed:'2026-08-01',metrics:{revenue:130e6}};assert.equal(selectPlanningCandidates(s,now+4000)[0],e);blockAnalysisForEvidence(s,e,reply,now+4000);
- s.real.profiles.TEST.market.seriesDiagnostic={adjustments:{complete:true,observedFactorChanges:0},last:{rawClose:5,adjustedClose:5}};assert.equal(selectPlanningCandidates(s,now+5000)[0],e);blockAnalysisForEvidence(s,e,reply,now+5000);
+ s.real.profiles.TEST.market.seriesDiagnostic={adjustments:{complete:true,observedFactorChanges:0},last:{rawClose:5,adjustedClose:5}};assert.equal(selectPlanningCandidates(s,now+5000).length,0,'A corrected price series does not answer a financial covenant request');
  e.sources.push({url:'https://issuer.example/debt-annex',claim:'Fuente nueva con covenants y vencimientos'});assert.equal(selectPlanningCandidates(s,now+6000)[0],e);
  assert.throws(()=>blockAnalysisForEvidence(s,e,{...reply,decision:'reject'},now+7000),/Solo una evaluación/);assert.equal(e.followupHistory.length,2);assert.equal(s.real.book.orders.length,0);
+});
+
+test('explicit market evidence guards reopen for corrected adjustments, while financial and mixed guards ignore routine market updates',()=>{
+ const s=fixture(),e=s.real.events[0];Object.assign(e,{confirmed:true,date:'2026-10-07T20:00:00Z',sources:[{url:'https://issuer.example/results'}],research:{worthAnalyzing:true}});
+ const market=s.real.profiles.TEST.market;market.seriesDiagnostic={adjustments:{complete:false,observedFactorChanges:0},corporateActions:{reporting:'not_provided',splits:[]},oneYear:{sufficientCoverage:true},last:{value:5}};
+ const reply={decision:'needs_evidence',approve:false,evidenceScope:'market',reason:'Falta corroborar el ajuste corporativo',missingEvidence:['Registro de splits y ajuste histórico'],nextResearchTask:'Verify split data against a dated independent price series'};
+ blockAnalysisForEvidence(s,e,reply,now);assert.equal(e.analysisBlocked.evidenceScope,'market');
+ market.return5d=.2;market.relativeVolume=3;market.asOf='2026-10-03';market.seriesDiagnostic.last.value=6;assert.equal(analysisBlockedForEvidence(s,e),true,'New price and volume are not a corrected corporate-action record');
+ market.seriesDiagnostic.adjustments.complete=true;market.seriesDiagnostic.corporateActions={reporting:'provider_reported',splits:[{date:'2026-09-01',ratio:10}]};assert.equal(analysisBlockedForEvidence(s,e),false);assert.deepEqual(selectPlanningCandidates(s,now),[e]);assert.equal(e.plan,undefined);assert.equal(s.real.book.orders.length,0);
+ for(const scope of ['primary_financial','mixed']){blockAnalysisForEvidence(s,e,{...reply,evidenceScope:scope,missingEvidence:['Post-acquisition debt and cash']},now+1000);market.return5d+=.1;market.relativeVolume+=1;market.seriesDiagnostic.corporateActions.splits.push({date:'2026-09-02',ratio:2});assert.equal(analysisBlockedForEvidence(s,e),true);s.real.profiles.TEST.fundamentals.metrics.cashLatest+=1;assert.equal(analysisBlockedForEvidence(s,e),false);}
+});
+
+test('session watchlist labels approved execution, unresolved data and timed waits without promising an order',()=>{
+ const s=fixture(),e=s.real.events[0];Object.assign(e,{confirmed:true,date:'2026-10-07T20:00:00Z',sources:[{url:'https://issuer.example/results'}],research:{worthAnalyzing:true},status:'espera',plan:{entryMin:4,entryMax:5,stop:3,target:8,expiresAt:now+864e5},review:{approve:true}});
+ const book=JSON.stringify(s.real.book);let watch=refreshSessionPlan(s,now).watchlist[0];assert.equal(watch.stage,'execution');assert.match(watch.nextTask,/cotización/);assert.equal(watch.executable,false);assert.equal(refreshSessionPlan(s,now).ready.length,1);
+ blockAnalysisForEvidence(s,e,{decision:'needs_evidence',approve:false,evidenceScope:'primary_financial',reason:'Falta deuda posterior',missingEvidence:['Deuda pro forma'],nextResearchTask:'Verify debt after the material acquisition'},now+1);
+ watch=refreshSessionPlan(s,now+1).watchlist[0];assert.equal(watch.stage,'blocked');assert.equal(watch.nextTask,e.analysisBlocked.nextTask);assert.equal(watch.reason,e.analysisBlocked.reason);assert.equal(refreshSessionPlan(s,now+1).ready.length,0);
+ e.sources.push({url:'https://issuer.example/new-debt',claim:'New debt terms'});e.retryAfter=now+3600e3;watch=refreshSessionPlan(s,now+2).watchlist[0];assert.equal(watch.stage,'waiting');assert.equal(watch.nextAt,e.retryAfter);
+ watch=refreshSessionPlan(s,e.retryAfter).watchlist[0];assert.equal(watch.stage,'analysis');assert.equal(JSON.stringify(s.real.book),book);
 });
 
 test('an unencodable evidence request is explicitly blocked without inventing a task or consuming a follow-up slot',()=>{

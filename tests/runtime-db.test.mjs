@@ -1,3 +1,4 @@
+import {developmentResultBody,queueDevelopmentResult,drainDevelopmentResults} from '../scripts/office-development-results.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';
@@ -104,4 +105,14 @@ test('database errors are exposed as transient server failures rather than succe
  const f=await fixture();f.env.CONTROL_DB.batch=async()=>{throw Error('D1 unavailable');};
  const response=await pagesRequest({request:new Request('https://fixture.example',{method:'POST',headers:{authorization:'Bearer '+token},body:JSON.stringify(statement('INSERT OR IGNORE INTO trading_budget(day) VALUES (?)',['2026-10-06']))}),env:f.env});
  assert.equal(response.status,503);assert.equal((await response.json()).success,false);assert.equal(f.sqlite.prepare('SELECT COUNT(*) AS n FROM trading_budget').get().n,0);
+});
+
+test('durable development results use the RPC for their DDL, queue, reads and acknowledgements without duplicate completion',async()=>{
+ const f=await fixture(),db=client(f.env),commit='a'.repeat(40),job={id:'job-fixture',lease:'lease-fixture',status:'running',summary:'Verified infrastructure change',meetingId:'meeting-fixture'};
+ await locked({CONTROL_DB:db},s=>{s.company.development=[job];});
+ const before=JSON.parse(f.sqlite.prepare('SELECT payload FROM trading_state').get().payload),body=developmentResultBody(job,{status:'applied',commit});
+ assert.equal((await queueDevelopmentResult(db,body)).persisted,true);
+ const result=await drainDevelopmentResults({db,withLock:locked});assert.equal(result.recorded,1);assert.equal(result.remaining,0);
+ const after=JSON.parse(f.sqlite.prepare('SELECT payload FROM trading_state').get().payload);assert.equal(after.company.development[0].status,'applied');assert.equal(after.company.development[0].commit,commit);assert.deepEqual(after.real.book,before.real.book);
+ assert.equal((await drainDevelopmentResults({db,withLock:locked})).recorded,0);assert.equal(f.sqlite.prepare("SELECT COUNT(*) AS n FROM trading_development_results WHERE status='complete'").get().n,1);
 });

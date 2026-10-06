@@ -2,7 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {initialiseEmployees,dueEmployee,executeEmployeeDecision,runEmployeeInitiative,employeeContext,pendingEmployeeWork,finishEmployeeWork,researchReadyAt} from '../trading-worker/employee-agents.js';
 import {message} from '../trading-worker/governance.js';
-import {selectResearchCandidates,selectPlanningCandidates} from '../trading-worker/strategy.js';
+import {selectResearchCandidates,selectPlanningCandidates,analysisEvidenceFingerprint} from '../trading-worker/strategy.js';
+import {runPreparation} from '../trading-worker/preparation.js';
 const now=Date.parse('2026-10-03T12:00:00Z');
 function fixture(){return {agents:['scout','analyst','risk','operator','auditor','designer'].map(id=>({id,name:id,paused:false})),company:{tasks:[]},governance:{messages:[]},messages:[],real:{events:[{id:'e1',symbol:'TEST',preScore:{eligible:true,score:80},confirmed:false}],book:{cash:10000,positions:[],closed:[]}},operating:{remainingEur:9,paceEurPerDay:.3},paused:false};}
 const decision=(tool,extra={})=>({goal:'Comprobar evidencia',decision:'Falta fecha primaria',tool,target:'none',eventId:'',evidenceIds:['discovery'],nextTask:'Contrastar fecha',wakeHours:4,strategy:null,...extra});
@@ -82,4 +83,41 @@ test('a busy employee cannot consume the daily initiatives before unserved colle
 test('a rejected paid decision retains its actual cost and does not monopolize initiatives',async()=>{
  const s=fixture();await runEmployeeInitiative(s,{call:async()=>({...decision('prepare_execution',{eventId:'e1'}),_costEur:.0006}),checkpoint:async()=>{},log:()=>{}},now);
  const actor=s.company.agency.actors.scout;assert.equal(actor.costEur,.0006);assert.equal(actor.attemptsToday,1);assert.match(actor.lastError,/Herramienta ajena/);actor.nextWake=now;assert.equal(dueEmployee(s,now+3600e3).id,'analyst');
+});
+
+const confirmedCandidate=(id,symbol=id.toUpperCase())=>({id,symbol,status:'nuevo',confirmed:true,date:'2026-10-07T20:00:00Z',timing:'scheduled',sources:[{url:'https://issuer.example/results',claim:'El emisor confirma la fecha'}],preScore:{eligible:true,score:60,reasons:['FCF y métricas permiten priorizar investigación']},research:{researchedAt:now-864e5,worthAnalyzing:true}});
+function dataBlocked(s,id='blocked'){
+ const e=confirmedCandidate(id);e.status='verificar';e.preScore.score=95;e.reasons=['Bloqueado por datos: faltan covenants y headroom'];s.real.events.push(e);
+ e.analysisBlocked={at:now-1000,owner:'analyst',guard:'followup_limit',reason:'Faltan covenants y headroom verificados',missingEvidence:['Anexo de covenants y margen disponible'],nextTask:'Obtener el anexo bancario con headroom',fingerprint:analysisEvidenceFingerprint(s,e)};return e;
+}
+
+test('Employees see executable analysis first and actual data blockers instead of qualification reasons or false backlog',()=>{
+ const s=fixture();s.real.events=[confirmedCandidate('ready')];const blocked=dataBlocked(s),actor=initialiseEmployees(s,now).actors.analyst;actor.inbox.push({eventId:blocked.id,task:'Volver a analizar BLOCKED',status:'pendiente'});
+ const before=JSON.stringify(s.real.book),context=employeeContext(s,actor,now),shown=context.events.find(e=>e.id===blocked.id);
+ assert.equal(context.events[0].id,'ready','Ready specialist work outranks a stale assignment');assert.deepEqual(context.backlog.analysis.ids,['ready']);assert.equal(context.backlog.analysis.count,1);assert.equal(context.backlog.blocked.count,1);
+ assert.equal(shown.workReadiness.ready,false);assert.equal(shown.workReadiness.stage,'blocked');assert.deepEqual(shown.reasons,blocked.reasons);assert.deepEqual(shown.qualificationReasons,blocked.preScore.reasons);assert.equal(shown.analysisBlocked.guard,'followup_limit');assert.deepEqual(shown.analysisBlocked.missingEvidence,['Anexo de covenants y margen disponible']);
+ assert.throws(()=>executeEmployeeDecision(s,'analyst',decision('prepare_plan',{eventId:blocked.id,evidenceIds:[blocked.id]}),now),/retenida.*no repetir/);assert.equal(s.company.agency.workQueue.length,0);assert.equal(JSON.stringify(s.real.book),before);
+ executeEmployeeDecision(s,'analyst',decision('prepare_plan',{eventId:'ready',evidenceIds:['ready']}),now);assert.equal(pendingEmployeeWork(s,'analysis',now)[0].eventId,'ready');assert.equal(s.real.events[0].plan,undefined);
+ blocked.sources.push({url:'https://issuer.example/covenants',claim:'Anexo de covenants publicado'});const updated=employeeContext(s,actor,now+1000);assert.equal(updated.backlog.analysis.count,2);assert.equal(updated.backlog.blocked.count,0);assert.equal(updated.events.find(e=>e.id===blocked.id).analysisBlocked,null,'New material evidence reopens consideration without pretending approval');assert.match(updated.events.find(e=>e.id===blocked.id).reasons[0],/Evidencia material actualizada/);
+});
+
+test('Chosen research quota and interval appear as waiting work, preserve counters, and reopen when their real gates allow',()=>{
+ const s=fixture();s.company.strategy={researchDailyLimit:1,researchIntervalMinutes:60};s.real.researchDay='2026-10-03';s.real.researchCalls=1;s.real.lastResearch=now-30*60e3;const actor=initialiseEmployees(s,now).actors.scout;
+ let context=employeeContext(s,actor,now);assert.equal(context.backlog.research.count,0);assert.equal(context.backlog.waiting.count,1);assert.equal(context.events[0].workReadiness.ready,false);assert.match(context.events[0].workReadiness.reason,/Cupo de investigación elegido agotado/);assert.equal(context.events[0].workReadiness.nextAt,Date.parse('2026-10-04T04:00:00Z'));assert.equal(s.real.researchCalls,1);
+ s.company.strategy.researchDailyLimit=3;context=employeeContext(s,actor,now);assert.match(context.events[0].workReadiness.reason,/cadencia de investigación elegida/);assert.equal(context.events[0].workReadiness.nextAt,now+30*60e3);assert.equal(context.backlog.research.count,0);
+ context=employeeContext(s,actor,now+30*60e3);assert.equal(context.backlog.research.count,1);assert.equal(context.events[0].workReadiness.stage,'research');assert.equal(context.events[0].workReadiness.ready,true);assert.equal(s.real.researchCalls,1);assert.equal(s.real.events[0].research,undefined);
+});
+
+test('Deep quota deferrals and explicit retry dates never appear as ready plans or spawn repeated specialist assignments',()=>{
+ const s=fixture(),deferred=confirmedCandidate('deferred'),retry=confirmedCandidate('retry');deferred.analysisDeferred={day:'2026-10-03',nextAt:Date.parse('2026-10-04T04:00:00Z'),reason:'Cuota profunda agotada; reinicio ya programado'};retry.retryAfter=now+2*3600e3;s.real.events=[deferred,retry];const actor=initialiseEmployees(s,now).actors.analyst;
+ const context=employeeContext(s,actor,now);assert.equal(context.backlog.analysis.count,0);assert.equal(context.backlog.waiting.count,2);assert.equal(context.events.find(e=>e.id==='deferred').workReadiness.nextAt,deferred.analysisDeferred.nextAt);assert.equal(context.events.find(e=>e.id==='retry').workReadiness.nextAt,retry.retryAfter);
+ for(const event of [deferred,retry])assert.throws(()=>executeEmployeeDecision(s,'analyst',decision('prioritize_analysis',{eventId:event.id,evidenceIds:[event.id]}),now),/retenida/);
+ assert.equal(s.company.agency.workQueue.length,0);assert.equal(employeeContext(s,actor,now+864e5).backlog.analysis.count,2);assert.equal(s.real.book.orders,undefined);
+});
+
+test('A blocked specialist can hand off a concrete data fix without triggering a paid analysis or shortened polling wake',async()=>{
+ const s=fixture();s.real.events=[];const blocked=dataBlocked(s);for(const agent of s.agents)agent.paused=agent.id!=='analyst';let initiatives=0,analyses=0;
+ await runEmployeeInitiative(s,{checkpoint:async()=>{},log:()=>{},call:async(id,_instructions,context)=>{initiatives++;assert.equal(id,'analyst');assert.equal(context.backlog.analysis.count,0);assert.equal(context.backlog.blocked.count,1);assert.equal(context.events[0].workReadiness.stage,'blocked');return {...decision('handoff',{eventId:blocked.id,evidenceIds:[blocked.id],target:'designer',nextTask:'Preparar un extractor del anexo de covenants con datos verificables',wakeHours:48}),_costEur:.0004};}},now);
+ await runPreparation(s,{checkpoint:async()=>{},log:()=>{},call:async()=>{analyses++;throw Error('No debe pagarse una valoración bloqueada');}},now);
+ assert.equal(initiatives,1);assert.equal(analyses,0);assert.equal(s.company.agency.actors.analyst.costEur,.0004);assert.equal(s.company.agency.actors.analyst.nextWake,now+48*3600e3);assert.equal(s.company.agency.actors.designer.inbox[0].eventId,blocked.id);assert.match(s.company.agency.actors.designer.inbox[0].task,/extractor/);assert.equal(s.company.agency.workQueue.filter(w=>w.kind==='analysis').length,0);assert.equal(blocked.plan,undefined);assert.equal(s.real.book.cash,10000);
 });

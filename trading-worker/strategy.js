@@ -116,8 +116,28 @@ export function analysisEvidenceFingerprint(s,event){
  const marketKeys=['return5d','return21d','return63d','return1y','drawdown1y','drawdownObserved','relativeVolume','averageDollarVolume','adjustedCloseAvailable','returnBasis','definitions','seriesDiagnostic'];
  return JSON.stringify(evidenceValue({facts:{date:event.date,timing:event.timing,kind:event.kind,summary:event.summary,source:event.source,sources:evidenceSources(event.sources)},financial:{metrics:f?.metrics||null,latestQuarter:f?.latestQuarter||null,evidence:f?.evidence||null},market:m?Object.fromEntries(marketKeys.map(key=>[key,m[key]])):null,research:{findings:event.research?.taskFindings||event.research?.supplement?.findings||null,sources:evidenceSources(event.research?.supplement?.sources)}}));
 }
+export function analysisEvidenceScope(answer={}){
+ // The caller may identify a price-data guard explicitly. Unclassified and legacy
+ // requests stay conservative: a market move cannot answer a financial question.
+ return ['primary_financial','market','mixed'].includes(answer.evidenceScope)?answer.evidenceScope:answer.guard==='price_series'?'market':'primary_financial';
+}
+function blockedEvidenceValue(fingerprint,scope){
+ try{const value=JSON.parse(fingerprint);if(!value||typeof value!=='object'||Array.isArray(value))return fingerprint;
+  if(scope!=='market'){
+   delete value.market;
+   // Price-derived valuation ratios do not resolve missing debt or liquidity facts.
+   if(value.financial?.metrics)for(const key of ['marketCap','pe','pb','evToEbitda','enterpriseValue'])delete value.financial.metrics[key];
+  }
+  else if(value.market){const market=value.market,diagnostic=market.seriesDiagnostic;
+   value.market={adjustedCloseAvailable:market.adjustedCloseAvailable,returnBasis:market.returnBasis,definitions:market.definitions,seriesDiagnostic:diagnostic?{adjustments:diagnostic.adjustments,corporateActions:diagnostic.corporateActions,oneYear:{sufficientCoverage:diagnostic.oneYear?.sufficientCoverage,minimumCalendarDays:diagnostic.oneYear?.minimumCalendarDays,minimumSessions:diagnostic.oneYear?.minimumSessions}}:null};
+  }
+  return JSON.stringify(evidenceValue(value));
+ }catch{return fingerprint;}
+}
 export function analysisBlockedForEvidence(s,event){
- return !!event.analysisBlocked&&event.analysisBlocked.fingerprint===analysisEvidenceFingerprint(s,event);
+ const block=event.analysisBlocked;if(!block)return false;
+ const scope=block.evidenceScope||'primary_financial';
+ return blockedEvidenceValue(block.fingerprint,scope)===blockedEvidenceValue(analysisEvidenceFingerprint(s,event),scope);
 }
 function researchIntervalReadyAt(s,now,intervalMinutes){
  const last=s.real.lastResearch||0,failed=(s.real.events||[]).some(e=>e.researchAttemptAt>=last&&e.researchAttemptAt-last<1000&&e.researchRetryAfter>now);

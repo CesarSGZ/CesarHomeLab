@@ -45,8 +45,9 @@ export async function operatingBudget(env,s){const month=day().slice(0,7),row=aw
 const rates={'gpt-6-luna':[.1,.5],'gpt-6.1-sol':[2,10]};
 const objectSchema=properties=>({type:'object',properties,required:Object.keys(properties),additionalProperties:false});
 const str={type:'string'},bool={type:'boolean'},number={type:'number'};
-const analysisSchema=objectSchema({decision:{type:'string',enum:['prepare','needs_evidence','reject']},missingEvidence:{type:'array',maxItems:3,items:str},nextResearchTask:str,approve:bool,thesis:str,entryMin:number,entryMax:number,stop:number,target:number,holdingDays:number,exitBeforeCatalyst:bool,bearCase:str,baseCase:str,bullCase:str,invalidation:str,reason:str});
-const reviewSchema=objectSchema({decision:{type:'string',enum:['approve','revise_plan','needs_evidence','reject']},missingEvidence:{type:'array',maxItems:3,items:str},nextResearchTask:str,approve:bool,reason:str});
+const evidenceScopeSchema={type:'string',enum:['primary_financial','market','mixed'],description:'En needs_evidence: primary_financial para hechos, fuentes o finanzas; market exclusivamente para ajustes, acciones corporativas o cobertura de series de precios; mixed si faltan ambos. En otras decisiones primary_financial. No clasificar una cotización nueva como evidencia financiera.'};
+const analysisSchema=objectSchema({decision:{type:'string',enum:['prepare','needs_evidence','reject']},evidenceScope:evidenceScopeSchema,missingEvidence:{type:'array',maxItems:3,items:str},nextResearchTask:str,approve:bool,thesis:str,entryMin:number,entryMax:number,stop:number,target:number,holdingDays:number,exitBeforeCatalyst:bool,bearCase:str,baseCase:str,bullCase:str,invalidation:str,reason:str});
+const reviewSchema=objectSchema({decision:{type:'string',enum:['approve','revise_plan','needs_evidence','reject']},evidenceScope:evidenceScopeSchema,missingEvidence:{type:'array',maxItems:3,items:str},nextResearchTask:str,approve:bool,reason:str});
 const auditSchema=objectSchema({summary:str,proposal:str});
 export function employeeFunctionOptions(agent,actions,schema){
  if(!Array.isArray(actions)||!actions.length||actions.some(name=>!employeeTools[agent]?.includes(name)))throw Error('Herramientas fuera del rol');

@@ -1,5 +1,5 @@
 import {pendingEmployeeWork,queueEmployeeWork,finishEmployeeWork,launchHasPlanningWork} from './employee-agents.js';
-import {workflowSettings,validateWorkflowStrategy,pipelineSummary,researchEvidenceFingerprint,catalystReady,quoteContext,sessionResearchPacing,analysisFollowupPending,analysisEvidenceFingerprint,selectPlanningCandidates} from './strategy.js';
+import {workflowSettings,validateWorkflowStrategy,pipelineSummary,researchEvidenceFingerprint,catalystReady,quoteContext,sessionResearchPacing,analysisFollowupPending,analysisEvidenceFingerprint,analysisEvidenceScope,analysisBlockedForEvidence,selectPlanningCandidates,selectResearchCandidates} from './strategy.js';
 import {prepareDevelopment} from './development.js';
 import {developmentFiles} from './office-boundary.js';
 import {installProgram,canReplacePilot} from './company.js';
@@ -11,7 +11,7 @@ export function requestAnalysisEvidence(s,event,answer,now=Date.now(),owner='ana
  const task=String(answer.nextResearchTask||'').trim();if(!missing.length||task.length<12)return false;
  const fingerprint=JSON.stringify([event.summary,event.sources,s.real.profiles?.[event.symbol]?.fundamentals?.metrics,event.research?.researchedAt,missing,task]);
  const history=event.followupHistory??=[];if(history.length>=2||history.some(h=>h.fingerprint===fingerprint))return false;
- const followup={at:now,owner,reason:answer.reason,missingEvidence:missing,nextTask:task,baselineResearchAt:event.research?.researchedAt||event.researchAttemptAt||0,fingerprint,attempts:history.length+1};
+ const followup={at:now,owner,evidenceScope:analysisEvidenceScope(answer),reason:answer.reason,missingEvidence:missing,nextTask:task,baselineResearchAt:event.research?.researchedAt||event.researchAttemptAt||0,fingerprint,attempts:history.length+1};
  history.push(followup);event.analysisFollowup=followup;event.analysisAssessment={...answer,at:now,executable:false};
  if(event.plan)event.previousPlan={...event.plan,withdrawnAt:now,reason:'Faltan datos para la revisión'};
  delete event.plan;delete event.review;event.status='verificar';event.reasons=['Investigación adicional solicitada por '+owner+': '+task];
@@ -23,9 +23,9 @@ export function blockAnalysisForEvidence(s,event,answer,now=Date.now(),owner='an
  if(answer.decision!=='needs_evidence'||answer.approve!==false)throw Error('Solo una evaluación pendiente de evidencia puede bloquearse por datos');
  const fingerprint=analysisEvidenceFingerprint(s,event),guard=(event.followupHistory?.length||0)>=2?'followup_limit':'incomplete_request';
  const missingEvidence=(answer.missingEvidence||[]).filter(x=>typeof x==='string'&&x.trim()).slice(0,3),reason=String(answer.reason||'Falta evidencia suficiente para completar la evaluación').slice(0,1200),nextTask=String(answer.nextResearchTask||'').slice(0,1000);
- const blocked={at:now,owner,guard,reason,missingEvidence,nextTask,fingerprint};
+ const evidenceScope=analysisEvidenceScope(answer),blocked={at:now,owner,guard,evidenceScope,reason,missingEvidence,nextTask,fingerprint};
  event.analysisBlockHistory??=[];
- if(event.analysisBlocked?.fingerprint!==fingerprint)event.analysisBlockHistory.push({at:now,owner,guard,reason,missingEvidence,nextTask,fingerprint,status:event.status});
+ if(event.analysisBlocked?.fingerprint!==fingerprint)event.analysisBlockHistory.push({at:now,owner,guard,evidenceScope,reason,missingEvidence,nextTask,fingerprint,status:event.status});
  event.analysisBlockHistory=event.analysisBlockHistory.slice(-12);event.analysisBlocked=blocked;event.analysisAssessment={...answer,at:now,executable:false};
  if(event.plan)event.previousPlan={...event.plan,withdrawnAt:now,reason:'Evaluación bloqueada por evidencia pendiente'};
  if(event.review)event.previousReview={...event.review,withdrawnAt:now};
@@ -59,8 +59,15 @@ export function recordFinancialWork(s,event,kind,result,now=Date.now(),target){
 }
 export function refreshSessionPlan(s,now=Date.now()){
  const pipeline=pipelineSummary(s,now),plans=s.real.events.filter(e=>e.plan?.expiresAt>now&&e.review?.approve&&catalystReady(e,now)&&['nuevo','espera'].includes(e.status));
+ const planningIds=new Set(selectPlanningCandidates(s,now).map(e=>e.id)),researchIds=new Set(selectResearchCandidates(s,now).map(e=>e.id));
+ const watchStage=e=>analysisBlockedForEvidence(s,e)?'blocked':!e.confirmed||analysisFollowupPending(e)?'research':!planningIds.has(e.id)?'waiting':!e.plan?'analysis':!e.review?'risk':e.review.approve?'execution':'waiting';
+ const useful=e=>['execution','analysis','risk'].includes(watchStage(e))||watchStage(e)==='research'&&researchIds.has(e.id);
+ const watchlist=s.real.events.filter(e=>e.preScore?.eligible&&!['descartado','caducado','abierto'].includes(e.status)).sort((a,b)=>Number(useful(b))-Number(useful(a))||(b.preScore?.score||0)-(a.preScore?.score||0)).slice(0,2).map(e=>{
+  const stage=watchStage(e),nextTask=stage==='blocked'?e.analysisBlocked.nextTask||'Esperar nuevos hechos o evidencia financiera':stage==='execution'?'Actualizar cotización en sesión y validar rango, riesgo y capital':stage==='risk'?'Revisión independiente de María sobre el plan':stage==='analysis'?'Pedro debe valorar la tesis con la evidencia disponible':analysisFollowupPending(e)?e.analysisFollowup.nextTask:e.preliminary?.nextTask||'Contrastar fuente y catalizador';
+  return {eventId:e.id,symbol:e.symbol,stage,nextTask,reason:stage==='blocked'?e.analysisBlocked.reason:e.analysisDeferred?.reason||(e.reasons||[]).join(' ').slice(0,400),nextAt:e.retryAfter>now?e.retryAfter:e.analysisDeferred?.nextAt>now?e.analysisDeferred.nextAt:stage==='research'?pipeline.nextResearchAt:null,executable:false};
+ });
  s.company.pipeline=pipeline;
- s.company.sessionPlan={at:now,date:pipeline.nextSessionDate,calendarBasis:pipeline.sessionCalendarBasis,ready:plans.map(e=>({eventId:e.id,symbol:e.symbol,entryMin:e.plan.entryMin,entryMax:e.plan.entryMax,stop:e.plan.stop,target:e.plan.target,expiresAt:e.plan.expiresAt,referenceAt:e.plan.referenceAt,conditions:e.reasons||[]})),target:2,shortfall:Math.max(0,2-plans.length),researchPacing:sessionResearchPacing(s,now),watchlist:s.real.events.filter(e=>e.preScore?.eligible&&!['descartado','caducado','abierto'].includes(e.status)).sort((a,b)=>(b.preScore?.score||0)-(a.preScore?.score||0)).slice(0,2).map(e=>({eventId:e.id,symbol:e.symbol,stage:!e.confirmed||analysisFollowupPending(e)?'research':!e.plan?'analysis':!e.review?'risk':'review',nextTask:analysisFollowupPending(e)?e.analysisFollowup.nextTask:e.preliminary?.nextTask||'Contrastar catalizador, ventaja y escenarios',executable:false})),steps:plans.length?['Actualizar referencia en sesión','Revalidar entrada, liquidez, riesgo y capital','Registrar compra ficticia solo si se mantienen las condiciones']:['Contrastar catalizadores de la cola','Valorar las tesis y revisar riesgos','Preparar experimentos con riesgo y salidas definidos']};
+ s.company.sessionPlan={at:now,date:pipeline.nextSessionDate,calendarBasis:pipeline.sessionCalendarBasis,ready:plans.map(e=>({eventId:e.id,symbol:e.symbol,entryMin:e.plan.entryMin,entryMax:e.plan.entryMax,stop:e.plan.stop,target:e.plan.target,expiresAt:e.plan.expiresAt,referenceAt:e.plan.referenceAt,conditions:e.reasons||[]})),target:2,shortfall:Math.max(0,2-plans.length),researchPacing:sessionResearchPacing(s,now),watchlist,steps:plans.length?['Actualizar referencia en sesión','Revalidar entrada, liquidez, riesgo y capital','Registrar compra ficticia solo si se mantienen las condiciones']:['Contrastar catalizadores de la cola','Valorar las tesis y revisar riesgos','Preparar experimentos con riesgo y salidas definidos']};
  return s.company.sessionPlan;
 }
 function seedUsefulWork(s,now){
