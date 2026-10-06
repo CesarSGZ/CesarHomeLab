@@ -15,6 +15,8 @@ export async function onRequest(context) {
   const url = new URL(context.request.url);
   const isApi = url.pathname.startsWith("/control/api/");
   const isPublic = PUBLIC_PATHS.has(url.pathname);
+  const inviteCode = /^[A-Z2-9]{6}$/.test(url.searchParams.get('room') || '') ? url.searchParams.get('room') : '';
+  const inviteQuery = inviteCode ? `?room=${inviteCode}` : '';
   const session = await currentSession(context.request, context.env);
 
   context.data.session = session;
@@ -26,7 +28,7 @@ export async function onRequest(context) {
       !session.user.mustChangePassword &&
       (url.pathname === "/control/login" || url.pathname === "/control/login.html")
     ) {
-      return Response.redirect(`${url.origin}/control/`, 302);
+      return Response.redirect(`${url.origin}/control/${inviteQuery}${inviteCode ? '#doors' : ''}`, 302);
     }
     return context.next();
   }
@@ -35,7 +37,7 @@ export async function onRequest(context) {
     if (isApi) {
       return json({ ok: false, error: "not_authenticated" }, { status: 401 });
     }
-    return Response.redirect(`${url.origin}/control/login`, 302);
+    return Response.redirect(`${url.origin}/control/login${inviteQuery}`, 302);
   }
 
   if (
@@ -46,7 +48,7 @@ export async function onRequest(context) {
     if (isApi) {
       return json({ ok: false, error: "password_change_required" }, { status: 403 });
     }
-    return Response.redirect(`${url.origin}/control/login?change=required`, 302);
+    return Response.redirect(`${url.origin}/control/login?change=required${inviteCode ? `&room=${inviteCode}` : ''}`, 302);
   }
 
   return context.next();

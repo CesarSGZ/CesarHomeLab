@@ -60,8 +60,8 @@ export function accessForUser(user) {
   const configured = USER_ACCESS[normaliseUsername(user?.username)] || STANDARD_ACCESS;
   return {
     profile: configured.profile,
-    views: [...configured.views],
-    capabilities: [...configured.capabilities],
+    views: [...configured.views, "doors"],
+    capabilities: [...configured.capabilities, "doors:play"],
   };
 }
 

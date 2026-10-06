@@ -438,6 +438,7 @@ async function initialiseControl(){
     return;
   }
   applyAccess(session);
+  if(hasCapability('doors:play'))window.DoorsGame?.initialise(csrfToken,session.user);
   showView(location.hash.slice(1)||'overview',false);
   if(hasCapability('minecraft:read')){
     await refreshMinecraft();
