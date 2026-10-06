@@ -10,7 +10,9 @@ export const cesarDirective='César: el tiempo corre y los tokens cuestan. La co
 const obj=properties=>({type:'object',properties,required:Object.keys(properties),additionalProperties:false});
 const str={type:'string'},num={type:'number'},strings={type:'array',items:str};
 const owner={type:'string',enum:staff};
-export const voiceSchema=obj({facts:str,evidence:strings,idea:str,replyTo:str,uncertainty:str,nextTask:str});
+// The discussion is deliberately short. Schema limits keep one employee from
+// exhausting the response window with repeated context or a long evidence list.
+export const voiceSchema=obj({facts:{type:'string',maxLength:220},evidence:{type:'array',maxItems:2,items:{type:'string',maxLength:80}},idea:{type:'string',maxLength:240},replyTo:{type:'string',maxLength:140},uncertainty:{type:'string',maxLength:160},nextTask:{type:'string',maxLength:200}});
 export const chairSchema=obj({summary:str,officeStatus:str,concerns:str,expectations:str,goals:{type:'array',maxItems:3,items:obj({title:str,owner,dueDate:str})},decisions:{type:'array',maxItems:4,items:obj({title:str,reason:str,owner,kind:{type:'string',enum:['hold','experiment','workflow','visual']},evidence:strings,successMetric:str,reviewDays:num})},assignments:{type:'array',maxItems:6,items:obj({owner,task:str})},reportToCesar:str,codeFiles:{type:'array',maxItems:2,items:{type:'string',enum:developmentFiles}},codeRationale:str});
 export const features=['revenueYoY','netMargin','fcf','debtToEbitda','shareGrowth','pe','pb','roe','return5d','return21d','return63d','relativeVolume','beta1y','averageDollarVolume','marketCap','signalStrength','daysToEvent'];
 const ruleSchema=obj({feature:{type:'string',enum:features},op:{type:'string',enum:['gt','lt']},value:num,points:num});

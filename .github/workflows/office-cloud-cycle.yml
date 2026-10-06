@@ -20,11 +20,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
-      - name: Renew isolated cloud controller
-        env:
-          OFFICE_DEV_TOKEN: ${{ secrets.OFFICE_DEV_TOKEN }}
-          OFFICE_WRANGLER_AUTH: ${{ secrets.OFFICE_WRANGLER_AUTH }}
-        run: node scripts/office-development.mjs auth
       - name: Execute actual paper trading and employee meetings
         env:
           OFFICE_DEV_TOKEN: ${{ secrets.OFFICE_DEV_TOKEN }}

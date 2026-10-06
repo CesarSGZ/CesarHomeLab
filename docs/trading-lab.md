@@ -34,7 +34,9 @@ The IBKR kit, bridge and local preview processes were retired. The bridge ingest
 
 ## Deployment and verification
 
-The backend is provisioned through the existing authorised local Cloudflare OAuth session. The normal Pages workflow remains responsible for the website and its service binding; it does not need D1 administration permissions. An optional manual `deploy-trading.yml` workflow applies the idempotent migration, deploys the Worker, and initializes its encryption secret if missing. That optional workflow requires a separate `CLOUDFLARE_TRADING_API_TOKEN` with D1 and Worker permissions. Alternatively use local authorised Wrangler for backend updates. Tests: `node --test tests/*.test.mjs`. Check the public endpoint rejects unauthorized callers; signed-in owner verification is a separate check.
+Daily controllers use the existing scoped `OFFICE_DEV_TOKEN` through an authenticated database bridge in Pages. The bridge accepts an exact list of parameter-bound office queries; it cannot query other website tables, read encrypted credentials or change authentication. There is no OAuth renewal in cloud cycles, audits or development workflows. The existing `CLOUDFLARE_API_TOKEN` is used only for deployment; it does not require direct D1 administration access. The backend was initially provisioned with an authorised local OAuth session. An optional manual `deploy-trading.yml` workflow for fresh provisioning requires a separate `CLOUDFLARE_TRADING_API_TOKEN` with D1 and Worker permissions. Tests: `node --test tests/*.test.mjs`. Verify actual cycle completion, a subsequent automatically triggered cycle, and rejection of unauthorised API calls before declaring recovery.
+
+Development results are persisted by job ID and lease before updating office state. If the office lease is busy, the next supervisor confirms that result before leasing another patch; uncertain writes are reconciled by reading the unique result rather than repeating the mutation. This records applied/rejected only after the protected state checkpoint succeeds.
 
 
 ## Radar y mejora diaria (2 de octubre de 2026)

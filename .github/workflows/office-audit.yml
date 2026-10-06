@@ -14,11 +14,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
-      - name: Load isolated read credential
-        env:
-          OFFICE_DEV_TOKEN: ${{ secrets.OFFICE_DEV_TOKEN }}
-          OFFICE_WRANGLER_AUTH: ${{ secrets.OFFICE_WRANGLER_AUTH }}
-        run: node scripts/office-development.mjs auth
       - name: Read current office state without executing agents
         env:
           OFFICE_DEV_TOKEN: ${{ secrets.OFFICE_DEV_TOKEN }}
