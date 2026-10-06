@@ -1,6 +1,6 @@
 // Privileged infrastructure RPC. Autonomous role code cannot import this module.
 // SQL is matched literally, including predicates and immutable budget checks.
-export const runtimeDbLimits=Object.freeze({bodyBytes:2*1024*1024,batchSize:10,payloadBytes:1950000});
+export const runtimeDbLimits=Object.freeze({bodyBytes:16*1024*1024,batchSize:10,payloadBytes:12*1024*1024});
 const integer=x=>Number.isSafeInteger(x)&&x>=0;
 const amount=x=>typeof x==='number'&&Number.isFinite(x)&&x>=0&&x<=1e6;
 const reserve=x=>amount(x)&&x<=10;

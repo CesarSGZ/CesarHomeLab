@@ -22,7 +22,7 @@ export function cloudDatabase({config,officeToken=process.env.OFFICE_DEV_TOKEN,a
   // Reads can be safely repeated after a timeout or server rejection. Mutations
   // must retain uncertain outcomes, including lease acquisition and book writes.
   if(readOnly&&(r.status===429||r.status>=500)&&attempt<3){await sleep(2000*2**attempt);continue;}
-  if(!r.ok||!j.success||j.result?.some(x=>!x.success))throw Error('D1 remoto HTTP '+r.status+' '+String(j.errors?.[0]?.message||'consulta rechazada').slice(0,100));return j.result;
+  if(!r.ok||!j.success||j.result?.some(x=>!x.success))throw Error('D1 remoto HTTP '+r.status+' '+String(j.errors?.[0]?.message||j.error||'consulta rechazada').slice(0,100));return j.result;
  }};
  const prepare=(sql,params=[])=>({sql,params,bind(...p){return prepare(sql,p);},async first(column){const row=(await query({sql,params}))[0].results?.[0]||null;return column?row?.[column]??null:row;},async all(){return (await query({sql,params}))[0];},async run(){return (await query({sql,params}))[0];}});
  return {prepare,batch:statements=>query({batch:statements.map(({sql,params})=>({sql,params}))})};

@@ -1,4 +1,5 @@
 import {writeFileSync} from 'node:fs';
+import {runtimeDbLimits} from '../trading-worker/runtime-db.js';
 const account='dc66931243377cb773c0a9aa355cad15';
 const database='799a8dfb-7cea-47a9-9e47-79b767013be4';
 const cfHeaders={Authorization:'Bearer '+process.env.CLOUDFLARE_API_TOKEN,'Content-Type':'application/json'};
@@ -24,5 +25,7 @@ for(const [name,sql,writeSql] of [
  const payload=data.result?.[0]?.results?.[0]?.payload||'{}',now=Date.now();
  const encoded=JSON.stringify({action:'runtime-db',sql:writeSql,params:name==='state'?[payload,now,now+900000,'00000000-0000-0000-0000-000000000000']:[payload,now]});
  const payloadBytes=Buffer.byteLength(payload),envelopeBytes=Buffer.byteLength(encoded);
- console.log(JSON.stringify({check:'runtime-payload-size',name,payloadBytes,envelopeBytes,withinLimit:payloadBytes<=1950000&&envelopeBytes<=2*1024*1024}));
+ const withinLimit=payloadBytes<=runtimeDbLimits.payloadBytes&&envelopeBytes<=runtimeDbLimits.bodyBytes;
+ console.log(JSON.stringify({check:'runtime-payload-size',name,payloadBytes,envelopeBytes,withinLimit}));
+ if(!withinLimit)throw Error('Office '+name+' exceeds the configured runtime transport limit');
 }

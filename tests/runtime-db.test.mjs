@@ -93,13 +93,21 @@ test('authorization happens before reading a large or malformed request body',as
  }
  assert.equal(reads,0);assert.equal(f.counters.batch,0);
 });
-test('streamed UTF-8 body size is capped at two MiB without trusting Content-Length',async()=>{
- const tooLarge=new TextEncoder().encode(JSON.stringify({action:'runtime-db',sql:'x',params:['é'.repeat(1050000)]}));
+test('streamed UTF-8 body size is capped without trusting Content-Length',async()=>{
+ const tooLarge=new TextEncoder().encode(JSON.stringify({action:'runtime-db',sql:'x',params:['é'.repeat(runtimeDbLimits.bodyBytes/2)]}));
  assert.ok(tooLarge.length>runtimeDbLimits.bodyBytes);
  const request=new Request('https://fixture.example',{method:'POST',body:new ReadableStream({start(c){c.enqueue(tooLarge);c.close();}}),duplex:'half'});
  await assert.rejects(()=>readRuntimeBody(request),e=>e.status===413);
  const normal=new Request('https://fixture.example',{method:'POST',body:JSON.stringify(statement('SELECT name FROM trading_secrets'))});
  assert.equal((await readRuntimeBody(normal)).body.sql,'SELECT name FROM trading_secrets');
+});
+
+test('the Pages bridge preserves an accumulated office state larger than the measured production payload',async()=>{
+ const f=await fixture(),now=Date.now(),payload=JSON.stringify({nested:{notes:'Evidence "quoted"; café\n'.repeat(240000)}});
+ assert.ok(Buffer.byteLength(payload)>4500000);assert.ok(Buffer.byteLength(payload)<runtimeDbLimits.payloadBytes);
+ const request=new Request('https://fixture.example',{method:'POST',headers:{authorization:'Bearer '+token},body:JSON.stringify(statement('INSERT OR IGNORE INTO trading_state (id,payload,updated_at) VALUES (1,?,?)',[payload,now]))});
+ const response=await pagesRequest({request,env:f.env});assert.equal(response.status,200);assert.equal((await response.json()).success,true);
+ assert.equal(f.sqlite.prepare('SELECT payload FROM trading_state WHERE id=1').get().payload,payload);
 });
 test('database errors are exposed as transient server failures rather than successful or replayed mutations',async()=>{
  const f=await fixture();f.env.CONTROL_DB.batch=async()=>{throw Error('D1 unavailable');};
