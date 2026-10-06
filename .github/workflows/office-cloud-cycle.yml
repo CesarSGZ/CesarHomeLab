@@ -20,15 +20,15 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
-      - name: Execute actual paper trading and employee meetings
+      - name: Run one office cycle
         env:
           OFFICE_DEV_TOKEN: ${{ secrets.OFFICE_DEV_TOKEN }}
         run: node scripts/office-cloud-cycle.mjs
-      - name: Pace cloud relay without spending model tokens
+      - name: Wait for the next 5-minute slot
         if: always()
         run: sleep 240
-      - name: Hand over to Cadaqui supervisor
+      - name: Hand over to the watchdog
         if: always()
         env:
           GH_TOKEN: ${{ github.token }}
-        run: node scripts/office-relay.mjs office-development.yml
+        run: node scripts/office-relay.mjs office-watchdog.yml

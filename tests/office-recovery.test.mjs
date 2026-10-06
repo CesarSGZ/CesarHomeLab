@@ -28,14 +28,14 @@ test('a required manual resume is explicitly pending rather than silently accept
 
 test('an expired lease with stale state recovers once while a fresh motor remains untouched',async()=>{
  const stale=fixture({lease:now-1,state:{lastTick:now-11*60e3,lastError:null}}),result=await runOfficeRecovery(stale.options);
- assert.equal(result.status,'recovered');assert.deepEqual(stale.actions,['read-lease','read-cache','lock','log:designer','cycle']);
+ assert.equal(result.status,'recovered');assert.deepEqual(stale.actions,['read-lease','read-cache','lock','log:system','cycle']);
  const fresh=fixture({lease:now-1});assert.equal((await runOfficeRecovery(fresh.options)).status,'healthy');assert.deepEqual(fresh.actions,['read-lease','read-cache']);
 });
 
 test('manual resume is applied before recovery only after the lease is free',async()=>{
  const f=fixture({lease:now-1,state:null});f.options.resumeEntries=true;const result=await runOfficeRecovery(f.options);
  assert.equal(result.status,'recovered');assert.equal(result.resumeApplied,true);assert.equal(f.office.paused,false);
- assert.deepEqual(f.actions,['read-lease','lock','log:boss','read-cache','lock','log:designer','cycle']);
+ assert.deepEqual(f.actions,['read-lease','lock','log:boss','read-cache','lock','log:system','cycle']);
 });
 
 test('a race is a routine wait only for the specific busy error and a newly confirmed occupied lease',async()=>{

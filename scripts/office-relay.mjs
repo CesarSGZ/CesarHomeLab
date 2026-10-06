@@ -8,14 +8,14 @@ function queueGate(runs,workflow,now){
  if(pending.length!==1||queued.length!==1)return {blocked:true,reason:'Ya hay un relevo activo o varias peticiones en cola',pendingRuns:pending.map(r=>({id:r.id,status:r.status}))};
  const run=queued[0],createdAt=Date.parse(run.created_at),ageMs=now-createdAt;
  if(!Number.isFinite(createdAt)||ageMs<staleQueueAfterMs)return {blocked:true,reason:'Ya hay un relevo en cola; todavía no se considera antiguo',queuedRunId:run.id,queuedAgeMs:Number.isFinite(ageMs)?ageMs:null};
- // A manual development run may carry resume_entries or deployment/audit work.
- // Its inputs are not available here, so never replace it with a cheap relay.
- if(workflow==='office-development.yml'&&!['schedule','workflow_run'].includes(run.event))return {blocked:true,reason:'La cola de desarrollo puede contener una petición manual; no se sustituye automáticamente',queuedRunId:run.id,queuedAgeMs:ageMs};
+ // A manual watchdog run may carry resume_entries. Its inputs are not available
+ // here, so never replace it with a cheap relay.
+ if(workflow==='office-watchdog.yml'&&!['schedule','workflow_run'].includes(run.event))return {blocked:true,reason:'La cola del supervisor puede contener una petición manual; no se sustituye automáticamente',queuedRunId:run.id,queuedAgeMs:ageMs};
  if(!Number.isSafeInteger(run.id)||run.id<=0)return {blocked:true,reason:'La petición antigua no tiene una identidad válida; no se sustituye automáticamente'};
  return {blocked:true,recoverable:true,runId:run.id,ageMs};
 }
 export async function relay({workflow,repository,token,fetcher=fetch,now=()=>Date.now(),pause=ms=>new Promise(resolve=>setTimeout(resolve,ms))}) {
- if(!['office-cloud-cycle.yml','office-development.yml'].includes(workflow)||repository!=='CesarSGZ/CesarHomeLab'||!token)throw Error('Relevo de oficina fuera de ámbito');
+ if(!['office-cloud-cycle.yml','office-watchdog.yml'].includes(workflow)||repository!=='CesarSGZ/CesarHomeLab'||!token)throw Error('Relevo de oficina fuera de ámbito');
  const base='https://api.github.com/repos/'+repository+'/actions/workflows/'+workflow;
  const headers={Authorization:'Bearer '+token,Accept:'application/vnd.github+json','Content-Type':'application/json'};
  const listRuns=async()=>{let response;
@@ -39,7 +39,7 @@ export async function relay({workflow,repository,token,fetcher=fetch,now=()=>Dat
   if(gate.recoverable)recovery={staleQueuedRunId:gate.runId,queuedAgeMs:gate.ageMs};
  }
 
- const body={ref:'main',...(workflow==='office-development.yml'?{inputs:{relay:'true'}}:{})};
+ const body={ref:'main',...(workflow==='office-watchdog.yml'?{inputs:{relay:'true'}}:{})};
  const dispatchStartedAt=now();let next;
  try{next=await fetcher(base+'/dispatches',{method:'POST',headers,body:JSON.stringify(body),signal:AbortSignal.timeout(30000)});}
  catch(error){

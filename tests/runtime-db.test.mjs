@@ -1,12 +1,12 @@
-import {developmentResultBody,queueDevelopmentResult,drainDevelopmentResults} from '../scripts/office-development-results.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';
 import {readFileSync} from 'node:fs';
 import {runtimeDatabase,validateRuntimeDbRequest,runtimeSqlStatements,runtimeDbLimits,readRuntimeBody} from '../trading-worker/runtime-db.js';
-import {onRequest as pagesRequest} from '../functions/api/trading/development.js';
+import {onRequest as pagesRequest} from '../functions/api/trading/runtime.js';
 import worker from '../trading-worker/index.js';
-import {locked,llm} from '../trading-worker/engine.js';
+import {locked} from '../trading-worker/store.js';
+import {callModel} from '../trading-worker/v2/llm.js';
 
 const token='fixture-runtime-developer-token-never-real';
 const statement=(sql,params=[])=>({action:'runtime-db',sql,params});
@@ -59,22 +59,23 @@ test('actual engine lock and cost settlement use the exact RPC without OAuth or 
  const f=await fixture(),db=client(f.env),env={CONTROL_DB:db,OPENAI_RUNTIME_KEY:'fixture-openai-key-never-real'};
  const saved=globalThis.fetch;let calls=0;
  globalThis.fetch=async url=>{assert.equal(url,'https://api.openai.com/v1/responses');calls++;return Response.json({status:'completed',usage:{input_tokens:1000,output_tokens:100},output:[{type:'message',content:[{type:'output_text',text:'{"approve":true}'}]}]});};
- try{await locked(env,async s=>{s.real.book.fx={rate:1.16};const reply=await llm(env,s,'analyst','Fixture analysis',{}, {type:'object',properties:{approve:{type:'boolean'}},required:['approve'],additionalProperties:false},{light:true});assert.equal(reply.approve,true);});}
+ try{await locked(env,async s=>{s.real.book.fx={rate:1.16};const reply=await callModel(env,s,{agent:'analyst',instructions:'Fixture analysis',input:{},schema:{type:'object',properties:{approve:{type:'boolean'}},required:['approve'],additionalProperties:false}});assert.equal(reply.data.approve,true);});}
  finally{globalThis.fetch=saved;}
  assert.equal(calls,1);assert.equal(f.sqlite.prepare('SELECT lock_until FROM trading_state').get().lock_until,0);
  assert.equal(f.sqlite.prepare('SELECT status FROM trading_calls').get().status,'complete');assert.ok(f.sqlite.prepare('SELECT spent_eur FROM trading_operating_budget').get().spent_eur>0);
 });
 test('current engine and infrastructure literal queries are covered, with credential operations deliberately excluded',()=>{
- const paths=['trading-worker/engine.js','scripts/office-cloud-cycle.mjs','scripts/office-recovery.mjs','scripts/office-availability.mjs'];
+ const paths=['trading-worker/store.js','trading-worker/v2/llm.js','trading-worker/v2/cycle.js','scripts/office-cloud-cycle.mjs','scripts/office-recovery.mjs','scripts/office-availability.mjs'];
  const protectedSql=new Set(['SELECT cipher,iv FROM trading_secrets WHERE name=?','DELETE FROM trading_secrets WHERE name=?','INSERT INTO trading_secrets (name,cipher,iv,updated_at) VALUES (?,?,?,?) ON CONFLICT(name) DO UPDATE SET cipher=excluded.cipher,iv=excluded.iv,updated_at=excluded.updated_at']);
- const allowed=new Set(runtimeSqlStatements);let checked=0;
+ const allowed=new Set(runtimeSqlStatements),used=new Set();let checked=0;
  for(const path of paths){const source=readFileSync(new URL('../'+path,import.meta.url),'utf8');
   for(const m of source.matchAll(/\.prepare\(\s*(['"])((?:\\.|(?!\1)[^\\])*)\1\s*\)/g)){
    const sql=m[2].replace(/\\'/g,"'").replace(/\\"/g,'"');if(protectedSql.has(sql)){assert.ok(!allowed.has(sql));continue;}
-   assert.ok(allowed.has(sql),'Missing legitimate runtime query in '+path+': '+sql);checked++;
+   assert.ok(allowed.has(sql),'Missing legitimate runtime query in '+path+': '+sql);used.add(sql);checked++;
   }
  }
- assert.ok(checked>=30);
+ assert.ok(checked>=25);
+ assert.deepEqual(runtimeSqlStatements.filter(sql=>!used.has(sql)),[],'the allowlist carries no statement the engine no longer sends');
 });
 test('Pages executes authenticated RPC directly through D1 and Worker enforces the same allowlist',async()=>{
  const f=await fixture();
@@ -115,12 +116,3 @@ test('database errors are exposed as transient server failures rather than succe
  assert.equal(response.status,503);assert.equal((await response.json()).success,false);assert.equal(f.sqlite.prepare('SELECT COUNT(*) AS n FROM trading_budget').get().n,0);
 });
 
-test('durable development results use the RPC for their DDL, queue, reads and acknowledgements without duplicate completion',async()=>{
- const f=await fixture(),db=client(f.env),commit='a'.repeat(40),job={id:'job-fixture',lease:'lease-fixture',status:'running',summary:'Verified infrastructure change',meetingId:'meeting-fixture'};
- await locked({CONTROL_DB:db},s=>{s.company.development=[job];});
- const before=JSON.parse(f.sqlite.prepare('SELECT payload FROM trading_state').get().payload),body=developmentResultBody(job,{status:'applied',commit});
- assert.equal((await queueDevelopmentResult(db,body)).persisted,true);
- const result=await drainDevelopmentResults({db,withLock:locked});assert.equal(result.recorded,1);assert.equal(result.remaining,0);
- const after=JSON.parse(f.sqlite.prepare('SELECT payload FROM trading_state').get().payload);assert.equal(after.company.development[0].status,'applied');assert.equal(after.company.development[0].commit,commit);assert.deepEqual(after.real.book,before.real.book);
- assert.equal((await drainDevelopmentResults({db,withLock:locked})).recorded,0);assert.equal(f.sqlite.prepare("SELECT COUNT(*) AS n FROM trading_development_results WHERE status='complete'").get().n,1);
-});

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {relay} from '../scripts/office-relay.mjs';
-const base={workflow:'office-development.yml',repository:'CesarSGZ/CesarHomeLab',token:'fixture'};
+const base={workflow:'office-watchdog.yml',repository:'CesarSGZ/CesarHomeLab',token:'fixture'};
 test('a dispatch accepted before timeout is reconciled without another POST',async()=>{
  let reads=0,posts=0;const dispatchAt=Date.now();
  const result=await relay({...base,now:()=>dispatchAt,pause:async()=>{},fetcher:async(u,o)=>{

@@ -1,0 +1,47 @@
+name: Agent Office watchdog
+# Supervisor sin IA: comprueba que el último ciclo es reciente, lo recupera si no y
+# devuelve el relevo a «Agent Office cloud cycles». Los dos workflows se pasan el
+# testigo para mantener un ciclo cada ~5 min aunque el cron de GitHub se retrase.
+on:
+  workflow_dispatch:
+    inputs:
+      relay:
+        type: boolean
+        default: false
+      resume_entries:
+        description: Reanudar las compras si César las dejó en pausa
+        type: boolean
+        default: false
+  workflow_run:
+    workflows: ['Agent Office cloud cycles']
+    types: [completed]
+  schedule:
+    - cron: '7,22,37,52 * * * *'
+permissions:
+  contents: read
+  actions: write
+jobs:
+  watchdog:
+    if: ${{ github.event_name != 'workflow_run' || (github.event.workflow_run.conclusion == 'failure' && github.event.workflow_run.head_branch == 'main' && github.event.workflow_run.head_repository.full_name == github.repository) }}
+    concurrency:
+      group: office-cloud-controller
+      cancel-in-progress: false
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Recover a late or failed cycle
+        env:
+          OFFICE_DEV_TOKEN: ${{ secrets.OFFICE_DEV_TOKEN }}
+          OFFICE_RESUME_ENTRIES: ${{ github.event_name == 'workflow_dispatch' && inputs.resume_entries && '1' || '0' }}
+        run: node scripts/office-recover.mjs
+      - name: Hand over to the next cloud cycle
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/office-relay.mjs office-cloud-cycle.yml

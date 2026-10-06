@@ -65,8 +65,6 @@ export function initCompany(s, now = Date.now()) {
     days: {}, months: {}, office: {upgrades: [], purchases: []}, owner: [], reviewedUntil: now, radarCursor: 0,
     stats: {turnCostEur: 0.0008, web: {day: '', n: 0, fails: 0}, deep: {day: '', n: 0}, errors: 0, lastErrorAt: 0}
   };
-  // Los trabajos de autoprogramación heredados quedan retirados: la libertad ahora es por datos.
-  for (const job of s.company?.development || []) if (['queued', 'running'].includes(job.status)) { job.status = 'rejected'; job.error = 'Retirado: Agent Office v2 no modifica su propio código'; }
   emit(s.v2, 'system', {text: 'Nueva etapa de la oficina: equipo con libertad total sobre estrategia, riesgo y ritmo. La cartera y el alquiler siguen donde estaban.'}, now);
   return s.v2;
 }

@@ -2,11 +2,12 @@
 // 1) datos gratis por código: radar, cambio, precios, stops y órdenes pendientes;
 // 2) IA con el presupuesto repartido: reunión si toca y turnos de los empleados;
 // 3) diario y estado para el dashboard.
-import {locked, load, log, scout, operatingBudget, cost} from '../engine.js';
+import {locked, load, log, operatingBudget, cost} from '../store.js';
+import {scout} from '../radar.js';
 import {equity, day, sample, freshQuote, fxValid} from '../core.js';
 import {regularSession, parseChart, referenceSource} from '../market-data.js';
 import {openPosition, closePosition, settlePositions, positionEur, positionPnl, invested, buyingPower, bookStats} from './book.js';
-import {callModel, OfficeError} from './llm.js';
+import {callModel} from './llm.js';
 import {STAFF, staffById, RENT_TARGET, OFFICE_CATALOG, initCompany, emit, tell, expireIdeas, madrid, companyMood, eur, boardLines, policyLabel} from './company.js';
 import {takeTurn, workFor, brief, HOUSE} from './agents.js';
 import {meetingDue, holdMeeting} from './meeting.js';

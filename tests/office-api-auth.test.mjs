@@ -1,12 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {readFileSync} from 'node:fs';
-test('daily cycles, audits and development cannot rotate the personal OAuth session',()=>{
- for(const name of ['office-cloud-cycle','office-audit','office-development']){
+import {readFileSync,readdirSync} from 'node:fs';
+test('office workflows run with the scoped runner token only and never deploy or touch Cloudflare credentials',()=>{
+ for(const name of ['office-cloud-cycle','office-watchdog']){
   const workflow=readFileSync(new URL('../.github/workflows/'+name+'.yml',import.meta.url),'utf8');
-  assert.doesNotMatch(workflow,/OFFICE_WRANGLER_AUTH|OFFICE_FORCE_REFRESH|office-development\.mjs (?:auth|save-auth)/);
-  assert.match(workflow,/OFFICE_DEV_TOKEN/);
+  assert.doesNotMatch(workflow,/CLOUDFLARE_|wrangler|contents: write|git push/);
+  assert.match(workflow,/OFFICE_DEV_TOKEN/);assert.match(workflow,/office-cloud-controller/);
  }
- const controller=readFileSync(new URL('../scripts/office-development.mjs',import.meta.url),'utf8');
- assert.doesNotMatch(controller,/oauth2\/token|refresh_token|deployment-auth|\.wrangler\/config/);
+ for(const file of readdirSync(new URL('../scripts/',import.meta.url)).filter(f=>f.startsWith('office-')))assert.doesNotMatch(readFileSync(new URL('../scripts/'+file,import.meta.url),'utf8'),/oauth2\/token|refresh_token|execFileSync|git /);
 });

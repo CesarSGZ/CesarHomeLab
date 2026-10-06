@@ -1,5 +1,5 @@
 import {cloudDatabase} from './office-cloud-db.mjs';
-import {locked,log} from '../trading-worker/engine.js';
+import {locked,log} from '../trading-worker/store.js';
 import {cycle,status} from '../trading-worker/v2/cycle.js';
 import worker from '../trading-worker/index.js';
 import {installPublicDataBridge} from './office-cloud-fetch.mjs';
@@ -10,7 +10,7 @@ const r=await fetch('https://cesar-solla.pages.dev/api/trading/development',{met
 if(!r.ok)throw Error('Conexión segura de IA HTTP '+r.status);const {key}=await r.json();if(key&&process.env.GITHUB_ACTIONS==='true')console.log('::add-mask::'+key);
 const env={CONTROL_DB:db,OPENAI_RUNTIME_KEY:key};
 installPublicDataBridge(process.env.OFFICE_DEV_TOKEN);
-async function publish(){const live=await status(env);live.connections.encryption=!!key;live.connections.serviceHealthy=true;live.connections.execution='GitHub Actions · frecuencia objetivo 5 min';live.commands=(await db.prepare('SELECT id,path,status,completed_at,result FROM trading_command_queue ORDER BY created_at DESC LIMIT 10').all()).results.map(c=>({id:c.id,path:c.path,status:c.status,completedAt:c.completed_at,error:c.result?JSON.parse(c.result).error:null}));await db.prepare('INSERT INTO trading_status_cache(id,payload,updated_at) VALUES(1,?,?) ON CONFLICT(id) DO UPDATE SET payload=excluded.payload,updated_at=excluded.updated_at').bind(JSON.stringify(live),Date.now()).run();return live;}
+async function publish(){const live=await status(env);live.commands=(await db.prepare('SELECT id,path,status,completed_at,result FROM trading_command_queue ORDER BY created_at DESC LIMIT 10').all()).results.map(c=>({id:c.id,path:c.path,status:c.status,completedAt:c.completed_at,error:c.result?JSON.parse(c.result).error:null}));await db.prepare('INSERT INTO trading_status_cache(id,payload,updated_at) VALUES(1,?,?) ON CONFLICT(id) DO UPDATE SET payload=excluded.payload,updated_at=excluded.updated_at').bind(JSON.stringify(live),Date.now()).run();return live;}
 const progress=startOfficeProgress(publish);
 let ran=false,live,failure=null,outcome;
 try{

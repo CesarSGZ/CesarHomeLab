@@ -24,12 +24,12 @@ export async function runOfficeRecovery({db,withLock,logger,runCycle,resumeEntri
  };
  const lease=await readLease();if(lease.status==='busy')return defer(lease);
  if(resumeEntries){
-  const busy=await guardedLock(s=>{s.paused=false;logger(s,'boss','César solicita continuar la preparación y las compras ficticias condicionadas; nuevas entradas reanudadas. No se fuerza ninguna orden.');});
+  const busy=await guardedLock(s=>{s.paused=false;logger(s,'boss','César reanuda las compras desde el supervisor.');});
   if(busy)return busy;resumeApplied=true;
  }
  const row=await db.prepare('SELECT payload,updated_at FROM trading_status_cache WHERE id=1').first(),state=row?JSON.parse(row.payload):null,decision=recoveryDecision(state,null,clock());
  if(decision.status!=='recover')return {...decision,resumeApplied};
- const busy=await guardedLock(s=>logger(s,'designer','Supervisor de Cadaqui: ciclo atrasado o fallido; se ejecuta recuperación automática sin llamada a IA.','warning'));
+ const busy=await guardedLock(s=>logger(s,'system','Supervisor: ciclo atrasado o fallido; se ejecuta recuperación automática.','warning'));
  if(busy)return busy;
  await runCycle();return {status:'recovered',reason:'Recuperación ejecutada y estado publicado',resumeApplied};
 }

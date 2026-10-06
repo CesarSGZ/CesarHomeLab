@@ -7,7 +7,7 @@ import {DatabaseSync} from 'node:sqlite';
 import {validateRuntimeDbRequest} from '../trading-worker/runtime-db.js';
 import {cycle, status, ownerCommand, planTurns} from '../trading-worker/v2/cycle.js';
 import {callModel} from '../trading-worker/v2/llm.js';
-import {locked} from '../trading-worker/engine.js';
+import {locked} from '../trading-worker/store.js';
 import {checkPolicy, companyMood, initCompany} from '../trading-worker/v2/company.js';
 import {equity} from '../trading-worker/core.js';
 

@@ -2,7 +2,6 @@
 // acciones validadas por código. Cada empleado solo ve lo que su puesto necesita.
 import {equity, freshQuote} from '../core.js';
 import {buyingPower, invested, positionEur, positionPnl, adjustPosition, bookStats} from './book.js';
-import {callModel} from './llm.js';
 import {STAFF, staffById, RENT_TARGET, OFFICE_CATALOG, POLICY_HELP, checkPolicy, setPolicy, policyLabel, emit, tell, findIdea, newIdea, madrid, eur} from './company.js';
 
 const IDS = STAFF.map(s => s.id);

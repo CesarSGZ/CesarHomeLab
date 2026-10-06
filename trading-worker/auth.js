@@ -1,0 +1,2 @@
+// Agent Office · autenticación del ejecutor en la nube (token de servicio con hash en D1).
+export async function authorisedRunner(request,env){const bearer=request.headers.get('authorization')||'';if(!bearer.startsWith('Bearer ')||bearer.length>300)return false;const row=await env.CONTROL_DB.prepare('SELECT token_hash FROM trading_dev_auth WHERE id=1').first();if(!row)return false;const hash=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(bearer.slice(7)));return [...new Uint8Array(hash)].map(x=>x.toString(16).padStart(2,'0')).join('')===row.token_hash;}

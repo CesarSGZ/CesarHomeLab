@@ -72,13 +72,21 @@ el tiempo. Cafés, paseos y charlas de pasillo son vida local sin IA, y su tono 
 real (ritmo del alquiler, resultado del día y tokens). César puede escribir al equipo, convocar una
 reunión, pausar compras o empleados y cerrar posiciones.
 
-## Código heredado
+## Infraestructura (`trading-worker/`)
 
-`trading-worker/*.js` fuera de `v2/` conserva lo que el motor nuevo reutiliza: bloqueo y estado
-(`engine.js: locked/load`), contabilidad base (`core.js`), radar (`discovery.js`, `fundamentals.js`),
-precios (`market-data.js`) y el puente (`runtime-db.js`). El resto (`company.js`, `governance.js`,
-`preparation.js`, `launch.js`, `employee-agents.js`…) ya no se ejecuta en producción y puede
-eliminarse, junto con sus pruebas, cuando la v2 lleve unos días estable.
+| Archivo | Qué hace |
+| --- | --- |
+| `store.js` | Estado en D1: carga, bloqueo con lease, secretos cifrados y presupuesto del mes |
+| `core.js` | Contabilidad base: capital, ventas, stops/objetivos/plazos, validez de precios |
+| `radar.js`, `discovery.js`, `fundamentals.js` | Radar sin IA: catálogo Nasdaq, calendario de resultados, SEC 8-K, PR Newswire y fichas financieras |
+| `market-data.js` | Sesión de Nueva York y lectura de precios de Yahoo |
+| `runtime-db.js` | Puente SQL del ejecutor: lista cerrada de sentencias con parámetros validados |
+| `index.js`, `auth.js`, `public-data-proxy.js` | Servicio interno (órdenes de César en cola, clave de IA, proxy de datos públicos) |
+
+Workflows: `office-cloud-cycle.yml` ejecuta un ciclo y pasa el relevo a `office-watchdog.yml`, que
+comprueba que el motor va al día (y lo recupera si no) y devuelve el relevo. Ninguno despliega nada
+ni escribe en el repositorio. El motor anterior (gobierno, lanzamiento, autoprogramación) se eliminó;
+al cargar el estado se descartan sus datos y se conservan cartera, ledger y `v2`.
 
 ## Verificación
 

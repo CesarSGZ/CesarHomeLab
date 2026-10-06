@@ -1,7 +1,7 @@
 // Agent Office v2 · única puerta a la IA. Reserva el coste antes de llamar y lo
 // liquida con el uso real, sobre el mismo ledger D1 que ya llevaba el alquiler.
 // Las sentencias SQL son literales: el puente runtime-db solo acepta estas.
-import {secret, operatingBudget} from '../engine.js';
+import {secret} from '../store.js';
 import {day} from '../core.js';
 
 export const MODELS = {light: 'gpt-6-luna', deep: 'gpt-6.1-sol'};
@@ -70,11 +70,4 @@ export async function callModel(env, s, {agent, instructions, input, schema, max
   let data;
   try { data = JSON.parse(out); } catch { throw Object.assign(new OfficeError('ia_respuesta', j.status === 'incomplete' ? 'Respuesta de IA cortada' : 'Respuesta de IA ilegible'), {costEur}); }
   return {data, costEur, sources, model};
-}
-
-// Foto del presupuesto para repartir turnos: cuánto queda este mes y hoy.
-export async function budgetSnapshot(env, s) {
-  const op = await operatingBudget(env, s);
-  const byAgent = {};
-  return {...op, byAgent};
 }
