@@ -5,7 +5,7 @@ test('office scoped transport avoids Cloudflare credentials and preserves D1 bat
  const requests=[],db=cloudDatabase({officeToken:'fixture-office-token',apiToken:'unrelated-page-token',config:{unusableOAuth:true},fetcher:async(url,options)=>{requests.push({url,headers:options.headers,body:JSON.parse(options.body)});return Response.json({success:true,result:[{success:true,results:[{n:1}]}]});}});
  assert.equal(await db.prepare('SELECT COUNT(*) AS n FROM trading_calls WHERE day=?').bind('2026-10-06').first('n'),1);
  await db.batch([db.prepare('SELECT name FROM trading_secrets')]);
- assert.equal(requests[0].url,'https://cesar-solla.pages.dev/api/trading/development');assert.equal(requests[0].headers.Authorization,'Bearer fixture-office-token');
+ assert.equal(requests[0].url,'https://cesar-solla.pages.dev/api/trading/runtime');assert.equal(requests[0].headers.Authorization,'Bearer fixture-office-token');
  assert.deepEqual(requests[0].body,{action:'runtime-db',sql:'SELECT COUNT(*) AS n FROM trading_calls WHERE day=?',params:['2026-10-06']});
  assert.deepEqual(requests[1].body,{action:'runtime-db',batch:[{sql:'SELECT name FROM trading_secrets',params:[]}]});
 });

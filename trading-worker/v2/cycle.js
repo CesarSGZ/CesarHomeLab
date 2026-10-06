@@ -93,6 +93,7 @@ export function pickAgents(s, phase, now) {
     const a = v2.agents[m.id]; if (a.paused) return null;
     const inbox = a.inbox.length, work = workFor(s, m.id).length, due = cadenceDue(s, m.id, phase, now, phase === 'session'), waiting = a.waitUntil > now;
     if (!inbox && !work && (waiting || !due)) return null;
+    if (!inbox && waiting && work <= (a.workSeen || 0)) return null; // pidió descanso con ese mismo trabajo delante: se respeta
     if (phase === 'night' && !inbox && !work) return null;
     return {m, score: inbox * 30 + work * 40 + (due ? 10 + Math.min(60, (now - a.lastAt) / 60e3) : 0)};
   }).filter(Boolean).sort((x, y) => y.score - x.score).map(x => x.m);
@@ -225,7 +226,7 @@ export function ownerCommand(s, path, body, now = Date.now()) {
     const key = String(body.item || '').toLowerCase(), item = OFFICE_CATALOG[key]; if (!item) throw Error('Eso no está en el catálogo');
     if (v2.office.upgrades.includes(key)) throw Error('Eso ya está en la oficina');
     v2.office.upgrades.push(key); v2.office.purchases.push({item: key, eur: 0, at: now, by: 'cesar'}); // regalo del dueño: no toca la caja
-    emit(v2, 'upgrade', {agent: 'cesar', item: key, label: item.label + ' (regalo de César)', text: 'César regala ' + item.label}, now); return;
+    emit(v2, 'upgrade', {agent: 'cesar', gift: true, item: key, label: item.label, text: 'César regala ' + item.label}, now); return;
   }
   throw Error('Acción desconocida');
 }

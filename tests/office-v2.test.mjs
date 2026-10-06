@@ -194,3 +194,20 @@ test('sin novedades no se gasta una ronda: se espera cuatro veces más', async (
     await cycle(f.env, {...f.opts, radar: async () => {}}); assert.equal(f.calls.at(-1).who, 'AUGUSTO'); assert.equal(f.calls.length, first + 1);
   } finally { mock.timers.reset(); }
 });
+
+test('un cierre se revisa una vez y un descanso con el mismo trabajo delante se respeta', async () => {
+  clockAt(T0); const f = fixture();
+  try {
+    f.script['turn:SANTI'] = c => c.input.ideasEnCurso.length ? turn([act('wait', {value: '240'})])() : turn([act('pitch', {symbol: 'AAPL', text: 'Resultados el jueves y viene con volumen fuerte'})])();
+    f.script['turn:PEDRO'] = turn([act('wait', {value: '120'})]); // Pedro decide no hacer el plan todavía
+    for (let i = 0; i < 6; i++) { await cycle(f.env, f.opts); mock.timers.tick(5 * 60e3); }
+    assert.equal(f.calls.filter(c => c.who === 'PEDRO').length, 1, 'con la misma candidata delante y habiendo pedido descanso no se le vuelve a llamar');
+    await locked(f.env, s => { s.v2.ideas[0].status = 'descartada'; const b = s.real.book; b.closed.push({symbol: 'MSFT', pnl: -50, entry: 50, exit: 48, reason: 'stop', openedAt: Date.now() - 864e5, closedAt: Date.now(), thesis: 'x'}); });
+    f.script['turn:AUGUSTO'] = c => turn(c.input.cerradasSinRevisar.length ? [act('wait', {value: '30'})] : [act('wait', {value: '240'})])();
+    await cycle(f.env, f.opts); mock.timers.tick(45 * 60e3); await cycle(f.env, f.opts);
+    const seen = f.calls.filter(c => c.who === 'AUGUSTO').map(c => c.input.cerradasSinRevisar.length);
+    assert.equal(seen.at(-1), 1, 'Augusto ve el cierre una vez: ' + seen.join(','));
+    assert.equal(seen.filter(n => n === 1).length, 1, 'aunque no apunte lección, el cierre no vuelve como trabajo pendiente');
+    assert.equal((await status(f.env)).agents.find(a => a.id === 'auditor').work, 0);
+  } finally { mock.timers.reset(); }
+});

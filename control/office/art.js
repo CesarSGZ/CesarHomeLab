@@ -23,7 +23,8 @@ const GL = {
   4: '101101111001001', 5: '111100110001110', 6: '011100111101111', 7: '111001010010010', 8: '111101111101111', 9: '111101111001110',
   '.': '000000000000010', ',': '000000000010100', ':': '000010000010000', '-': '000000111000000', '+': '000010111010000',
   '%': '101001010100101', '/': '001001010100100', '€': '011110100110011', '$': '011110010011110', '!': '010010010000010',
-  '?': '110001010000010', '>': '100010001010100', '<': '001010100010001', '=': '000111000111000', '·': '000000010000000'
+  '?': '110001010000010', '>': '100010001010100', '<': '001010100010001', '=': '000111000111000', '·': '000000010000000',
+  '~': '000011110000000', "'": '010010000000000', '(': '001010010010001', ')': '100010010010100', '¡': '010000010010010', '¿': '010000010100011', '«': '000011110011000', '»': '000110011110000'
 };
 const plain = s => String(s).normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase();
 export function text(g, str, x, y, c, max = 999) {
@@ -187,6 +188,10 @@ export function monitor(g, x, y, mode, t, seed = 0) {
     for (let r = 0; r < 4; r++) { R(g, x + 2, y + 2 + r * 2, 4, 1, '#6f8aa6'); R(g, x + 8, y + 2 + r * 2, 3, 1, (seed + r) % 3 ? PAL.green : PAL.red); }
   } else if (mode === 'code') {
     const o = (t * 4 | 0); for (let r = 0; r < 4; r++) R(g, x + 2 + (r % 2), y + 2 + r * 2, 2 + ((seed * 3 + r * 7 + o) % 7), 1, [PAL.lilac, PAL.blue, PAL.green, '#6f8aa6'][r]);
+  } else if (mode === 'game') {
+    R(g, x + 1, y + 1, 12, 8, '#1d5b3a'); for (let i = 0; i < 4; i++) { R(g, x + 2 + i * 3, y + 2 + ((i + (t | 0)) % 2), 2, 3, '#f6f4ec'); R(g, x + 2 + i * 3, y + 2 + ((i + (t | 0)) % 2), 1, 1, i % 2 ? PAL.red : PAL.ink); } R(g, x + 3 + ((t * 3 | 0) % 7), y + 7, 2, 1, '#f6f4ec');
+  } else if (mode === 'cat') {
+    for (let r = 0; r < 4; r++) R(g, x + 2, y + 2 + r * 2, 2 + ((seed + r * 5 + (t * 8 | 0)) % 9), 1, r % 2 ? PAL.lilac : PAL.amber);
   } else if (mode === 'bars') {
     for (let i = 0; i < 5; i++) { const h = 2 + ((seed * 5 + i * 3 + (t | 0)) % 5); R(g, x + 2 + i * 2, y + 9 - h, 1, h, i % 2 ? PAL.blue : PAL.lilac); }
   }
@@ -202,11 +207,20 @@ export function desk(g, x, y, o) {
   else if (o.seed % 3 === 1) { R(g, x + 42, y + 2, 4, 4, '#f5f5f0'); R(g, x + 46, y + 3, 1, 2, '#f5f5f0'); R(g, x + 43, y + 3, 2, 1, '#6b4324'); }
   else { R(g, x + 40, y + 2, 6, 7, '#f2efe6'); R(g, x + 41, y + 4, 4, 1, '#9aa'); R(g, x + 41, y + 6, 3, 1, '#9aa'); }
 }
-export function plant(g, cx, fy, t, big = true) {
+// health: 'wilt' (mes en peligro), 'bloom' (alquiler pagado) o normal
+export function plant(g, cx, fy, t, big = true, health = '') {
   const s = Math.sin(t * 1.3 + cx) > .6 ? 1 : 0;
+  if (health === 'wilt') {
+    R(g, cx - 4, fy - 1, 9, 2, 'rgba(0,0,0,.2)'); R(g, cx - 3, fy - 7, 7, 7, PAL.pot); R(g, cx - 4, fy - 8, 9, 2, '#cf7a51');
+    if (big) { R(g, cx - 1, fy - 17, 2, 9, '#7a6a3a'); R(g, cx - 6, fy - 13, 5, 3, '#8d7b3f'); R(g, cx - 7, fy - 11, 2, 3, '#8d7b3f'); R(g, cx + 1, fy - 15, 5, 3, '#a08a45'); R(g, cx + 5, fy - 13, 2, 4, '#a08a45'); R(g, cx - 2, fy - 19, 3, 2, '#6f8a3a'); }
+    else { R(g, cx - 4, fy - 11, 9, 3, '#8d7b3f'); R(g, cx - 5, fy - 9, 2, 2, '#a08a45'); R(g, cx + 4, fy - 9, 2, 2, '#a08a45'); }
+    if ((t * .7 + cx | 0) % 9 === 0) R(g, cx + 6, fy - 4, 2, 1, '#a08a45');
+    return;
+  }
   R(g, cx - 4, fy - 1, 9, 2, 'rgba(0,0,0,.2)'); R(g, cx - 3, fy - 7, 7, 7, PAL.pot); R(g, cx - 4, fy - 8, 9, 2, '#cf7a51');
   if (big) { R(g, cx - 6 + s, fy - 17, 5, 9, PAL.leafDark); R(g, cx + 1 + s, fy - 19, 5, 11, PAL.leaf); R(g, cx - 2 + s, fy - 23, 4, 14, PAL.leaf); R(g, cx - 1 + s, fy - 25, 2, 4, PAL.leafLight); R(g, cx - 7 + s, fy - 14, 2, 3, PAL.leaf); R(g, cx + 5 + s, fy - 15, 2, 3, PAL.leafLight); }
   else { R(g, cx - 4, fy - 13, 9, 5, PAL.leaf); R(g, cx - 2 + s, fy - 16, 5, 4, PAL.leafLight); }
+  if (health === 'bloom') { const top = big ? fy - 24 : fy - 16; for (const [dx, dy, c] of [[-4, 6, '#ff8fb1'], [3, 3, '#ffd43b'], [0, 0, '#ff8fb1']]) { R(g, cx + dx + s, top + dy, 2, 2, c); R(g, cx + dx + s, top + dy, 1, 1, '#fff'); } }
 }
 export function sofa(g, x, y) {
   R(g, x, y + 14, 48, 3, 'rgba(0,0,0,.2)'); R(g, x, y - 6, 48, 12, PAL.navy); R(g, x, y - 6, 48, 1, PAL.navyLight); R(g, x + 2, y + 4, 44, 8, PAL.navyLight); R(g, x, y + 2, 4, 12, PAL.navyDark); R(g, x + 44, y + 2, 4, 12, PAL.navyDark); R(g, x + 2, y + 12, 44, 3, PAL.navyDark);
@@ -240,4 +254,54 @@ export function aquarium(g, x, y, t) {
   R(g, x, y + 4, 30, 12, PAL.woodDark); R(g, x, y - 10, 30, 14, '#1f6f9c'); R(g, x, y - 10, 30, 1, PAL.glassEdge); R(g, x + 1, y + 1, 28, 2, '#c8b27a');
   for (let i = 0; i < 3; i++) { const fx = x + 3 + ((t * (5 + i * 2) + i * 9) % 22), fyy = y - 7 + i * 3; R(g, fx, fyy, 3, 2, [PAL.amber, '#ff8a65', PAL.lilac][i]); R(g, fx - 1, fyy, 1, 2, '#fff8'); }
   R(g, x + 22, y - 3, 1, 4, PAL.leafLight); R(g, x + 24, y - 5, 1, 6, PAL.leaf);
+}
+
+// ---------- Vida de oficina ----------
+export function papers(g, x, y, n) { for (let i = 0; i < Math.min(6, n); i++) { R(g, x + (i % 2), y - i * 2, 7, 2, i % 2 ? '#f2efe6' : '#e2ddcf'); R(g, x + 1 + (i % 2), y - i * 2, 4, 1, '#b9b3a4'); } }
+export function cobweb(g, x, y, big) {
+  const c = 'rgba(235,240,245,.85)'; for (let i = 0; i < (big ? 9 : 6); i++) { R(g, x + i, y + i, 1, 1, c); if (i % 2 === 0) { R(g, x + i, y, 1, 1, c); R(g, x, y + i, 1, 1, c); } }
+  R(g, x + 2, y + 1, 2, 1, c); R(g, x + 1, y + 2, 1, 2, c); if (big) { R(g, x + 4, y + 2, 3, 1, c); R(g, x + 2, y + 4, 1, 3, c); R(g, x + 6, y + 7, 1, 3, '#2b2622'); R(g, x + 5, y + 10, 3, 2, '#2b2622'); }
+}
+export function trophy(g, x, y, gold = true) { const c = gold ? '#f2c94c' : '#b9c2cb'; R(g, x, y, 5, 3, c); R(g, x - 1, y, 1, 2, c); R(g, x + 5, y, 1, 2, c); R(g, x + 2, y + 3, 1, 2, c); R(g, x + 1, y + 5, 3, 1, '#6b4324'); R(g, x + 1, y, 1, 1, '#fff'); }
+export function pizza(g, x, y) { R(g, x, y, 12, 9, '#c9a26b'); R(g, x, y, 12, 1, '#e3c08a'); R(g, x + 1, y + 2, 10, 6, '#e8c15a'); for (const [dx, dy] of [[2, 3], [6, 2], [8, 5], [4, 6]]) R(g, x + dx, y + dy, 2, 2, '#c0392b'); R(g, x + 9, y + 2, 2, 3, '#c9a26b'); }
+export function bell(g, x, y, t, ring = 0) {
+  const sw = ring > 0 ? Math.round(Math.sin(t * 30) * 2) : 0;
+  R(g, x + 3, y + 22, 8, 2, 'rgba(0,0,0,.22)'); R(g, x + 6, y, 2, 22, PAL.woodDark); R(g, x + 3, y + 20, 8, 2, PAL.wood); R(g, x + 2, y - 2, 10, 2, PAL.woodDark);
+  R(g, x + 3 + sw, y + 1, 8, 6, '#d9a531'); R(g, x + 4 + sw, y, 6, 1, '#f2c94c'); R(g, x + 2 + sw, y + 7, 10, 2, '#b98a22'); R(g, x + 4 + sw, y + 2, 1, 3, '#fff3b0'); R(g, x + 6 + sw * 2, y + 9, 2, 2, '#6b4324');
+  if (ring > 0) { R(g, x - 1, y + 2, 1, 3, '#fff3b0'); R(g, x + 14, y + 2, 1, 3, '#fff3b0'); R(g, x - 3, y + 1, 1, 5, 'rgba(255,243,176,.5)'); R(g, x + 16, y + 1, 1, 5, 'rgba(255,243,176,.5)'); }
+}
+export function dartboard(g, x, y, dart) {
+  R(g, x, y, 13, 13, '#2b2622'); R(g, x + 1, y + 1, 11, 11, '#e9dfc6'); R(g, x + 2, y + 2, 9, 9, '#27425f'); R(g, x + 3, y + 3, 7, 7, '#e9dfc6'); R(g, x + 4, y + 4, 5, 5, PAL.red); R(g, x + 6, y + 6, 1, 1, '#fff');
+  if (dart) { R(g, x + dart[0], y + dart[1], 1, 1, '#111'); R(g, x + dart[0] + 1, y + dart[1] - 1, 2, 1, PAL.amber); }
+}
+export function neon(g, x, y, str, t) {
+  const on = (t * 7 | 0) % 23 !== 0, c = on ? ['#ff5fa2', '#5ce1ff', '#ffe45c'][(t * .25 | 0) % 3] : '#5a3550', w = textW(str);
+  if (on) { g.globalAlpha = .22; R(g, x - 3, y - 3, w + 6, 11, c); g.globalAlpha = .18; R(g, x - 5, y - 5, w + 10, 15, c); g.globalAlpha = 1; }
+  text(g, str, x, y, c); text(g, str, x, y - 1, 'rgba(255,255,255,' + (on ? .55 : .1) + ')');
+}
+export function coffeePro(g, x, y, t) {
+  R(g, x - 1, y - 16, 16, 18, '#c7ced6'); R(g, x - 1, y - 16, 16, 2, '#f0f3f6'); R(g, x + 1, y - 12, 12, 6, '#1b2026'); R(g, x + 2, y - 11, 4, 2, PAL.green); R(g, x + 8, y - 11, 4, 1, PAL.amber);
+  R(g, x + 3, y - 5, 2, 3, '#6f7985'); R(g, x + 9, y - 5, 2, 3, '#6f7985'); R(g, x + 2, y - 2, 4, 3, '#f5f5f0'); R(g, x + 8, y - 2, 4, 3, '#f5f5f0'); R(g, x + 14, y - 13, 2, 8, '#8f98a3');
+  for (let i = 0; i < 2; i++) { const k = (t * 3 + i * 1.3) % 3; R(g, x + 4 + i * 6, y - 19 - k, 1, 2, `rgba(255,255,255,${.6 - k * .18})`); }
+}
+// gato: st = walk|sit|sleep; dir = left|right
+export function cat(g, cx, fy, t, st = 'sit', dir = 'left') {
+  const c = '#d98a3d', d = '#b06a26', w = '#f6efe2';
+  if (dir === 'right') { g.save(); g.translate(cx * 2, 0); g.scale(-1, 1); }
+  if (st === 'sleep') { R(g, cx - 5, fy - 4, 10, 4, c); R(g, cx - 6, fy - 3, 2, 3, c); R(g, cx - 5, fy - 5, 3, 2, c); R(g, cx - 5, fy - 6, 1, 1, d); R(g, cx - 3, fy - 6, 1, 1, d); R(g, cx + 3, fy - 2, 3, 1, d); R(g, cx - 2, fy - 4, 2, 1, d); R(g, cx + 1, fy - 4, 2, 1, d); }
+  else {
+    const k = st === 'walk' ? (t * 8 | 0) % 2 : 0, sit = st === 'sit';
+    R(g, cx - 4, fy - 1, 9, 1, 'rgba(0,0,0,.2)');
+    R(g, cx - 3, fy - (sit ? 7 : 6), 8, sit ? 6 : 4, c); R(g, cx - 1, fy - (sit ? 6 : 5), 2, 1, d); R(g, cx + 2, fy - (sit ? 6 : 5), 2, 1, d);
+    if (!sit) { R(g, cx - 3 + k, fy - 2, 1, 2, d); R(g, cx - 1 - k, fy - 2, 1, 2, c); R(g, cx + 2 + k, fy - 2, 1, 2, d); R(g, cx + 4 - k, fy - 2, 1, 2, c); } else { R(g, cx - 3, fy - 1, 2, 1, w); R(g, cx, fy - 1, 2, 1, w); }
+    R(g, cx - 6, fy - (sit ? 10 : 9), 5, 4, c); R(g, cx - 6, fy - (sit ? 11 : 10), 1, 1, c); R(g, cx - 2, fy - (sit ? 11 : 10), 1, 1, c); R(g, cx - 5, fy - (sit ? 9 : 8), 1, 1, '#1a1410'); R(g, cx - 3, fy - (sit ? 9 : 8), 1, 1, '#1a1410'); R(g, cx - 5, fy - (sit ? 7 : 6), 2, 1, w);
+    const tail = Math.round(Math.sin(t * 3) * 1.5); R(g, cx + 5, fy - (sit ? 4 : 7) + tail, 1, 3, d); R(g, cx + 6, fy - (sit ? 5 : 8) + tail, 1, 2, d);
+  }
+  if (dir === 'right') g.restore();
+}
+export function roomba(g, x, y, t, rider) { R(g, x - 4, y + 2, 9, 1, 'rgba(0,0,0,.25)'); R(g, x - 4, y - 1, 9, 3, '#2f343b'); R(g, x - 3, y - 2, 7, 1, '#555d68'); R(g, x - 1, y - 2, 2, 1, (t * 2 | 0) % 2 ? PAL.green : '#1d3b2a'); R(g, x - 5, y, 1, 1, '#8f98a3'); R(g, x + 5, y, 1, 1, '#8f98a3'); if (rider) cat(g, x, y - 1, t, 'sit', rider); }
+// etiqueta «E · ACCIÓN» sobre lo que César puede usar
+export function prompt(g, cx, y, label, t) {
+  const w = textW(label) + 15, x = Math.max(2, Math.min(414 - w, Math.round(cx - w / 2))), b = (t * 3 | 0) % 2;
+  R(g, x, y - b, w, 9, 'rgba(12,18,26,.9)'); R(g, x, y - b + 8, w, 1, PAL.amber); R(g, x + 2, y - b + 1, 7, 7, PAL.amber); text(g, 'E', x + 4, y - b + 2, '#1a1410'); text(g, label, x + 12, y - b + 2, '#f3f6fa');
 }

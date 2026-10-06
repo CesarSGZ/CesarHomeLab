@@ -37,7 +37,7 @@ function shell() {
   <div class="ao-main">
     <div class="ao-left">
       <div id="ao-stage"></div>
-      <p class="ao-hint">Clic en un personaje para ver su ficha · con el foco en la oficina, WASD o flechas mueven a César</p>
+      <p class="ao-hint">Tú eres César: <kbd>WASD</kbd> o flechas para moverte, <kbd>E</kbd> para hablar o usar lo que tengas delante, <kbd>Espacio</kbd> saluda, <kbd>F</kbd> choca los cinco, <kbd>1</kbd>–<kbd>6</kbd> llama a alguien y <kbd>H</kbd> enseña la ayuda. También puedes tocar o hacer clic: en el suelo para ir, en un objeto para usarlo y en un personaje para ver su ficha (doble clic para ir a hablarle).</p>
       <form class="ao-owner" id="ao-owner"><label for="ao-owner-text">Háblale al equipo</label><div><input id="ao-owner-text" maxlength="400" placeholder="Ej.: quiero más riesgo esta semana" autocomplete="off"><button type="submit">Enviar</button><button type="button" id="ao-call">Convocar reunión</button></div></form>
       <section class="ao-card ao-today" id="ao-today"></section>
     </div>
@@ -50,7 +50,8 @@ function shell() {
   <nav class="ao-tabs" id="ao-tabs" role="tablist">${[['cartera', 'Cartera'], ['ideas', 'Ideas'], ['reuniones', 'Reuniones'], ['diario', 'Diario'], ['estrategia', 'Estrategia'], ['ajustes', 'Ajustes']].map(([k, l]) => `<button type="button" role="tab" data-tab="${k}">${l}</button>`).join('')}</nav>
   <section class="ao-panel" id="ao-panel"></section>
   <p class="ao-foot">Solo simulación: no hay bróker ni órdenes reales. Los precios son referencias públicas con retraso; las ventas y compras ficticias incluyen deslizamiento y comisión estimados.</p>`;
-  office = createOffice(root.querySelector('#ao-stage'), {onSelect: id => { if (id !== 'cesar') { selected = id; paintAgent(); } }, onMeeting});
+  office = createOffice(root.querySelector('#ao-stage'), {onSelect: id => { if (id !== 'cesar') { selected = id; paintAgent(); } }, onMeeting, onCommand: command,
+    onOpen: t => { tab = t; paintPanel(); const el = root.querySelector('#ao-tabs'), r = el.getBoundingClientRect(); if (r.top > innerHeight - 120 || r.bottom < 0) el.scrollIntoView({behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start'}); }});
   root.querySelector('#ao-tabs').addEventListener('click', e => { const b = e.target.closest('[data-tab]'); if (b) { tab = b.dataset.tab; paintPanel(); } });
   root.querySelector('#ao-run').addEventListener('click', () => command('run', {}, 'Ciclo pedido: se ejecutará en el próximo relevo (hasta 5 min).'));
   root.querySelector('#ao-pause').addEventListener('click', () => command('control', {paused: !live.paused}, live.paused ? 'Compras reanudadas.' : 'Compras en pausa: el equipo sigue trabajando, pero no se abren posiciones.'));
@@ -58,7 +59,7 @@ function shell() {
   root.querySelector('#ao-owner').addEventListener('submit', e => { e.preventDefault(); const input = root.querySelector('#ao-owner-text'), t = input.value.trim(); if (t.length < 3) return flash('Escribe el mensaje para el equipo.', true); command('owner', {text: t}, 'Mensaje enviado: Augusto lo leerá en el próximo ciclo.').then(ok => { if (ok) input.value = ''; }); });
   root.querySelector('#ao-panel').addEventListener('click', panelClick);
   root.querySelector('#ao-panel').addEventListener('submit', panelSubmit);
-  root.querySelector('#ao-agent').addEventListener('click', e => { const chip = e.target.closest('[data-agent]'); if (chip) { selected = chip.dataset.agent; paintAgent(); } const p = e.target.closest('[data-pause]'); if (p) command('agent', {id: selected, paused: p.dataset.pause === '1'}, 'Cambio pedido.'); });
+  root.querySelector('#ao-agent').addEventListener('click', e => { const chip = e.target.closest('[data-agent]'); if (chip) { selected = chip.dataset.agent; paintAgent(); } const p = e.target.closest('[data-pause]'); if (p) command('agent', {id: selected, paused: p.dataset.pause === '1'}, 'Cambio pedido.'); if (e.target.closest('[data-summon]')) { office.summon(selected); root.querySelector('.ao-canvas')?.focus({preventScroll: true}); } });
 }
 async function command(path, body, okText) { try { await api(path, body); flash(okText); return true; } catch (e) { flash(e.message, true); return false; } }
 
@@ -68,10 +69,10 @@ function feedLine(e) {
   if (e.type === 'handoff' && to) text = '→ ' + to.name + ': ' + text;
   if (e.type === 'meeting') text = 'Reunión «' + e.topic + '»: ' + (e.decision || '');
   if (e.type === 'strategy') text = 'Cambio de ' + (e.label || 'regla') + ': ' + e.value + (e.text ? ' · ' + e.text : '');
-  if (e.type === 'upgrade') text = 'Compra para la oficina: ' + e.label;
+  if (e.type === 'upgrade') text = (e.gift ? 'Regalo para la oficina: ' : 'Compra para la oficina: ') + e.label;
   if (e.type === 'owner') text = 'César: ' + e.text;
   const kind = e.type === 'trade' ? (e.side === 'buy' ? 'buy' : e.pnl >= 0 ? 'win' : 'loss') : e.type;
-  return `<div class="ao-line" data-kind="${esc(kind)}" style="--c:${esc(a?.color || '#8b9bab')}"><time>${hm(e.at)}</time><b>${esc(a?.name || (e.type === 'owner' ? 'Dueño' : 'Oficina'))}</b><span>${esc(text)}</span></div>`;
+  return `<div class="ao-line" data-kind="${esc(kind)}" style="--c:${esc(a?.color || '#8b9bab')}"><time>${hm(e.at)}</time><b>${esc(a?.name || (e.type === 'owner' ? 'César' : 'Oficina'))}</b><span>${esc(text)}</span></div>`;
 }
 function addFeed(e, prepend = true) { const f = root.querySelector('#ao-feed'); if (!f) return; f.insertAdjacentHTML(prepend ? 'afterbegin' : 'beforeend', feedLine(e)); while (f.children.length > 60) f.lastChild.remove(); }
 function stage(e) {
@@ -133,12 +134,15 @@ function paintAgent() {
     <dl class="ao-facts"><dt>Ahora</dt><dd>${a.paused ? 'En pausa por César' : esc(a.task || '—')}${idle && !a.paused ? ' · descansa hasta las ' + hm(a.waitUntil) : ''}</dd>
     ${a.thought ? `<dt>Piensa</dt><dd>${esc(a.thought)}</dd>` : ''}${a.say ? `<dt>Dijo</dt><dd>«${esc(a.say)}»</dd>` : ''}
     ${a.notes?.length ? `<dt>Se apunta</dt><dd>${esc(a.notes.at(-1))}</dd>` : ''}
-    <dt>Actividad</dt><dd>último turno ${ago(a.lastAt)} · ${a.today?.calls || 0} turnos hoy (${money(a.today?.eur || 0, 4)}) · ${a.calls} en total (${money(a.eur, 3)})</dd></dl>
-    <button type="button" class="ao-ghost" data-pause="${a.paused ? 0 : 1}">${a.paused ? 'Reactivar a ' + esc(a.name) : 'Pausar a ' + esc(a.name)}</button>`;
+    <dt>Actividad</dt><dd>último turno ${ago(a.lastAt)} · ${a.today?.calls || 0} turnos hoy (${money(a.today?.eur || 0, 4)}) · ${a.calls} en total (${money(a.eur, 3)})</dd>
+    ${record(a.id) ? `<dt>Historial</dt><dd>${esc(record(a.id))}</dd>` : ''}</dl>
+    <div class="ao-agent-actions"><button type="button" class="ao-ghost" data-summon>Llamar a ${esc(a.name)}</button><button type="button" class="ao-ghost" data-pause="${a.paused ? 0 : 1}">${a.paused ? 'Reactivar a ' + esc(a.name) : 'Pausar a ' + esc(a.name)}</button></div>`;
   const g = el.querySelector('canvas').getContext('2d'); clearInterval(portrait); let t = 0;
   const draw = () => { t += .12; g.clearRect(0, 0, 32, 44); drawChar(g, 16, 40, LOOKS[a.id], {dir: 'down', pose: a.mood === 'agobiado' ? 'panic' : a.mood === 'euforico' ? 'cheer' : 'talk', t}); };
   draw(); portrait = setInterval(draw, 140);
 }
+const STAT = {pitches: ['candidata', 'candidatas'], plans: ['plan', 'planes'], approvals: ['aprobado', 'aprobados'], vetoes: ['veto', 'vetos'], overrules: ['veto levantado', 'vetos levantados'], buys: ['compra', 'compras'], sells: ['venta', 'ventas'], discards: ['descarte', 'descartes'], ruleChanges: ['cambio de reglas', 'cambios de reglas'], lessons: ['lección', 'lecciones'], proposals: ['propuesta', 'propuestas'], meetingsAsked: ['reunión pedida', 'reuniones pedidas']};
+function record(id) { const st = live.life?.agents?.[id] || {}, out = Object.entries(STAT).filter(([k]) => st[k]).map(([k, [one, many]]) => st[k] + ' ' + (st[k] === 1 ? one : many)); if (st.ideasClosed) out.push('sus ideas cerradas suman ' + signed(st.ideasPnl)); return out.join(' · '); }
 function paintToday() {
   const d = live.days[0], el = root.querySelector('#ao-today'); if (!d) { el.innerHTML = '<h3>Hoy</h3><p class="ao-muted">Todavía no hay actividad registrada hoy.</p>'; return; }
   const facts = [d.ideas ? d.ideas + ' ideas nuevas' : null, d.bought?.length ? 'compras: ' + d.bought.join(', ') : null, d.sold?.length ? 'cierres: ' + d.sold.map(s => s.symbol + ' ' + signed(s.pnl)).join(', ') : null, d.meetings ? d.meetings + (d.meetings === 1 ? ' reunión' : ' reuniones') : null, d.changes?.length ? 'cambios: ' + d.changes.join('; ') : null, 'IA ' + money(d.spentEur || 0, 3)].filter(Boolean);
@@ -169,8 +173,9 @@ const PANELS = {
     return live.days.length ? `<div class="ao-days">${live.days.map(d => `<article class="ao-day"><header><b>${esc(new Intl.DateTimeFormat('es-ES', {weekday: 'long', day: 'numeric', month: 'long'}).format(new Date(d.day + 'T12:00:00')))}</b><span data-sign="${d.pnl >= 0 ? 'up' : 'down'}">${signed(d.pnl)}</span></header>${d.headline ? `<p class="ao-headline">${esc(d.headline)}</p>` : ''}${d.text ? `<p>${esc(d.text)}</p>` : ''}<p class="ao-muted">${esc([d.ideas + ' ideas', (d.bought?.length || 0) + ' compras', (d.sold?.length || 0) + ' cierres', d.meetings + ' reuniones', 'IA ' + money(d.spentEur || 0, 3), d.final ? null : 'día en curso'].filter(Boolean).join(' · '))}</p></article>`).join('')}</div>` : '<p class="ao-muted">El diario se escribe cada noche tras el cierre del mercado.</p>';
   },
   estrategia() {
-    const p = live.policy, rows = [['Estrategia', p.strategy], ['Qué buscan', p.focus], ['Reglas de la casa', p.rules], ['Tamaño por posición', p.lotPct + ' % del capital'], ['Posiciones máximas', p.maxPositions], ['Apalancamiento', '×' + p.leverage], ['Stop por defecto', '−' + p.stopPct + ' %'], ['Objetivo por defecto', '+' + p.targetPct + ' %'], ['Plazo por defecto', p.holdDays + ' días'], ['Filtro de riesgo (María aprueba)', p.riskGate === 'on' ? 'activo' : 'desactivado'], ['Ritmo de trabajo', p.pace], ['Reuniones al día', p.meetingsPerDay]];
-    return `<div class="ao-cols"><div><h3>Reglas vigentes <small>las decide el equipo</small></h3><table><tbody>${rows.map(([k, v]) => `<tr><th>${esc(k)}</th><td>${esc(v)}</td></tr>`).join('')}</tbody></table>${live.lessons.length ? `<h3>Lecciones de la casa</h3><ul class="ao-list">${live.lessons.map(l => `<li>${esc(l)}</li>`).join('')}</ul>` : ''}</div>
+    const p = live.policy, rows = [['Estrategia', p.strategy], ['Qué buscan', p.focus], ['Reglas de la casa', p.rules], ['Tamaño por posición', p.lotPct + ' % del capital'], ['Posiciones máximas', p.maxPositions], ['Apalancamiento', '×' + p.leverage], ['Stop por defecto', '−' + p.stopPct + ' %'], ['Objetivo por defecto', '+' + p.targetPct + ' %'], ['Plazo por defecto', p.holdDays + ' días'], ['Stop dinámico', p.trailPct > 0 ? 'persigue al precio a ' + p.trailPct + ' %' : 'apagado'], ['Filtro de riesgo (María aprueba)', p.riskGate === 'on' ? 'activo' : 'desactivado'], ['Ritmo de trabajo', p.pace], ['Reuniones al día', p.meetingsPerDay]];
+    return `<div class="ao-cols"><div><h3>Reglas vigentes <small>las decide el equipo</small></h3><table><tbody>${rows.map(([k, v]) => `<tr><th>${esc(k)}</th><td>${esc(v)}</td></tr>`).join('')}</tbody></table>${live.life?.strategies?.length ? `<h3>Qué ha dado cada estrategia</h3><table><thead><tr><th>Estrategia</th><th class="n">Cierres</th><th class="n">Resultado</th></tr></thead><tbody>${live.life.strategies.map(x => `<tr><td>${esc(x.name)}${x.current ? ' <small>vigente</small>' : ''}</td><td class="n">${x.trades} <small>${x.wins} con beneficio</small></td><td class="n" data-sign="${x.pnl >= 0 ? 'up' : 'down'}">${signed(x.pnl)}</td></tr>`).join('')}</tbody></table>` : ''}
+      ${live.lessons.length ? `<h3>Lecciones de la casa</h3><ul class="ao-list">${live.lessons.map(l => `<li>${esc(l)}</li>`).join('')}</ul>` : ''}</div>
       <div><h3>Cambios</h3>${live.strategyLog.length ? `<ul class="ao-list">${live.strategyLog.map(c => `<li><b>${esc(c.label)}</b>: ${esc(c.from)} → ${esc(c.to)}<small>${esc(who(c.by)?.name || '')} · ${esc(dm(c.at))}${c.reason ? ' · ' + esc(c.reason) : ''}</small></li>`).join('')}</ul>` : '<p class="ao-muted">Todavía no han cambiado nada.</p>'}
       <h3>Propuestas</h3>${live.proposals.length ? `<ul class="ao-list">${live.proposals.map(x => `<li><b>${esc(x.param)} = ${esc(x.value)}</b> <em>${esc(x.status)}</em><small>${esc(who(x.by)?.name || '')}: ${esc(x.text)}</small></li>`).join('')}</ul>` : '<p class="ao-muted">Ninguna propuesta pendiente.</p>'}</div></div>`;
   },
@@ -178,7 +183,8 @@ const PANELS = {
     const k = live.connections, src = Object.entries(live.radar.sources || {});
     return `<div class="ao-cols"><div><h3>Conexiones</h3><ul class="ao-list"><li><b>OpenAI</b>: ${k.openai ? 'clave guardada' : 'sin clave'}</li><li><b>Motor</b>: ${k.scheduler ? 'ciclos al día' : 'último ciclo ' + ago(live.lastTick)}${live.lastError ? '<small>' + esc(live.lastError) + '</small>' : ''}</li><li><b>Precios</b>: ${esc(live.market.status || '—')}${live.market.error ? '<small>' + esc(live.market.error) + '</small>' : ''}</li><li><b>Radar</b>: ${live.radar.events} señales · barrido ${ago(live.radar.lastScan)}${src.length ? '<small>' + esc(src.map(([n, v]) => n + (v.error ? ' (sin respuesta)' : '')).join(' · ')) + '</small>' : ''}</li><li><b>Cambio EUR/USD</b>: ${live.market.fx ? live.market.fx.rate + ' (' + esc(live.market.fx.date) + ')' : 'pendiente'}</li></ul></div>
       <div><h3>Clave de OpenAI</h3><form id="ao-key" class="ao-form"><label for="ao-key-input">Clave nueva (se guarda cifrada y no se vuelve a mostrar)</label><input id="ao-key-input" type="password" autocomplete="off" placeholder="sk-…"><button type="submit">Guardar clave</button></form>
-      <h3>Gasto de IA por empleado</h3><table><thead><tr><th>Empleado</th><th class="n">Hoy</th><th class="n">Total</th></tr></thead><tbody>${live.agents.map(a => `<tr><td>${esc(a.name)}</td><td class="n">${money(a.today?.eur || 0, 4)}</td><td class="n">${money(a.eur, 3)}</td></tr>`).join('')}</tbody></table><p class="ao-muted">Un turno cuesta de media ${money(live.budget.turnCostEur, 4)}. Búsquedas web hoy: ${live.budget.webToday}.</p></div></div>`;
+      <h3>Gasto de IA por empleado</h3><table><thead><tr><th>Empleado</th><th class="n">Hoy</th><th class="n">Total</th></tr></thead><tbody>${live.agents.map(a => `<tr><td>${esc(a.name)}</td><td class="n">${money(a.today?.eur || 0, 4)}</td><td class="n">${money(a.eur, 3)}</td></tr>`).join('')}</tbody></table><p class="ao-muted">Un turno cuesta de media ${money(live.budget.turnCostEur, 4)}. Búsquedas web hoy: ${live.budget.webToday}.</p>
+      <h3>Cosas de la oficina</h3>${live.office.purchases?.length ? `<ul class="ao-list">${live.office.purchases.map(x => `<li><b>${esc(live.office.catalog?.[x.item]?.label || x.item)}</b><small>${x.by === 'cesar' ? 'regalo tuyo' : 'comprado por ' + esc(who(x.by)?.name || 'el equipo') + ' por ' + money(x.eur)} · ${esc(dm(x.at))}</small></li>`).join('')}</ul>` : '<p class="ao-muted">Todavía no han comprado nada. Puedes regalarles algo desde tu mesa en la oficina (siéntate y pulsa E).</p>'}</div></div>`;
   }
 };
 function paintPanel() { for (const b of root.querySelectorAll('#ao-tabs [data-tab]')) b.setAttribute('aria-selected', b.dataset.tab === tab); const el = root.querySelector('#ao-panel'), keep = el.scrollTop, open = [...el.querySelectorAll('details')].map(d => d.open); if (tab === 'ajustes' && el.querySelector('#ao-key-input')?.value) return; el.innerHTML = PANELS[tab](); if (tab === 'reuniones' && open.length) el.querySelectorAll('details').forEach((d, i) => { if (i < open.length) d.open = open[i]; }); el.scrollTop = keep; }
@@ -186,7 +192,9 @@ function panelClick(e) { const b = e.target.closest('[data-close]'); if (b) comm
 function panelSubmit(e) { if (e.target.id !== 'ao-key') return; e.preventDefault(); const input = e.target.querySelector('input'), key = input.value.trim(); if (!key) return; api('key', {key}).then(() => { input.value = ''; flash('Clave guardada.'); }).catch(err => flash(err.message, true)); }
 
 function paint() {
-  office.setState({equity: live.company.equity, monthPnl: live.company.monthPnl, rentTarget: live.company.rentTarget, daysLeft: live.company.daysLeft, tokensLeft: live.budget.remainingEur / live.budget.allowanceEur, tokensEur: live.budget.remainingEur, marketOpen: live.market.open, mood: live.company.mood, positions: live.positions.map(p => ({symbol: p.symbol, pnlPct: p.pnlPct})), strategy: {name: (live.board.name || '').toUpperCase(), lines: live.board.lines}, upgrades: live.office.upgrades, hour: null, agents: Object.fromEntries(live.agents.map(a => [a.id, {idle: a.waitUntil > Date.now() || a.paused}]))});
+  office.setState({equity: live.company.equity, monthPnl: live.company.monthPnl, dayPnl: live.company.dayPnl, rentTarget: live.company.rentTarget, daysLeft: live.company.daysLeft, tokensLeft: live.budget.remainingEur / live.budget.allowanceEur, tokensEur: live.budget.remainingEur, marketOpen: live.market.open, mood: live.company.mood,
+    positions: live.positions.map(p => ({symbol: p.symbol, pnlPct: p.pnlPct, pnl: p.pnl})), strategy: {name: (live.board.name || '').toUpperCase(), lines: live.board.lines}, upgrades: live.office.upgrades, catalog: live.office.catalog || {}, policy: live.policy, life: live.life || {}, hour: window.AgentOfficeHour ?? null,
+    agents: Object.fromEntries(live.agents.map(a => [a.id, {idle: a.waitUntil > Date.now() || a.paused, paused: a.paused, task: a.task, thought: a.thought, say: a.say, mood: a.mood, note: a.notes?.at(-1) || '', work: a.work || 0, inbox: a.inbox || 0, callsToday: a.today?.calls || 0, eurToday: a.today?.eur || 0}]))});
   paintKpis(); paintAgent(); paintToday(); paintPanel(); paintNotice();
 }
 async function refresh() {
@@ -199,5 +207,5 @@ async function refresh() {
 }
 const visible = () => document.getElementById('trading')?.classList.contains('active') && !document.hidden;
 async function initialise(token) { if (started) return; started = true; csrf = token; await refresh(); setInterval(() => { if (visible()) refresh(); }, 8000); setInterval(() => { if (visible() && live) pump(); }, 1000); }
-window.TradingLab = {initialise}; window.addEventListener('homelab:trading-init', e => initialise(e.detail)); if (window.TradingLabPending) initialise(window.TradingLabPending);
+window.TradingLab = {initialise, get office() { return office; }}; window.addEventListener('homelab:trading-init', e => initialise(e.detail)); if (window.TradingLabPending) initialise(window.TradingLabPending);
 window.addEventListener('homelab:view', e => { if (e.detail === 'trading' && started) refresh(); });

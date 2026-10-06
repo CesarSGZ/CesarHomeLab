@@ -65,12 +65,32 @@ es la única llamada cara (límite diario 1/3/6 según ritmo, y se desactiva tra
 
 ## Dashboard (`control/office/`)
 
-`art.js` dibuja el pixel art por código (sin imágenes), `office.js` es la simulación visual y
-`app.js` los paneles. La oficina representa los eventos reales de `timeline` (traspasos, compras,
-reuniones con su transcripción, cambios de estrategia); el lote que llega cada ciclo se reparte en
-el tiempo. Cafés, paseos y charlas de pasillo son vida local sin IA, y su tono depende del ánimo
-real (ritmo del alquiler, resultado del día y tokens). César puede escribir al equipo, convocar una
-reunión, pausar compras o empleados y cerrar posiciones.
+`art.js` dibuja el pixel art por código (sin imágenes), `office.js` es la simulación visual,
+`gags.js` el guion de la vida de oficina y `app.js` los paneles. La oficina representa los eventos
+reales de `timeline` (traspasos, compras, reuniones con su transcripción, cambios de estrategia); el
+lote que llega cada ciclo se reparte en el tiempo. Nada del dashboard llama a la IA.
+
+César es jugable: WASD/flechas mueven, **E** habla con un empleado (contesta con su tarea, lo que
+piensa, sus notas y su historial reales) o usa el objeto que tenga delante (café, nevera, bidón de
+tokens, sofá, tablero → Cartera, pizarra → Estrategia, estantería → Diario, sala → convocar reunión,
+su mesa → llamar a alguien o regalar algo, recreativa, acuario, campana, diana, puerta), **Espacio**
+saluda o arenga, **F** choca los cinco, **1–6** llama a un empleado y **H** abre la ayuda. Con ratón o
+dedo: clic en el suelo para ir, en un objeto para usarlo, en un personaje para su ficha.
+
+Las bromas y carteles salen de `status().life` y de las reglas vigentes: días sin operar (telarañas
+en la mesa de Yari), rachas, último stop, vetos de María, tokens bajos, apalancamiento, filtro de
+riesgo apagado, cola de candidatas, meses pagados (trofeos), ánimo (plantas mustias o en flor,
+felpudo), pilas de papel según el trabajo pendiente, etc. Las compras de oficina (`OFFICE_CATALOG`)
+se ven y se usan; César puede regalar cualquiera sin tocar la caja (`/gift`).
+
+### Pulso sin IA
+
+`lifeStats()` (en `company.js`) calcula por código días sin operar, rachas, mejor y peor cierre,
+contadores por empleado y resultado por nombre de estrategia. Va al dashboard (`life`) y, resumido
+en una línea (`pulso`), al contexto de cada turno. Ahorro de tokens: una ronda solo se gasta si hay
+algo nuevo (eventos, radar recién barrido o precios movidos un 1,5 %); si no, se espera cuatro veces
+más. Un descanso pedido con el mismo trabajo delante se respeta y un cierre se revisa una sola vez.
+Regla nueva a disposición del equipo: `trailPct`, un stop que persigue al precio.
 
 ## Infraestructura (`trading-worker/`)
 

@@ -6,7 +6,7 @@ import {installPublicDataBridge} from './office-cloud-fetch.mjs';
 import {startOfficeProgress} from './office-progress.mjs';
 import {runOfficeTaskWhenAvailable,officeAvailability} from './office-availability.mjs';
 const db=cloudDatabase();
-const r=await fetch('https://cesar-solla.pages.dev/api/trading/development',{method:'POST',headers:{Authorization:'Bearer '+process.env.OFFICE_DEV_TOKEN,'Content-Type':'application/json'},body:JSON.stringify({action:'runtime-key'}),signal:AbortSignal.timeout(30000)});
+const r=await fetch('https://cesar-solla.pages.dev/api/trading/runtime',{method:'POST',headers:{Authorization:'Bearer '+process.env.OFFICE_DEV_TOKEN,'Content-Type':'application/json'},body:JSON.stringify({action:'runtime-key'}),signal:AbortSignal.timeout(30000)});
 if(!r.ok)throw Error('Conexión segura de IA HTTP '+r.status);const {key}=await r.json();if(key&&process.env.GITHUB_ACTIONS==='true')console.log('::add-mask::'+key);
 const env={CONTROL_DB:db,OPENAI_RUNTIME_KEY:key};
 installPublicDataBridge(process.env.OFFICE_DEV_TOKEN);

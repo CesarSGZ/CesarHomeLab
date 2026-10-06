@@ -259,7 +259,8 @@ export async function takeTurn(envDb, s, member, env) {
   a.task = acted.length ? acted.join(', ') : (d.actions || []).some(x => x.type === 'wait') ? 'En pausa: nada útil que hacer ahora' : 'Pensando';
   // Si el turno no generó escena propia, lo que dice en voz alta es la escena.
   if (a.say && v2.timeline.length === before && !out.spoke) emit(v2, 'say', {agent: member.id, text: a.say, quiet: !acted.length}, now);
-  a.calls++; a.eur += cost; a.today.calls++; a.today.eur += cost; a.seenSeq = v2.seq;
+  if (member.id === 'auditor' && input.cerradasSinRevisar?.length) v2.reviewedUntil = now; // ya las ha visto: no vuelven a contarle como trabajo
+  a.calls++; a.eur += cost; a.today.calls++; a.today.eur += cost; a.seenSeq = v2.seq; a.workSeen = workFor(s, member.id).length;
   a.marks = Object.fromEntries(s.real.book.positions.map(p => [p.symbol, p.mark ?? p.entry]));
   v2.stats.turnCostEur = v2.stats.turnCostEur * 0.9 + Math.min(0.01, res.costEur) * 0.1;
   return {costEur: cost, wake: out.wake};
