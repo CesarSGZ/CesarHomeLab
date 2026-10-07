@@ -9,7 +9,7 @@
   <title>Cesar HomeLab</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,300..900&family=DM+Mono:wght@300;400;500&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="control.css?v=20260909chat">
   <link rel="stylesheet" href="auth-overrides.css?v=20260728a">
   <link rel="stylesheet" href="refinement.css?v=20260909chat">
@@ -18,6 +18,7 @@
   <link rel="stylesheet" href="office/office.css?v=20261007d">
   <link rel="stylesheet" href="doors.css?v=20261006a">
   <link rel="stylesheet" href="/theme.css?v=20261001contrast">
+  <link rel="stylesheet" href="flight-control.css?v=20261007a">
 </head>
 <body class="access-pending" data-workspace>
   <canvas id="control-grid" aria-hidden="true"></canvas>
@@ -62,7 +63,7 @@
           <header><span>AGENT OFFICE</span><small>EXPERIMENT / 06</small></header>
           <div class="thermal-summary-body"><div class="thermal-mark" aria-hidden="true"><b>AO</b></div><div><p>SMALL CAPS / PAPER TRADING</p><strong>Tu equipo de inversión, en pruebas.</strong><small>Oficina de agentes, universo amplio y cartera completamente simulada.</small></div><button class="module-action" data-open="trading">Entrar a la oficina →</button></div>
         </article>
-        <article class="module module-wide standard-welcome" data-accent="cyan">
+        <article class="module module-wide standard-welcome" data-accent="cyan" data-standard-only>
           <header><span>WELCOME</span><small>HOME / 01</small></header>
           <div class="welcome-state">
             <strong>Your space is ready.</strong>
@@ -326,6 +327,7 @@
   <script src="training.js?v=20261001strength"></script>
   <script src="github-galaxy.js?v=20260928atlas"></script>
   <script src="control.js?v=20261001training"></script>
+  <script src="flight-control.js?v=20261007a" defer></script>
   <script src="thermal-viewer.bundle.js?v=20260805o"></script>
 </body>
 </html>

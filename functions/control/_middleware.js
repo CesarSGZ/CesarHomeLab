@@ -7,6 +7,7 @@ const PUBLIC_PATHS = new Set([
   "/control/login.css",
   // Shared presentation only: needed before sign-in, like login.css.
   "/control/refinement.css",
+  "/control/flight-login.css",
   "/control/login.js",
   "/control/api/auth/login",
 ]);

@@ -40,3 +40,18 @@ test('private sign-in keeps its form intact under the flight layer', async () =>
   assert.match(login, /<form id="login-form">/);
   assert.match(login, /autocomplete="current-password"/);
 });
+
+test('sign-in styles stay reachable before authentication', async () => {
+  const middleware = await readFile(file('functions/control/_middleware.js'), 'utf8');
+  const login = await readFile(file('control/login.html'), 'utf8');
+  for (const sheet of login.matchAll(/href="([\w-]+\.css)\?/g)) {
+    assert.match(middleware, new RegExp(`"/control/${sheet[1].replace('.', '\.')}"`), `${sheet[1]} must be a public path`);
+  }
+});
+
+test('mission control loads the flight layer last and hides the standard welcome card for owners', async () => {
+  const page = await readFile(file('control/index.html'), 'utf8');
+  assert.ok(page.indexOf('flight-control.css') > page.indexOf('/theme.css'));
+  assert.match(page, /flight-control\.js/);
+  assert.match(page, /standard-welcome" data-accent="cyan" data-standard-only/);
+});
