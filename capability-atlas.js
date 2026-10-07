@@ -140,7 +140,7 @@
   let started=false;
   const loader=new IntersectionObserver(entries=>{
     if(!entries.some(e=>e.isIntersecting)||started)return;started=true;loader.disconnect();
-    import('./capability-worlds.js?v=20260927worlds').then(module=>module.mountWorlds(atlas)).catch(()=>{
+    import('./capability-worlds.js?v=20261007alive').then(module=>module.mountWorlds(atlas)).catch(()=>{
       // CSS sculptures and all skill controls remain available without WebGL.
       atlas.classList.add('worlds-fallback');
     });

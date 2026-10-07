@@ -1,8 +1,8 @@
 (() => {
   const root = document.documentElement;
   const key = 'csg-colour-mode';
-  let mode = 'day';
-  try { mode = localStorage.getItem(key) === 'night' ? 'night' : 'day'; } catch {}
+  let mode = 'night';
+  try { mode = localStorage.getItem(key) === 'day' ? 'day' : 'night'; } catch {}
   root.dataset.theme = mode;
   function paint() {
     document.querySelectorAll('[data-theme-toggle]').forEach(button => {
@@ -28,7 +28,7 @@
   });
   addEventListener('storage', event => {
     if (event.key !== key) return;
-    root.dataset.theme = event.newValue === 'night' ? 'night' : 'day';
+    root.dataset.theme = event.newValue === 'day' ? 'day' : 'night';
     paint();
     dispatchEvent(new CustomEvent('csg:theme', { detail: root.dataset.theme }));
   });
