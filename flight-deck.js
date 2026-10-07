@@ -131,6 +131,25 @@
     });
   });
 
+  /* ---------- Hover details: verification stamps, greetings, holo hue ---------- */
+  $$('.credential').forEach(card => {
+    const stamp = document.createElement('b');
+    stamp.className = 'fd-stamp'; stamp.setAttribute('aria-hidden', 'true'); stamp.textContent = 'Verified ✓';
+    card.append(stamp);
+    card.addEventListener('pointermove', event => {
+      const r = card.getBoundingClientRect();
+      card.style.setProperty('--hx', String(Math.round((event.clientX - r.left) / r.width * 240)));
+    });
+  });
+  const greetings = { es: '¡Hola!', gl: 'Ola!', gb: 'Hello!', fr: 'Bonjour !', pt: 'Olá!' };
+  $$('.language-channel').forEach(channel => {
+    const flag = channel.querySelector('.language-flag'), code = flag?.getAttribute('src')?.match(/flags\/(\w+)\.svg/)?.[1];
+    if (!code || !greetings[code]) return;
+    const bubble = document.createElement('span');
+    bubble.className = 'fd-hello'; bubble.setAttribute('aria-hidden', 'true'); bubble.textContent = greetings[code];
+    channel.querySelector('.language-identity')?.append(bubble);
+  });
+
   if (!hasGsap) return;
   const { gsap } = window;
   if (window.ScrollTrigger) gsap.registerPlugin(ScrollTrigger);
@@ -235,6 +254,17 @@
     const credentials = $$('.credential');
     credentials.forEach(card => card.classList.remove('reveal'));
     gsap.fromTo(credentials, { y: 60, opacity: 0, rotateX: 14, rotateZ: i => (i % 2 ? 1.4 : -1.4), transformPerspective: 900, transition: 'none' }, { y: 0, opacity: 1, rotateX: 0, rotateZ: 0, duration: 1.1, ease: 'expo.out', stagger: .1, clearProps: 'transform,transition,opacity', onComplete: () => enableTilt(credentials), scrollTrigger: { trigger: '.credential-grid', start: 'top 85%', once: true } });
+
+    // Hover re-reads: keywords and counters scramble back in like an instrument refreshing.
+    if (finePointer) {
+      const reread = (host, target, chars) => host.addEventListener('pointerenter', () => {
+        if (!target || gsap.isTweening(target)) return;
+        gsap.to(target, { duration: .7, scrambleText: { text: '{original}', chars, speed: .8 } });
+      });
+      $$('.pillars article').forEach(card => reread(card, card.querySelector(':scope > i'), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'));
+      $$('.tenure-overview article').forEach(card => reread(card, card.querySelector('strong'), '0123456789'));
+      $$('.credential').forEach(card => reread(card, card.querySelector('.credential-no'), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'));
+    }
 
     gsap.from('.fd-runway-plane', { yPercent: -30, opacity: 0, duration: 1.6, ease: 'power3.out', scrollTrigger: { trigger: '.finale', start: 'top 75%', once: true } });
 
