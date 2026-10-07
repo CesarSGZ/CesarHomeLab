@@ -180,9 +180,7 @@ html[data-theme=day] .finale{--fd-em:#8fd8f0}
   .language-channel{transition:transform .35s cubic-bezier(.2,.8,.2,1)}
   .language-channel:hover{transform:translateY(-4px)}
 
-  /* Disciplines: icon spins up, keyword glitches */
-  .pillars .icon{display:inline-block;transition:transform .7s cubic-bezier(.34,1.56,.64,1)}
-  .pillars article:hover .icon{transform:rotate(360deg) scale(1.15)}
+  /* Disciplines: keyword glitches on hover (handled in flight-deck.js) */
 
   /* Skill chips: magnetic lift with a phosphor underline */
   .log-content li{transition:transform .25s cubic-bezier(.34,1.56,.64,1),box-shadow .25s,background .25s;will-change:transform}
@@ -199,5 +197,5 @@ html[data-theme=day] .finale{--fd-em:#8fd8f0}
 }
 @media (prefers-reduced-motion:reduce){
   .language-channel:hover .language-flag,.language-channel:hover .language-scale .reached:before{animation:none!important}
-  .fd-stamp,.fd-hello,.pillars .icon,.credential .credential-brand img{transition:none!important}
+  .fd-stamp,.fd-hello,.credential .credential-brand img{transition:none!important}
 }
