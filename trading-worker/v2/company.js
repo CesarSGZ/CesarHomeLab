@@ -37,11 +37,11 @@ export const POLICY_DEFAULT = {
   lotPct: 20, maxPositions: 5, leverage: 1, stopPct: 8, targetPct: 20, holdDays: 7, trailPct: 0,
   riskGate: 'on', pace: 'normal', meetingsPerDay: 3, minDollarVolume: 1e6, pipeline: 6
 };
-const NUM = {lotPct: [2, 100], maxPositions: [1, 20], leverage: [1, 5], stopPct: [1, 40], targetPct: [2, 300], holdDays: [1, 30], trailPct: [0, 30], meetingsPerDay: [1, 6], pipeline: [1, 12], minDollarVolume: [3e5, 5e7]};
+const NUM = {lotPct: [2, 100], maxPositions: [1, 20], leverage: [1, 5], stopPct: [1, 40], targetPct: [2, 300], holdDays: [0.04, 30], trailPct: [0, 30], meetingsPerDay: [1, 6], pipeline: [1, 12], minDollarVolume: [3e5, 5e7]};
 const ENUM = {riskGate: ['on', 'off'], pace: ['ahorro', 'normal', 'intensivo']};
 const TEXT = {strategy: 28, focus: 220, rules: 220};
 export const POLICY_PARAMS = [...Object.keys(TEXT), ...Object.keys(NUM), ...Object.keys(ENUM)];
-export const POLICY_HELP = 'strategy (nombre corto), focus (qué buscamos), rules (reglas de la casa), lotPct 2-100 (% del capital por posición), maxPositions 1-20, leverage 1-5 (con palanca, si el capital cae por debajo del 30 % de lo invertido se liquida todo), stopPct 1-40, targetPct 2-300, holdDays 1-30, trailPct 0-30 (stop que persigue al precio; 0 = apagado), riskGate on|off (si María debe aprobar), pace ahorro|normal|intensivo, meetingsPerDay 1-6, pipeline 1-12 (cuántas candidatas vivas debe mantener Santi), minDollarVolume 300000-50000000';
+export const POLICY_HELP = 'strategy (nombre corto), focus (qué buscamos), rules (reglas de la casa), lotPct 2-100 (% del capital por posición), maxPositions 1-20, leverage 1-5 (con palanca, si el capital cae por debajo del 30 % de lo invertido se liquida todo), stopPct 1-40, targetPct 2-300, holdDays 0.04-30 (plazo en días; admite fracciones para operar por horas: 0.1 ≈ 2 h 24 min), trailPct 0-30 (stop que persigue al precio; 0 = apagado), riskGate on|off (si María debe aprobar), pace ahorro|normal|intensivo, meetingsPerDay 1-6, pipeline 1-12 (cuántas candidatas vivas debe mantener Santi), minDollarVolume 300000-50000000';
 const LABEL = {strategy: 'estrategia', focus: 'foco', rules: 'reglas', lotPct: 'tamaño por posición (%)', maxPositions: 'posiciones máximas', leverage: 'apalancamiento', stopPct: 'stop (%)', targetPct: 'objetivo (%)', holdDays: 'plazo (días)', trailPct: 'stop dinámico (%)', riskGate: 'filtro de riesgo', pace: 'ritmo de trabajo', meetingsPerDay: 'reuniones al día', pipeline: 'candidatas vivas', minDollarVolume: 'liquidez mínima ($)'};
 export const policyLabel = p => LABEL[p] || p;
 
@@ -52,20 +52,21 @@ export function checkPolicy(param, raw) {
   if (NUM[param]) {
     const n = Number(String(raw ?? '').replace(',', '.').replace(/[^0-9.\-]/g, '')), [lo, hi] = NUM[param];
     if (!Number.isFinite(n)) return {ok: false, reason: 'Hace falta un número'};
-    const value = ['maxPositions', 'holdDays', 'meetingsPerDay', 'pipeline'].includes(param) ? Math.round(Math.min(hi, Math.max(lo, n))) : Math.min(hi, Math.max(lo, n));
+    const c = Math.min(hi, Math.max(lo, n)), value = ['maxPositions', 'meetingsPerDay', 'pipeline'].includes(param) || (param === 'holdDays' && c >= 1) ? Math.round(c) : param === 'holdDays' ? Math.round(c * 100) / 100 : c;
     return {ok: true, value};
   }
   return {ok: false, reason: 'Parámetro desconocido. Disponibles: ' + POLICY_PARAMS.join(', ')};
 }
 
 export function initCompany(s, now = Date.now()) {
-  if (s.v2?.schema === 1) { const v2 = s.v2; for (const m of STAFF) { v2.agents[m.id] ??= newAgent(); v2.agents[m.id].stats ??= {}; } v2.policy = {...POLICY_DEFAULT, ...v2.policy}; v2.strategyStats ??= {}; v2.books ??= []; v2.shares ??= {}; return v2; }
+  if (s.v2?.schema === 1) { const v2 = s.v2; for (const m of STAFF) { v2.agents[m.id] ??= newAgent(); v2.agents[m.id].stats ??= {}; } v2.policy = {...POLICY_DEFAULT, ...v2.policy}; v2.strategyStats ??= {}; v2.books ??= []; v2.shares ??= {}; ownerNote(v2, now); return v2; }
   s.v2 = {
     schema: 1, startedAt: now, policy: {...POLICY_DEFAULT}, strategyLog: [], agents: Object.fromEntries(STAFF.map(m => [m.id, newAgent()])),
     ideas: [], orders: [], timeline: [], seq: 0, meetings: [], meetingDay: {day: '', done: [], extra: 0}, meetingRequests: [], proposals: [], lessons: [],
     days: {}, months: {}, strategyStats: {}, books: [], shares: {}, office: {upgrades: [], purchases: []}, owner: [], reviewedUntil: now, radarCursor: 0,
     stats: {turnCostEur: 0.0008, web: {day: '', n: 0, fails: 0}, deep: {day: '', n: 0}, errors: 0, lastErrorAt: 0}
   };
+  ownerNote(s.v2, now);
   emit(s.v2, 'system', {text: 'Nueva etapa de la oficina: equipo con libertad total sobre estrategia, riesgo y ritmo. La cartera y el alquiler siguen donde estaban.'}, now);
   return s.v2;
 }
@@ -161,7 +162,7 @@ export function setBook(v2, raw, by, now = Date.now()) {
   const name = String(raw.name || '').replace(/\s+/g, ' ').trim().slice(0, 28); if (name.length < 3) return {ok: false, reason: 'Falta el nombre de la estrategia'};
   if (name.toLowerCase() === v2.policy.strategy.toLowerCase()) return {ok: false, reason: 'Esa es la estrategia principal: cámbiala con apply'};
   const old = v2.books.find(b => b.name.toLowerCase() === name.toLowerCase()); if (!old && v2.books.length >= 4) return {ok: false, reason: 'Ya hay cuatro estrategias paralelas: retira una antes'};
-  const p = v2.policy, book = {name: old?.name || name, focus: String(raw.focus || old?.focus || '').replace(/\s+/g, ' ').trim().slice(0, 200), lotPct: clampN(raw.lotPct, 2, 100, old?.lotPct ?? p.lotPct), stopPct: clampN(raw.stopPct, 1, 40, old?.stopPct ?? p.stopPct), targetPct: clampN(raw.targetPct, 2, 300, old?.targetPct ?? p.targetPct), days: Math.round(clampN(raw.days, 1, 30, old?.days ?? p.holdDays)), by: old?.by || by, at: old?.at || now};
+  const p = v2.policy, book = {name: old?.name || name, focus: String(raw.focus || old?.focus || '').replace(/\s+/g, ' ').trim().slice(0, 200), lotPct: clampN(raw.lotPct, 2, 100, old?.lotPct ?? p.lotPct), stopPct: clampN(raw.stopPct, 1, 40, old?.stopPct ?? p.stopPct), targetPct: clampN(raw.targetPct, 2, 300, old?.targetPct ?? p.targetPct), days: horizon(clampN(raw.days, 0.04, 30, old?.days ?? p.holdDays)), by: old?.by || by, at: old?.at || now};
   if (book.focus.length < 8) return {ok: false, reason: 'Explica en qué consiste la estrategia'};
   if (old) Object.assign(old, book); else v2.books.push(book);
   emit(v2, 'strategy', {agent: by, param: 'playbook', label: old ? 'estrategia paralela' : 'nueva estrategia paralela', value: book.name, name: v2.policy.strategy, lines: boardLines(v2.policy), text: book.focus}, now);
@@ -172,3 +173,12 @@ export function dropBook(v2, name, by, reason, now = Date.now()) {
   const [gone] = v2.books.splice(i, 1); emit(v2, 'strategy', {agent: by, param: 'playbook', label: 'estrategia retirada', value: gone.name, name: v2.policy.strategy, lines: boardLines(v2.policy), text: String(reason || '').slice(0, 200)}, now); return {ok: true};
 }
 export const bookNamed = (v2, name) => v2.books.find(b => b.name.toLowerCase() === String(name || '').trim().toLowerCase()) || null;
+
+// Plazo de una operación: días enteros o, por debajo de un día, fracciones (trading por horas).
+export const horizon = d => d >= 1 ? Math.round(d) : Math.max(0.04, Math.round(d * 100) / 100);
+// Mensaje permanente de César; se entrega una vez por versión como si lo hubiera escrito en el dashboard.
+const OWNER_NOTE = {id: 'n2', text: 'De parte de César: libertad total y no os cortéis. Quiero veros probar estrategias con asiduidad, también extravagantes o rocambolescas, y si hace falta operar por horas alrededor de un catalizador, hacedlo. Si ganáis los 10.000 € en tres días, mejor: lo que sobre cuenta para el alquiler del mes siguiente. Organizaos vosotros, repartid el trabajo y los tokens como veáis y mejorad vuestra propia eficiencia.'};
+function ownerNote(v2, now) {
+  if (v2.ownerNote === OWNER_NOTE.id) return; v2.ownerNote = OWNER_NOTE.id;
+  v2.owner.push({text: OWNER_NOTE.text, at: now}); v2.owner = v2.owner.slice(-10); tell(v2, 'auditor', 'cesar', OWNER_NOTE.text, now); v2.agents.auditor.waitUntil = 0; emit(v2, 'owner', {text: OWNER_NOTE.text}, now);
+}

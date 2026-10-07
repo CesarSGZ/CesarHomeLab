@@ -50,7 +50,7 @@ export function adjustPosition(book, symbol, {stopPct, targetPct, days}, t = Dat
   const same = (a, b) => Math.abs(a / b - 1) < 0.004;
   if (stopPct > 0 && stopPct < 90 && !same(p.stop, ref * (1 - stopPct / 100))) { p.stop = ref * (1 - stopPct / 100); changes.push('stop ' + p.stop.toFixed(2)); }
   if (targetPct > 0 && targetPct < 1000 && !same(p.target, ref * (1 + targetPct / 100))) { p.target = ref * (1 + targetPct / 100); changes.push('objetivo ' + p.target.toFixed(2)); }
-  if (days > 0 && days <= 60) { p.expiresAt = t + days * 864e5; changes.push('plazo ' + days + ' d'); }
+  if (days > 0 && days <= 60) { p.expiresAt = t + days * 864e5; changes.push('plazo ' + (days < 1 ? Math.round(days * 240) / 10 + ' h' : days + ' d')); }
   return changes.length ? {ok: true, changes} : {ok: false, reason: 'Esos niveles ya estaban puestos'};
 }
 

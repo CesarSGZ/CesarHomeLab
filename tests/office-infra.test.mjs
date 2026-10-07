@@ -68,7 +68,7 @@ test('las órdenes de César se aplican: pausa, empleado en pausa y mensaje', as
   assert.equal((await post('/control', {paused: true})).ok, true); assert.equal((await post('/agent', {id: 'risk', paused: true})).ok, true);
   assert.equal((await post('/agent', {id: 'nadie', paused: true})).ok, false); assert.equal((await post('/owner', {text: 'Ánimo, equipo'})).ok, true);
   assert.equal((await post('/mode', {mode: 'demo'})).ok, false);
-  const {state} = await load(env); assert.equal(state.paused, true); assert.equal(state.v2.agents.risk.paused, true); assert.equal(state.v2.owner[0].text, 'Ánimo, equipo');
+  const {state} = await load(env); assert.equal(state.paused, true); assert.equal(state.v2.agents.risk.paused, true); assert.equal(state.v2.owner.at(-1).text, 'Ánimo, equipo');
 });
 
 test('el radar por código recorre calendario y noticias sin IA y deja candidatas puntuadas', async () => {

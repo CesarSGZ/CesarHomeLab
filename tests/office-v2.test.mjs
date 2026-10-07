@@ -255,3 +255,26 @@ test('regla de la casa: lo que nadie decide en dos turnos sigue adelante y Cadaq
     assert.equal(live.shares.operator, 1.8); assert.equal(checkPolicy('leverage', '9').value, 5); assert.equal(checkPolicy('maxPositions', '50').value, 20);
   } finally { mock.timers.reset(); }
 });
+
+test('trading por horas, mensaje de César entregado una vez y colchón para el mes siguiente', async () => {
+  clockAt(T0); const f = fixture();
+  try {
+    f.script['turn:SANTI'] = c => c.input.ideasEnCurso.length ? turn([act('wait', {value: '240'})])() : turn([act('pitch', {symbol: 'AAPL', text: 'Resultados esta tarde: jugada de horas'})])();
+    f.script['turn:PEDRO'] = c => c.input.pendientes.length ? turn([act('plan', {symbol: 'AAPL', eur: 2000, stopPct: 2, targetPct: 30, days: 0.05, text: 'Dentro y fuera en poco más de una hora'})])() : turn([act('wait', {value: '60'})])();
+    f.script['turn:MARÍA'] = c => c.input.planesPorRevisar.length ? turn([act('approve', {symbol: 'AAPL', text: 'Corto y con stop: vale'})])() : turn([act('wait', {value: '60'})])();
+    f.script['turn:YARI'] = c => c.input.listasParaComprar.length ? turn([act('buy', {symbol: 'AAPL'})])() : turn([act('wait', {value: '60'})])();
+    for (let i = 0; i < 3; i++) { await cycle(f.env, f.opts); mock.timers.tick(5 * 60e3); }
+    let live = await status(f.env);
+    assert.equal(live.positions.length, 1); assert.ok(live.positions[0].expiresAt - live.positions[0].openedAt < 75 * 60e3, 'plazo de 0,05 días = 72 minutos');
+    assert.equal(live.timeline.filter(e => e.type === 'owner' && /libertad total/.test(e.text)).length, 1); assert.ok(f.calls.some(c => c.who === 'AUGUSTO' && c.input.bandeja.some(b => /César \(el dueño\).*rocambolescas/.test(b))));
+    assert.ok(f.calls[0].input.mensajeDelDueño.some(t => /operar por horas/.test(t)));
+    f.script.turn = turn([act('wait', {value: '240'})]); for (const k of Object.keys(f.script)) if (k.startsWith('turn:')) delete f.script[k];
+    mock.timers.tick(75 * 60e3); await cycle(f.env, f.opts); live = await status(f.env);
+    assert.equal(live.positions.length, 0); assert.equal(live.closed[0].reason, 'tiempo');
+    assert.deepEqual(checkPolicy('holdDays', '0.1'), {ok: true, value: 0.1}); assert.equal(checkPolicy('holdDays', '2.6').value, 3);
+    // octubre acaba con 12.500 € de beneficio: 2.500 € pasan a noviembre
+    await locked(f.env, s => { s.real.book.cash += 12500 - (equity(s.real.book) - s.operatingLedger.openingEquity); });
+    mock.timers.setTime(Date.parse('2026-11-02T15:00:00Z')); await cycle(f.env, f.opts); live = await status(f.env);
+    assert.equal(live.company.months['2026-10'].paid, true); assert.ok(Math.abs(live.company.monthPnl - 2500) < 5, 'noviembre arranca con el sobrante: ' + live.company.monthPnl);
+  } finally { mock.timers.reset(); }
+});

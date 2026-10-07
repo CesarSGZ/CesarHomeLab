@@ -143,7 +143,9 @@ export async function cycle(env, {manual = false, call = callModel, fetcher = fe
     const v2 = initCompany(s, now), book = s.real.book, month = day(now).slice(0, 7);
     if (s.operatingLedger?.month !== month) {
       if (s.operatingLedger?.month) { const profit = equity(book) - s.operatingLedger.openingEquity, paid = profit >= RENT_TARGET; v2.months[s.operatingLedger.month] = {profit: Math.round(profit), paid, equity: Math.round(equity(book))}; emit(v2, 'system', {kind: paid ? 'rent-paid' : 'rent-missed', text: paid ? `¡Alquiler de ${s.operatingLedger.month} pagado! Beneficio del mes: ${eur(profit)}.` : `No se llegó al alquiler de ${s.operatingLedger.month}: ${eur(profit)} de ${eur(RENT_TARGET)}.`}, now); }
-      s.operatingLedger = {month, openingEquity: equity(book), startedAt: now};
+      // Lo ganado por encima del alquiler se guarda: el mes nuevo arranca con ese colchón ya contado.
+      const carry = s.operatingLedger?.month ? Math.max(0, equity(book) - s.operatingLedger.openingEquity - RENT_TARGET) : 0;
+      s.operatingLedger = {month, openingEquity: equity(book) - carry, startedAt: now, carry: Math.round(carry)};
     }
     // 1 · Datos sin IA
     if (now - (s.real.lastScan || 0) > 15 * 60e3) { try { await radar(s); } catch (e) { log(s, 'scout', 'Radar: ' + short(e.message, 120), 'warning'); s.real.lastScan = now; } await checkpoint(); }
