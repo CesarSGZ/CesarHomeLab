@@ -1,0 +1,37 @@
+/* Flight Deck layer for the private sign-in: radar scope, livery typography and an identity-scan panel. */
+.fd-radar{position:fixed;z-index:0;left:30%;top:50%;width:min(860px,78vw);aspect-ratio:1;transform:translate(-50%,-50%);border-radius:50%;pointer-events:none;
+  background:repeating-radial-gradient(circle,transparent 0 calc(25% - 1px),#8fd8f01c calc(25% - 1px) 25%);
+  -webkit-mask:radial-gradient(circle,#000 62%,transparent 71%);mask:radial-gradient(circle,#000 62%,transparent 71%)}
+.fd-radar:before{content:"";position:absolute;inset:0;border-radius:50%;background:conic-gradient(from 0deg,#cfe88f00 0deg,#cfe88f00 320deg,#cfe88f12 352deg,#cfe88f38 360deg);animation:fd-sweep 6s linear infinite}
+.fd-radar:after{content:"";position:absolute;inset:0;background:linear-gradient(#8fd8f01a,#8fd8f01a) 50% 0/1px 100% no-repeat,linear-gradient(#8fd8f01a,#8fd8f01a) 0 50%/100% 1px no-repeat}
+.fd-radar i{position:absolute;width:7px;height:7px;margin:-3.5px;border-radius:50%;background:#cfe88f;box-shadow:0 0 12px #cfe88f;opacity:0;animation:fd-blip 6s linear infinite}
+.fd-radar i:nth-child(1){left:68%;top:30%;animation-delay:.9s}
+.fd-radar i:nth-child(2){left:30%;top:62%;animation-delay:3.4s}
+.fd-radar i:nth-child(3){left:58%;top:76%;animation-delay:2.4s;background:#8fd8f0;box-shadow:0 0 12px #8fd8f0}
+@keyframes fd-sweep{to{transform:rotate(360deg)}}
+@keyframes fd-blip{0%,4%{opacity:0}6%{opacity:1}40%{opacity:.15}100%{opacity:0}}
+.login-page main{position:relative;z-index:1}
+
+.login-page h1{font-family:"Archivo",Manrope,sans-serif;font-weight:780;font-stretch:86%;letter-spacing:-.035em}
+.login-page h1 em{display:inline;font-style:normal;font-weight:430;font-stretch:122%;letter-spacing:-.03em;color:transparent;-webkit-text-stroke:1.3px #8fd8f0;
+  background:linear-gradient(90deg,#8fd8f0 0 50%,transparent 50% 100%);background-size:200% 100%;background-position:100% 0;-webkit-background-clip:text;background-clip:text;animation:fd-fill 1.6s .5s cubic-bezier(.2,.8,.2,1) forwards}
+@keyframes fd-fill{to{background-position:0 0}}
+.auth-panel h2{font-family:"Archivo",Manrope,sans-serif;font-weight:760;font-stretch:90%}
+
+/* Identity scan: a phosphor line sweeps the panel when it loads and while a field holds focus. */
+.auth-panel{overflow:hidden}
+.auth-panel:after{content:"";position:absolute;left:0;right:0;top:0;height:120px;pointer-events:none;background:linear-gradient(transparent,#cfe88f14 60%,#cfe88f40 50%,transparent);transform:translateY(-130px);animation:fd-scan 2.2s .3s cubic-bezier(.4,0,.2,1) 1 both}
+.auth-panel:focus-within:after{animation:fd-scan 2.6s cubic-bezier(.4,0,.2,1) infinite}
+@keyframes fd-scan{0%{transform:translateY(-130px);opacity:1}100%{transform:translateY(110vh);opacity:.4}}
+.panel-index:after{content:" · TRANSPONDER 7000";color:#cfe88f}
+
+html[data-theme=day] .fd-radar{background:repeating-radial-gradient(circle,transparent 0 calc(25% - 1px),#14769326 calc(25% - 1px) 25%)}
+html[data-theme=day] .fd-radar:before{background:conic-gradient(from 0deg,#59771f00 0deg,#59771f00 320deg,#59771f10 352deg,#59771f30 360deg)}
+html[data-theme=day] .panel-index:after{color:#4b6a18}
+html[data-theme=day] .login-page h1 em{-webkit-text-stroke-color:#147693;background-image:linear-gradient(90deg,#147693 0 50%,transparent 50% 100%)}
+
+@media(max-width:800px){.fd-radar{left:50%;top:26%;width:120vw}}
+@media(prefers-reduced-motion:reduce){
+  .fd-radar:before,.fd-radar i,.auth-panel:after,.auth-panel:focus-within:after{animation:none!important}
+  .login-page h1 em{animation:none;background-position:0 0}
+}

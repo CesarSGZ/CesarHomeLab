@@ -5,3 +5,8 @@
 ibkr-bridge.env
 **/ibkr-bridge.env
 *.pem
+
+# HyperFrames video sources: renders and snapshots are build output
+video/*/renders/
+video/*/snapshots/
+video/*/.hyperframes/

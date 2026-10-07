@@ -9,7 +9,7 @@
   <title>César Solla González — Mission Control</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,300..900&family=DM+Mono:wght@300;400;500&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="mobile.css">
   <link rel="stylesheet" href="enhancements.css">
@@ -20,10 +20,19 @@
   <link rel="stylesheet" href="languages.css?v=20261001simple">
   <link rel="stylesheet" href="profile-polish.css?v=20261001a">
   <link rel="stylesheet" href="/theme.css?v=20261001contrast">
+  <link rel="stylesheet" href="flight-deck.css?v=20261007a">
 </head>
 <body>
   <div class="noise" aria-hidden="true"></div>
   <div class="progress" aria-hidden="true"><span></span></div>
+  <a class="fd-skip" href="#top">Skip to content</a>
+  <aside class="fd-hud" aria-label="Flight progress">
+    <div class="fd-alt" aria-hidden="true">
+      <div class="fd-alt-window"><div class="fd-alt-tape"></div></div>
+      <div class="fd-alt-box"><span class="fd-alt-label">ALT</span><strong class="fd-alt-value">00000</strong><span class="fd-alt-vs">VS <b>+0</b></span></div>
+    </div>
+    <ol class="fd-phases"></ol>
+  </aside>
 
   <header class="nav-wrap">
     <a class="brand" href="#top" aria-label="Back to top"><span>CSG</span><i></i></a>
@@ -38,22 +47,24 @@
   </header>
 
   <main id="top">
-    <section class="hero section">
+    <section class="hero section" data-phase="Pre-flight">
       <div class="hero-orbit" aria-hidden="true"><i></i><i></i><i></i></div>
+      <div class="fd-horizon" aria-hidden="true"><svg class="fd-adi" viewBox="-600 -400 1200 800" preserveAspectRatio="xMidYMid slice"><g class="fd-ladder"></g><g class="fd-waterline"><path d="M-90 0H-34L-18 16L0 0L18 16L34 0H90"/><circle r="3"/></g></svg></div>
       <div class="hero-copy reveal">
         <p class="eyebrow"><span class="pulse"></span> Based in Madrid · Ready for the next mission</p>
         <h1>I connect<br><em>complex systems</em><br>with clear decisions.</h1>
         <p class="hero-lead">Aerospace systems engineer with Airbus Defence and Space experience across <strong>Eurodrone powerplant V&amp;V</strong>, <strong>aircraft-system integration</strong> and <strong>A330 MRTT programme execution</strong>.</p>
         <div class="hero-actions"><a class="button primary" href="#trajectory">Explore the mission <span>↓</span></a><a class="button ghost" href="https://www.linkedin.com/in/cesarsgz/" target="_blank" rel="noreferrer">LinkedIn ↗</a></div>
+        <button class="fd-brief-link" type="button" data-brief-open><span class="fd-play" aria-hidden="true"></span><span>Watch the 40-second mission brief</span></button>
       </div>
       <div class="identity reveal" data-delay="1">
-        <div class="portrait-stage"><div class="portrait-shell"><div class="portrait-ring"></div><img src="assets/cesar-hq.png" alt="Portrait of César Solla González"></div><span class="coordinate c1">40.4168° N</span><span class="coordinate c2">03.7038° W</span></div>
+        <div class="portrait-stage"><div class="portrait-shell"><div class="portrait-ring"></div><img src="assets/cesar-hq.png" alt="Portrait of César Solla González"><button class="fd-portrait-play" type="button" data-brief-open aria-label="Play the mission brief video"><span class="fd-play" aria-hidden="true"></span><span>Mission brief <b>0:40</b></span></button></div><span class="coordinate c1">40.4168° N</span><span class="coordinate c2">03.7038° W</span></div>
         <div class="id-card"><span>MISSION SPECIALIST</span><strong>César Solla González</strong><small>Aerospace Systems Engineer</small></div>
       </div>
       <div class="scroll-hint"><span></span>SCROLL TO LAUNCH</div>
     </section>
 
-    <section class="manifest section reveal">
+    <section class="manifest section reveal" data-phase="Take-off">
       <p class="eyebrow">01 / Mission profile</p>
       <div class="manifest-grid"><h2>Experience and passion.<br><span>Across three disciplines.</span></h2><p>I combine systems-engineering rigour with programme perspective and data fluency, turning complex technical work into clear decisions, coordinated action and measurable delivery.</p></div>
       <div class="pillars" id="disciplines">
@@ -64,7 +75,7 @@
       <div class="belief-statement"><span>LEADERSHIP / WITHOUT A TITLE</span><p>Leadership can come from any position. I am passionate about engineering and the technical world — but the best systems are still built by people who understand people.</p></div>
     </section>
 
-    <section class="trajectory section" id="trajectory">
+    <section class="trajectory section" id="trajectory" data-phase="Climb">
       <div class="section-head reveal"><p class="eyebrow">02 / Flight log</p><h2>A trajectory built<br>on <em>increasing responsibility.</em></h2></div>
       <div class="tenure-overview reveal">
         <article class="airbus-tenure"><span>AIRBUS DEFENCE AND SPACE</span><strong>SINCE OCTOBER 2022</strong><small>Oct 2022 — Present · 3 progressive roles through the AGGP Talents Programme</small><i></i></article>
@@ -80,7 +91,7 @@
       </div>
     </section>
 
-    <section class="systems section" id="systems">
+    <section class="systems section" id="systems" data-phase="Cruise">
       <div class="section-head reveal"><p class="eyebrow">03 / Systems map</p><h2>Choose a frequency.<br><em>See what I bring.</em></h2></div>
       <p class="systems-intro reveal">Three disciplines. One connected perspective.<span>Explore the thinking behind the work.</span></p>
       <div class="capability-atlas reveal" id="capability-atlas">
@@ -160,7 +171,7 @@
       <div class="tool-marquee" id="capability-index" aria-label="Complete capability index"><div class="tool-marquee-track"></div></div>
     </section>
 
-    <section class="credentials section" id="credentials">
+    <section class="credentials section" id="credentials" data-phase="Descent">
       <div class="section-head reveal"><p class="eyebrow">04 / Credentials</p><h2>Built on engineering.<br><em>Certified to lead.</em></h2></div>
       <div class="credential-grid">
         <article class="credential discipline-programme reveal"><div class="credential-brand credential-brand-pmi"><img src="assets/credentials/pmi.png" alt="Project Management Institute" width="84" height="84" loading="lazy"><span class="credential-no">PMP</span></div><div><span>2026 · PMI</span><h3>Project Management Professional</h3><p>Project Management Institute</p><span class="credential-category">Programme Management</span></div></article>
@@ -170,7 +181,7 @@
       </div>
     </section>
 
-    <section class="languages language-spectrum section reveal" id="languages" aria-labelledby="languages-title">
+    <section class="languages language-spectrum section reveal" id="languages" data-phase="Approach" aria-labelledby="languages-title">
       <div class="language-heading"><div><p class="eyebrow">05 / Communication range</p><h2 id="languages-title">Passionate about languages.<br><em>Connecting with people.</em></h2></div></div>
       <div class="language-console">
         <div class="language-primary">
@@ -185,18 +196,30 @@
       </div>
     </section>
 
-    <section class="finale section">
+    <section class="finale section" data-phase="Landing">
       <div class="finale-orb" aria-hidden="true"><i></i></div>
+      <div class="fd-runway" aria-hidden="true"><div class="fd-runway-plane"><i class="fd-centreline"></i><i class="fd-edge fd-edge-l"></i><i class="fd-edge fd-edge-r"></i><i class="fd-threshold"></i></div><div class="fd-papi"><i></i><i></i><i></i><i></i></div></div>
       <p class="eyebrow reveal">06 / One last thing</p>
       <h2 class="reveal">And yes, obviously…<br><em>I can use AI too.</em></h2>
       <p class="vibe reveal">This website was <span>vibe coded</span> — curiosity, judgement and a human at the controls included.</p>
-      <div class="final-actions reveal"><a class="button primary" href="mailto:cesarsollagonzalez@gmail.com" data-copy-email>Let's build something complex <span>↗</span></a></div>
+      <div class="final-actions reveal"><a class="button primary" href="mailto:cesarsollagonzalez@gmail.com" data-copy-email>Let's build something complex <span>↗</span></a><button class="button ghost" type="button" data-brief-open>Replay the brief <span>▶</span></button></div>
       <footer><span>© 2026 César Solla González</span><span>ENGINEERED WITH INTENT · AUGMENTED WITH AI</span><a href="#top">Back to orbit ↑</a></footer>
     </section>
   </main>
+  <dialog class="fd-brief" id="mission-brief" aria-label="Mission brief video">
+    <div class="fd-brief-frame">
+      <div class="fd-brief-bar"><span>MISSION BRIEF · CSG-01</span><button type="button" class="fd-brief-close" data-brief-close aria-label="Close video">Close ✕</button></div>
+      <video src="assets/brief/mission-brief.mp4" poster="assets/brief/mission-brief-poster.jpg" controls playsinline preload="none"></video>
+    </div>
+  </dialog>
   <div class="contact-toast" id="contact-toast" role="status" aria-live="polite">Email copied to clipboard</div>
   <script src="script.js?v=20261001ambient"></script>
   <script type="module" src="career-dates.js?v=20260927a"></script>
   <script src="capability-atlas.js?v=20260927worlds"></script>
+  <script src="assets/vendor/gsap/gsap.min.js" defer></script>
+  <script src="assets/vendor/gsap/ScrollTrigger.min.js" defer></script>
+  <script src="assets/vendor/gsap/SplitText.min.js" defer></script>
+  <script src="assets/vendor/gsap/ScrambleTextPlugin.min.js" defer></script>
+  <script src="flight-deck.js?v=20261007a" defer></script>
 </body>
 </html>

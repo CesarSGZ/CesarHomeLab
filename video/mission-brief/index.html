@@ -1,0 +1,338 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      @font-face { font-family: "Archivo"; src: url("fonts/archivo-var.woff2") format("woff2"); font-weight: 300 900; font-stretch: 62% 125%; }
+      @font-face { font-family: "DM Mono"; src: url("fonts/dmmono-400.woff2") format("woff2"); font-weight: 400; }
+      @font-face { font-family: "DM Mono"; src: url("fonts/dmmono-500.woff2") format("woff2"); font-weight: 500; }
+      :root { --bg: #071015; --fg: #eef3ec; --muted: #9fb0aa; --hud: #cfe88f; --hud-dim: rgba(207,232,143,.35); --line: rgba(238,243,236,.12); --sky: #8fd8f0; }
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; background: var(--bg); }
+      #root { position: relative; width: 100%; height: 100%; overflow: hidden; background: var(--bg); color: var(--fg); font-family: "Archivo", sans-serif; }
+      .mono { font-family: "DM Mono", monospace; letter-spacing: .14em; text-transform: uppercase; }
+      .layer, .scene { position: absolute; inset: 0; }
+      .scene { padding: 150px 170px 140px; }
+
+      /* ---- persistent background ---- */
+      #bg-grid { position: absolute; inset: -40px; background-image: linear-gradient(var(--line) 1px, transparent 1px), linear-gradient(90deg, var(--line) 1px, transparent 1px); background-size: 120px 120px; opacity: .35; -webkit-mask: radial-gradient(ellipse 70% 65% at 50% 50%, #000 30%, transparent 80%); mask: radial-gradient(ellipse 70% 65% at 50% 50%, #000 30%, transparent 80%); }
+      #bg-glow { position: absolute; width: 1400px; height: 1400px; left: 900px; top: -500px; border-radius: 50%; background: radial-gradient(circle, rgba(36,86,110,.55), transparent 62%); }
+      #adi { position: absolute; left: 50%; top: 50%; width: 2400px; height: 1600px; margin: -800px 0 0 -1200px; }
+      #adi .ladder { stroke: var(--sky); stroke-width: 1.4; fill: none; opacity: .16; }
+      #adi .ladder text { fill: var(--sky); stroke: none; font: 500 15px "DM Mono", monospace; }
+      #adi .horizon { stroke: var(--hud); stroke-width: 1.6; opacity: .45; }
+      #grain { position: absolute; inset: 0; opacity: .06; background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); }
+
+      /* ---- HUD frame ---- */
+      .corner { position: absolute; width: 46px; height: 46px; border-color: var(--hud); border-style: solid; opacity: .8; }
+      .c-tl { left: 60px; top: 56px; border-width: 2px 0 0 2px; } .c-tr { right: 60px; top: 56px; border-width: 2px 2px 0 0; }
+      .c-bl { left: 60px; bottom: 56px; border-width: 0 0 2px 2px; } .c-br { right: 60px; bottom: 56px; border-width: 0 2px 2px 0; }
+      .hud-read { position: absolute; font-size: 17px; color: var(--hud); display: flex; gap: 26px; align-items: center; }
+      #hud-tl { left: 128px; top: 66px; } #hud-tr { right: 128px; top: 66px; } #hud-bl { left: 128px; bottom: 64px; color: var(--muted); } #hud-br { right: 128px; bottom: 64px; }
+      .hud-read b { font-weight: 500; color: var(--fg); }
+      .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--hud); display: inline-block; }
+      #progress { position: absolute; left: 128px; right: 128px; bottom: 100px; height: 2px; background: var(--line); }
+      #progress i { position: absolute; inset: 0; background: var(--hud); transform-origin: 0 50%; display: block; }
+      #wipe { position: absolute; top: 0; bottom: 0; width: 260px; left: -300px; background: linear-gradient(90deg, transparent, rgba(207,232,143,.0) 20%, rgba(207,232,143,.55) 50%, rgba(207,232,143,0) 80%, transparent); }
+
+      /* ---- scene 1: identity ---- */
+      #s1 { display: flex; flex-direction: column; justify-content: center; }
+      .s1-kicker { font-size: 22px; color: var(--hud); margin-bottom: 40px; display: flex; gap: 22px; align-items: center; }
+      .s1-kicker .bar { width: 90px; height: 2px; background: var(--hud); display: block; transform-origin: 0 50%; }
+      .mask { overflow: hidden; padding-bottom: .04em; }
+      .mask > * { display: block; }
+      .s1-name { font-size: 236px; line-height: .9; font-weight: 860; font-stretch: 72%; letter-spacing: -.035em; }
+      .s1-name.alt { font-weight: 300; font-stretch: 125%; color: transparent; -webkit-text-stroke: 2.5px var(--hud); letter-spacing: -.02em; font-size: 200px; }
+      .s1-role { margin-top: 44px; font-size: 26px; color: var(--muted); display: flex; gap: 30px; }
+      .s1-role b { color: var(--fg); font-weight: 500; }
+
+      /* ---- scene 2: statement ---- */
+      #s2 { display: flex; flex-direction: column; justify-content: center; }
+      .s2-line { font-size: 170px; line-height: .98; letter-spacing: -.04em; }
+      .s2-a { font-weight: 820; font-stretch: 78%; }
+      .s2-b { font-weight: 360; font-stretch: 125%; color: var(--hud); letter-spacing: -.03em; font-size: 150px; }
+      .s2-c { font-weight: 820; font-stretch: 78%; }
+      .s2-foot { margin-top: 50px; font-size: 24px; color: var(--muted); }
+
+      /* ---- scene 3: flight log ---- */
+      #s3 { display: grid; grid-template-columns: 330px 1fr; gap: 110px; align-items: center; }
+      .s3-head { position: absolute; left: 170px; top: 150px; font-size: 22px; color: var(--hud); }
+      .tape { position: relative; height: 640px; border-left: 2px solid var(--hud-dim); overflow: hidden; -webkit-mask: linear-gradient(transparent, #000 18%, #000 82%, transparent); mask: linear-gradient(transparent, #000 18%, #000 82%, transparent); }
+      .tape-ticks { position: absolute; left: 0; right: 0; top: 50%; }
+      .tape-ticks i { position: absolute; left: 0; height: 2px; width: 22px; background: var(--hud-dim); display: block; }
+      .tape-ticks i.major { width: 44px; background: var(--hud); }
+      .tape-ticks i.major span { position: absolute; left: 60px; top: -13px; font: 500 22px "DM Mono", monospace; color: var(--hud); letter-spacing: .06em; opacity: .8; }
+      .alt-box { position: absolute; left: -2px; top: 50%; margin-top: -62px; height: 124px; width: 330px; background: var(--bg); border: 2px solid var(--hud); clip-path: polygon(26px 0, 100% 0, 100% 100%, 26px 100%, 0 50%); padding: 18px 0 0 54px; }
+      .alt-box small { display: block; font: 500 16px "DM Mono", monospace; letter-spacing: .22em; color: var(--hud); }
+      .alt-box strong { display: block; font: 500 64px/1.1 "DM Mono", monospace; color: var(--fg); letter-spacing: .02em; }
+      .cards { position: relative; height: 640px; }
+      .card { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; }
+      .card-top { display: flex; align-items: center; gap: 36px; margin-bottom: 34px; }
+      .logo { height: 74px; width: 210px; display: flex; align-items: center; justify-content: flex-start; }
+      .logo img { max-height: 58px; max-width: 210px; display: block; }
+      .logo.light { background: #f3f4ee; border-radius: 10px; padding: 10px 18px; width: auto; height: auto; }
+      .logo.light img[src$=".png"] { height: 96px; } .logo.light img { height: 54px; width: auto; max-width: none; max-height: none; }
+      .when { font: 500 26px "DM Mono", monospace; letter-spacing: .12em; color: var(--hud); }
+      .card h3 { font-size: 96px; line-height: 1; font-weight: 780; font-stretch: 82%; letter-spacing: -.03em; max-width: 1180px; }
+      .card p { margin-top: 30px; font-size: 32px; line-height: 1.45; color: var(--muted); max-width: 1100px; font-weight: 400; }
+      .chips { display: flex; gap: 14px; margin-top: 36px; flex-wrap: wrap; }
+      .chips span { font: 500 20px "DM Mono", monospace; letter-spacing: .08em; text-transform: uppercase; padding: 12px 18px; border: 1.5px solid var(--hud-dim); border-radius: 6px; color: var(--fg); display: inline-block; }
+      .card .fl { position: absolute; right: 0; top: 40px; font: 500 22px "DM Mono", monospace; color: var(--muted); letter-spacing: .16em; }
+
+      /* ---- scene 4: disciplines ---- */
+      #s4 { display: flex; flex-direction: column; justify-content: center; }
+      .disc { position: absolute; left: 170px; right: 170px; top: 0; bottom: 0; display: flex; flex-direction: column; justify-content: center; }
+      .disc .num { font-size: 26px; color: var(--hud); margin-bottom: 26px; }
+      .disc h2 { font-size: 250px; line-height: .86; font-weight: 880; font-stretch: 66%; letter-spacing: -.03em; }
+      .disc p { font-size: 40px; margin-top: 34px; color: var(--muted); font-weight: 400; max-width: 1200px; }
+      .disc p b { color: var(--fg); font-weight: 650; }
+      .trio { position: absolute; left: 170px; right: 170px; top: 0; bottom: 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 40px; align-content: center; }
+      .trio div { border-top: 3px solid var(--hud); padding-top: 26px; }
+      .trio strong { display: block; font-size: 128px; font-weight: 820; font-stretch: 72%; letter-spacing: -.02em; line-height: 1; }
+      .trio span { display: block; margin-top: 18px; font-size: 24px; color: var(--muted); }
+      .trio-foot { position: absolute; left: 170px; bottom: 170px; font-size: 54px; font-weight: 340; font-stretch: 125%; color: var(--hud); letter-spacing: -.02em; }
+
+      /* ---- scene 5: credentials ---- */
+      #s5 { display: grid; grid-template-columns: 640px 1fr; gap: 120px; align-items: center; }
+      .big4 { font-size: 520px; line-height: .8; font-weight: 900; font-stretch: 62%; color: var(--hud); letter-spacing: -.05em; }
+      .big4-cap { max-width: 460px; font-size: 30px; color: var(--fg); margin-top: 26px; line-height: 1.5; }
+      .creds { display: flex; flex-direction: column; gap: 0; }
+      .cred { display: grid; grid-template-columns: 170px 1fr; align-items: baseline; padding: 26px 0; border-bottom: 1.5px solid var(--line); }
+      .cred .k { font: 500 30px "DM Mono", monospace; color: var(--hud); letter-spacing: .08em; }
+      .cred .v { font-size: 44px; font-weight: 700; font-stretch: 86%; letter-spacing: -.015em; }
+      .cred .v small { display: block; font-size: 24px; font-weight: 400; color: var(--muted); font-stretch: 100%; letter-spacing: 0; margin-top: 6px; }
+      .langs { display: flex; gap: 34px; margin-top: 44px; }
+      .lang { display: flex; align-items: center; gap: 14px; font: 500 22px "DM Mono", monospace; letter-spacing: .08em; color: var(--fg); }
+      .lang img { width: 46px; height: 32px; object-fit: cover; border-radius: 4px; display: block; }
+      .lang em { font-style: normal; color: var(--hud); }
+
+      /* ---- scene 6: close ---- */
+      #s6 { display: grid; grid-template-columns: 560px 1fr; gap: 120px; align-items: center; }
+      .portrait { position: relative; width: 560px; height: 700px; border-radius: 280px 280px 18px 18px; overflow: hidden; border: 2px solid rgba(207,232,143,.6); }
+      .portrait img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 40%; display: block; filter: saturate(.8) contrast(1.04); }
+      .portrait .scan { position: absolute; left: 0; right: 0; height: 140px; top: -160px; background: linear-gradient(transparent, rgba(207,232,143,.45) 50%, transparent); mix-blend-mode: screen; display: block; }
+      .close-kicker { font-size: 24px; color: var(--hud); margin-bottom: 34px; }
+      .close-title { font-size: 150px; line-height: .95; font-weight: 820; font-stretch: 76%; letter-spacing: -.035em; }
+      .close-title .x { font-weight: 330; font-stretch: 125%; color: var(--hud); letter-spacing: -.02em; display: block; font-size: 128px; }
+      .close-name { margin-top: 48px; font-size: 46px; font-weight: 700; letter-spacing: -.01em; }
+      .close-links { margin-top: 20px; font-size: 24px; color: var(--muted); display: flex; gap: 40px; }
+      .close-links b { color: var(--fg); font-weight: 500; }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="main" data-start="0" data-duration="40" data-fps="30" data-width="1920" data-height="1080">
+      <!-- persistent background -->
+      <div id="bg" class="clip layer" data-start="0" data-duration="40" data-track-index="0">
+        <div id="bg-glow"></div>
+        <div id="bg-grid"></div>
+        <svg id="adi" viewBox="-1200 -800 2400 1600" aria-hidden="true" data-layout-allow-overflow data-layout-decorative><g id="adi-roll"><g id="adi-pitch" class="ladder"></g></g></svg>
+        <div id="grain"></div>
+      </div>
+
+      <!-- scene 1: identity -->
+      <div id="s1" class="clip scene" data-start="0" data-duration="5.2" data-track-index="2">
+        <div class="s1-kicker mono"><span class="bar"></span><span id="s1-k">Mission brief · CSG-01</span></div>
+        <div class="mask"><span class="s1-name" id="s1-n1">César Solla</span></div>
+        <div class="mask"><span class="s1-name alt" id="s1-n2">González</span></div>
+        <div class="s1-role mono" id="s1-role"><span><b>Aerospace systems engineer</b></span><span>Airbus Defence and Space</span><span>Madrid</span></div>
+      </div>
+
+      <!-- scene 2: statement -->
+      <div id="s2" class="clip scene" data-start="5.2" data-duration="5.2" data-track-index="2">
+        <div class="mask"><span class="s2-line s2-a">I connect</span></div>
+        <div class="mask"><span class="s2-line s2-b">complex systems</span></div>
+        <div class="mask"><span class="s2-line s2-c">with clear decisions.</span></div>
+        <div class="s2-foot mono" id="s2-foot">Programme · Engineering · Data</div>
+      </div>
+
+      <!-- scene 3: flight log -->
+      <div id="s3" class="clip scene" data-start="10.4" data-duration="12" data-track-index="2">
+        <div class="s3-head mono" id="s3-head">Flight log · 2021 → now · climbing on responsibility</div>
+        <div class="tape" id="tape">
+          <div class="tape-ticks" id="tape-ticks"></div>
+          <div class="alt-box"><small>ALTITUDE · FT</small><strong id="alt-val">00000</strong></div>
+        </div>
+        <div class="cards">
+          <div class="card" id="c1"><span class="fl">WPT 01 · FL050</span><div class="card-top"><div class="logo light"><img src="assets/ey.png" alt="EY" style="height:96px;width:82px;max-height:none;max-width:none" /></div><span class="when">Nov 2021 — Apr 2022</span></div><h3>R&amp;D Consultant</h3><p>Defence, AI, manufacturing and energy innovation, turned into defensible technical documentation.</p><div class="chips"><span>Technical assessment</span><span>Cross-industry R&amp;D</span></div></div>
+          <div class="card" id="c2"><span class="fl">WPT 02 · FL120</span><div class="card-top"><div class="logo"><img src="assets/deloitte.svg" alt="Deloitte" /></div><span class="when">May 2022 — Oct 2022</span></div><h3>Salesforce Analyst</h3><p>Certified administrator and functional developer for Stellantis' C1ST sales platform.</p><div class="chips"><span>Salesforce</span><span>Agile &amp; Scrum</span><span>Process analysis</span></div></div>
+          <div class="card" id="c3"><span class="fl">WPT 03 · FL200</span><div class="card-top"><div class="logo"><img src="assets/airbus.svg" alt="Airbus" /></div><span class="when">Oct 2022 — May 2023</span></div><h3>BI, SAP BW &amp; HANA Technical Expert</h3><p>Analytics and data flows for procurement and supply chain.</p><div class="chips"><span>SAP BW / HANA</span><span>KPI design</span><span>Automation</span></div></div>
+          <div class="card" id="c4"><span class="fl">WPT 04 · FL280</span><div class="card-top"><div class="logo"><img src="assets/airbus.svg" alt="Airbus" /></div><span class="when">May 2023 — Apr 2024</span></div><h3>Eurodrone Powerplant Systems Engineer</h3><p>Requirements, V&amp;V and test preparation across engine, nacelle and avionics interfaces.</p><div class="chips"><span>V&amp;V</span><span>Means of Compliance</span><span>ARP4754A</span></div></div>
+          <div class="card" id="c5"><span class="fl">WPT 05 · FL350 · NOW</span><div class="card-top"><div class="logo"><img src="assets/airbus.svg" alt="Airbus" /></div><span class="when">Apr 2024 — Present</span></div><h3>PMO · A330 MRTT &amp; Strategic R&amp;D</h3><p>Risks, budgets, schedules and stakeholders turned into decision-ready reporting.</p><div class="chips"><span>Programme execution</span><span>Integrated planning</span><span>Executive reporting</span></div></div>
+        </div>
+      </div>
+
+      <!-- scene 4: disciplines -->
+      <div id="s4" class="clip scene" data-start="22.4" data-duration="6.2" data-track-index="2">
+        <div class="disc" id="d1"><div class="num mono">01 / Programme execution</div><h2>Orchestrate.</h2><p><b>Connect the people. Move the programme.</b> Planning, risk, budgets, suppliers.</p></div>
+        <div class="disc" id="d2"><div class="num mono">02 / Systems engineering</div><h2>Engineer.</h2><p><b>Understand the system. Master the detail.</b> Requirements, interfaces, V&amp;V.</p></div>
+        <div class="disc" id="d3"><div class="num mono">03 / Data &amp; automation</div><h2>Illuminate.</h2><p><b>Find the signal. Make it actionable.</b> SAP analytics, Python, KPIs.</p></div>
+        <div class="trio" id="trio"><div><strong>Orchestrate</strong><span class="mono">15 capabilities</span></div><div><strong>Engineer</strong><span class="mono">11 capabilities</span></div><div><strong>Illuminate</strong><span class="mono">9 capabilities</span></div></div>
+        <div class="trio-foot" id="trio-foot">One connected perspective.</div>
+      </div>
+
+      <!-- scene 5: credentials -->
+      <div id="s5" class="clip scene" data-start="28.6" data-duration="6" data-track-index="2">
+        <div><div class="big4" id="big4">0</div><div class="big4-cap mono">Years at Airbus Defence and Space</div></div>
+        <div>
+          <div class="creds">
+            <div class="cred"><span class="k">PMP</span><span class="v">Project Management Professional<small>Project Management Institute · 2026</small></span></div>
+            <div class="cred"><span class="k">MSc</span><span class="v">Aerospace Engineering<small>Universidad Europea de Madrid</small></span></div>
+            <div class="cred"><span class="k">BSc</span><span class="v">Aerospace Engineering<small>Technical University of Madrid</small></span></div>
+            <div class="cred"><span class="k">SF</span><span class="v">Salesforce Administrator<small>Certified administrator &amp; functional developer</small></span></div>
+          </div>
+          <div class="langs">
+            <span class="lang"><img src="assets/es.svg" alt="" />ES <em>Native</em></span>
+            <span class="lang"><img src="assets/gl.svg" alt="" />GL <em>Native</em></span>
+            <span class="lang"><img src="assets/gb.svg" alt="" />EN <em>C1</em></span>
+            <span class="lang"><img src="assets/fr.svg" alt="" />FR <em>B1</em></span>
+            <span class="lang"><img src="assets/pt.svg" alt="" />PT <em>A2</em></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- scene 6: close -->
+      <div id="s6" class="clip scene" data-start="34.6" data-duration="5.4" data-track-index="2">
+        <div class="portrait" id="portrait"><img src="assets/cesar-hq.png" alt="César Solla González" /><span class="scan" id="scan"></span></div>
+        <div>
+          <div class="close-kicker mono" id="close-k">Landing · ready for the next mission</div>
+          <div class="mask"><span class="close-title" id="ct1">Cleared for</span></div>
+          <div class="mask"><span class="close-title"><span class="x" id="ct2">what's next.</span></span></div>
+          <div class="close-name" id="close-name">César Solla González</div>
+          <div class="close-links mono" id="close-links"><span><b>cesar-solla.pages.dev</b></span><span>linkedin.com/in/cesarsgz</span></div>
+        </div>
+      </div>
+
+      <!-- persistent HUD frame (above scenes) -->
+      <div id="hud" class="clip layer" data-start="0" data-duration="40" data-track-index="4">
+        <i class="corner c-tl"></i><i class="corner c-tr"></i><i class="corner c-bl"></i><i class="corner c-br"></i>
+        <div class="hud-read mono" id="hud-tl"><span class="dot"></span><span>CSG-01</span><span id="phase">Pre-flight</span></div>
+        <div class="hud-read mono" id="hud-tr"><span>T+<b id="tc">00:00</b></span><span>ALT <b id="hud-alt">00000</b></span></div>
+        <div class="hud-read mono" id="hud-bl"><span>40.4168° N · 03.7038° W</span></div>
+        <div class="hud-read mono" id="hud-br"><span>cesar-solla.pages.dev</span></div>
+        <div id="progress"><i id="progress-bar"></i></div>
+        <div id="wipe" data-layout-allow-overflow></div>
+      </div>
+    </div>
+    <script>
+      // Build static decoration before the timeline: attitude ladder and altitude tape (pure DOM, deterministic).
+      const NS = "http://www.w3.org/2000/svg";
+      const ladder = document.getElementById("adi-pitch");
+      const mk = (tag, attrs, text) => { const n = document.createElementNS(NS, tag); for (const k in attrs) n.setAttribute(k, attrs[k]); if (text) n.textContent = text; return n; };
+      ladder.append(mk("line", { x1: -1400, x2: 1400, y1: 0, y2: 0, class: "horizon" }));
+      for (let d = -40; d <= 40; d += 5) {
+        if (!d) continue;
+        const y = -d * 18, w = d % 10 ? 140 : 230, t = d > 0 ? 12 : -12;
+        ladder.append(mk("path", { d: `M${-w} ${y + t}V${y}H-80M80 ${y}H${w}V${y + t}`, "stroke-dasharray": d < 0 ? "14 9" : "none" }));
+      }
+      const ticks = document.getElementById("tape-ticks");
+      for (let v = 0; v <= 42000; v += 1000) {
+        const i = document.createElement("i");
+        i.style.top = `${-(v / 1000) * 40}px`;
+        if (v % 5000 === 0) { i.className = "major"; const s = document.createElement("span"); s.textContent = "FL" + String(v / 100).padStart(3, "0"); i.append(s); }
+        ticks.append(i);
+      }
+
+      const tl = gsap.timeline({ paused: true });
+      const pad = (n, l) => String(Math.round(n)).padStart(l, "0");
+
+      // ---- persistent HUD: timecode, progress, altitude, phase ----
+      const clock = { t: 0 };
+      tl.to(clock, { t: 40, duration: 40, ease: "none", onUpdate() { const s = Math.floor(clock.t); document.getElementById("tc").textContent = `${pad(Math.floor(s / 60), 2)}:${pad(s % 60, 2)}`; } }, 0);
+      tl.fromTo("#progress-bar", { scaleX: 0 }, { scaleX: 1, duration: 40, ease: "none" }, 0);
+      const alt = { v: 0 };
+      const paintAlt = () => { const v = pad(alt.v / 10, 4) + "0"; document.getElementById("hud-alt").textContent = v.slice(-5); document.getElementById("alt-val").textContent = v.slice(-5); document.getElementById("tape-ticks").style.transform = `translateY(${(alt.v / 1000) * 40}px)`; };
+      tl.to(alt, { v: 2500, duration: 5, ease: "power1.in", onUpdate: paintAlt }, 5.2)
+        .to(alt, { v: 5000, duration: .9, ease: "power2.out", onUpdate: paintAlt }, 10.4)
+        .to(alt, { v: 12000, duration: 1.2, ease: "power3.inOut", onUpdate: paintAlt }, 12.6)
+        .to(alt, { v: 20000, duration: 1.2, ease: "power3.inOut", onUpdate: paintAlt }, 14.8)
+        .to(alt, { v: 28000, duration: 1.2, ease: "power3.inOut", onUpdate: paintAlt }, 17.0)
+        .to(alt, { v: 35000, duration: 1.2, ease: "power3.inOut", onUpdate: paintAlt }, 19.2)
+        .to(alt, { v: 39000, duration: 6, ease: "sine.inOut", onUpdate: paintAlt }, 22.4)
+        .to(alt, { v: 6000, duration: 6, ease: "power2.inOut", onUpdate: paintAlt }, 28.6)
+        .to(alt, { v: 0, duration: 2.4, ease: "power2.out", onUpdate: paintAlt }, 34.6);
+      const phases = [[0, "Pre-flight"], [5.2, "Take-off"], [10.4, "Climb"], [22.4, "Cruise"], [28.6, "Descent"], [34.6, "Landing"]];
+      // phase label derived from time, so seeking in any direction stays correct
+      tl.eventCallback("onUpdate", () => { const t = tl.time(); let p = phases[0][1]; for (const [at, l] of phases) if (t >= at) p = l; document.getElementById("phase").textContent = p; });
+
+      // background: slow roll and pitch of the attitude ladder through the flight
+      tl.fromTo("#adi-roll", { rotation: -3, svgOrigin: "0 0" }, { rotation: 4, duration: 10.4, ease: "sine.inOut", svgOrigin: "0 0" }, 0)
+        .to("#adi-roll", { rotation: -5, duration: 12, ease: "sine.inOut", svgOrigin: "0 0" }, 10.4)
+        .to("#adi-roll", { rotation: 2, duration: 17.6, ease: "sine.inOut", svgOrigin: "0 0" }, 22.4);
+      tl.fromTo("#adi-pitch", { y: -120 }, { y: 260, duration: 22.4, ease: "power1.inOut" }, 0)
+        .to("#adi-pitch", { y: 0, duration: 6, ease: "sine.inOut" }, 22.4)
+        .to("#adi-pitch", { y: -220, duration: 11.6, ease: "power1.inOut" }, 28.4);
+      tl.fromTo("#bg-glow", { x: 0, scale: 1 }, { x: -700, scale: 1.25, duration: 40, ease: "sine.inOut" }, 0);
+      tl.fromTo(".corner", { scale: 1.6, opacity: 0 }, { scale: 1, opacity: .8, duration: .7, ease: "expo.out", stagger: .06 }, .1);
+      tl.fromTo(".hud-read", { opacity: 0 }, { opacity: 1, duration: .5, stagger: .08 }, .4);
+
+      // scene wipes at every hard cut
+      [5.2, 10.4, 22.4, 28.6, 34.6].forEach(at => tl.fromTo("#wipe", { x: 0 }, { x: 2400, duration: .55, ease: "power2.inOut", immediateRender: false }, at - .3));
+
+      // ---- scene 1: identity (0 - 5.2) ----
+      tl.fromTo(".s1-kicker .bar", { scaleX: 0 }, { scaleX: 1, duration: .8, ease: "expo.out" }, .3)
+        .fromTo("#s1-k", { opacity: 0, x: -20 }, { opacity: 1, x: 0, duration: .6, ease: "power3.out" }, .45)
+        .fromTo("#s1-n1", { yPercent: 105 }, { yPercent: 0, duration: 1.1, ease: "expo.out" }, .65)
+        .fromTo("#s1-n2", { yPercent: 105 }, { yPercent: 0, duration: 1.1, ease: "expo.out" }, .85)
+        .fromTo("#s1-n2", { color: "rgba(207,232,143,0)" }, { color: "rgba(207,232,143,1)", duration: 1.2, ease: "power2.inOut" }, 1.9)
+        .fromTo("#s1-role > span", { opacity: 0, y: 16 }, { opacity: 1, y: 0, duration: .6, stagger: .12, ease: "power3.out" }, 1.5)
+        .to(["#s1-n1", "#s1-n2"], { yPercent: -105, duration: .5, ease: "power3.in", stagger: .05 }, 4.65)
+        .to(["#s1-role", ".s1-kicker"], { opacity: 0, duration: .35 }, 4.7);
+
+      // ---- scene 2: statement (5.2 - 10.4) ----
+      tl.fromTo(".s2-a", { yPercent: 110 }, { yPercent: 0, duration: .8, ease: "expo.out" }, 5.35)
+        .fromTo(".s2-b", { yPercent: 110 }, { yPercent: 0, duration: .8, ease: "expo.out" }, 5.75)
+        .fromTo(".s2-b", { skewX: -14, transformOrigin: "0% 100%" }, { skewX: 0, duration: 1.2, ease: "expo.out" }, 5.75)
+        .fromTo(".s2-c", { yPercent: 110 }, { yPercent: 0, duration: .8, ease: "expo.out" }, 6.2)
+        .fromTo("#s2-foot", { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: .6, ease: "power3.out" }, 7.0)
+        .to([".s2-a", ".s2-b", ".s2-c"], { yPercent: -110, duration: .45, ease: "power3.in", stagger: .05 }, 9.85)
+        .to("#s2-foot", { opacity: 0, duration: .3 }, 9.9);
+
+      // ---- scene 3: flight log (10.4 - 22.4) ----
+      tl.fromTo("#s3-head", { opacity: 0, x: -20 }, { opacity: 1, x: 0, duration: .6, ease: "power3.out" }, 10.5)
+        .fromTo("#tape", { opacity: 0, x: -40 }, { opacity: 1, x: 0, duration: .8, ease: "expo.out" }, 10.5);
+      const cardStarts = [10.6, 12.8, 15.0, 17.2, 19.4];
+      cardStarts.forEach((at, i) => {
+        const id = `#c${i + 1}`;
+        tl.fromTo(id, { opacity: 0, y: 90 }, { opacity: 1, y: 0, duration: .7, ease: "expo.out" }, at)
+          .fromTo(`${id} .chips span`, { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: .4, stagger: .07, ease: "power2.out" }, at + .35);
+        if (i < 4) tl.to(id, { opacity: 0, y: -90, duration: .45, ease: "power3.in" }, cardStarts[i + 1] - .3);
+      });
+      tl.to(["#c5", "#tape", "#s3-head"], { opacity: 0, duration: .35 }, 22.0);
+
+      // ---- scene 4: disciplines (22.4 - 28.6) ----
+      [["#d1", 22.5], ["#d2", 24.0], ["#d3", 25.5]].forEach(([id, at], i) => {
+        tl.fromTo(`${id} h2`, { yPercent: 40, opacity: 0, scale: 1.08 }, { yPercent: 0, opacity: 1, scale: 1, duration: .55, ease: "expo.out" }, at)
+          .fromTo(`${id} .num`, { opacity: 0 }, { opacity: 1, duration: .3 }, at)
+          .fromTo(`${id} p`, { opacity: 0, y: 18 }, { opacity: 1, y: 0, duration: .45, ease: "power3.out" }, at + .25)
+          .to(id, { opacity: 0, x: -80, duration: .3, ease: "power2.in" }, at + 1.25);
+      });
+      tl.fromTo("#trio > div", { opacity: 0, y: 50 }, { opacity: 1, y: 0, duration: .55, stagger: .1, ease: "expo.out" }, 27.0)
+        .fromTo("#trio-foot", { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: .5, ease: "power3.out" }, 27.4)
+        .to(["#trio", "#trio-foot"], { opacity: 0, duration: .3 }, 28.25);
+
+      // ---- scene 5: credentials (28.6 - 34.6) ----
+      const four = { v: 0 };
+      tl.fromTo("#big4", { opacity: 0, yPercent: 20 }, { opacity: 1, yPercent: 0, duration: .6, ease: "expo.out" }, 28.7)
+        .fromTo(four, { v: 0 }, { v: 4, duration: 1.2, ease: "power2.out", onUpdate() { document.getElementById("big4").textContent = String(Math.round(four.v)); } }, 28.8)
+        .fromTo(".big4-cap", { opacity: 0 }, { opacity: 1, duration: .5 }, 29.3)
+        .fromTo(".cred", { opacity: 0, x: 60 }, { opacity: 1, x: 0, duration: .55, stagger: .22, ease: "expo.out" }, 29.2)
+        .fromTo(".lang", { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: .45, stagger: .12, ease: "back.out(1.6)" }, 30.6)
+        .to(["#big4", ".big4-cap", ".creds", ".langs"], { opacity: 0, duration: .35 }, 34.2);
+
+      // ---- scene 6: close (34.6 - 40) ----
+      tl.fromTo("#portrait", { clipPath: "inset(100% 0% 0% 0%)" }, { clipPath: "inset(0% 0% 0% 0%)", duration: 1.2, ease: "expo.inOut" }, 34.7)
+        .fromTo("#portrait img", { scale: 1.2 }, { scale: 1, duration: 2, ease: "expo.out" }, 34.7)
+        .fromTo("#scan", { y: 0 }, { y: 900, duration: 1.4, ease: "power2.inOut" }, 35.5)
+        .fromTo("#close-k", { opacity: 0, x: -16 }, { opacity: 1, x: 0, duration: .5, ease: "power3.out" }, 35.0)
+        .fromTo("#ct1", { yPercent: 110 }, { yPercent: 0, duration: .9, ease: "expo.out" }, 35.2)
+        .fromTo("#ct2", { yPercent: 110 }, { yPercent: 0, duration: .9, ease: "expo.out" }, 35.45)
+        .fromTo("#close-name", { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: .6, ease: "power3.out" }, 36.1)
+        .fromTo("#close-links > span", { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: .5, stagger: .12, ease: "power3.out" }, 36.4);
+
+      window.__timelines["main"] = tl;
+      tl.seek(0);
+    </script>
+  </body>
+</html>
