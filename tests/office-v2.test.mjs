@@ -247,7 +247,7 @@ test('regla de la casa: lo que nadie decide en dos turnos sigue adelante y Cadaq
   try {
     f.script['turn:SANTI'] = c => c.input.ideasEnCurso.length ? turn([act('wait', {value: '240'})])() : turn([act('pitch', {symbol: 'AAPL', text: 'Resultados el jueves y viene con volumen fuerte'})])();
     f.script['turn:CADAQUI'] = c => turn(c.input.repartoDeTokens.operator.frecuencia === 1 ? [act('budget', {to: 'operator', value: '1.8', text: 'Yari convierte turnos en operaciones'})] : [])();
-    f.script.turn = turn([act('message', {to: 'scout', text: 'Necesito que me confirmes el precio antes de seguir'})]); // todos piden confirmaciones en vez de decidir
+    f.script.turn = c => turn([act('message', {to: 'scout', symbol: 'AAPL', text: 'Necesito que me confirmes el precio de AAPL antes de seguir'})])(); // todos piden confirmaciones en vez de decidir
     for (let i = 0; i < 9; i++) { await cycle(f.env, f.opts); mock.timers.tick(5 * 60e3); }
     const live = await status(f.env);
     assert.deepEqual(live.positions.map(p => p.symbol), ['AAPL'], 'aunque nadie decida, la idea acaba comprada con el lote de la casa');

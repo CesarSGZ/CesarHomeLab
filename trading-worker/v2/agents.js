@@ -263,7 +263,7 @@ async function webResearch(envDb, s, member, job, env) {
 // con los valores por defecto, para que la cadena idea → plan → riesgo → compra no se atasque.
 function nudge(s, member, env, out, actions) {
   const v2 = s.v2, me = member.id; if (!['analyst', 'risk', 'operator'].includes(me)) return;
-  const touched = new Set(actions.map(a => String(a.symbol || '').toUpperCase().trim()));
+  const touched = new Set(actions.filter(a => ['plan', 'discard', 'approve', 'veto', 'buy'].includes(a.type)).map(a => String(a.symbol || '').toUpperCase().trim())); // pedir datos o mandar mensajes no cuenta como decidir
   for (const idea of workFor(s, me).slice(0, 4)) {
     if (touched.has(idea.symbol)) continue; const key = me + ':' + idea.status; idea.stall = idea.stall?.key === key ? {key, n: idea.stall.n + 1} : {key, n: 1};
     if (idea.stall.n < 2) continue; idea.stall = null;
