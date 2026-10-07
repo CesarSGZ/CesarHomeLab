@@ -37,11 +37,11 @@ export const POLICY_DEFAULT = {
   lotPct: 20, maxPositions: 5, leverage: 1, stopPct: 8, targetPct: 20, holdDays: 7, trailPct: 0,
   riskGate: 'on', pace: 'normal', meetingsPerDay: 3, minDollarVolume: 1e6, pipeline: 6
 };
-const NUM = {lotPct: [2, 100], maxPositions: [1, 12], leverage: [1, 2], stopPct: [1, 40], targetPct: [2, 300], holdDays: [1, 30], trailPct: [0, 30], meetingsPerDay: [1, 6], pipeline: [1, 12], minDollarVolume: [3e5, 5e7]};
+const NUM = {lotPct: [2, 100], maxPositions: [1, 20], leverage: [1, 5], stopPct: [1, 40], targetPct: [2, 300], holdDays: [1, 30], trailPct: [0, 30], meetingsPerDay: [1, 6], pipeline: [1, 12], minDollarVolume: [3e5, 5e7]};
 const ENUM = {riskGate: ['on', 'off'], pace: ['ahorro', 'normal', 'intensivo']};
 const TEXT = {strategy: 28, focus: 220, rules: 220};
 export const POLICY_PARAMS = [...Object.keys(TEXT), ...Object.keys(NUM), ...Object.keys(ENUM)];
-export const POLICY_HELP = 'strategy (nombre corto), focus (qué buscamos), rules (reglas de la casa), lotPct 2-100 (% del capital por posición), maxPositions 1-12, leverage 1-2, stopPct 1-40, targetPct 2-300, holdDays 1-30, trailPct 0-30 (stop que persigue al precio; 0 = apagado), riskGate on|off (si María debe aprobar), pace ahorro|normal|intensivo, meetingsPerDay 1-6, pipeline 1-12 (cuántas candidatas vivas debe mantener Santi), minDollarVolume 300000-50000000';
+export const POLICY_HELP = 'strategy (nombre corto), focus (qué buscamos), rules (reglas de la casa), lotPct 2-100 (% del capital por posición), maxPositions 1-20, leverage 1-5 (con palanca, si el capital cae por debajo del 30 % de lo invertido se liquida todo), stopPct 1-40, targetPct 2-300, holdDays 1-30, trailPct 0-30 (stop que persigue al precio; 0 = apagado), riskGate on|off (si María debe aprobar), pace ahorro|normal|intensivo, meetingsPerDay 1-6, pipeline 1-12 (cuántas candidatas vivas debe mantener Santi), minDollarVolume 300000-50000000';
 const LABEL = {strategy: 'estrategia', focus: 'foco', rules: 'reglas', lotPct: 'tamaño por posición (%)', maxPositions: 'posiciones máximas', leverage: 'apalancamiento', stopPct: 'stop (%)', targetPct: 'objetivo (%)', holdDays: 'plazo (días)', trailPct: 'stop dinámico (%)', riskGate: 'filtro de riesgo', pace: 'ritmo de trabajo', meetingsPerDay: 'reuniones al día', pipeline: 'candidatas vivas', minDollarVolume: 'liquidez mínima ($)'};
 export const policyLabel = p => LABEL[p] || p;
 
@@ -59,11 +59,11 @@ export function checkPolicy(param, raw) {
 }
 
 export function initCompany(s, now = Date.now()) {
-  if (s.v2?.schema === 1) { const v2 = s.v2; for (const m of STAFF) { v2.agents[m.id] ??= newAgent(); v2.agents[m.id].stats ??= {}; } v2.policy = {...POLICY_DEFAULT, ...v2.policy}; v2.strategyStats ??= {}; v2.books ??= []; return v2; }
+  if (s.v2?.schema === 1) { const v2 = s.v2; for (const m of STAFF) { v2.agents[m.id] ??= newAgent(); v2.agents[m.id].stats ??= {}; } v2.policy = {...POLICY_DEFAULT, ...v2.policy}; v2.strategyStats ??= {}; v2.books ??= []; v2.shares ??= {}; return v2; }
   s.v2 = {
     schema: 1, startedAt: now, policy: {...POLICY_DEFAULT}, strategyLog: [], agents: Object.fromEntries(STAFF.map(m => [m.id, newAgent()])),
     ideas: [], orders: [], timeline: [], seq: 0, meetings: [], meetingDay: {day: '', done: [], extra: 0}, meetingRequests: [], proposals: [], lessons: [],
-    days: {}, months: {}, strategyStats: {}, books: [], office: {upgrades: [], purchases: []}, owner: [], reviewedUntil: now, radarCursor: 0,
+    days: {}, months: {}, strategyStats: {}, books: [], shares: {}, office: {upgrades: [], purchases: []}, owner: [], reviewedUntil: now, radarCursor: 0,
     stats: {turnCostEur: 0.0008, web: {day: '', n: 0, fails: 0}, deep: {day: '', n: 0}, errors: 0, lastErrorAt: 0}
   };
   emit(s.v2, 'system', {text: 'Nueva etapa de la oficina: equipo con libertad total sobre estrategia, riesgo y ritmo. La cartera y el alquiler siguen donde estaban.'}, now);

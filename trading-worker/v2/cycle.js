@@ -88,7 +88,7 @@ function news(s, id, session) {
   return false;
 }
 const inbox0 = s => Object.values(s.v2.agents).some(a => a.inbox.length && !a.paused); // quien tiene un mensaje va antes que la cantera
-function cadenceDue(s, id, phase, now, session) { const gap = now - s.v2.agents[id].lastAt, every = CADENCE[phase][id] * 60e3; return gap >= every * 4 || (gap >= every && news(s, id, session)); }
+function cadenceDue(s, id, phase, now, session) { const gap = now - s.v2.agents[id].lastAt, every = CADENCE[phase][id] * 60e3 / (s.v2.shares?.[id] || 1); return gap >= every * (session ? 2 : 4) || (gap >= every && news(s, id, session)); }
 export function pickAgents(s, phase, now) {
   const v2 = s.v2;
   return STAFF.map(m => {
@@ -207,7 +207,7 @@ export async function status(env) {
     company: {equity: eq, cash: book.cash, invested: invested(book), buyingPower: buyingPower(book, v2.policy.leverage), initial: book.initial, monthPnl: budget.monthlyProfit, monthOpen: s.operatingLedger?.openingEquity ?? book.initial, rentTarget: RENT_TARGET, rentPct: budget.monthlyProfit / RENT_TARGET * 100, daysLeft: budget.daysLeft, needPerDay: Math.max(0, RENT_TARGET - budget.monthlyProfit) / Math.max(1, budget.daysLeft), dayPnl: eq - (v2.dayBase?.equity ?? eq), mood, maxDrawdown: book.maxDrawdown, months: v2.months, stats: {trades: st.trades, wins: st.wins, losses: st.losses, realised: st.realised}},
     budget: {allowanceEur: budget.allowanceEur, spentEur: budget.spentEur, remainingEur: budget.remainingEur, todaySpentEur: budget.daySpentEur, todayAllowanceEur: v2.ai?.allowanceToday ?? null, pace: v2.policy.pace, turnCostEur: v2.stats.turnCostEur, callsToday: calls.calls || 0, ai: v2.ai || null, webToday: v2.stats.web.n},
     market: {open: session, us: usOpen, es: esOpen, status: s.real.marketStatus, at: s.real.marketAt, error: s.real.marketError, fx: book.fx ? {rate: book.fx.rate, date: book.fx.date} : null},
-    policy: v2.policy, books: v2.books, board: {name: v2.policy.strategy, lines: boardLines(v2.policy)}, strategyLog: v2.strategyLog.slice(0, 15).map(c => ({...c, label: policyLabel(c.param)})),
+    policy: v2.policy, books: v2.books, shares: v2.shares, board: {name: v2.policy.strategy, lines: boardLines(v2.policy)}, strategyLog: v2.strategyLog.slice(0, 15).map(c => ({...c, label: policyLabel(c.param)})),
     agents: STAFF.map(mb => { const a = v2.agents[mb.id]; return {id: mb.id, name: mb.name, role: mb.role, color: mb.color, duty: mb.duty, persona: mb.persona, mood: a.mood, task: a.task, thought: a.thought, say: a.say, lastAt: a.lastAt, waitUntil: a.waitUntil, paused: a.paused, calls: a.calls, eur: a.eur, today: a.today, notes: a.notes.slice(-3), inbox: a.inbox.length, work: workFor(s, mb.id).length}; }),
     positions: book.positions.map(p => ({id: p.id, symbol: p.symbol, name: name(p.symbol), qty: p.qty, entry: p.entry, mark: p.mark ?? p.entry, eur: positionEur(p), pnl: positionPnl(p), pnlPct: ((p.mark ?? p.entry) / p.entry - 1) * 100, stop: p.stop, target: p.target, openedAt: p.openedAt, expiresAt: p.expiresAt, thesis: p.thesis, strategy: p.strategy || null, currency: isSpanish(p.symbol) ? 'EUR' : 'USD', fresh: freshQuote(s.real.quotes[p.symbol], now, s.config)})),
     orders: v2.orders.map(o => ({id: o.id, side: o.side, symbol: o.symbol, eur: o.eur || null, at: o.at, note: o.note || null})),

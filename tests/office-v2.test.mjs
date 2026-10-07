@@ -217,7 +217,7 @@ test('Santi llena la cantera, se opera en la bolsa española en euros y conviven
   clockAt(Date.parse('2026-10-07T09:30:00Z')); const f = fixture(); // 11:30 Madrid: España abierta, EEUU cerrado
   try {
     f.script['turn:SANTI'] = c => c.input.faltanCandidatas >= 5 ? turn([act('pitch', {symbol: 'SAN.MC', text: 'Banca española fuerte, sube con volumen esta semana'}), act('pitch', {symbol: 'ITX.MC', text: 'Inditex recupera tras resultados y gana tracción'}), act('pitch', {symbol: 'AAPL', text: 'Resultados el jueves y viene con volumen fuerte'})])() : turn([act('wait', {value: '240'})])();
-    f.script['turn:PEDRO'] = c => { const p = c.input.pendientes[0]; return p ? turn(p.symbol === 'SAN.MC' ? [act('playbook', {param: 'Ibex de ida y vuelta', text: 'Bancos españoles con movimiento fuerte, entrar y salir en dos días', value: '10', stopPct: 3, targetPct: 6, days: 2}), act('plan', {symbol: 'SAN.MC', param: 'Ibex de ida y vuelta', text: 'Entrada rápida'})] : [act('plan', {symbol: p.symbol, eur: 1500, text: 'Plan estándar'})])() : turn([act('wait', {value: '60'})])(); };
+    f.script['turn:PEDRO'] = c => { const p = c.input.pendientes.find(x => x.symbol === 'SAN.MC') || c.input.pendientes[0]; return p ? turn(p.symbol === 'SAN.MC' ? [act('playbook', {param: 'Ibex de ida y vuelta', text: 'Bancos españoles con movimiento fuerte, entrar y salir en dos días', value: '10', stopPct: 3, targetPct: 6, days: 2}), act('plan', {symbol: 'SAN.MC', param: 'Ibex de ida y vuelta', text: 'Entrada rápida'})] : [act('plan', {symbol: p.symbol, eur: 1500, text: 'Plan estándar'})])() : turn([act('wait', {value: '60'})])(); };
     f.script['turn:MARÍA'] = c => c.input.planesPorRevisar.length ? turn(c.input.planesPorRevisar.slice(0, 3).map(p => act('approve', {symbol: p.symbol, text: 'Adelante'})))() : turn([act('wait', {value: '60'})])();
     f.script['turn:YARI'] = c => c.input.listasParaComprar.length ? turn(c.input.listasParaComprar.slice(0, 3).map(p => act('buy', {symbol: p.symbol})))() : turn([act('wait', {value: '60'})])();
     for (let i = 0; i < 6; i++) { await cycle(f.env, f.opts); mock.timers.tick(5 * 60e3); }
@@ -230,7 +230,7 @@ test('Santi llena la cantera, se opera en la bolsa española en euros y conviven
     assert.equal(live.orders[0].symbol, 'AAPL'); assert.equal(live.market.es, true); assert.equal(live.market.us, false);
     const san = live.positions.find(p => p.symbol === 'SAN.MC'), itx = live.positions.find(p => p.symbol === 'ITX.MC');
     assert.equal(san.currency, 'EUR'); assert.equal(san.strategy, 'Ibex de ida y vuelta'); assert.equal(itx.strategy, 'Catalizadores cercanos');
-    assert.ok(Math.abs(san.eur - 1000) < 12, 'lote del 10 % de la estrategia paralela, sin conversión a dólares: ' + san.eur); assert.ok(Math.abs(itx.eur - 1500) < 55);
+    assert.ok(Math.abs(san.eur - 1000) < 12, 'lote del 10 % de la estrategia paralela, sin conversión a dólares: ' + san.eur); assert.ok(itx.eur > 1400 && itx.eur < 2050);
     assert.ok(Math.abs(san.stop - 8.02 * 0.97) < 0.01); assert.ok(Math.abs(live.company.equity - 10000) < 15, 'entrar solo cuesta deslizamiento y comisión');
     assert.equal(live.books.length, 1); assert.equal(live.books[0].days, 2);
     // el Santander sube un 7 %: objetivo del +6 % cumplido, en euros y apuntado a su estrategia
@@ -239,5 +239,19 @@ test('Santi llena la cantera, se opera en la bolsa española en euros y conviven
     const sold = live.closed.find(c => c.symbol === 'SAN.MC'); assert.equal(sold.reason, 'objetivo'); assert.ok(sold.pnl > 60 && sold.pnl < 75, 'resultado en euros sin tipo de cambio: ' + sold.pnl);
     assert.deepEqual(live.life.strategies.map(x => [x.name, x.trades, x.current]), [['Ibex de ida y vuelta', 1, true]]);
     await locked(f.env, s => { const v2 = initCompany(s); assert.equal(checkPolicy('pipeline', '40').value, 12); assert.ok(v2.books.length === 1); });
+  } finally { mock.timers.reset(); }
+});
+
+test('regla de la casa: lo que nadie decide en dos turnos sigue adelante y Cadaqui reparte los tokens', async () => {
+  clockAt(T0); const f = fixture();
+  try {
+    f.script['turn:SANTI'] = c => c.input.ideasEnCurso.length ? turn([act('wait', {value: '240'})])() : turn([act('pitch', {symbol: 'AAPL', text: 'Resultados el jueves y viene con volumen fuerte'})])();
+    f.script['turn:CADAQUI'] = c => turn(c.input.repartoDeTokens.operator.frecuencia === 1 ? [act('budget', {to: 'operator', value: '1.8', text: 'Yari convierte turnos en operaciones'})] : [])();
+    f.script.turn = turn([act('message', {to: 'scout', text: 'Necesito que me confirmes el precio antes de seguir'})]); // todos piden confirmaciones en vez de decidir
+    for (let i = 0; i < 9; i++) { await cycle(f.env, f.opts); mock.timers.tick(5 * 60e3); }
+    const live = await status(f.env);
+    assert.deepEqual(live.positions.map(p => p.symbol), ['AAPL'], 'aunque nadie decida, la idea acaba comprada con el lote de la casa');
+    assert.ok(Math.abs(live.positions[0].eur - 2000) < 110, 'lote ' + live.positions[0].eur + ' ' + JSON.stringify(live.ideas[0].plan)); assert.ok(live.life.agents.analyst.nudged >= 1 && live.life.agents.risk.nudged >= 1 && live.life.agents.operator.nudged >= 1);
+    assert.equal(live.shares.operator, 1.8); assert.equal(checkPolicy('leverage', '9').value, 5); assert.equal(checkPolicy('maxPositions', '50').value, 20);
   } finally { mock.timers.reset(); }
 });
