@@ -10,3 +10,4 @@ ibkr-bridge.env
 video/*/renders/
 video/*/snapshots/
 video/*/.hyperframes/
+video/*/audio/*.wav

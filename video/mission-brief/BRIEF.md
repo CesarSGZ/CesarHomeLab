@@ -21,4 +21,10 @@ confident, never arrogant. Concept: the career as a flight, read off avionics in
 
 ## Notes
 - User request (ES): "corto, con mucho dinamismo, donde se muestre mi perfil y lo que soy capaz de hacer … sin soberbia".
-- No narration. No music bed (silent loop-friendly for web autoplay); music can be added later.
+- No narration.
+
+## v2 (2026-10-07)
+- Re-cut as a product launch for a candidate: flash-word open, name drop, spec sheet with count-ups,
+  fast-learner role flicker, breakdown on the three disciplines, "features" drop, verified traits, end card.
+- Audio: original 120 BPM track synthesised by `audio/make-music.mjs` (no samples), mixed with Pixabay-licensed
+  SFX by `audio/mix.mjs` to -14 LUFS. Rebuild: `node audio/make-music.mjs && node audio/mix.mjs <sfx-dir>`.
