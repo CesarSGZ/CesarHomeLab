@@ -45,8 +45,8 @@ ritmo de gasto, escribe el resumen diario y decide gastos de oficina.
 ### Libertad del equipo
 
 Pueden cambiar, por acción directa de Augusto o por acuerdo de reunión: nombre y foco de la
-estrategia, reglas de la casa, tamaño por posición (2–100 % del capital), posiciones máximas (1–12),
-apalancamiento (×1–×2), stop, objetivo y plazo por defecto, si María debe aprobar (`riskGate`),
+estrategia, reglas de la casa, tamaño por posición (2–100 % del capital), posiciones máximas (1–20),
+apalancamiento (×1–×5), stop, objetivo y plazo por defecto, si María debe aprobar (`riskGate`),
 ritmo de trabajo y número de reuniones. Una propuesta rechazada por mayoría no puede aplicarse en
 esa reunión. No modifican código: la autoprogramación de la versión anterior está retirada.
 
@@ -92,6 +92,14 @@ en la mesa de Yari), rachas, último stop, vetos de María, tokens bajos, apalan
 riesgo apagado, cola de candidatas, meses pagados (trofeos), ánimo (plantas mustias o en flor,
 felpudo), pilas de papel según el trabajo pendiente, etc. Las compras de oficina (`OFFICE_CATALOG`)
 se ven y se usan; César puede regalar cualquiera sin tocar la caja (`/gift`).
+
+### Salas
+
+La oficina tiene salas (`control/office/rooms/`): `trading.js` (inversión) y `agency.js` (la
+agencia, todavía de mudanza y sin equipo). Cada módulo aporta su plano, su pared, su mobiliario,
+sus objetos interactivos y su puerta; `office.js` es el motor común (movimiento, cambio de sala,
+escenas, César). El panel que rodea a la oficina cambia con la sala: lo de inversión está en
+`app.js` y lo de la agencia en `agency.js`. Quien no tiene trabajo se asoma a la otra sala.
 
 ### Pulso sin IA
 

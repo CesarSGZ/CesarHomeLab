@@ -60,8 +60,28 @@ test('la pantalla de la sala y la recreativa enseñan datos de verdad', () => {
 });
 
 test('la oficina no llama a ningún modelo ni a la red y usa lo que publica el motor', () => {
-  for (const f of ['office.js', 'gags.js', 'art.js']) assert.doesNotMatch(readFileSync(new URL('../control/office/' + f, import.meta.url), 'utf8'), /fetch\(|XMLHttpRequest|openai|WebSocket|<img|new Image/i, f);
+  for (const f of ['office.js', 'gags.js', 'art.js', 'agency.js', 'rooms/trading.js', 'rooms/agency.js']) assert.doesNotMatch(readFileSync(new URL('../control/office/' + f, import.meta.url), 'utf8'), /fetch\(|XMLHttpRequest|openai|WebSocket|<img|new Image/i, f);
   const app = readFileSync(new URL('../control/office/app.js', import.meta.url), 'utf8');
   for (const field of ['life: live.life', 'policy: live.policy', 'catalog: live.office.catalog', 'dayPnl: live.company.dayPnl']) assert.ok(app.includes(field), field);
   assert.doesNotMatch(app, /openai\.com/);
+});
+
+test('la charla de pasillo habla de lo último que ha pasado de verdad', () => {
+  const S = {...rich, recent: [{type: 'handoff', from: 'scout', to: 'analyst', symbol: 'NVDA', text: 'NVDA: resultados la semana que viene'}, {type: 'trade', agent: 'operator', side: 'sell', symbol: 'AAPL', pnl: 240, text: 'x'}, {type: 'handoff', from: 'risk', to: 'analyst', symbol: 'AMD', tone: 'veto', text: 'Veto a AMD'}]};
+  assert.deepEqual(G.recentPair('scout', 'analyst', S, () => .9), ['Le he pasado NVDA a Pedro.', 'La tengo en la mesa. Dame un rato.']);
+  assert.match(G.recentPair('operator', 'risk', S, () => .9)[0], /AAPL cerrada: 240 €/); assert.match(G.recentPair('risk', 'scout', S, () => .9)[0], /He vetado AMD/);
+  assert.equal(G.recentPair('designer', 'scout', S, () => .9), null); assert.equal(G.recentPair('scout', 'analyst', rich), null);
+  assert.match(G.talkLines('scout', S)[0], /Lo último mío: NVDA: resultados/);
+});
+
+test('cada sala es un módulo propio con su plano, su puerta y sus objetos', async () => {
+  globalThis.document ??= {createElement: () => ({getContext: () => ({})})};
+  const {trading, STAFF} = await import('../control/office/rooms/trading.js'), {agency} = await import('../control/office/rooms/agency.js');
+  for (const room of [trading, agency]) { for (const k of ['blocks', 'paintStatic', 'drawWall', 'items', 'things']) assert.equal(typeof room[k], 'function', room.id + '.' + k); assert.ok(room.name && room.door.to !== room.id); }
+  assert.equal(trading.door.to, 'agency'); assert.equal(agency.door.to, 'trading'); assert.equal(STAFF.length, 7);
+  const grid = room => { const b = Array.from({length: 15}, () => new Uint8Array(26)), up = new Set(['arcade', 'aquarium', 'campana', 'plantas']); room.blocks((x0, y0, x1 = x0, y1 = y0) => { for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) b[y][x] = 1; }, up); return b; };
+  const api = new Proxy({}, {get: (_, k) => k === 'fx' ? {} : k === 'me' ? {} : () => 0});
+  for (const room of [trading, agency]) { const b = grid(room); for (const t of room.things(api)) for (const [x, y] of t.at) assert.equal(b[y][x], 0, room.id + ': se puede llegar a «' + t.id + '» en ' + x + ',' + y); }
+  for (const s of STAFF) assert.equal(grid(trading)[s.seat[1]][s.seat[0]], 0); for (const [x, y] of agency.spots) assert.equal(grid(agency)[y][x], 0);
+  assert.equal(agency.things(api).some(t => /cartera|estrategia/i.test(String(t.label))), false, 'la agencia no enseña cosas de inversión');
 });

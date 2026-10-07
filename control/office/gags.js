@@ -22,6 +22,7 @@ export function view(S) {
 // ---- hablar con un empleado (E): frases con su estado real, en su voz ----
 export function talkLines(id, S) {
   const v = view(S), a = v.ag(id), st = v.st(id), out = [];
+  const last = (S.recent || []).filter(e => (e.from || e.agent) === id && e.text).at(-1); if (last) out.push('Lo último mío: ' + clip(last.text, 110));
   if (a.paused) out.push('Me tienes en pausa, jefe. Cuando quieras vuelvo.');
   if (a.task && !/^(Pensando|Incorporándose)/.test(a.task)) out.push(/^En pausa/.test(a.task) ? 'Ahora mismo, nada útil que hacer. Y así no gasto tokens.' : 'Lo último que he hecho: ' + clip(a.task, 70) + '.');
   if (a.thought) out.push('Te digo lo que pienso: ' + clip(a.thought, 150));
@@ -223,3 +224,18 @@ export function arcadeVerdict(score, record, S) {
 }
 
 export const KEYS = [['WASD / flechas', 'mover a César'], ['E', 'usar lo que tengas delante o hablar'], ['Espacio', 'saludar o arengar al equipo'], ['F', 'chocar los cinco'], ['1–6', 'llamar a Santi, Pedro, María, Yari, Augusto o Cadaqui'], ['H', 'esta ayuda'], ['Clic / toque', 'ir a un sitio, usar un objeto o abrir la ficha de alguien']];
+
+// ---- charla sobre lo último que ha pasado de verdad (S.recent = últimos eventos del motor) ----
+export function recentPair(a, b, S, rnd = Math.random) {
+  const ev = (S.recent || []).filter(e => (e.from || e.agent) === a || e.to === a).slice(-3); if (!ev.length || rnd() < .3) return null;
+  const e = pick(ev, rnd), sym = e.symbol || '', mine = (e.from || e.agent) === a, other = NAME[mine ? e.to : e.from] || '';
+  if (e.type === 'trade') return e.side === 'buy' ? ['Ya estamos dentro de ' + sym + '.', b === 'risk' ? '¿Y el stop dónde está?' : 'A ver si esta sí.'] : [sym + ' cerrada: ' + eur(e.pnl) + '.', e.pnl >= 0 ? 'Una menos para el alquiler.' : 'Apuntada. Siguiente.'];
+  if (e.type === 'strategy') return ['He cambiado ' + (e.label || 'las reglas') + ': ahora ' + clip(e.value, 28) + '.', pick(['Otra vez. Vale.', 'A ver cuánto dura.', 'Me lo apunto.'], rnd)];
+  if (e.type === 'research' && sym) return ['He estado mirando ' + sym + ' a fondo.', '¿Y? ¿Hay algo o es humo?'];
+  if (e.type === 'handoff' && sym) {
+    if (e.tone === 'veto') return mine ? ['He vetado ' + sym + '. Tenía que hacerlo.', b === e.to ? 'Ya. Era mía.' : 'Qué novedad.'] : ['Me han vetado ' + sym + '.', 'Vuelve con menos riesgo.'];
+    return mine ? ['Le he pasado ' + sym + ' a ' + other + '.', b === e.to ? 'La tengo en la mesa. Dame un rato.' : 'A ver qué hace ' + other + ' con ella.'] : ['Tengo ' + sym + ' encima de la mesa, de ' + other + '.', b === e.from ? '¿Y qué te parece?' : 'Pues no la dejes enfriar.'];
+  }
+  if (e.type === 'handoff' && e.text) return mine ? ['Le he dicho a ' + other + ': «' + clip(e.text, 60) + '»', 'Claro y directo.'] : null;
+  return null;
+}

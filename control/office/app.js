@@ -2,6 +2,7 @@
 // nuevos en el tiempo para que la oficina los represente y pinta los paneles.
 import {createOffice, STAFF} from './office.js';
 import {drawChar, LOOKS} from './art.js';
+import {agencyMain, agencySide} from './agency.js';
 
 const root = document.getElementById('trading-app');
 let csrf = '', live = null, office = null, tab = 'cartera', selected = 'scout', started = false, polling = false, lastSeen = 0, primed = false, portrait = 0;
@@ -29,29 +30,31 @@ function paintNotice() { const el = root.querySelector('#ao-notice'); if (!el) r
 function shell() {
   root.innerHTML = `
   <header class="ao-head">
-    <div><p class="ao-eyebrow">AGENT OFFICE · DATOS REALES · CAPITAL FICTICIO</p><h2>La oficina de César</h2></div>
-    <div class="ao-head-actions"><span class="ao-chip" id="ao-clock"></span><button type="button" id="ao-run">Ejecutar ciclo</button><button type="button" id="ao-pause"></button></div>
+    <div><p class="ao-eyebrow">AGENT OFFICE · DATOS REALES · CAPITAL FICTICIO</p><h2 id="ao-title">La oficina de César</h2></div>
+    <div class="ao-head-actions" data-room="trading"><span class="ao-chip" id="ao-clock"></span><button type="button" id="ao-run">Ejecutar ciclo</button><button type="button" id="ao-pause"></button></div>
   </header>
   <p class="ao-notice" id="ao-notice" role="status" hidden></p>
-  <div class="ao-kpis" id="ao-kpis"></div>
+  <div class="ao-kpis" id="ao-kpis" data-room="trading"></div>
   <div class="ao-main">
     <div class="ao-left">
       <div id="ao-stage"></div>
       <p class="ao-hint">Tú eres César: <kbd>WASD</kbd> o flechas para moverte, <kbd>E</kbd> para hablar o usar lo que tengas delante, <kbd>Espacio</kbd> saluda, <kbd>F</kbd> choca los cinco, <kbd>1</kbd>–<kbd>6</kbd> llama a alguien y <kbd>H</kbd> enseña la ayuda. También puedes tocar o hacer clic: en el suelo para ir, en un objeto para usarlo y en un personaje para ver su ficha (doble clic para ir a hablarle).</p>
-      <form class="ao-owner" id="ao-owner"><label for="ao-owner-text">Háblale al equipo</label><div><input id="ao-owner-text" maxlength="400" placeholder="Ej.: quiero más riesgo esta semana" autocomplete="off"><button type="submit">Enviar</button><button type="button" id="ao-call">Convocar reunión</button></div></form>
-      <section class="ao-card ao-today" id="ao-today"></section>
+      <form class="ao-owner" id="ao-owner" data-room="trading"><label for="ao-owner-text">Háblale al equipo</label><div><input id="ao-owner-text" maxlength="400" placeholder="Ej.: quiero más riesgo esta semana" autocomplete="off"><button type="submit">Enviar</button><button type="button" id="ao-call">Convocar reunión</button></div></form>
+      <section class="ao-card ao-today" id="ao-today" data-room="trading"></section>
+      <section class="ao-card ao-today" data-room="agency" hidden>${agencyMain()}</section>
     </div>
     <aside class="ao-side">
-      <section class="ao-card" id="ao-agent"></section>
+      <section class="ao-card" data-room="agency" hidden>${agencySide()}</section>
+      <section class="ao-card" id="ao-agent" data-room="trading"></section>
       <section class="ao-card ao-meet" id="ao-meet" hidden><h3>Reunión en curso</h3><div id="ao-meet-body"></div></section>
-      <section class="ao-card"><h3>En directo</h3><div class="ao-feed" id="ao-feed" aria-live="polite"></div></section>
+      <section class="ao-card" data-room="trading"><h3>En directo</h3><div class="ao-feed" id="ao-feed" aria-live="polite"></div></section>
     </aside>
   </div>
-  <nav class="ao-tabs" id="ao-tabs" role="tablist">${[['cartera', 'Cartera'], ['ideas', 'Ideas'], ['reuniones', 'Reuniones'], ['diario', 'Diario'], ['estrategia', 'Estrategia'], ['ajustes', 'Ajustes']].map(([k, l]) => `<button type="button" role="tab" data-tab="${k}">${l}</button>`).join('')}</nav>
-  <section class="ao-panel" id="ao-panel"></section>
-  <p class="ao-foot">Solo simulación: no hay bróker ni órdenes reales. Los precios son referencias públicas con retraso; las ventas y compras ficticias incluyen deslizamiento y comisión estimados.</p>`;
-  office = createOffice(root.querySelector('#ao-stage'), {onSelect: id => { if (id !== 'cesar') { selected = id; paintAgent(); } }, onMeeting, onCommand: command,
-    onOpen: t => { tab = t; paintPanel(); const el = root.querySelector('#ao-tabs'), r = el.getBoundingClientRect(); if (r.top > innerHeight - 120 || r.bottom < 0) el.scrollIntoView({behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start'}); }});
+  <nav class="ao-tabs" id="ao-tabs" role="tablist" data-room="trading">${[['cartera', 'Cartera'], ['ideas', 'Ideas'], ['reuniones', 'Reuniones'], ['diario', 'Diario'], ['estrategia', 'Estrategia'], ['ajustes', 'Ajustes']].map(([k, l]) => `<button type="button" role="tab" data-tab="${k}">${l}</button>`).join('')}</nav>
+  <section class="ao-panel" id="ao-panel" data-room="trading"></section>
+  <p class="ao-foot" data-room="trading">Solo simulación: no hay bróker ni órdenes reales. Los precios son referencias públicas con retraso; las ventas y compras ficticias incluyen deslizamiento y comisión estimados.</p>`;
+  office = createOffice(root.querySelector('#ao-stage'), {onSelect: id => { if (id !== 'cesar') { selected = id; paintAgent(); } }, onMeeting, onCommand: command, onRoom: showRoom,
+    onOpen: t => { if (!PANELS[t]) return; tab = t; paintPanel(); const el = root.querySelector('#ao-tabs'), r = el.getBoundingClientRect(); if (r.top > innerHeight - 120 || r.bottom < 0) el.scrollIntoView({behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start'}); }});
   root.querySelector('#ao-tabs').addEventListener('click', e => { const b = e.target.closest('[data-tab]'); if (b) { tab = b.dataset.tab; paintPanel(); } });
   root.querySelector('#ao-run').addEventListener('click', () => command('run', {}, 'Ciclo pedido: se ejecutará en el próximo relevo (hasta 5 min).'));
   root.querySelector('#ao-pause').addEventListener('click', () => command('control', {paused: !live.paused}, live.paused ? 'Compras reanudadas.' : 'Compras en pausa: el equipo sigue trabajando, pero no se abren posiciones.'));
@@ -61,6 +64,8 @@ function shell() {
   root.querySelector('#ao-panel').addEventListener('submit', panelSubmit);
   root.querySelector('#ao-agent').addEventListener('click', e => { const chip = e.target.closest('[data-agent]'); if (chip) { selected = chip.dataset.agent; paintAgent(); } const p = e.target.closest('[data-pause]'); if (p) command('agent', {id: selected, paused: p.dataset.pause === '1'}, 'Cambio pedido.'); if (e.target.closest('[data-summon]')) { office.summon(selected); root.querySelector('.ao-canvas')?.focus({preventScroll: true}); } });
 }
+// Cada sala tiene su propio panel: al cambiar de sala en la oficina se cambia lo que hay alrededor.
+function showRoom(room) { for (const el of root.querySelectorAll('[data-room]')) if (!el.closest('.ao-stage')) el.hidden = el.dataset.room !== room; const m = root.querySelector('#ao-meet'); if (m && room !== 'trading') m.hidden = true; root.querySelector('#ao-title').textContent = room === 'agency' ? 'La agencia de César' : 'La oficina de César'; root.querySelector('.ao-eyebrow').textContent = room === 'agency' ? 'AGENCIA · EN PREPARACIÓN' : 'AGENT OFFICE · DATOS REALES · CAPITAL FICTICIO'; }
 async function command(path, body, okText) { try { await api(path, body); flash(okText); return true; } catch (e) { flash(e.message, true); return false; } }
 
 // ---- eventos → escena y feed ----
@@ -194,7 +199,7 @@ function panelSubmit(e) { if (e.target.id !== 'ao-key') return; e.preventDefault
 
 function paint() {
   office.setState({equity: live.company.equity, monthPnl: live.company.monthPnl, dayPnl: live.company.dayPnl, rentTarget: live.company.rentTarget, daysLeft: live.company.daysLeft, tokensLeft: live.budget.remainingEur / live.budget.allowanceEur, tokensEur: live.budget.remainingEur, marketOpen: live.market.us ?? live.market.open, mood: live.company.mood,
-    positions: live.positions.map(p => ({symbol: p.symbol, pnlPct: p.pnlPct, pnl: p.pnl})), strategy: {name: (live.board.name || '').toUpperCase(), lines: live.board.lines}, upgrades: live.office.upgrades, catalog: live.office.catalog || {}, policy: live.policy, life: live.life || {}, hour: window.AgentOfficeHour ?? null,
+    positions: live.positions.map(p => ({symbol: p.symbol, pnlPct: p.pnlPct, pnl: p.pnl})), strategy: {name: (live.board.name || '').toUpperCase(), lines: live.board.lines}, upgrades: live.office.upgrades, catalog: live.office.catalog || {}, policy: live.policy, life: live.life || {}, recent: (live.timeline || []).filter(e => ['handoff', 'trade', 'strategy', 'research'].includes(e.type)).slice(-14).map(e => ({type: e.type, from: e.from, to: e.to, agent: e.agent, symbol: e.symbol, side: e.side, pnl: e.pnl, tone: e.tone, label: e.label, value: e.value, text: e.text})), hour: window.AgentOfficeHour ?? null,
     agents: Object.fromEntries(live.agents.map(a => [a.id, {idle: a.waitUntil > Date.now() || a.paused, paused: a.paused, task: a.task, thought: a.thought, say: a.say, mood: a.mood, note: a.notes?.at(-1) || '', work: a.work || 0, inbox: a.inbox || 0, callsToday: a.today?.calls || 0, eurToday: a.today?.eur || 0}]))});
   paintKpis(); paintAgent(); paintToday(); paintPanel(); paintNotice();
 }

@@ -1,6 +1,6 @@
 // Agent Office · pixel art dibujado por código. Sin imágenes externas.
 // Todas las coordenadas son píxeles lógicos (tile = 16 px).
-export const T = 16;
+export const T = 16, COLS = 26, ROWS = 15, VW = COLS * T, VH = ROWS * T;
 export const R = (g, x, y, w, h, c) => { g.fillStyle = c; g.fillRect(x | 0, y | 0, w | 0, h | 0); };
 
 export const PAL = {
