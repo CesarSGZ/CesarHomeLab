@@ -1,0 +1,13 @@
+// Agent Office · mercado español (BME). Lista fija de valores líquidos; se cotizan en EUR
+// con el sufijo .MC de Yahoo. No hay radar de noticias: Santi ve sus movimientos de precio.
+const ROWS = [['SAN', 'Banco Santander', 'Banca'], ['BBVA', 'BBVA', 'Banca'], ['CABK', 'CaixaBank', 'Banca'], ['SAB', 'Banco Sabadell', 'Banca'], ['BKT', 'Bankinter', 'Banca'], ['UNI', 'Unicaja', 'Banca'], ['MAP', 'Mapfre', 'Seguros'],
+  ['ITX', 'Inditex', 'Consumo'], ['IBE', 'Iberdrola', 'Energía'], ['ELE', 'Endesa', 'Energía'], ['NTGY', 'Naturgy', 'Energía'], ['REP', 'Repsol', 'Energía'], ['RED', 'Redeia', 'Energía'], ['ENG', 'Enagás', 'Energía'], ['ANE', 'Acciona Energía', 'Energía'], ['SLR', 'Solaria', 'Energía'],
+  ['TEF', 'Telefónica', 'Telecomunicaciones'], ['CLNX', 'Cellnex', 'Telecomunicaciones'], ['AMS', 'Amadeus', 'Tecnología'], ['IDR', 'Indra', 'Defensa y tecnología'], ['AENA', 'Aena', 'Infraestructuras'], ['FER', 'Ferrovial', 'Infraestructuras'], ['ACS', 'ACS', 'Construcción'], ['ANA', 'Acciona', 'Construcción'], ['SCYR', 'Sacyr', 'Construcción'],
+  ['IAG', 'IAG', 'Aerolíneas'], ['GRF', 'Grifols', 'Salud'], ['ROVI', 'Laboratorios Rovi', 'Salud'], ['PUIG', 'Puig', 'Consumo'], ['MTS', 'ArcelorMittal', 'Acero'], ['ACX', 'Acerinox', 'Acero'], ['FDR', 'Fluidra', 'Industria'], ['LOG', 'Logista', 'Distribución'], ['MRL', 'Merlin Properties', 'Inmobiliario'], ['COL', 'Colonial', 'Inmobiliario'],
+  ['MEL', 'Meliá Hotels', 'Turismo'], ['VIS', 'Viscofan', 'Alimentación'], ['EBRO', 'Ebro Foods', 'Alimentación'], ['CAF', 'CAF', 'Industria'], ['TRE', 'Técnicas Reunidas', 'Ingeniería'], ['GEST', 'Gestamp', 'Automoción'], ['CIE', 'CIE Automotive', 'Automoción'], ['ALM', 'Almirall', 'Salud'], ['ENC', 'Ence', 'Papel'], ['TUB', 'Tubacex', 'Acero']];
+export const ES_ASSETS = ROWS.map(([t, name, sector]) => ({symbol: t + '.MC', name, sector, exchange: 'BME', market: 'ES', currency: 'EUR', dataVerified: true}));
+const bySymbol = new Map(ES_ASSETS.map(a => [a.symbol, a]));
+export const isSpanish = symbol => String(symbol || '').endsWith('.MC');
+export const findAsset = (s, symbol) => bySymbol.get(symbol) || s.real.assets.find(a => a.symbol === symbol) || null;
+// Sesión continua de BME: lunes a viernes, 9:00–17:30 de Madrid.
+export function spanishSession(t) { const p = Object.fromEntries(new Intl.DateTimeFormat('en-US', {timeZone: 'Europe/Madrid', weekday: 'short', hour: '2-digit', minute: '2-digit', hourCycle: 'h23'}).formatToParts(new Date(t)).map(x => [x.type, x.value])); const m = Number(p.hour) * 60 + Number(p.minute); return !['Sat', 'Sun'].includes(p.weekday) && m >= 542 && m < 1050; }

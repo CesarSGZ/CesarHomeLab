@@ -35,14 +35,14 @@ export const POLICY_DEFAULT = {
   strategy: 'Catalizadores cercanos', focus: 'Empresas con resultados o noticias en los próximos días y movimiento de precio que lo acompañe.',
   rules: 'Entrar antes del evento, cortar rápido lo que no arranca.',
   lotPct: 20, maxPositions: 5, leverage: 1, stopPct: 8, targetPct: 20, holdDays: 7, trailPct: 0,
-  riskGate: 'on', pace: 'normal', meetingsPerDay: 3, minDollarVolume: 1e6
+  riskGate: 'on', pace: 'normal', meetingsPerDay: 3, minDollarVolume: 1e6, pipeline: 6
 };
-const NUM = {lotPct: [2, 100], maxPositions: [1, 12], leverage: [1, 2], stopPct: [1, 40], targetPct: [2, 300], holdDays: [1, 30], trailPct: [0, 30], meetingsPerDay: [1, 6], minDollarVolume: [3e5, 5e7]};
+const NUM = {lotPct: [2, 100], maxPositions: [1, 12], leverage: [1, 2], stopPct: [1, 40], targetPct: [2, 300], holdDays: [1, 30], trailPct: [0, 30], meetingsPerDay: [1, 6], pipeline: [1, 12], minDollarVolume: [3e5, 5e7]};
 const ENUM = {riskGate: ['on', 'off'], pace: ['ahorro', 'normal', 'intensivo']};
 const TEXT = {strategy: 28, focus: 220, rules: 220};
 export const POLICY_PARAMS = [...Object.keys(TEXT), ...Object.keys(NUM), ...Object.keys(ENUM)];
-export const POLICY_HELP = 'strategy (nombre corto), focus (qué buscamos), rules (reglas de la casa), lotPct 2-100 (% del capital por posición), maxPositions 1-12, leverage 1-2, stopPct 1-40, targetPct 2-300, holdDays 1-30, trailPct 0-30 (stop que persigue al precio; 0 = apagado), riskGate on|off (si María debe aprobar), pace ahorro|normal|intensivo, meetingsPerDay 1-6, minDollarVolume 300000-50000000';
-const LABEL = {strategy: 'estrategia', focus: 'foco', rules: 'reglas', lotPct: 'tamaño por posición (%)', maxPositions: 'posiciones máximas', leverage: 'apalancamiento', stopPct: 'stop (%)', targetPct: 'objetivo (%)', holdDays: 'plazo (días)', trailPct: 'stop dinámico (%)', riskGate: 'filtro de riesgo', pace: 'ritmo de trabajo', meetingsPerDay: 'reuniones al día', minDollarVolume: 'liquidez mínima ($)'};
+export const POLICY_HELP = 'strategy (nombre corto), focus (qué buscamos), rules (reglas de la casa), lotPct 2-100 (% del capital por posición), maxPositions 1-12, leverage 1-2, stopPct 1-40, targetPct 2-300, holdDays 1-30, trailPct 0-30 (stop que persigue al precio; 0 = apagado), riskGate on|off (si María debe aprobar), pace ahorro|normal|intensivo, meetingsPerDay 1-6, pipeline 1-12 (cuántas candidatas vivas debe mantener Santi), minDollarVolume 300000-50000000';
+const LABEL = {strategy: 'estrategia', focus: 'foco', rules: 'reglas', lotPct: 'tamaño por posición (%)', maxPositions: 'posiciones máximas', leverage: 'apalancamiento', stopPct: 'stop (%)', targetPct: 'objetivo (%)', holdDays: 'plazo (días)', trailPct: 'stop dinámico (%)', riskGate: 'filtro de riesgo', pace: 'ritmo de trabajo', meetingsPerDay: 'reuniones al día', pipeline: 'candidatas vivas', minDollarVolume: 'liquidez mínima ($)'};
 export const policyLabel = p => LABEL[p] || p;
 
 // Valida y normaliza un cambio de política. Devuelve {ok, value} o {ok:false, reason}.
@@ -52,18 +52,18 @@ export function checkPolicy(param, raw) {
   if (NUM[param]) {
     const n = Number(String(raw ?? '').replace(',', '.').replace(/[^0-9.\-]/g, '')), [lo, hi] = NUM[param];
     if (!Number.isFinite(n)) return {ok: false, reason: 'Hace falta un número'};
-    const value = ['maxPositions', 'holdDays', 'meetingsPerDay'].includes(param) ? Math.round(Math.min(hi, Math.max(lo, n))) : Math.min(hi, Math.max(lo, n));
+    const value = ['maxPositions', 'holdDays', 'meetingsPerDay', 'pipeline'].includes(param) ? Math.round(Math.min(hi, Math.max(lo, n))) : Math.min(hi, Math.max(lo, n));
     return {ok: true, value};
   }
   return {ok: false, reason: 'Parámetro desconocido. Disponibles: ' + POLICY_PARAMS.join(', ')};
 }
 
 export function initCompany(s, now = Date.now()) {
-  if (s.v2?.schema === 1) { const v2 = s.v2; for (const m of STAFF) { v2.agents[m.id] ??= newAgent(); v2.agents[m.id].stats ??= {}; } v2.policy = {...POLICY_DEFAULT, ...v2.policy}; v2.strategyStats ??= {}; return v2; }
+  if (s.v2?.schema === 1) { const v2 = s.v2; for (const m of STAFF) { v2.agents[m.id] ??= newAgent(); v2.agents[m.id].stats ??= {}; } v2.policy = {...POLICY_DEFAULT, ...v2.policy}; v2.strategyStats ??= {}; v2.books ??= []; return v2; }
   s.v2 = {
     schema: 1, startedAt: now, policy: {...POLICY_DEFAULT}, strategyLog: [], agents: Object.fromEntries(STAFF.map(m => [m.id, newAgent()])),
     ideas: [], orders: [], timeline: [], seq: 0, meetings: [], meetingDay: {day: '', done: [], extra: 0}, meetingRequests: [], proposals: [], lessons: [],
-    days: {}, months: {}, strategyStats: {}, office: {upgrades: [], purchases: []}, owner: [], reviewedUntil: now, radarCursor: 0,
+    days: {}, months: {}, strategyStats: {}, books: [], office: {upgrades: [], purchases: []}, owner: [], reviewedUntil: now, radarCursor: 0,
     stats: {turnCostEur: 0.0008, web: {day: '', n: 0, fails: 0}, deep: {day: '', n: 0}, errors: 0, lastErrorAt: 0}
   };
   emit(s.v2, 'system', {text: 'Nueva etapa de la oficina: equipo con libertad total sobre estrategia, riesgo y ritmo. La cartera y el alquiler siguen donde estaban.'}, now);
@@ -128,7 +128,7 @@ export const equityOf = s => equity(s.real.book);
 
 // Resultado acumulado por nombre de estrategia: el equipo ve qué rumbo le ha dado de comer.
 export function creditStrategy(v2, trade, now = Date.now()) {
-  const name = v2.policy.strategy, st = v2.strategyStats[name] ??= {since: now, trades: 0, wins: 0, pnl: 0};
+  const name = trade.strategy || v2.policy.strategy, st = v2.strategyStats[name] ??= {since: now, trades: 0, wins: 0, pnl: 0};
   st.trades++; if (trade.pnl > 0) st.wins++; st.pnl = Math.round((st.pnl + trade.pnl) * 100) / 100; st.last = now;
   const names = Object.keys(v2.strategyStats); if (names.length > 12) for (const k of names.sort((a, b) => (v2.strategyStats[a].last || 0) - (v2.strategyStats[b].last || 0)).slice(0, names.length - 12)) if (k !== name) delete v2.strategyStats[k];
 }
@@ -148,8 +148,27 @@ export function lifeStats(s, now = Date.now()) {
     daysSinceTrade: lastTradeAt ? Math.floor((now - lastTradeAt) / 864e5) : Math.floor((now - (v2.startedAt || now)) / 864e5), lastTradeAt, everTraded: !!lastTradeAt,
     streak, lastStop: brief(lastStop), best: brief(pickBy((c, b) => c.pnl > b.pnl)), worst: brief(pickBy((c, b) => c.pnl < b.pnl)),
     agents: Object.fromEntries(STAFF.map(m => [m.id, {...v2.agents[m.id].stats, ...(authors[m.id] ? {ideasClosed: authors[m.id].closed, ideasPnl: Math.round(authors[m.id].pnl)} : {})}])),
-    strategies: Object.entries(v2.strategyStats).map(([name, x]) => ({name, trades: x.trades, wins: x.wins, pnl: Math.round(x.pnl), current: name === v2.policy.strategy})).sort((a, b) => b.pnl - a.pnl).slice(0, 6),
+    strategies: Object.entries(v2.strategyStats).map(([name, x]) => ({name, trades: x.trades, wins: x.wins, pnl: Math.round(x.pnl), current: name === v2.policy.strategy || v2.books.some(b => b.name === name)})).sort((a, b) => b.pnl - a.pnl).slice(0, 6),
     monthsPaid: months.filter(m => m.paid).length, monthsMissed: months.filter(m => !m.paid).length, meetingsToday: v2.meetingDay.done.length + v2.meetingDay.extra,
     ideas: Object.fromEntries(['nueva', 'plan', 'aprobada', 'vetada', 'ordenada'].map(k => [k, v2.ideas.filter(i => i.status === k).length])), ownerUnread: v2.agents.auditor.inbox.some(m => m.from === 'cesar')
   };
 }
+
+// Estrategias paralelas: además de la principal, el equipo puede llevar hasta cuatro
+// «libros» con su foco y sus números. Cada plan dice a cuál pertenece y su resultado se apunta ahí.
+const clampN = (x, lo, hi, d) => { const n = Number(x); return Number.isFinite(n) && n > 0 ? Math.min(hi, Math.max(lo, n)) : d; };
+export function setBook(v2, raw, by, now = Date.now()) {
+  const name = String(raw.name || '').replace(/\s+/g, ' ').trim().slice(0, 28); if (name.length < 3) return {ok: false, reason: 'Falta el nombre de la estrategia'};
+  if (name.toLowerCase() === v2.policy.strategy.toLowerCase()) return {ok: false, reason: 'Esa es la estrategia principal: cámbiala con apply'};
+  const old = v2.books.find(b => b.name.toLowerCase() === name.toLowerCase()); if (!old && v2.books.length >= 4) return {ok: false, reason: 'Ya hay cuatro estrategias paralelas: retira una antes'};
+  const p = v2.policy, book = {name: old?.name || name, focus: String(raw.focus || old?.focus || '').replace(/\s+/g, ' ').trim().slice(0, 200), lotPct: clampN(raw.lotPct, 2, 100, old?.lotPct ?? p.lotPct), stopPct: clampN(raw.stopPct, 1, 40, old?.stopPct ?? p.stopPct), targetPct: clampN(raw.targetPct, 2, 300, old?.targetPct ?? p.targetPct), days: Math.round(clampN(raw.days, 1, 30, old?.days ?? p.holdDays)), by: old?.by || by, at: old?.at || now};
+  if (book.focus.length < 8) return {ok: false, reason: 'Explica en qué consiste la estrategia'};
+  if (old) Object.assign(old, book); else v2.books.push(book);
+  emit(v2, 'strategy', {agent: by, param: 'playbook', label: old ? 'estrategia paralela' : 'nueva estrategia paralela', value: book.name, name: v2.policy.strategy, lines: boardLines(v2.policy), text: book.focus}, now);
+  return {ok: true, book};
+}
+export function dropBook(v2, name, by, reason, now = Date.now()) {
+  const i = v2.books.findIndex(b => b.name.toLowerCase() === String(name || '').trim().toLowerCase()); if (i < 0) return {ok: false, reason: 'No existe esa estrategia paralela'};
+  const [gone] = v2.books.splice(i, 1); emit(v2, 'strategy', {agent: by, param: 'playbook', label: 'estrategia retirada', value: gone.name, name: v2.policy.strategy, lines: boardLines(v2.policy), text: String(reason || '').slice(0, 200)}, now); return {ok: true};
+}
+export const bookNamed = (v2, name) => v2.books.find(b => b.name.toLowerCase() === String(name || '').trim().toLowerCase()) || null;

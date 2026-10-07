@@ -19,8 +19,8 @@ function fixture() {
   const run = (sql, params) => { validateRuntimeDbRequest({action: 'runtime-db', sql, params}); sqlSeen.add(sql); const st = sqlite.prepare(sql); return /^\s*SELECT|RETURNING/i.test(sql) ? st.all(...params) : (st.run(...params), []); };
   const prepare = (sql, params = []) => ({sql, params, bind: (...p) => prepare(sql, p), async first() { return run(sql, params)[0] || null; }, async all() { return {results: run(sql, params)}; }, async run() { return {success: true, results: run(sql, params)}; }});
   const env = {OPENAI_RUNTIME_KEY: 'test-only-not-a-live-key', CONTROL_DB: {prepare, async batch(ops) { return ops.map(o => ({success: true, results: run(o.sql, o.params)})); }}};
-  const prices = {AAPL: 100, MSFT: 50};
-  const chart = symbol => { const now = Date.now(), ts = [], close = [], volume = []; for (let i = 25; i >= 2; i--) { ts.push(Math.floor((now - i * 864e5) / 1000)); close.push(prices[symbol]); volume.push(2e6); } return {chart: {result: [{meta: {symbol, currency: 'USD', instrumentType: 'EQUITY', exchangeName: 'NMS', regularMarketPrice: prices[symbol], regularMarketTime: Math.floor((now - 60e3) / 1000)}, timestamp: ts, indicators: {quote: [{close, volume}]}}]}}; };
+  const prices = {AAPL: 100, MSFT: 50, 'SAN.MC': 8, 'ITX.MC': 50};
+  const chart = symbol => { const now = Date.now(), ts = [], close = [], volume = [], es = symbol.endsWith('.MC'); for (let i = 25; i >= 2; i--) { ts.push(Math.floor((now - i * 864e5) / 1000)); close.push(prices[symbol] * (es ? 1 - i / 200 : 1)); volume.push(2e6); } return {chart: {result: [{meta: {symbol, currency: es ? 'EUR' : 'USD', instrumentType: 'EQUITY', exchangeName: es ? 'MCE' : 'NMS', regularMarketPrice: prices[symbol], regularMarketTime: Math.floor((now - 60e3) / 1000)}, timestamp: ts, indicators: {quote: [{close, volume}]}}]}}; };
   const script = {}, calls = [];
   const fetcher = async (url, init) => {
     url = String(url);
@@ -183,15 +183,16 @@ test('pulso sin IA: stop dinámico, marcador por estrategia, contadores y regalo
 });
 
 test('sin novedades no se gasta una ronda: se espera cuatro veces más', async () => {
-  clockAt(Date.parse('2026-10-07T10:00:00Z')); const f = fixture(); // mediodía en Madrid, mercado cerrado
+  clockAt(Date.parse('2026-10-10T10:00:00Z')); const f = fixture(); // sábado a mediodía: todo cerrado
   try {
     f.script.turn = turn([]); // nadie hace nada ni pide descanso
-    for (let i = 0; i < 6; i++) { await cycle(f.env, {...f.opts, radar: async () => {}}); mock.timers.tick(5 * 60e3); }
-    const first = f.calls.length; assert.equal(first, 6, 'primera ronda: uno por ciclo fuera de sesión');
+    for (let i = 0; i < 8; i++) { await cycle(f.env, {...f.opts, radar: async () => {}}); mock.timers.tick(5 * 60e3); }
+    const quiet = () => f.calls.filter(c => c.who !== 'SANTI').length, first = quiet(); assert.ok(first >= 4 && first <= 5, 'primera ronda: uno por ciclo fuera de sesión');
     for (let i = 0; i < 12; i++) { await cycle(f.env, {...f.opts, radar: async () => {}}); mock.timers.tick(5 * 60e3); } // una hora más sin nada nuevo
-    assert.equal(f.calls.length, first, 'sin eventos, radar ni precios nuevos nadie repite turno antes de 4× su cadencia');
+    assert.equal(quiet(), first, 'sin eventos, radar ni precios nuevos nadie repite turno antes de 4× su cadencia');
+    assert.ok(f.calls.filter(c => c.who === 'SANTI').length >= 3, 'Santi sí vuelve a su ritmo mientras falten candidatas');
     await locked(f.env, s => ownerCommand(s, '/owner', {text: 'Buenos días a todos'}));
-    await cycle(f.env, {...f.opts, radar: async () => {}}); assert.equal(f.calls.at(-1).who, 'AUGUSTO'); assert.equal(f.calls.length, first + 1);
+    await cycle(f.env, {...f.opts, radar: async () => {}}); assert.ok(f.calls.slice(-2).some(c => c.who === 'AUGUSTO')); assert.equal(quiet(), first + 1);
   } finally { mock.timers.reset(); }
 });
 
@@ -209,5 +210,34 @@ test('un cierre se revisa una vez y un descanso con el mismo trabajo delante se 
     assert.equal(seen.at(-1), 1, 'Augusto ve el cierre una vez: ' + seen.join(','));
     assert.equal(seen.filter(n => n === 1).length, 1, 'aunque no apunte lección, el cierre no vuelve como trabajo pendiente');
     assert.equal((await status(f.env)).agents.find(a => a.id === 'auditor').work, 0);
+  } finally { mock.timers.reset(); }
+});
+
+test('Santi llena la cantera, se opera en la bolsa española en euros y conviven dos estrategias', async () => {
+  clockAt(Date.parse('2026-10-07T09:30:00Z')); const f = fixture(); // 11:30 Madrid: España abierta, EEUU cerrado
+  try {
+    f.script['turn:SANTI'] = c => c.input.faltanCandidatas >= 5 ? turn([act('pitch', {symbol: 'SAN.MC', text: 'Banca española fuerte, sube con volumen esta semana'}), act('pitch', {symbol: 'ITX.MC', text: 'Inditex recupera tras resultados y gana tracción'}), act('pitch', {symbol: 'AAPL', text: 'Resultados el jueves y viene con volumen fuerte'})])() : turn([act('wait', {value: '240'})])();
+    f.script['turn:PEDRO'] = c => { const p = c.input.pendientes[0]; return p ? turn(p.symbol === 'SAN.MC' ? [act('playbook', {param: 'Ibex de ida y vuelta', text: 'Bancos españoles con movimiento fuerte, entrar y salir en dos días', value: '10', stopPct: 3, targetPct: 6, days: 2}), act('plan', {symbol: 'SAN.MC', param: 'Ibex de ida y vuelta', text: 'Entrada rápida'})] : [act('plan', {symbol: p.symbol, eur: 1500, text: 'Plan estándar'})])() : turn([act('wait', {value: '60'})])(); };
+    f.script['turn:MARÍA'] = c => c.input.planesPorRevisar.length ? turn(c.input.planesPorRevisar.slice(0, 3).map(p => act('approve', {symbol: p.symbol, text: 'Adelante'})))() : turn([act('wait', {value: '60'})])();
+    f.script['turn:YARI'] = c => c.input.listasParaComprar.length ? turn(c.input.listasParaComprar.slice(0, 3).map(p => act('buy', {symbol: p.symbol})))() : turn([act('wait', {value: '60'})])();
+    for (let i = 0; i < 6; i++) { await cycle(f.env, f.opts); mock.timers.tick(5 * 60e3); }
+    let live = await status(f.env);
+    const first = f.calls.find(c => c.who === 'SANTI').input;
+    assert.equal(first.faltanCandidatas, 6); assert.match(first.encargo, /hasta 3 candidatas/); assert.match(first.mercado, /EEUU cerrado · España ABIERTO/);
+    assert.ok(first.bolsaEspañola.length >= 2 && first.bolsaEspañola.every(x => x.symbol.endsWith('.MC') && x.r5d > 0), 'Santi ve qué se mueve en España');
+    assert.equal(live.life.agents.scout.pitches, 3);
+    assert.deepEqual(live.positions.map(p => p.symbol).sort(), ['ITX.MC', 'SAN.MC'], 'las españolas se compran en su sesión; AAPL espera a Nueva York');
+    assert.equal(live.orders[0].symbol, 'AAPL'); assert.equal(live.market.es, true); assert.equal(live.market.us, false);
+    const san = live.positions.find(p => p.symbol === 'SAN.MC'), itx = live.positions.find(p => p.symbol === 'ITX.MC');
+    assert.equal(san.currency, 'EUR'); assert.equal(san.strategy, 'Ibex de ida y vuelta'); assert.equal(itx.strategy, 'Catalizadores cercanos');
+    assert.ok(Math.abs(san.eur - 1000) < 12, 'lote del 10 % de la estrategia paralela, sin conversión a dólares: ' + san.eur); assert.ok(Math.abs(itx.eur - 1500) < 55);
+    assert.ok(Math.abs(san.stop - 8.02 * 0.97) < 0.01); assert.ok(Math.abs(live.company.equity - 10000) < 15, 'entrar solo cuesta deslizamiento y comisión');
+    assert.equal(live.books.length, 1); assert.equal(live.books[0].days, 2);
+    // el Santander sube un 7 %: objetivo del +6 % cumplido, en euros y apuntado a su estrategia
+    f.prices['SAN.MC'] = 8.6; f.script.turn = turn([act('wait', {value: '240'})]); for (const k of Object.keys(f.script)) if (k.startsWith('turn:')) delete f.script[k];
+    await cycle(f.env, f.opts); live = await status(f.env);
+    const sold = live.closed.find(c => c.symbol === 'SAN.MC'); assert.equal(sold.reason, 'objetivo'); assert.ok(sold.pnl > 60 && sold.pnl < 75, 'resultado en euros sin tipo de cambio: ' + sold.pnl);
+    assert.deepEqual(live.life.strategies.map(x => [x.name, x.trades, x.current]), [['Ibex de ida y vuelta', 1, true]]);
+    await locked(f.env, s => { const v2 = initCompany(s); assert.equal(checkPolicy('pipeline', '40').value, 12); assert.ok(v2.books.length === 1); });
   } finally { mock.timers.reset(); }
 });

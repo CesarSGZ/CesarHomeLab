@@ -2,6 +2,7 @@
 // Las únicas reglas son contables: precios reales recientes, caja (o margen) suficiente,
 // deslizamiento y comisión. Qué comprar, cuánto y con qué riesgo lo deciden los agentes.
 import {equity, freshQuote, fxValid, rollover, sell, monitor, id, referencePrice} from '../core.js';
+import {isSpanish} from '../spain.js';
 
 export const invested = book => book.positions.reduce((sum, p) => sum + p.qty * (p.mark ?? p.entry) / (p.markFx || p.entryFx || 1), 0);
 export const buyingPower = (book, leverage = 1) => Math.max(0, equity(book) * leverage - invested(book));
@@ -15,7 +16,7 @@ export function openPosition(book, asset, order, quote, config, policy, t = Date
   if (!freshQuote(quote, t, config)) return {ok: false, retry: true, reason: 'Sin precio reciente en sesión (mercado cerrado o dato retrasado)'};
   if (book.positions.some(p => p.symbol === asset.symbol)) return {ok: false, reason: 'Ya hay una posición abierta en ' + asset.symbol};
   if (book.positions.length >= policy.maxPositions) return {ok: false, reason: 'Cartera llena: el máximo acordado es ' + policy.maxPositions + ' posiciones'};
-  const fx = book.fx.rate, price = quote.price * (1 + config.slippageBps / 1e4);
+  const fx = isSpanish(asset.symbol) ? 1 : book.fx.rate, price = quote.price * (1 + config.slippageBps / 1e4);
   if (order.limit > 0 && price > order.limit) return {ok: false, retry: true, reason: 'Precio por encima del límite fijado (' + order.limit.toFixed(2) + ')'};
   if (!(quote.dollarVolume >= policy.minDollarVolume)) return {ok: false, reason: 'Liquidez insuficiente para entrar sin mover el precio'};
   const power = buyingPower(book, policy.leverage);
@@ -29,7 +30,7 @@ export function openPosition(book, asset, order, quote, config, policy, t = Date
   book.cash -= cost; book.entriesToday = (book.entriesToday || 0) + 1;
   const orderId = id(order.ideaId || asset.symbol, 'buy', t);
   book.orders.push({id: orderId, eventId: order.ideaId || null, symbol: asset.symbol, side: 'buy', qty, price, fee: config.commission, time: t, pricing: 'Referencia pública + deslizamiento estimado', source: quote.source || null, quoteTime: quote.time});
-  const position = {id: orderId, eventId: order.ideaId || null, symbol: asset.symbol, sector: asset.sector, qty, entry: price, entryFx: fx, mark: quote.price, markFx: fx, allocation: cost, stop: price * (1 - stopPct / 100), target: price * (1 + targetPct / 100), expiresAt: t + days * 864e5, entryFee: config.commission, openedAt: t, thesis: String(order.thesis || '').slice(0, 300), pricing: 'Referencia pública + deslizamiento estimado', quoteTime: quote.time, by: order.by || 'operator'};
+  const position = {id: orderId, eventId: order.ideaId || null, symbol: asset.symbol, sector: asset.sector, qty, entry: price, entryFx: fx, mark: quote.price, markFx: fx, allocation: cost, stop: price * (1 - stopPct / 100), target: price * (1 + targetPct / 100), expiresAt: t + days * 864e5, entryFee: config.commission, openedAt: t, thesis: String(order.thesis || '').slice(0, 300), strategy: order.strategy || null, currency: isSpanish(asset.symbol) ? 'EUR' : 'USD', pricing: 'Referencia pública + deslizamiento estimado', quoteTime: quote.time, by: order.by || 'operator'};
   book.positions.push(position);
   return {ok: true, position, cost};
 }

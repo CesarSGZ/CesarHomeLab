@@ -55,6 +55,16 @@ regular), caja o margen suficiente, deslizamiento de 25 pb y 1 USD de comisión 
 10 % del volumen medio diario por compra, solo posiciones largas, y el presupuesto de 10 €.
 Con apalancamiento, si el capital cae por debajo del 30 % de lo invertido se liquida todo.
 
+### Cantera, España y estrategias paralelas
+
+- `pipeline` (1–12, por defecto 6): candidatas vivas que debe mantener Santi. Mientras falten, es
+  trabajo pendiente suyo y puede traer hasta tres por turno.
+- Bolsa española (`spain.js`): 45 valores líquidos con sufijo `.MC`, en euros y sin conversión de
+  divisa; sesión de 9:00 a 17:30 de Madrid. No hay radar de noticias: se siguen sus precios por
+  tandas y Santi ve los que más se mueven.
+- Estrategias paralelas (`playbook` / `retire`): hasta cuatro además de la principal, cada una con
+  su foco, tamaño, stop, objetivo y plazo. Cada plan dice a cuál pertenece y el resultado se apunta ahí.
+
 ### Presupuesto de IA
 
 Asignación diaria = saldo restante / días restantes × ritmo (ahorro 0,6 · normal 1 · intensivo 1,5).

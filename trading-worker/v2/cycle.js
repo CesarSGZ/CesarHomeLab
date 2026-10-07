@@ -5,7 +5,8 @@
 import {locked, load, log, operatingBudget, cost} from '../store.js';
 import {scout} from '../radar.js';
 import {equity, day, sample, freshQuote, fxValid} from '../core.js';
-import {regularSession, parseChart, referenceSource} from '../market-data.js';
+import {regularSession, parseChart, referenceSource, sessionFor, yahooSymbol} from '../market-data.js';
+import {findAsset, ES_ASSETS, isSpanish, spanishSession} from '../spain.js';
 import {openPosition, closePosition, settlePositions, positionEur, positionPnl, invested, buyingPower, bookStats} from './book.js';
 import {callModel} from './llm.js';
 import {STAFF, staffById, RENT_TARGET, OFFICE_CATALOG, initCompany, emit, tell, expireIdeas, madrid, companyMood, eur, boardLines, policyLabel, creditStrategy, lifeStats} from './company.js';
@@ -27,22 +28,22 @@ async function refreshFx(s, now, fetcher) {
   } catch (e) { log(s, 'system', e.message, 'warning'); }
 }
 
-export async function refreshQuotes(s, symbols, {now = Date.now(), fetcher = fetch, session = regularSession(now)} = {}) {
-  const d = s.real, gap = session ? 4 * 60e3 : 3 * 3600e3;
-  const need = [...new Set(symbols)].filter(sym => { const q = d.quotes[sym]; return !q || now - (q.fetchedAt || 0) > gap; }).slice(0, 24);
+export async function refreshQuotes(s, symbols, {now = Date.now(), fetcher = fetch, session, gap: fixed, limit = 24} = {}) {
+  const d = s.real, open = sym => session ?? sessionFor(sym, now);
+  const need = [...new Set(symbols)].filter(sym => { const q = d.quotes[sym]; return !q || now - (q.fetchedAt || 0) > (fixed ?? (open(sym) ? 4 * 60e3 : 3 * 3600e3)); }).slice(0, limit);
   d.marketCheckedAt = now; if (!need.length) return {updated: 0, errors: []};
   let updated = 0; const errors = [];
   for (let i = 0; i < need.length; i += 4) {
     const batch = await Promise.allSettled(need.slice(i, i + 4).map(async symbol => {
-      const r = await fetcher('https://query1.finance.yahoo.com/v8/finance/chart/' + encodeURIComponent(symbol.replaceAll('.', '-')) + '?interval=1d&range=1mo&includePrePost=false', {headers: {'User-Agent': 'Mozilla/5.0', Accept: 'application/json'}, signal: AbortSignal.timeout(12000)});
+      const r = await fetcher('https://query1.finance.yahoo.com/v8/finance/chart/' + encodeURIComponent(yahooSymbol(symbol)) + '?interval=1d&range=1mo&includePrePost=false', {headers: {'User-Agent': 'Mozilla/5.0', Accept: 'application/json'}, signal: AbortSignal.timeout(12000)});
       if (!r.ok) throw Error('Proveedor HTTP ' + r.status); return {symbol, q: parseChart(await r.json(), symbol, now)};
     }));
-    batch.forEach((result, j) => { if (result.status === 'fulfilled') { const {symbol, q} = result.value; d.quotes[symbol] = q; const a = d.assets.find(a => a.symbol === symbol); if (a) a.dataVerified = true; updated++; } else errors.push(need[i + j] + ': ' + String(result.reason.message).slice(0, 80)); });
+    batch.forEach((result, j) => { if (result.status === 'fulfilled') { const {symbol, q} = result.value; d.quotes[symbol] = q; const a = isSpanish(symbol) ? null : d.assets.find(a => a.symbol === symbol); if (a) a.dataVerified = true; updated++; } else errors.push(need[i + j] + ': ' + String(result.reason.message).slice(0, 80)); });
     if (errors.some(e => e.includes('429'))) break;
   }
   if (updated) { d.marketAt = now; d.marketProviderAt = now; }
   d.marketError = errors.length ? errors.slice(0, 4).join('; ') : null;
-  d.marketStatus = (session ? 'Mercado abierto · ' : 'Mercado cerrado · ') + updated + ' precios actualizados de ' + need.length + (errors.length ? ' · ' + errors.length + ' sin respuesta' : '');
+  d.marketStatus = ((session ?? (regularSession(now) || spanishSession(now))) ? 'Mercado abierto · ' : 'Mercado cerrado · ') + updated + ' precios actualizados de ' + need.length + (errors.length ? ' · ' + errors.length + ' sin respuesta' : '');
   for (const sym of Object.keys(d.quotes)) if (now - (d.quotes[sym].fetchedAt || 0) > 10 * 864e5) delete d.quotes[sym];
   return {updated, errors};
 }
@@ -65,8 +66,8 @@ export function processOrders(s, now = Date.now()) {
     const q = s.real.quotes[o.symbol];
     if (o.side === 'buy') {
       if (s.paused) { o.note = 'César tiene las compras en pausa'; continue; }
-      const asset = s.real.assets.find(a => a.symbol === o.symbol), r = asset ? openPosition(book, asset, o, q, s.config, v2.policy, now) : {ok: false, reason: 'Símbolo desconocido'};
-      if (r.ok) { drop(); if (idea) { idea.status = 'comprada'; idea.updatedAt = now; } emit(v2, 'trade', {agent: o.by, side: 'buy', symbol: o.symbol, eur: Math.round(r.cost), price: r.position.entry, text: `Dentro de ${o.symbol}: ${eur(r.cost)} a ${r.position.entry.toFixed(2)} $.`}, now); log(s, 'operator', `${o.symbol}: compra ficticia de ${r.cost.toFixed(2)} EUR`); done.push(o); }
+      const asset = findAsset(s, o.symbol), r = asset ? openPosition(book, asset, o, q, s.config, v2.policy, now) : {ok: false, reason: 'Símbolo desconocido'};
+      if (r.ok) { drop(); if (idea) { idea.status = 'comprada'; idea.updatedAt = now; } emit(v2, 'trade', {agent: o.by, side: 'buy', symbol: o.symbol, eur: Math.round(r.cost), price: r.position.entry, strategy: o.strategy || null, text: `Dentro de ${o.symbol}: ${eur(r.cost)} a ${r.position.entry.toFixed(2)} ${isSpanish(o.symbol) ? '€' : '$'}.`}, now); log(s, 'operator', `${o.symbol}: compra ficticia de ${r.cost.toFixed(2)} EUR`); done.push(o); }
       else if (r.retry) o.note = r.reason;
       else { drop(); if (idea) { idea.status = 'aprobada'; idea.updatedAt = now; } tell(v2, o.by, 'system', `No se pudo comprar ${o.symbol}: ${r.reason}`, now); }
     } else {
@@ -86,12 +87,13 @@ function news(s, id, session) {
   if ((id === 'operator' || id === 'risk') && session) return s.real.book.positions.some(p => { const ref = a.marks?.[p.symbol]; return !ref || Math.abs((p.mark ?? p.entry) / ref - 1) >= 0.015; });
   return false;
 }
+const inbox0 = s => Object.values(s.v2.agents).some(a => a.inbox.length && !a.paused); // quien tiene un mensaje va antes que la cantera
 function cadenceDue(s, id, phase, now, session) { const gap = now - s.v2.agents[id].lastAt, every = CADENCE[phase][id] * 60e3; return gap >= every * 4 || (gap >= every && news(s, id, session)); }
 export function pickAgents(s, phase, now) {
   const v2 = s.v2;
   return STAFF.map(m => {
     const a = v2.agents[m.id]; if (a.paused) return null;
-    const inbox = a.inbox.length, work = workFor(s, m.id).length, due = cadenceDue(s, m.id, phase, now, phase === 'session'), waiting = a.waitUntil > now;
+    const gap0 = now - a.lastAt, inbox = a.inbox.length, work = m.id === 'scout' ? (gap0 < CADENCE[phase].scout * 60e3 || inbox0(s) ? 0 : Math.min(1, workFor(s, m.id).length) * 0.5) : workFor(s, m.id).length, due = cadenceDue(s, m.id, phase, now, phase === 'session'), waiting = a.waitUntil > now;
     if (!inbox && !work && (waiting || !due)) return null;
     if (!inbox && waiting && work <= (a.workSeen || 0)) return null; // pidió descanso con ese mismo trabajo delante: se respeta
     if (phase === 'night' && !inbox && !work) return null;
@@ -146,9 +148,11 @@ export async function cycle(env, {manual = false, call = callModel, fetcher = fe
     // 1 · Datos sin IA
     if (now - (s.real.lastScan || 0) > 15 * 60e3) { try { await radar(s); } catch (e) { log(s, 'scout', 'Radar: ' + short(e.message, 120), 'warning'); s.real.lastScan = now; } await checkpoint(); }
     await refreshFx(s, now, fetcher);
-    const session = regularSession(now), m = madrid(now), phase = session ? 'session' : (m.hour >= 7 && m.minutes < 23 * 60 + 30) ? 'day' : 'night';
+    const usOpen = regularSession(now), esOpen = spanishSession(now), session = usOpen || esOpen, m = madrid(now), phase = session ? 'session' : (m.hour >= 7 && m.minutes < 23 * 60 + 30) ? 'day' : 'night';
     const watch = [...book.positions.map(p => p.symbol), ...v2.orders.map(o => o.symbol), ...v2.ideas.filter(i => ['aprobada', 'plan', 'nueva', 'vetada', 'ordenada'].includes(i.status)).map(i => i.symbol)];
-    await refreshQuotes(s, watch, {now, fetcher, session});
+    await refreshQuotes(s, watch, {now, fetcher});
+    // Bolsa española: sin radar de noticias, se siguen sus precios por tandas para que Santi vea qué se mueve.
+    await refreshQuotes(s, [...ES_ASSETS].sort((a, b) => (s.real.quotes[a.symbol]?.fetchedAt || 0) - (s.real.quotes[b.symbol]?.fetchedAt || 0)).map(a => a.symbol), {now, fetcher, gap: (esOpen ? 30 : 360) * 60e3, limit: 8});
     for (const trade of settlePositions(book, s.real.quotes, s.config, v2.policy, now)) onClosed(s, trade, now);
     processOrders(s, now); expireIdeas(v2, now); sample(book, now);
     let budget = await operatingBudget(env, s);
@@ -161,7 +165,7 @@ export async function cycle(env, {manual = false, call = callModel, fetcher = fe
     const today = day(now); if (v2.stats.web.day !== today) v2.stats.web = {day: today, n: 0, fails: 0};
     const allowanceToday = Math.min(budget.remainingEur, budget.remainingEur / Math.max(1, budget.daysLeft) * PACE[v2.policy.pace]);
     let leftToday = allowanceToday - (budget.daySpentEur || 0);
-    const envx = {call, checkpoint, session, mood: {joy: 'euforia', calm: 'tranquilos', tense: 'tensos', panic: 'agobiados'}[v2.mood], budget, allowanceToday, webLimit: v2.stats.web.fails >= 2 ? 0 : WEB_LIMIT[v2.policy.pace], monthStart: s.operatingLedger.startedAt, now};
+    const envx = {call, checkpoint, session, usOpen, mood: {joy: 'euforia', calm: 'tranquilos', tense: 'tensos', panic: 'agobiados'}[v2.mood], budget, allowanceToday, webLimit: v2.stats.web.fails >= 2 ? 0 : WEB_LIMIT[v2.policy.pace], monthStart: s.operatingLedger.startedAt, now};
     v2.ai = {ok: keyPresent && fxValid(book, now) && leftToday > 0.002 && !budget.exhausted, reason: !keyPresent ? 'Falta conectar la clave de OpenAI' : !fxValid(book, now) ? 'Falta el cambio EUR/USD' : budget.exhausted ? 'Tokens del mes agotados' : leftToday <= 0.002 ? 'Presupuesto de IA de hoy agotado: hoy solo rutinas por código' : null, allowanceToday, leftToday};
     if (v2.ai.ok) {
       let errors = 0; const fail = (who, error) => { errors++; v2.stats.errors++; v2.stats.lastErrorAt = now; log(s, who, 'IA: ' + short(error.message, 140), 'warning'); if (['sin_presupuesto', 'sin_clave', 'clave_invalida', 'sin_fx'].includes(error.code)) errors = 99; };
@@ -192,20 +196,20 @@ export async function cycle(env, {manual = false, call = callModel, fetcher = fe
 
 export async function status(env) {
   const {state: s, busy} = await load(env); const now = Date.now(), v2 = initCompany(s, now), book = s.real.book, eq = equity(book);
-  const budget = await operatingBudget(env, s), calls = await cost(env), session = regularSession(now);
+  const budget = await operatingBudget(env, s), calls = await cost(env), usOpen = regularSession(now), esOpen = spanishSession(now), session = usOpen || esOpen;
   const secrets = await env.CONTROL_DB.prepare('SELECT name FROM trading_secrets').all(), configured = new Set((secrets.results || []).map(r => r.name));
   const month = day(now).slice(0, 7), daysInMonth = new Date(Number(month.slice(0, 4)), Number(month.slice(5)), 0).getDate();
   const mood = companyMood({monthPnl: budget.monthlyProfit, daysLeft: budget.daysLeft, daysInMonth, remainingEur: budget.remainingEur, dayPnl: eq - (v2.dayBase?.equity ?? eq), equity: eq});
-  const name = sym => short(String(s.real.assets.find(a => a.symbol === sym)?.name || '').replace(/ (Common Stock|Ordinary Shares|Class A).*$/i, ''), 40);
+  const name = sym => short(String(findAsset(s, sym)?.name || '').replace(/ (Common Stock|Ordinary Shares|Class A).*$/i, ''), 40);
   const st = bookStats(book, s.operatingLedger?.startedAt || 0);
   return {
     ok: true, v: 2, time: now, lastTick: s.lastTick, lastError: s.lastError, busy, paused: s.paused, automatic: s.automatic,
     company: {equity: eq, cash: book.cash, invested: invested(book), buyingPower: buyingPower(book, v2.policy.leverage), initial: book.initial, monthPnl: budget.monthlyProfit, monthOpen: s.operatingLedger?.openingEquity ?? book.initial, rentTarget: RENT_TARGET, rentPct: budget.monthlyProfit / RENT_TARGET * 100, daysLeft: budget.daysLeft, needPerDay: Math.max(0, RENT_TARGET - budget.monthlyProfit) / Math.max(1, budget.daysLeft), dayPnl: eq - (v2.dayBase?.equity ?? eq), mood, maxDrawdown: book.maxDrawdown, months: v2.months, stats: {trades: st.trades, wins: st.wins, losses: st.losses, realised: st.realised}},
     budget: {allowanceEur: budget.allowanceEur, spentEur: budget.spentEur, remainingEur: budget.remainingEur, todaySpentEur: budget.daySpentEur, todayAllowanceEur: v2.ai?.allowanceToday ?? null, pace: v2.policy.pace, turnCostEur: v2.stats.turnCostEur, callsToday: calls.calls || 0, ai: v2.ai || null, webToday: v2.stats.web.n},
-    market: {open: session, status: s.real.marketStatus, at: s.real.marketAt, error: s.real.marketError, fx: book.fx ? {rate: book.fx.rate, date: book.fx.date} : null},
-    policy: v2.policy, board: {name: v2.policy.strategy, lines: boardLines(v2.policy)}, strategyLog: v2.strategyLog.slice(0, 15).map(c => ({...c, label: policyLabel(c.param)})),
+    market: {open: session, us: usOpen, es: esOpen, status: s.real.marketStatus, at: s.real.marketAt, error: s.real.marketError, fx: book.fx ? {rate: book.fx.rate, date: book.fx.date} : null},
+    policy: v2.policy, books: v2.books, board: {name: v2.policy.strategy, lines: boardLines(v2.policy)}, strategyLog: v2.strategyLog.slice(0, 15).map(c => ({...c, label: policyLabel(c.param)})),
     agents: STAFF.map(mb => { const a = v2.agents[mb.id]; return {id: mb.id, name: mb.name, role: mb.role, color: mb.color, duty: mb.duty, persona: mb.persona, mood: a.mood, task: a.task, thought: a.thought, say: a.say, lastAt: a.lastAt, waitUntil: a.waitUntil, paused: a.paused, calls: a.calls, eur: a.eur, today: a.today, notes: a.notes.slice(-3), inbox: a.inbox.length, work: workFor(s, mb.id).length}; }),
-    positions: book.positions.map(p => ({id: p.id, symbol: p.symbol, name: name(p.symbol), qty: p.qty, entry: p.entry, mark: p.mark ?? p.entry, eur: positionEur(p), pnl: positionPnl(p), pnlPct: ((p.mark ?? p.entry) / p.entry - 1) * 100, stop: p.stop, target: p.target, openedAt: p.openedAt, expiresAt: p.expiresAt, thesis: p.thesis, fresh: freshQuote(s.real.quotes[p.symbol], now, s.config)})),
+    positions: book.positions.map(p => ({id: p.id, symbol: p.symbol, name: name(p.symbol), qty: p.qty, entry: p.entry, mark: p.mark ?? p.entry, eur: positionEur(p), pnl: positionPnl(p), pnlPct: ((p.mark ?? p.entry) / p.entry - 1) * 100, stop: p.stop, target: p.target, openedAt: p.openedAt, expiresAt: p.expiresAt, thesis: p.thesis, strategy: p.strategy || null, currency: isSpanish(p.symbol) ? 'EUR' : 'USD', fresh: freshQuote(s.real.quotes[p.symbol], now, s.config)})),
     orders: v2.orders.map(o => ({id: o.id, side: o.side, symbol: o.symbol, eur: o.eur || null, at: o.at, note: o.note || null})),
     closed: book.closed.slice(-40).reverse().map(c => ({symbol: c.symbol, pnl: c.pnl, pnlPct: (c.exit / c.entry - 1) * 100, reason: c.reason, openedAt: c.openedAt, closedAt: c.closedAt})),
     ideas: v2.ideas.slice(0, 40).map(i => ({id: i.id, symbol: i.symbol, name: i.name, status: i.status, by: i.by, thesis: i.thesis, plan: i.plan, risk: i.risk, research: i.research && {summary: i.research.summary, sentiment: i.research.sentiment, sources: i.research.sources}, updatedAt: i.updatedAt, result: i.result ?? null})),
