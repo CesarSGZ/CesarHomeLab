@@ -8,30 +8,34 @@
       @font-face { font-family: "Archivo"; src: url("fonts/archivo-var.woff2") format("woff2"); font-weight: 300 900; font-stretch: 62% 125%; }
       @font-face { font-family: "DM Mono"; src: url("fonts/dmmono-400.woff2") format("woff2"); font-weight: 400; }
       @font-face { font-family: "DM Mono"; src: url("fonts/dmmono-500.woff2") format("woff2"); font-weight: 500; }
-      :root { --bg: #071015; --fg: #eef3ec; --muted: #9fb0aa; --hud: #cfe88f; --hud-dim: rgba(207,232,143,.35); --line: rgba(238,243,236,.12); --sky: #8fd8f0; }
+      :root { --bg: #071015; --fg: #eef3ec; --muted: #a9b9b3; --hud: #cfe88f; --hud-dim: rgba(207,232,143,.35); --line: rgba(238,243,236,.12);
+        --eng: #8fd8f0; --mgmt: #cfe88f; --data: #c4b2f5; }
       * { margin: 0; padding: 0; box-sizing: border-box; }
       html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; background: var(--bg); }
       #root { position: relative; width: 100%; height: 100%; overflow: hidden; background: var(--bg); color: var(--fg); font-family: "Archivo", sans-serif; }
       .mono { font-family: "DM Mono", monospace; letter-spacing: .14em; text-transform: uppercase; }
       .layer, .scene { position: absolute; inset: 0; }
-      .scene { padding: 150px 170px 140px; }
-      .mask { overflow: hidden; padding-bottom: .05em; }
+      .scene { padding: 150px 170px 150px; }
+      #stage { position: absolute; inset: 0; }
+      .mask { overflow: hidden; padding-bottom: .06em; }
       .mask > * { display: block; }
-      .hl { color: var(--hud); }
-      .xp { font-weight: 330; font-stretch: 125%; letter-spacing: -.02em; }
       .cn { font-weight: 860; font-stretch: 70%; letter-spacing: -.03em; }
+      .xp { font-weight: 330; font-stretch: 125%; letter-spacing: -.02em; }
+      .eng { color: var(--eng); } .mgmt { color: var(--mgmt); } .data { color: var(--data); } .hl { color: var(--hud); }
+      .kicker { font-size: 24px; color: var(--hud); display: flex; gap: 22px; align-items: center; }
+      .kicker i { width: 80px; height: 2px; background: currentColor; display: block; }
 
-      /* ---- persistent background ---- */
-      #bg-grid { position: absolute; inset: -60px; background-image: linear-gradient(var(--line) 1px, transparent 1px), linear-gradient(90deg, var(--line) 1px, transparent 1px); background-size: 120px 120px; opacity: .35; -webkit-mask: radial-gradient(ellipse 70% 65% at 50% 50%, #000 30%, transparent 80%); mask: radial-gradient(ellipse 70% 65% at 50% 50%, #000 30%, transparent 80%); }
-      #bg-glow { position: absolute; width: 1400px; height: 1400px; left: 900px; top: -500px; border-radius: 50%; background: radial-gradient(circle, rgba(36,86,110,.6), transparent 62%); }
-      #bg-glow2 { position: absolute; width: 1100px; height: 1100px; left: -400px; top: 400px; border-radius: 50%; background: radial-gradient(circle, rgba(207,232,143,.10), transparent 62%); }
+      /* background */
+      #bg-grid { position: absolute; inset: -60px; background-image: linear-gradient(var(--line) 1px, transparent 1px), linear-gradient(90deg, var(--line) 1px, transparent 1px); background-size: 120px 120px; opacity: .3; -webkit-mask: radial-gradient(ellipse 70% 65% at 50% 50%, #000 30%, transparent 80%); mask: radial-gradient(ellipse 70% 65% at 50% 50%, #000 30%, transparent 80%); }
+      .glow { position: absolute; border-radius: 50%; }
+      #g1 { width: 1400px; height: 1400px; left: 900px; top: -560px; background: radial-gradient(circle, rgba(36,86,110,.6), transparent 62%); }
+      #g2 { width: 1200px; height: 1200px; left: -500px; top: 380px; background: radial-gradient(circle, rgba(196,178,245,.12), transparent 62%); }
       #adi { position: absolute; left: 50%; top: 50%; width: 2400px; height: 1600px; margin: -800px 0 0 -1200px; }
-      #adi .ladder { stroke: var(--sky); stroke-width: 1.4; fill: none; opacity: .16; }
-      #adi .horizon { stroke: var(--hud); stroke-width: 1.6; opacity: .45; }
+      #adi .ladder { stroke: #8fd8f0; stroke-width: 1.4; fill: none; opacity: .14; }
+      #adi .horizon { stroke: var(--hud); stroke-width: 1.6; opacity: .4; }
       #grain { position: absolute; inset: 0; opacity: .06; background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); }
-      #flash { position: absolute; inset: 0; background: var(--hud); opacity: 0; mix-blend-mode: screen; }
 
-      /* ---- HUD frame ---- */
+      /* HUD */
       .corner { position: absolute; width: 46px; height: 46px; border-color: var(--hud); border-style: solid; opacity: .8; display: block; }
       .c-tl { left: 60px; top: 56px; border-width: 2px 0 0 2px; } .c-tr { right: 60px; top: 56px; border-width: 2px 2px 0 0; }
       .c-bl { left: 60px; bottom: 56px; border-width: 0 0 2px 2px; } .c-br { right: 60px; bottom: 56px; border-width: 0 2px 2px 0; }
@@ -41,195 +45,198 @@
       .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--hud); display: inline-block; }
       #progress { position: absolute; left: 128px; right: 128px; bottom: 100px; height: 2px; background: var(--line); }
       #progress i { position: absolute; inset: 0; background: var(--hud); transform-origin: 0 50%; display: block; }
-      #wipe { position: absolute; top: 0; bottom: 0; width: 320px; left: -360px; background: linear-gradient(90deg, transparent, rgba(207,232,143,.55) 50%, transparent); }
+      #flash { position: absolute; inset: 0; background: var(--hud); opacity: 0; mix-blend-mode: screen; }
 
-      /* ---- S0: flash words ---- */
-      #s0 { display: flex; align-items: center; justify-content: center; }
-      .fw { position: absolute; left: 0; right: 0; top: 50%; text-align: center; font-size: 260px; line-height: 1; margin-top: -130px; opacity: 0; display: block; }
-      #intro { position: absolute; left: 0; right: 0; top: 50%; margin-top: -20px; text-align: center; font-size: 34px; color: var(--hud); opacity: 0; display: block; }
+      /* A: who is */
+      #sA { display: flex; flex-direction: column; justify-content: center; }
+      .who { font-size: 150px; line-height: 1; color: var(--hud); }
+      .name-row { display: flex; gap: 46px; flex-wrap: wrap; }
+      .name-row .mask > span { font-size: 230px; line-height: .9; }
+      .nutshell { margin-top: 46px; font-size: 32px; color: var(--fg); display: flex; align-items: center; gap: 24px; }
+      .nutshell i { width: 120px; height: 3px; background: var(--hud); display: block; transform-origin: 0 50%; }
 
-      /* ---- S1: name + tagline ---- */
-      #s1 { display: flex; flex-direction: column; justify-content: center; }
-      .model { font-size: 24px; color: var(--hud); margin-bottom: 30px; display: flex; gap: 24px; align-items: center; }
-      .model .bar { width: 90px; height: 2px; background: var(--hud); display: block; }
-      .name1 { font-size: 250px; line-height: .88; }
-      .name2 { font-size: 196px; line-height: .95; color: var(--hud); }
-      .s1-sub { margin-top: 40px; font-size: 26px; color: var(--muted); display: flex; gap: 34px; }
-      .s1-sub b { color: var(--fg); font-weight: 500; }
-      #s1-tag { position: absolute; inset: 0; padding: 150px 170px; display: flex; flex-direction: column; justify-content: center; }
-      .tag { font-size: 176px; line-height: .98; }
-      .tag.xp { font-size: 156px; }
+      /* B: profile phrases */
+      .phrase { position: absolute; inset: 0; padding: 150px 170px; display: flex; flex-direction: column; justify-content: center; }
+      .phrase .big { font-size: 220px; line-height: .9; }
+      .phrase .big.xp { font-size: 180px; }
+      .duo { display: flex; flex-direction: column; gap: 10px; } .duo .mask:last-child { align-self: flex-end; }
+      .duo span { font-size: 210px; line-height: 1; }
+      .tags { display: flex; flex-direction: column; gap: 22px; margin-top: 30px; }
+      .tag { align-self: flex-start; font-size: 92px; line-height: 1; font-weight: 820; font-stretch: 76%; letter-spacing: -.02em; padding: 18px 34px 22px; border-radius: 18px; color: #071015; display: block; }
+      .tag.eng { background: var(--eng); } .tag.mgmt { background: var(--mgmt); } .tag.data { background: var(--data); }
 
-      /* ---- S2: spec sheet ---- */
-      #s2 { display: flex; flex-direction: column; justify-content: center; }
-      .s2-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 44px; }
-      .s2-head h2 { font-size: 92px; line-height: 1; }
-      .s2-head span { font-size: 22px; color: var(--hud); }
-      .specs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; }
-      .spec { position: relative; border: 1.5px solid var(--line); border-radius: 14px; padding: 30px 34px 32px; background: rgba(12,26,32,.72); overflow: hidden; }
-      .spec:before { content: ""; position: absolute; left: 0; top: 0; right: 0; height: 3px; background: var(--hud); display: block; }
-      .spec .big { display: block; font-size: 150px; line-height: .9; font-weight: 880; font-stretch: 66%; color: var(--hud); letter-spacing: -.03em; }
-      .spec .lab { display: block; margin-top: 14px; font-size: 32px; font-weight: 650; font-stretch: 88%; line-height: 1.15; }
-      .spec .sm { display: block; margin-top: 10px; font-size: 19px; color: var(--muted); }
+      /* C: experience */
+      #sC { display: grid; grid-template-columns: 260px 1fr; gap: 110px; align-items: center; }
+      .xp-head { position: absolute; left: 170px; top: 150px; font-size: 22px; color: var(--hud); }
+      .tape { position: relative; height: 620px; border-left: 2px solid var(--hud-dim); }
+      .tape .rung { position: absolute; left: -9px; width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--hud); background: var(--bg); display: block; }
+      .tape .lbl { position: absolute; left: 34px; font: 500 20px "DM Mono", monospace; letter-spacing: .1em; color: var(--muted); }
+      .tape .fill { position: absolute; left: -2px; bottom: 0; width: 2px; height: 100%; background: var(--hud); transform-origin: 50% 100%; display: block; }
+      .cards { position: relative; height: 640px; }
+      .card { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; }
+      .card-top { display: flex; align-items: center; gap: 30px; }
+      .logo { height: 70px; display: flex; align-items: center; }
+      .logo img { height: 52px; width: auto; display: block; }
+      .logo.light { background: #f3f4ee; border-radius: 10px; padding: 8px 16px; height: auto; }
+      .when { font: 500 26px "DM Mono", monospace; letter-spacing: .1em; color: var(--hud); }
+      .domain { font: 500 18px "DM Mono", monospace; letter-spacing: .14em; text-transform: uppercase; padding: 8px 14px; border-radius: 6px; border: 2px solid currentColor; }
+      .card h3 { margin-top: 30px; font-size: 104px; line-height: .98; font-weight: 800; font-stretch: 78%; letter-spacing: -.025em; max-width: 1250px; }
+      .card p { margin-top: 26px; font-size: 34px; line-height: 1.4; color: var(--muted); max-width: 1180px; }
+      .chips { display: flex; gap: 14px; margin-top: 30px; flex-wrap: wrap; }
+      .chips span { font: 500 22px "DM Mono", monospace; letter-spacing: .08em; text-transform: uppercase; padding: 12px 18px; border: 2px solid var(--hud-dim); border-radius: 8px; display: inline-block; }
+      .now { font: 500 18px "DM Mono", monospace; letter-spacing: .14em; color: #071015; background: var(--hud); padding: 8px 12px; border-radius: 6px; }
 
-      /* ---- S3: fast learner ---- */
-      #s3 { display: grid; grid-template-columns: 820px 1fr; gap: 80px; align-items: center; }
-      .fl-title { font-size: 210px; line-height: .88; }
-      .fl-title .xp { display: block; color: var(--hud); font-size: 168px; }
-      .fl-foot { margin-top: 40px; font-size: 26px; color: var(--muted); max-width: 720px; line-height: 1.5; }
-      .roles { position: relative; height: 560px; border-left: 2px solid var(--hud-dim); padding-left: 56px; }
-      .role { position: absolute; left: 56px; right: 0; top: 50%; margin-top: -120px; height: 240px; display: flex; flex-direction: column; justify-content: center; opacity: 0; }
-      .role .yr { font-size: 26px; color: var(--hud); }
-      .role h3 { font-size: 78px; line-height: 1; font-weight: 780; font-stretch: 80%; letter-spacing: -.02em; margin-top: 14px; }
-      .role .co { font-size: 22px; color: var(--muted); margin-top: 16px; }
+      /* D: certifications */
+      #sD { display: flex; flex-direction: column; justify-content: center; gap: 34px; }
+      .legend { display: flex; gap: 16px; }
+      .legend span { font: 500 20px "DM Mono", monospace; letter-spacing: .12em; text-transform: uppercase; padding: 10px 16px; border-radius: 8px; border: 2px solid currentColor; display: inline-block; }
+      .cert-grid { width: 100%; display: grid; grid-template-columns: 1fr 1fr; gap: 26px; }
+      .cert { position: relative; display: grid; grid-template-columns: 230px 1fr; align-items: center; gap: 30px; padding: 34px 38px; border-radius: 18px; background: rgba(12,26,32,.82); border: 2px solid var(--line); overflow: hidden; }
+      .cert::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 8px; background: currentColor; display: block; }
+      .cert .code { font-size: 140px; line-height: .9; font-weight: 880; font-stretch: 66%; letter-spacing: -.03em; }
+      .cert h4 { font-size: 52px; line-height: 1.05; font-weight: 760; font-stretch: 86%; color: var(--fg); }
+      .cert small { display: block; margin-top: 10px; font-size: 26px; color: var(--muted); }
+      .cert .domain { display: inline-block; margin-top: 16px; }
 
-      /* ---- S4: disciplines (breakdown) ---- */
-      .disc { position: absolute; inset: 0; padding: 150px 170px; display: flex; flex-direction: column; justify-content: center; }
-      .disc .num { font-size: 26px; color: var(--hud); margin-bottom: 26px; }
-      .disc h2 { font-size: 260px; line-height: .86; }
-      .disc p { font-size: 40px; margin-top: 34px; color: var(--muted); max-width: 1300px; }
-      .disc p b { color: var(--fg); font-weight: 650; }
+      /* E: languages */
+      #sE { display: flex; flex-direction: column; justify-content: center; }
+      .lang { position: absolute; inset: 0; padding: 150px 170px; display: grid; grid-template-columns: 560px 1fr; gap: 110px; align-items: center; }
+      .flag { width: 520px; height: 350px; border-radius: 22px; overflow: hidden; box-shadow: 0 40px 90px rgba(0,0,0,.45); transform-origin: 0% 50%; }
+      .flag img { width: 100%; height: 100%; object-fit: cover; display: block; }
+      .bubble { display: inline-block; font-size: 150px; line-height: 1; font-weight: 820; font-stretch: 78%; color: #071015; background: var(--hud); padding: 26px 44px 34px; border-radius: 40px 40px 40px 8px; transform-origin: 0% 100%; }
+      .lang h3 { margin-top: 44px; font-size: 64px; font-weight: 760; font-stretch: 88%; }
+      .lvl { margin-top: 18px; display: flex; gap: 10px; align-items: center; }
+      .lvl i { width: 74px; height: 10px; border-radius: 5px; background: rgba(238,243,236,.14); display: block; }
+      .lvl i.on { background: var(--hud); }
+      .lvl b { margin-left: 18px; font: 500 28px "DM Mono", monospace; letter-spacing: .1em; color: var(--hud); }
+      .lang-dots { position: absolute; left: 170px; bottom: 150px; display: flex; gap: 14px; }
+      .lang-dots img { width: 54px; height: 36px; object-fit: cover; border-radius: 6px; opacity: .25; display: block; }
 
-      /* ---- S5: features ---- */
-      .s5-head { position: absolute; left: 170px; top: 150px; font-size: 22px; color: var(--hud); }
-      .feat { position: absolute; inset: 0; padding: 150px 170px; display: grid; grid-template-columns: 500px 1fr; gap: 70px; align-items: center; }
-      .feat .n { font-size: 330px; line-height: .8; font-weight: 300; font-stretch: 100%; color: rgba(207,232,143,.16); -webkit-text-stroke: 3px var(--hud); letter-spacing: -.04em; display: block; }
-      .feat .k { font-size: 24px; color: var(--hud); display: block; }
-      .feat h3 { font-size: 120px; line-height: .95; font-weight: 820; font-stretch: 74%; letter-spacing: -.025em; margin-top: 18px; }
-      .feat p { font-size: 36px; color: var(--muted); margin-top: 26px; line-height: 1.4; max-width: 1000px; }
-      .feat .chips { display: flex; gap: 14px; margin-top: 30px; flex-wrap: wrap; }
-      .feat .chips span { font: 500 21px "DM Mono", monospace; letter-spacing: .08em; text-transform: uppercase; padding: 12px 18px; border: 1.5px solid var(--hud-dim); border-radius: 6px; display: inline-block; }
+      /* F: skills */
+      #sF { display: flex; flex-direction: column; justify-content: center; gap: 30px; }
+      .cols { display: grid; grid-template-columns: repeat(3, 1fr); gap: 34px; }
+      .col h4 { font-size: 78px; line-height: 1; font-weight: 860; font-stretch: 70%; letter-spacing: -.02em; padding-bottom: 18px; border-bottom: 4px solid currentColor; }
+      .col ul { list-style: none; margin-top: 22px; display: flex; flex-direction: column; gap: 12px; }
+      .col li { font-size: 30px; font-weight: 600; font-stretch: 90%; color: var(--fg); padding: 13px 18px; border-radius: 10px; background: rgba(12,26,32,.85); border: 1.5px solid var(--line); display: block; }
+      .col li b { color: inherit; }
 
-      /* ---- S6: verified traits ---- */
-      #s6 { display: flex; flex-direction: column; justify-content: center; gap: 18px; }
-      .trait { position: relative; display: flex; align-items: center; gap: 50px; }
-      .trait strong { font-size: 168px; line-height: 1; font-weight: 860; font-stretch: 72%; letter-spacing: -.03em; display: block; }
-      .stamp { display: inline-block; padding: 14px 22px; border: 4px solid var(--hud); border-radius: 8px; color: var(--hud); font: 500 34px/1 "DM Mono", monospace; letter-spacing: .14em; text-transform: uppercase; }
-      .s6-foot { margin-top: 26px; font-size: 26px; color: var(--muted); }
-
-      /* ---- S7: end card ---- */
-      #s7 { display: grid; grid-template-columns: 540px 1fr; gap: 120px; align-items: center; }
-      .portrait { position: relative; width: 540px; height: 680px; border-radius: 270px 270px 18px 18px; overflow: hidden; border: 2px solid rgba(207,232,143,.6); }
+      /* G: finale */
+      #sG { display: grid; grid-template-columns: 520px 1fr; gap: 120px; align-items: center; }
+      .portrait { position: relative; width: 520px; height: 660px; border-radius: 260px 260px 18px 18px; overflow: hidden; border: 2px solid rgba(207,232,143,.6); }
       .portrait img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 40%; display: block; filter: saturate(.85) contrast(1.04); }
-      .portrait .scan { position: absolute; left: 0; right: 0; height: 140px; top: -160px; background: linear-gradient(transparent, rgba(207,232,143,.45) 50%, transparent); mix-blend-mode: screen; display: block; }
-      .avail { font-size: 24px; color: var(--hud); margin-bottom: 30px; display: flex; gap: 16px; align-items: center; }
-      .end-title { font-size: 150px; line-height: .95; }
-      .end-name { margin-top: 44px; font-size: 48px; font-weight: 720; letter-spacing: -.01em; }
+      .end1 { font-size: 170px; line-height: .92; }
+      .end2 { font-size: 130px; line-height: 1; color: var(--hud); }
+      .end-name { margin-top: 44px; font-size: 50px; font-weight: 720; }
       .end-links { margin-top: 18px; font-size: 25px; color: var(--muted); display: flex; gap: 40px; }
       .end-links b { color: var(--fg); font-weight: 500; }
     </style>
   </head>
   <body>
-    <div id="root" data-composition-id="main" data-start="0" data-duration="40" data-fps="30" data-width="1920" data-height="1080">
-      <div id="bg" class="clip layer" data-start="0" data-duration="40" data-track-index="0">
-        <div id="bg-glow"></div><div id="bg-glow2"></div>
+    <div id="root" data-composition-id="main" data-start="0" data-duration="66" data-fps="30" data-width="1920" data-height="1080">
+      <div id="bg" class="clip layer" data-start="0" data-duration="66" data-track-index="0">
+        <div class="glow" id="g1"></div><div class="glow" id="g2"></div>
         <div id="bg-grid"></div>
         <svg id="adi" viewBox="-1200 -800 2400 1600" aria-hidden="true" data-layout-allow-overflow data-layout-decorative><g id="adi-roll"><g id="adi-pitch" class="ladder"></g></g></svg>
         <div id="grain"></div>
       </div>
 
-      <!-- S0 0–4: flash words on the beat -->
-      <div id="s0" class="clip scene" data-start="0" data-duration="4" data-track-index="2">
-        <span class="fw cn" id="fw1">Engineer.</span>
-        <span class="fw xp hl" id="fw2">Planner.</span>
-        <span class="fw cn" id="fw3">Analyst.</span>
-        <span class="fw xp hl" id="fw4">Problem-solver.</span>
-        <span class="fw cn" id="fw5">Polyglot.</span>
-        <span class="fw xp hl" id="fw6">Teammate.</span>
-        <span class="mono" id="intro">Introducing</span>
-      </div>
-
-      <!-- S1 4–8: name slam, then the statement -->
-      <div id="s1" class="clip scene" data-start="4" data-duration="4" data-track-index="2">
-        <div id="s1-name">
-          <div class="model mono"><span class="bar"></span><span>Model CSG-26 · Aerospace systems engineer</span></div>
-          <div class="mask"><span class="name1 cn" id="n1">César Solla</span></div>
-          <div class="mask"><span class="name2 xp" id="n2">González</span></div>
-          <div class="s1-sub mono" id="s1-sub"><span><b>Airbus Defence and Space</b></span><span>PMP</span><span>Madrid</span></div>
+      <div id="stage">
+        <!-- A 0–6 · who is -->
+        <div id="sA" class="clip scene" data-start="0" data-duration="6" data-track-index="2">
+          <div class="mask"><span class="who xp" id="a-who">Who is</span></div>
+          <div class="name-row">
+            <div class="mask"><span class="cn" id="a-n1">César</span></div>
+            <div class="mask"><span class="cn" id="a-n2">Solla</span></div>
+            <div class="mask"><span class="cn" id="a-n3">González?</span></div>
+          </div>
+          <div class="nutshell mono" id="a-nut"><i id="a-bar"></i><span>In a nutshell</span></div>
         </div>
-        <div id="s1-tag">
-          <div class="mask"><span class="tag cn" id="t1">I connect</span></div>
-          <div class="mask"><span class="tag xp hl" id="t2">complex systems</span></div>
-          <div class="mask"><span class="tag cn" id="t3">with clear decisions.</span></div>
+
+        <!-- B 6–14 · profile -->
+        <div id="sB" class="clip scene" data-start="6" data-duration="8" data-track-index="2">
+          <div class="phrase" data-layout-allow-overlap id="b1"><div class="kicker mono"><i></i>Profile</div><div class="mask"><span class="big cn" id="b1a">Aerospace</span></div><div class="mask"><span class="big xp hl" id="b1b">engineer.</span></div></div>
+          <div class="phrase" data-layout-allow-overlap id="b2"><div class="duo"><div class="mask"><span class="cn" id="b2a">Curious.</span></div><div class="mask"><span class="xp hl" id="b2b">Proactive.</span></div></div></div>
+          <div class="phrase" data-layout-allow-overlap id="b3"><div class="mask"><span class="big cn" id="b3a">Leads from</span></div><div class="mask"><span class="big xp hl" id="b3b">any position.</span></div></div>
+          <div class="phrase" data-layout-allow-overlap id="b4"><div class="kicker mono"><i></i>Experienced in</div><div class="tags"><span class="tag eng" id="t1">Systems engineering</span><span class="tag mgmt" id="t2">Programme management</span><span class="tag data" id="t3">Data science</span></div></div>
         </div>
-      </div>
 
-      <!-- S2 8–16: spec sheet -->
-      <div id="s2" class="clip scene" data-start="8" data-duration="8" data-track-index="2">
-        <div class="s2-head"><h2 class="cn" id="s2-h">Spec sheet.</h2><span class="mono" id="s2-k">Built for complex programmes</span></div>
-        <div class="specs">
-          <div class="spec" id="sp1"><span class="big" data-to="4" data-suffix="+">0</span><span class="lab">Years at Airbus Defence and Space</span><span class="sm mono">A330 MRTT · Eurodrone</span></div>
-          <div class="spec" id="sp2"><span class="big" data-to="5">0</span><span class="lab">Roles across 3 companies</span><span class="sm mono">Airbus · Deloitte · EY</span></div>
-          <div class="spec" id="sp3"><span class="big" data-to="35">0</span><span class="lab">Capabilities mapped</span><span class="sm mono">15 mgmt · 11 eng · 9 data</span></div>
-          <div class="spec" id="sp4"><span class="big" data-to="3">0</span><span class="lab">Disciplines, one perspective</span><span class="sm mono">Programme · Engineering · Data</span></div>
-          <div class="spec" id="sp5"><span class="big" data-to="5">0</span><span class="lab">Languages</span><span class="sm mono">ES · GL · EN C1 · FR · PT</span></div>
-          <div class="spec" id="sp6"><span class="big">PMP</span><span class="lab">Certified · 2026</span><span class="sm mono">MSc + BSc Aerospace Eng.</span></div>
+        <!-- C 14–34 · experience -->
+        <div id="sC" class="clip scene" data-start="14" data-duration="20" data-track-index="2">
+          <div class="xp-head mono" id="c-head">Experience · climbing on responsibility</div>
+          <div class="tape" id="tape" data-layout-allow-overflow>
+            <i class="fill" id="tape-fill"></i>
+            <i class="rung" style="bottom:-8px"></i><span class="lbl" style="bottom:-12px">2021</span>
+            <i class="rung" style="bottom:147px"></i><span class="lbl" style="bottom:143px">2022</span>
+            <i class="rung" style="bottom:302px"></i><span class="lbl" style="bottom:298px">2023</span>
+            <i class="rung" style="bottom:457px"></i><span class="lbl" style="bottom:453px">2024</span>
+            <i class="rung" style="bottom:612px"></i><span class="lbl" style="bottom:608px">NOW</span>
+          </div>
+          <div class="cards">
+            <div class="card" id="c1"><div class="card-top"><div class="logo light"><img src="assets/ey.png" alt="EY" style="height:84px" /></div><span class="when">Nov 2021 — Apr 2022</span><span class="domain eng">Engineering · R&amp;D</span></div><h3>R&amp;D Consultant</h3><p>Defence, AI, manufacturing and energy projects turned into defensible technical documentation.</p><div class="chips"><span>Technical assessment</span><span>Cross-industry R&amp;D</span><span>Executive docs</span></div></div>
+            <div class="card" id="c2"><div class="card-top"><div class="logo"><img src="assets/deloitte.svg" alt="Deloitte" /></div><span class="when">May 2022 — Oct 2022</span><span class="domain data">Data · Platforms</span></div><h3>Salesforce Analyst</h3><p>Certified administrator and functional developer for Stellantis' C1ST sales platform.</p><div class="chips"><span>Salesforce</span><span>Agile &amp; Scrum</span><span>Process analysis</span></div></div>
+            <div class="card" id="c3"><div class="card-top"><div class="logo"><img src="assets/airbus.svg" alt="Airbus" /></div><span class="when">Oct 2022 — May 2023</span><span class="domain data">Data · Analytics</span></div><h3>BI, SAP BW &amp; HANA Technical Expert</h3><p>Analytics, data models and reporting flows for procurement and supply chain.</p><div class="chips"><span>SAP BW / HANA</span><span>KPI design</span><span>Automation</span></div></div>
+            <div class="card" id="c4"><div class="card-top"><div class="logo"><img src="assets/airbus.svg" alt="Airbus" /></div><span class="when">May 2023 — Apr 2024</span><span class="domain eng">Engineering · Eurodrone</span></div><h3>Powerplant Systems Engineer · V&amp;V</h3><p>Requirements, verification and test preparation across engine, nacelle and avionics interfaces.</p><div class="chips"><span>Requirements</span><span>V&amp;V &amp; testing</span><span>ARP4754A</span></div></div>
+            <div class="card" id="c5"><div class="card-top"><div class="logo"><img src="assets/airbus.svg" alt="Airbus" /></div><span class="when">Apr 2024 — Present</span><span class="domain mgmt">Management · A330 MRTT</span><span class="now">NOW</span></div><h3>PMO · A330 MRTT &amp; Strategic R&amp;D</h3><p>Risks, budgets, schedules and stakeholders turned into decision-ready reporting.</p><div class="chips"><span>Programme risk</span><span>Integrated schedule</span><span>Executive reporting</span></div></div>
+          </div>
         </div>
-      </div>
 
-      <!-- S3 16–20: fast learner -->
-      <div id="s3" class="clip scene" data-start="16" data-duration="4" data-track-index="2">
-        <div>
-          <div class="fl-title cn" id="fl-t">Fast<span class="xp">learner.</span></div>
-          <div class="fl-foot" id="fl-f">R&amp;D consulting, CRM, SAP data, drone powerplants and A330 tankers. Five domains in four years.</div>
+        <!-- D 34–42 · certifications -->
+        <div id="sD" class="clip scene" data-start="34" data-duration="8" data-track-index="2">
+          <div class="kicker mono" id="d-head"><i></i>Certified across three domains</div>
+          <div class="legend" id="legend"><span class="eng" id="lg-eng">Engineering</span><span class="mgmt" id="lg-mgmt">Management</span><span class="data" id="lg-data">Data</span></div>
+          <div class="cert-grid">
+            <div class="cert mgmt" id="k1"><span class="code">PMP</span><div><h4>Project Management Professional</h4><small>Project Management Institute · 2026</small><span class="domain mgmt">Management</span></div></div>
+            <div class="cert eng" id="k2"><span class="code">MSc</span><div><h4>Aerospace Engineering</h4><small>Universidad Europea de Madrid · 2025</small><span class="domain eng">Engineering</span></div></div>
+            <div class="cert eng" id="k3"><span class="code">BSc</span><div><h4>Aerospace Engineering</h4><small>Technical University of Madrid · 2021</small><span class="domain eng">Engineering</span></div></div>
+            <div class="cert data" id="k4"><span class="code">SF</span><div><h4>Salesforce Administrator</h4><small>Certified admin &amp; functional developer · 2022</small><span class="domain data">Data</span></div></div>
+          </div>
         </div>
-        <div class="roles" id="roles">
-          <div class="role" id="r1"><span class="yr mono">2021 · EY</span><h3>R&amp;D Consultant</h3><span class="co mono">Multi-industry innovation</span></div>
-          <div class="role" id="r2"><span class="yr mono">2022 · Deloitte</span><h3>Salesforce Analyst</h3><span class="co mono">Stellantis C1ST</span></div>
-          <div class="role" id="r3"><span class="yr mono">2022 · Airbus</span><h3>SAP BW &amp; HANA Expert</h3><span class="co mono">Procurement &amp; supply chain</span></div>
-          <div class="role" id="r4"><span class="yr mono">2023 · Airbus</span><h3>Powerplant Systems Engineer</h3><span class="co mono">Eurodrone V&amp;V</span></div>
-          <div class="role" id="r5"><span class="yr mono">2024 → now · Airbus</span><h3>PMO · A330 MRTT</h3><span class="co mono">Strategic R&amp;D programmes</span></div>
+
+        <!-- E 42–50 · languages -->
+        <div id="sE" class="clip scene" data-start="42" data-duration="8" data-track-index="2">
+          <div class="kicker mono" id="e-head" style="position:absolute;left:170px;top:150px"><i></i>Languages · five channels open</div>
+          <div class="lang" id="l1"><div class="flag"><img src="assets/es.svg" alt="Spain" /></div><div><span class="bubble">¡Hola!</span><h3>Spanish</h3><div class="lvl"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><b>Native</b></div></div></div>
+          <div class="lang" id="l2"><div class="flag"><img src="assets/gl.svg" alt="Galicia" /></div><div><span class="bubble">Ola!</span><h3>Galician</h3><div class="lvl"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><b>Native</b></div></div></div>
+          <div class="lang" id="l3"><div class="flag"><img src="assets/gb.svg" alt="United Kingdom" /></div><div><span class="bubble">Hello!</span><h3>English</h3><div class="lvl"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i><b>C1 · Cambridge</b></div></div></div>
+          <div class="lang" id="l4"><div class="flag"><img src="assets/fr.svg" alt="France" /></div><div><span class="bubble">Bonjour !</span><h3>French</h3><div class="lvl"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i><i></i><b>B1</b></div></div></div>
+          <div class="lang" id="l5"><div class="flag"><img src="assets/pt.svg" alt="Portugal" /></div><div><span class="bubble">Olá!</span><h3>Portuguese</h3><div class="lvl"><i class="on"></i><i class="on"></i><i></i><i></i><i></i><i></i><b>A2</b></div></div></div>
+          <div class="lang-dots"><img id="ld1" src="assets/es.svg" alt="" /><img id="ld2" src="assets/gl.svg" alt="" /><img id="ld3" src="assets/gb.svg" alt="" /><img id="ld4" src="assets/fr.svg" alt="" /><img id="ld5" src="assets/pt.svg" alt="" /></div>
         </div>
-      </div>
 
-      <!-- S4 20–24: breakdown, disciplines -->
-      <div id="s4" class="clip scene" data-start="20" data-duration="4" data-track-index="2">
-        <div class="disc" id="d1"><div class="num mono">Built to · 01</div><h2 class="cn">Orchestrate.</h2><p><b>Connect the people. Move the programme.</b></p></div>
-        <div class="disc" id="d2"><div class="num mono">Built to · 02</div><h2 class="cn">Engineer.</h2><p><b>Understand the system. Master the detail.</b></p></div>
-        <div class="disc" id="d3"><div class="num mono">Built to · 03</div><h2 class="cn">Illuminate.</h2><p><b>Find the signal. Make it actionable.</b></p></div>
-      </div>
+        <!-- F 50–60 · skills -->
+        <div id="sF" class="clip scene" data-start="50" data-duration="10" data-track-index="2">
+          <div class="kicker mono" id="f-head"><i></i>Skills · mapped to each discipline</div>
+          <div class="cols">
+            <div class="col eng" id="col1"><h4>Engineering</h4><ul><li>Requirements &amp; traceability</li><li>V&amp;V and testing</li><li>Means of Compliance</li><li>ARP4754A · ISO 15288</li><li>DOORS &amp; CAMEO</li><li>Design reviews · SRR PDR CDR</li></ul></div>
+            <div class="col mgmt" id="col2"><h4>Management</h4><ul><li>Programme risk</li><li>Integrated schedule</li><li>Budget &amp; cost control</li><li>Stakeholder management</li><li>Executive reporting</li><li>MS Project &amp; BigPicture</li></ul></div>
+            <div class="col data" id="col3"><h4>Data</h4><ul><li>SAP BW / HANA</li><li>Python</li><li>KPI design</li><li>Data visualisation</li><li>Automation · VBA &amp; scripts</li><li>MATLAB &amp; Simulink</li></ul></div>
+          </div>
+        </div>
 
-      <!-- S5 24–32: features -->
-      <div id="s5" class="clip scene" data-start="24" data-duration="8" data-track-index="2">
-        <div class="s5-head mono" id="s5-h">Features · included as standard</div>
-        <div class="feat" id="f1"><span class="n" aria-hidden="true" data-layout-decorative>01</span><div><span class="k mono">Programme execution</span><h3>Turns complexity into decisions.</h3><p>A330 MRTT &amp; strategic R&amp;D: risks, budgets and schedules into decision-ready reporting.</p><div class="chips"><span>PMO</span><span>Risk &amp; budget</span><span>Integrated planning</span></div></div></div>
-        <div class="feat" id="f2"><span class="n" aria-hidden="true" data-layout-decorative>02</span><div><span class="k mono">Systems engineering</span><h3>Masters the detail.</h3><p>Eurodrone powerplant: requirements, V&amp;V and Means of Compliance across engine and avionics interfaces.</p><div class="chips"><span>V&amp;V</span><span>ARP4754A</span><span>DOORS &amp; CAMEO</span></div></div></div>
-        <div class="feat" id="f3"><span class="n" aria-hidden="true" data-layout-decorative>03</span><div><span class="k mono">Data &amp; automation</span><h3>Finds the signal.</h3><p>SAP BW/HANA models, KPI design and Python, built for people who need to decide.</p><div class="chips"><span>SAP BW / HANA</span><span>KPI design</span><span>Python</span></div></div></div>
-        <div class="feat" id="f4"><span class="n" aria-hidden="true" data-layout-decorative>04</span><div><span class="k mono">Communication</span><h3>Speaks your language.</h3><p>Spanish and Galician native, English C1 (Cambridge), French B1, Portuguese A2.</p><div class="chips"><span>ES</span><span>GL</span><span>EN C1</span><span>FR B1</span><span>PT A2</span></div></div></div>
-      </div>
-
-      <!-- S6 32–36: verified traits -->
-      <div id="s6" class="clip scene" data-start="32" data-duration="4" data-track-index="2">
-        <div class="trait" id="tr1"><strong>Hard worker.</strong><span class="stamp">Verified ✓</span></div>
-        <div class="trait" id="tr2"><strong class="hl">Fast learner.</strong><span class="stamp">Verified ✓</span></div>
-        <div class="trait" id="tr3"><strong>Team player.</strong><span class="stamp">Verified ✓</span></div>
-        <div class="s6-foot mono" id="s6-f">Backed by a four-year flight log</div>
-      </div>
-
-      <!-- S7 36–40: end card -->
-      <div id="s7" class="clip scene" data-start="36" data-duration="4" data-track-index="2">
-        <div class="portrait" id="portrait"><img src="assets/cesar-hq.png" alt="César Solla González" /><span class="scan" id="scan"></span></div>
-        <div>
-          <div class="avail mono" id="avail"><span class="dot"></span><span>Available · now boarding</span></div>
-          <div class="mask"><span class="end-title cn" id="e1">Your next</span></div>
-          <div class="mask"><span class="end-title xp hl" id="e2">mission?</span></div>
-          <div class="end-name" id="e-name">César Solla González</div>
-          <div class="end-links mono" id="e-links"><span><b>cesar-solla.pages.dev</b></span><span>linkedin.com/in/cesarsgz</span></div>
+        <!-- G 60–66 · ready -->
+        <div id="sG" class="clip scene" data-start="60" data-duration="6" data-track-index="2">
+          <div class="portrait" id="portrait"><img src="assets/cesar-hq.png" alt="César Solla González" /></div>
+          <div>
+            <div class="kicker mono" id="g-k"><span class="dot"></span>Available</div>
+            <div class="mask" style="margin-top:30px"><span class="end1 cn" id="g1t">Ready for</span></div>
+            <div class="mask"><span class="end2 xp" id="g2t">the next mission.</span></div>
+            <div class="end-name" id="g-name">César Solla González</div>
+            <div class="end-links mono" id="g-links"><span><b>cesar-solla.pages.dev</b></span><span>linkedin.com/in/cesarsgz</span></div>
+          </div>
         </div>
       </div>
 
-      <div id="hud" class="clip layer" data-start="0" data-duration="40" data-track-index="4">
+      <div id="hud" class="clip layer" data-start="0" data-duration="66" data-track-index="4">
         <i class="corner c-tl"></i><i class="corner c-tr"></i><i class="corner c-bl"></i><i class="corner c-br"></i>
-        <div class="hud-read mono" id="hud-tl"><span class="dot"></span><span>CSG-26</span><span id="phase">Pre-flight</span></div>
+        <div class="hud-read mono" id="hud-tl"><span class="dot"></span><span>CSG</span><span id="phase">In a nutshell</span></div>
         <div class="hud-read mono" id="hud-tr"><span>T+<b id="tc">00:00</b></span><span>ALT <b id="hud-alt">00000</b></span></div>
         <div class="hud-read mono" id="hud-bl"><span>40.4168° N · 03.7038° W</span></div>
         <div class="hud-read mono" id="hud-br"><span>cesar-solla.pages.dev</span></div>
         <div id="progress"><i id="progress-bar"></i></div>
-        <div id="wipe" data-layout-allow-overflow></div>
         <div id="flash"></div>
       </div>
 
-      <audio id="soundtrack" src="audio/soundtrack.wav" data-start="0" data-duration="40" data-track-index="6"></audio>
+      <audio id="soundtrack" src="audio/soundtrack.wav" data-start="0" data-duration="66" data-track-index="6"></audio>
     </div>
     <script>
       const NS = "http://www.w3.org/2000/svg";
@@ -242,124 +249,123 @@
         ladder.append(mk("path", { d: `M${-w} ${y + t}V${y}H-80M80 ${y}H${w}V${y + t}`, "stroke-dasharray": d < 0 ? "14 9" : "none" }));
       }
 
-      const BEAT = .5;
+      const BEAT = .5, BAR = 2;
       const tl = gsap.timeline({ paused: true });
-      const pad = (n, l) => String(Math.round(n)).padStart(l, "0");
       const $ = id => document.getElementById(id);
+      const pad = (n, l) => String(Math.round(n)).padStart(l, "0");
+      const NEUTRAL = { scale: 1, skewX: 0, filter: "blur(0px)" };
+      const slam = (t, at, from = {}) => tl.fromTo(t, { yPercent: 115, rotation: 4, ...from }, { yPercent: 0, rotation: 0, ...Object.fromEntries(Object.keys(from).map(k => [k, NEUTRAL[k]])), duration: .55, ease: "expo.out" }, at);
+      const out = (t, at) => tl.to(t, { yPercent: -115, opacity: 0, duration: .3, ease: "power3.in" }, at);
 
-      // ---- persistent HUD ----
+      // ---- HUD: clock, progress, altitude, phase label ----
       const clock = { t: 0 };
-      tl.to(clock, { t: 40, duration: 40, ease: "none", onUpdate() { const s = Math.floor(clock.t); $("tc").textContent = `${pad(Math.floor(s / 60), 2)}:${pad(s % 60, 2)}`; } }, 0);
-      tl.fromTo("#progress-bar", { scaleX: 0 }, { scaleX: 1, duration: 40, ease: "none" }, 0);
-      const alt = { v: 0 };
-      const paintAlt = () => { $("hud-alt").textContent = (pad(alt.v / 10, 4) + "0").slice(-5); };
-      [[4, 6000, 4], [8, 18000, 8], [16, 30000, 4], [20, 37000, 4], [24, 39000, 8], [32, 14000, 4], [36, 0, 3.5]].forEach(([at, v, d]) => tl.to(alt, { v, duration: d, ease: "sine.inOut", onUpdate: paintAlt }, at));
-      const phases = [[0, "Pre-flight"], [4, "Take-off"], [8, "Climb"], [20, "Cruise"], [32, "Descent"], [36, "Landing"]];
-      tl.eventCallback("onUpdate", () => { const t = tl.time(); let p = phases[0][1]; for (const [at, l] of phases) if (t >= at) p = l; $("phase").textContent = p; });
-      tl.fromTo(".corner", { scale: 1.6, opacity: 0 }, { scale: 1, opacity: .8, duration: .5, ease: "expo.out", stagger: .05 }, .05);
-      tl.fromTo(".hud-read", { opacity: 0 }, { opacity: 1, duration: .4, stagger: .06 }, .2);
+      tl.to(clock, { t: 66, duration: 66, ease: "none", onUpdate() { const s = Math.floor(clock.t); $("tc").textContent = `${pad(Math.floor(s / 60), 2)}:${pad(s % 60, 2)}`; } }, 0);
+      tl.fromTo("#progress-bar", { scaleX: 0 }, { scaleX: 1, duration: 66, ease: "none" }, 0);
+      const alt = { v: 0 }, paintAlt = () => { $("hud-alt").textContent = (pad(alt.v / 10, 4) + "0").slice(-5); };
+      [[6, 6000, 8], [14, 35000, 20], [34, 39000, 26], [60, 0, 5]].forEach(([at, v, d]) => tl.to(alt, { v, duration: d, ease: "sine.inOut", onUpdate: paintAlt }, at));
+      const phases = [[0, "In a nutshell"], [6, "Profile"], [14, "Experience"], [34, "Certifications"], [42, "Languages"], [50, "Skills"], [60, "Ready"]];
+      tl.eventCallback("onUpdate", () => { const t = tl.time(); let p = phases[0][1]; for (const [a, l] of phases) if (t >= a) p = l; $("phase").textContent = p; });
+      tl.fromTo(".corner", { scale: 1.6, opacity: 0 }, { scale: 1, opacity: .8, duration: .6, ease: "expo.out", stagger: .05 }, .1);
+      tl.fromTo(".hud-read", { opacity: 0 }, { opacity: 1, duration: .5, stagger: .06 }, .3);
 
-      // Background drift and the attitude ladder banking through the flight.
-      tl.fromTo("#adi-roll", { rotation: -4, svgOrigin: "0 0" }, { rotation: 5, duration: 20, ease: "sine.inOut", svgOrigin: "0 0" }, 0)
-        .to("#adi-roll", { rotation: -3, duration: 20, ease: "sine.inOut", svgOrigin: "0 0" }, 20);
-      tl.fromTo("#adi-pitch", { y: -140 }, { y: 300, duration: 20, ease: "power1.inOut" }, 0)
-        .to("#adi-pitch", { y: -200, duration: 20, ease: "power1.inOut" }, 20);
-      tl.fromTo("#bg-glow", { x: 0, scale: 1 }, { x: -700, scale: 1.25, duration: 40, ease: "sine.inOut" }, 0);
-      tl.fromTo("#bg-glow2", { x: 0 }, { x: 900, duration: 40, ease: "sine.inOut" }, 0);
+      // ---- background motion ----
+      tl.fromTo("#adi-roll", { rotation: -4, svgOrigin: "0 0" }, { rotation: 5, duration: 33, ease: "sine.inOut", svgOrigin: "0 0" }, 0)
+        .to("#adi-roll", { rotation: -3, duration: 33, ease: "sine.inOut", svgOrigin: "0 0" }, 33);
+      tl.fromTo("#adi-pitch", { y: -160 }, { y: 320, duration: 34, ease: "power1.inOut" }, 0).to("#adi-pitch", { y: -220, duration: 32, ease: "power1.inOut" }, 34);
+      tl.fromTo("#g1", { x: 0, scale: 1 }, { x: -800, scale: 1.3, duration: 66, ease: "sine.inOut" }, 0);
+      tl.fromTo("#g2", { x: 0 }, { x: 1000, duration: 66, ease: "sine.inOut" }, 0);
 
-      // Beat punches: the frame breathes on every kick of both drops.
-      for (let t = 4; t < 36; t += BEAT) {
-        if (t >= 20 && t < 24) continue;
-        tl.fromTo(".corner", { scale: 1.08 }, { scale: 1, duration: .32, ease: "power2.out", immediateRender: false }, t);
-        tl.fromTo("#bg-grid", { opacity: .55 }, { opacity: .35, duration: .4, ease: "power2.out", immediateRender: false }, t);
+      // ---- beat engine: punches on every kick, stronger on each bar, flash on section drops ----
+      for (let t = 6; t < 60; t += BEAT) {
+        const down = Math.abs(t % BAR) < 1e-6;
+        tl.fromTo(".corner", { scale: down ? 1.12 : 1.06 }, { scale: 1, duration: .35, ease: "power2.out", immediateRender: false }, t);
+        tl.fromTo("#bg-grid", { opacity: down ? .55 : .42 }, { opacity: .3, duration: .4, ease: "power2.out", immediateRender: false }, t);
+        if (down) tl.fromTo("#stage", { scale: 1.012 }, { scale: 1, duration: .45, ease: "power2.out", immediateRender: false }, t);
       }
-      // Cut accents: light wipe + flash on every section change.
-      [4, 8, 16, 20, 24, 32, 36].forEach(at => {
-        tl.fromTo("#wipe", { x: 0 }, { x: 2600, duration: .5, ease: "power2.inOut", immediateRender: false }, at - .25);
-        tl.fromTo("#flash", { opacity: .22 }, { opacity: 0, duration: .35, ease: "power2.out", immediateRender: false }, at);
+      [6, 14, 34, 42, 50, 60].forEach(at => tl.fromTo("#flash", { opacity: .2 }, { opacity: 0, duration: .45, ease: "power2.out", immediateRender: false }, at));
+
+      // ---- A: who is (0–6) ----
+      slam("#a-who", .5);
+      ["#a-n1", "#a-n2", "#a-n3"].forEach((id, i) => slam(id, 2 + i * BEAT, { scale: 1.2, filter: "blur(10px)" }));
+      tl.fromTo("#a-nut", { autoAlpha: 0 }, { autoAlpha: 1, duration: .01 }, 4);
+      tl.fromTo("#a-bar", { scaleX: 0 }, { scaleX: 1, duration: .6, ease: "expo.out" }, 4)
+        .fromTo("#a-nut span", { opacity: 0, x: -20 }, { opacity: 1, x: 0, duration: .5, ease: "power3.out" }, 4.1)
+        .to("#sA > *", { opacity: 0, scale: .94, duration: .35, ease: "power3.in", stagger: .04 }, 5.6);
+
+      // ---- B: profile (6–14), one idea per bar ----
+      [["#b2", 8], ["#b3", 10], ["#b4", 12]].forEach(([id, at]) => tl.fromTo(id, { autoAlpha: 0 }, { autoAlpha: 1, duration: .01 }, at));
+      tl.fromTo("#b1 .kicker", { opacity: 0 }, { opacity: 1, duration: .3 }, 6);
+      slam("#b1a", 6, { scale: 1.3 }); slam("#b1b", 6.5);
+      tl.to("#b1", { opacity: 0, x: -160, duration: .3, ease: "power3.in" }, 7.7);
+      tl.fromTo("#b2a", { xPercent: -60, opacity: 0, yPercent: 0 }, { xPercent: 0, opacity: 1, duration: .5, ease: "expo.out" }, 8)
+        .fromTo("#b2b", { xPercent: 60, opacity: 0, yPercent: 0 }, { xPercent: 0, opacity: 1, duration: .5, ease: "expo.out" }, 8.5)
+        .to("#b2", { opacity: 0, scale: 1.15, duration: .3, ease: "power3.in" }, 9.7);
+      slam("#b3a", 10); slam("#b3b", 10.5, { skewX: -12 });
+      tl.to("#b3", { opacity: 0, y: -80, duration: .3, ease: "power3.in" }, 11.7);
+      tl.fromTo("#b4 .kicker", { opacity: 0 }, { opacity: 1, duration: .3 }, 12);
+      ["#t1", "#t2", "#t3"].forEach((id, i) => tl.fromTo(id, { x: -220, opacity: 0, scale: .9 }, { x: 0, opacity: 1, scale: 1, duration: .45, ease: "back.out(1.8)" }, 12 + i * BEAT));
+      tl.to("#b4 > *", { opacity: 0, x: 160, duration: .3, ease: "power3.in", stagger: .04 }, 13.65);
+
+      // ---- C: experience (14–34), one role per two bars ----
+      tl.fromTo("#c-head", { opacity: 0, x: -20 }, { opacity: 1, x: 0, duration: .5 }, 14)
+        .fromTo("#tape", { opacity: 0, x: -40 }, { opacity: 1, x: 0, duration: .6, ease: "expo.out" }, 14)
+        .fromTo("#tape-fill", { scaleY: 0 }, { scaleY: .02, duration: .5 }, 14);
+      ["#c1", "#c2", "#c3", "#c4", "#c5"].forEach((id, i) => {
+        const at = 14 + i * 4;
+        tl.to("#tape-fill", { scaleY: (i + 1) / 5, duration: .6, ease: "expo.out" }, at);
+        tl.fromTo(`${id} .card-top`, { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: .45, ease: "expo.out" }, at)
+          .fromTo(`${id} h3`, { opacity: 0, x: 160, skewX: -8 }, { opacity: 1, x: 0, skewX: 0, duration: .6, ease: "expo.out" }, at + .1)
+          .fromTo(`${id} p`, { opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: .5, ease: "power3.out" }, at + .5);
+        tl.fromTo(`${id} .chips span`, { opacity: 0, scale: .6, y: 20 }, { opacity: 1, scale: 1, y: 0, duration: .35, stagger: BEAT, ease: "back.out(2.2)" }, at + 1);
+        if (i < 4) tl.to(`${id} > *`, { opacity: 0, y: -60, duration: .3, ease: "power3.in", stagger: .03 }, at + 3.62);
       });
+      tl.to(["#c5 > *", "#tape", "#c-head"], { opacity: 0, duration: .3 }, 33.65);
+      // keep the ghost year correct when seeking backwards
 
-      // ---- S0: flash words, one per beat ----
-      ["#fw1", "#fw2", "#fw3", "#fw4", "#fw5", "#fw6"].forEach((id, i) => {
-        const at = .5 + i * BEAT;
-        tl.fromTo(id, { opacity: 0, scale: 1.35 }, { opacity: 1, scale: 1, duration: .16, ease: "power4.out" }, at)
-          .to(id, { opacity: 0, scale: .92, duration: .1, ease: "power2.in" }, at + .38);
+      // ---- D: certifications (34–42), one per bar, colour-coded by domain ----
+      tl.fromTo("#d-head", { opacity: 0 }, { opacity: 1, duration: .3 }, 34)
+        .fromTo("#legend span", { opacity: 0, y: 20 }, { opacity: .45, y: 0, duration: .35, stagger: .1, ease: "power3.out" }, 34);
+      [["#k1", "#lg-mgmt"], ["#k2", "#lg-eng"], ["#k3", "#lg-eng"], ["#k4", "#lg-data"]].forEach(([id, lg], i) => {
+        const at = 34.5 + i * BAR;
+        tl.fromTo(id, { opacity: 0, scale: 1.25, rotationX: -40, transformPerspective: 1200 }, { opacity: 1, scale: 1, rotationX: 0, duration: .55, ease: "expo.out" }, at)
+          .fromTo(`${id} .code`, { xPercent: -30 }, { xPercent: 0, duration: .6, ease: "expo.out" }, at)
+          .fromTo(lg, { opacity: 1, scale: 1.18 }, { opacity: 1, scale: 1, duration: .5, ease: "back.out(2)", immediateRender: false }, at);
       });
-      tl.fromTo("#intro", { opacity: 0 }, { opacity: 1, duration: .2 }, 3.5);
+      tl.to("#sD > *", { opacity: 0, duration: .3, stagger: .03 }, 41.65);
 
-      // ---- S1: name slam on the drop, statement on the next bar ----
-      tl.fromTo("#n1", { scale: 1.5, opacity: 0, filter: "blur(18px)" }, { scale: 1, opacity: 1, filter: "blur(0px)", duration: .45, ease: "expo.out" }, 4)
-        .fromTo("#n2", { yPercent: 110 }, { yPercent: 0, duration: .5, ease: "expo.out" }, 4.25)
-        .fromTo(".model", { opacity: 0, x: -30 }, { opacity: 1, x: 0, duration: .4, ease: "power3.out" }, 4.5)
-        .fromTo("#s1-sub > span", { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: .35, stagger: .1, ease: "power3.out" }, 4.75)
-        .to("#s1-name", { opacity: 0, y: -60, duration: .3, ease: "power3.in" }, 5.75);
-      [["#t1", 6], ["#t2", 6.5], ["#t3", 7]].forEach(([id, at]) => tl.fromTo(id, { yPercent: 115 }, { yPercent: 0, duration: .42, ease: "expo.out" }, at));
-      tl.to(["#t1", "#t2", "#t3"], { yPercent: -115, duration: .28, ease: "power3.in", stagger: .04 }, 7.7);
-
-      // ---- S2: spec sheet, one cell per beat with count-ups ----
-      tl.fromTo("#s2-h", { yPercent: 60, opacity: 0 }, { yPercent: 0, opacity: 1, duration: .4, ease: "expo.out" }, 8.05)
-        .fromTo("#s2-k", { opacity: 0 }, { opacity: 1, duration: .3 }, 8.2);
-      ["#sp1", "#sp2", "#sp3", "#sp4", "#sp5", "#sp6"].forEach((id, i) => {
-        const at = 8.5 + i;
-        tl.fromTo(id, { opacity: 0, y: 60, scale: .92 }, { opacity: 1, y: 0, scale: 1, duration: .45, ease: "back.out(1.7)" }, at);
-        const big = $(id.slice(1)).querySelector(".big"), to = Number(big.dataset.to || 0), suffix = big.dataset.suffix || "";
-        if (to) { const o = { v: 0 }; tl.fromTo(o, { v: 0 }, { v: to, duration: .7, ease: "power2.out", onUpdate() { big.textContent = Math.round(o.v) + suffix; } }, at + .05); }
+      // ---- E: languages (42–50), one per three beats with greeting and level ----
+      tl.fromTo("#e-head", { opacity: 0 }, { opacity: 1, duration: .3 }, 42);
+      ["#l1", "#l2", "#l3", "#l4", "#l5"].forEach((id, i) => {
+        const at = 42.5 + i * 1.5;
+        tl.fromTo(`${id} .flag`, { opacity: 0, x: -140, rotationY: 35, transformPerspective: 1000 }, { opacity: 1, x: 0, rotationY: 0, duration: .45, ease: "expo.out" }, at)
+          .fromTo(`${id} .flag`, { skewY: 0 }, { skewY: 3, duration: .25, yoyo: true, repeat: 3, ease: "sine.inOut", immediateRender: false }, at + .4)
+          .fromTo(`${id} .bubble`, { scale: 0, rotation: -8 }, { scale: 1, rotation: 0, duration: .45, ease: "back.out(2.4)" }, at + .1)
+          .fromTo(`${id} h3`, { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: .35, ease: "power3.out" }, at + .25)
+          .fromTo(`${id} .lvl i`, { scaleX: 0 }, { scaleX: 1, duration: .2, stagger: .05, ease: "power2.out", transformOrigin: "0% 50%" }, at + .35)
+          .fromTo(`${id} .lvl b`, { opacity: 0 }, { opacity: 1, duration: .3 }, at + .6)
+          .fromTo(`#ld${i + 1}`, { opacity: .25, scale: 1 }, { opacity: 1, scale: 1.15, duration: .3, ease: "back.out(2)" }, at);
+        if (i < 4) tl.to(`${id} > *`, { opacity: 0, x: 120, duration: .2, ease: "power3.in" }, at + 1.3);
       });
-      tl.fromTo(".specs", { scale: 1 }, { scale: 1.04, duration: 1.4, ease: "sine.inOut" }, 14.4)
-        .to(".specs, .s2-head", { opacity: 0, duration: .25 }, 15.75);
+      tl.to(["#l5 > *", "#e-head", ".lang-dots"], { opacity: 0, duration: .3 }, 49.65);
 
-      // ---- S3: fast learner, roles flicker on each beat ----
-      tl.fromTo("#fl-t", { xPercent: -12, opacity: 0 }, { xPercent: 0, opacity: 1, duration: .4, ease: "expo.out" }, 16)
-        .fromTo("#fl-f", { opacity: 0, y: 16 }, { opacity: 1, y: 0, duration: .35 }, 16.3)
-        .fromTo("#roles", { opacity: 0 }, { opacity: 1, duration: .2 }, 16.2);
-      ["#r1", "#r2", "#r3", "#r4", "#r5"].forEach((id, i) => {
-        const at = 16.5 + i * BEAT;
-        tl.fromTo(id, { opacity: 0, y: 70 }, { opacity: 1, y: 0, duration: .2, ease: "expo.out" }, at);
-        if (i < 4) tl.to(id, { opacity: 0, y: -70, duration: .14, ease: "power2.in" }, at + .36);
+      // ---- F: skills (50–60), a discipline every three seconds, chips on eighth notes ----
+      tl.fromTo("#f-head", { opacity: 0 }, { opacity: 1, duration: .3 }, 50);
+      ["#col1", "#col2", "#col3"].forEach((id, i) => {
+        const at = 50.5 + i * 3;
+        tl.fromTo(`${id} h4`, { yPercent: 80, opacity: 0, scale: 1.2 }, { yPercent: 0, opacity: 1, scale: 1, duration: .5, ease: "expo.out" }, at)
+          .fromTo(`${id} li`, { opacity: 0, x: -40, scale: .92 }, { opacity: 1, x: 0, scale: 1, duration: .3, stagger: BEAT / 2, ease: "back.out(2)" }, at + .5);
       });
-      tl.to(["#fl-t", "#fl-f", "#roles"], { opacity: 0, duration: .25 }, 19.75);
+      tl.fromTo(".col li", { boxShadow: "0 0 0 0 rgba(207,232,143,0)" }, { boxShadow: "0 0 0 2px rgba(207,232,143,.5)", duration: .25, yoyo: true, repeat: 1, stagger: .02, immediateRender: false }, 58.5);
+      tl.to("#sF > *", { opacity: 0, scale: .96, duration: .3, stagger: .03 }, 59.65);
 
-      // ---- S4: breakdown, slower and bigger ----
-      [["#d1", 20.05], ["#d2", 21.4], ["#d3", 22.7]].forEach(([id, at], i) => {
-        tl.fromTo(`${id} h2`, { opacity: 0, scale: 1.12, filter: "blur(10px)" }, { opacity: 1, scale: 1, filter: "blur(0px)", duration: .7, ease: "expo.out" }, at)
-          .fromTo(`${id} .num`, { opacity: 0 }, { opacity: 1, duration: .3 }, at)
-          .fromTo(`${id} p`, { opacity: 0, y: 18 }, { opacity: 1, y: 0, duration: .5, ease: "power3.out" }, at + .3);
-        if (i < 2) tl.to(`${id} > *`, { opacity: 0, duration: .25 }, at + 1.1);
-      });
-      tl.to("#d3 > *", { opacity: 0, duration: .3, ease: "power2.in" }, 23.7);
-
-      // ---- S5: features, one per bar ----
-      tl.fromTo("#s5-h", { opacity: 0 }, { opacity: 1, duration: .3 }, 24.05);
-      ["#f1", "#f2", "#f3", "#f4"].forEach((id, i) => {
-        const at = 24 + i * 2;
-        tl.fromTo(`${id} .n`, { xPercent: -40, opacity: 0 }, { xPercent: 0, opacity: 1, duration: .5, ease: "expo.out" }, at)
-          .fromTo(`${id} .k`, { opacity: 0 }, { opacity: 1, duration: .2 }, at + .1)
-          .fromTo(`${id} h3`, { x: 140, opacity: 0 }, { x: 0, opacity: 1, duration: .5, ease: "expo.out" }, at + .1)
-          .fromTo(`${id} p`, { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: .4, ease: "power3.out" }, at + .35)
-          .fromTo(`${id} .chips span`, { opacity: 0, y: 14, scale: .9 }, { opacity: 1, y: 0, scale: 1, duration: .3, stagger: .06, ease: "back.out(2)" }, at + .55);
-        if (i < 3) tl.to(`${id} > *`, { opacity: 0, x: -120, duration: .22, ease: "power3.in" }, at + 1.78);
-      });
-      tl.to(["#f4 > *", "#s5-h"], { opacity: 0, duration: .25 }, 31.75);
-
-      // ---- S6: verified traits on the beat ----
-      ["#tr1", "#tr2", "#tr3"].forEach((id, i) => {
-        const at = 32.1 + i;
-        tl.fromTo(`${id} strong`, { opacity: 0, x: -60 }, { opacity: 1, x: 0, duration: .35, ease: "expo.out" }, at)
-          .fromTo(`${id} .stamp`, { opacity: 0, scale: 2.6, rotation: -14 }, { opacity: 1, scale: 1, rotation: -6, duration: .28, ease: "back.out(2.4)" }, at + .5);
-      });
-      tl.fromTo("#s6-f", { opacity: 0 }, { opacity: 1, duration: .4 }, 34.9)
-        .to(".trait, #s6-f", { opacity: 0, duration: .25 }, 35.75);
-
-      // ---- S7: end card ----
-      tl.fromTo("#portrait", { clipPath: "inset(100% 0% 0% 0%)" }, { clipPath: "inset(0% 0% 0% 0%)", duration: .9, ease: "expo.inOut" }, 36)
-        .fromTo("#portrait img", { scale: 1.25 }, { scale: 1, duration: 1.8, ease: "expo.out" }, 36)
-        .fromTo("#scan", { y: 0 }, { y: 900, duration: 1.2, ease: "power2.inOut" }, 36.6)
-        .fromTo("#avail", { opacity: 0, x: -16 }, { opacity: 1, x: 0, duration: .4, ease: "power3.out" }, 36.3)
-        .fromTo("#e1", { yPercent: 115 }, { yPercent: 0, duration: .6, ease: "expo.out" }, 36.5)
-        .fromTo("#e2", { yPercent: 115 }, { yPercent: 0, duration: .6, ease: "expo.out" }, 36.75)
-        .fromTo("#e-name", { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: .5, ease: "power3.out" }, 37.3)
-        .fromTo("#e-links > span", { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: .45, stagger: .12, ease: "power3.out" }, 37.6)
-        .fromTo("#avail .dot", { scale: 1 }, { scale: 1.6, duration: .5, yoyo: true, repeat: 3, ease: "sine.inOut" }, 37);
+      // ---- G: ready (60–66) ----
+      tl.fromTo("#portrait", { clipPath: "inset(100% 0% 0% 0%)" }, { clipPath: "inset(0% 0% 0% 0%)", duration: 1, ease: "expo.inOut" }, 60)
+        .fromTo("#portrait img", { scale: 1.3 }, { scale: 1, duration: 2.2, ease: "expo.out" }, 60)
+        .fromTo("#g-k", { opacity: 0, x: -16 }, { opacity: 1, x: 0, duration: .4 }, 60.2);
+      slam("#g1t", 60.5, { scale: 1.2 }); slam("#g2t", 61);
+      tl.fromTo("#g-name", { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: .5, ease: "power3.out" }, 62)
+        .fromTo("#g-links > span", { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: .45, stagger: .15, ease: "power3.out" }, 62.5)
+        .fromTo("#g-k .dot", { scale: 1 }, { scale: 1.6, duration: .5, yoyo: true, repeat: 5, ease: "sine.inOut" }, 62);
 
       window.__timelines["main"] = tl;
       tl.seek(0);

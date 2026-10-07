@@ -1,140 +1,146 @@
-// Original 40 s soundtrack for the mission brief, synthesised from scratch (no samples, no licences).
-// 120 BPM, A minor, Am–F–C–G. One bar = 2 s, so every scene cut in index.html lands on a downbeat.
+// Original 66 s synthwave soundtrack for the mission brief, synthesised from scratch (no samples, no SFX).
+// 120 BPM, A minor, Am–F–C–G. One bar = 2 s, so every section in index.html starts on a downbeat:
+// intro 0–6 · drop 6 · experience 14–34 · lead melody 34–50 · climax 50–60 · final chord 60–66.
 // Usage: node audio/make-music.mjs  -> audio/music.wav (44.1 kHz, 16-bit stereo)
 import { writeFileSync } from 'node:fs';
 
-const SR = 44100, BPM = 120, BEAT = 60 / BPM, BAR = BEAT * 4, DUR = 40;
+const SR = 44100, BEAT = .5, BAR = 2, DUR = 66;
 const N = Math.round(SR * DUR);
-const L = new Float32Array(N), R = new Float32Array(N);
-// Seeded PRNG so the track is identical on every run.
-let seed = 0x2f6e2b1;
+const dry = [new Float32Array(N), new Float32Array(N)];
+const wet = [new Float32Array(N), new Float32Array(N)]; // reverb send
+const duck = new Float32Array(N).fill(1);
+let seed = 0x51a7e;
 const rand = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296) * 2 - 1;
-const hz = midi => 440 * 2 ** ((midi - 69) / 12);
+const hz = m => 440 * 2 ** ((m - 69) / 12);
 const at = t => Math.round(t * SR);
-const add = (buf, i, v) => { if (i >= 0 && i < N) buf[i] += v; };
-const addSt = (i, v, pan = 0) => { add(L, i, v * (1 - Math.max(0, pan))); add(R, i, v * (1 + Math.min(0, pan))); };
+function put(i, v, pan, send) {
+  if (i < 0 || i >= N) return;
+  const l = v * Math.min(1, 1 - pan), r = v * Math.min(1, 1 + pan);
+  dry[0][i] += l; dry[1][i] += r;
+  if (send) { wet[0][i] += l * send; wet[1][i] += r * send; }
+}
 
-// Song map (seconds): intro 0–4, drop A 4–20, breakdown 20–24, drop B 24–36, outro 36–40.
-const inDrop = t => (t >= 4 && t < 20) || (t >= 24 && t < 36);
-const chords = [[57, 60, 64], [53, 57, 60], [48, 52, 55], [55, 59, 62]]; // Am F C G
+const chords = [[57, 60, 64, 67], [53, 57, 60, 64], [48, 52, 55, 59], [55, 59, 62, 66]]; // Am7 Fmaj7 Cmaj7 G(add#11 colour)
 const roots = [45, 41, 48, 43];
 const chordAt = t => Math.floor(t / BAR) % 4;
+const drums = t => t >= 6 && t < 60;
 
-// Kick envelope is also the sidechain source.
-const duck = new Float32Array(N).fill(1);
-
-function kick(t, gain = 1) {
-  const s = at(t), len = at(.42);
-  let ph = 0;
-  for (let k = 0; k < len; k++) {
-    const x = k / SR, f = 46 + 110 * Math.exp(-x * 32);
-    ph += 2 * Math.PI * f / SR;
-    const env = Math.exp(-x * 7.5), click = k < 90 ? rand() * .25 * (1 - k / 90) : 0;
-    addSt(s + k, (Math.sin(ph) * env * .95 + click) * gain);
-    const d = 1 - .72 * Math.exp(-x * 9); if (s + k < N) duck[s + k] = Math.min(duck[s + k], d);
+function kick(t, g = 1) {
+  const s = at(t); let ph = 0;
+  for (let k = 0; k < at(.45); k++) {
+    const x = k / SR; ph += 2 * Math.PI * (44 + 120 * Math.exp(-x * 30)) / SR;
+    put(s + k, Math.sin(ph) * Math.exp(-x * 6.5) * .9 * g, 0, 0);
+    const d = 1 - .7 * Math.exp(-x * 8); if (s + k < N) duck[s + k] = Math.min(duck[s + k], d);
   }
 }
-function clap(t, gain = .5) {
-  const s = at(t), len = at(.28);
-  let lp = 0, bp = 0;
-  for (let k = 0; k < len; k++) {
-    const x = k / SR, burst = (x < .012 || (x > .018 && x < .03) || x > .036) ? 1 : 0;
-    const n = rand(); lp += .35 * (n - lp); bp = n - lp; // crude high-pass for "air"
-    const env = Math.exp(-x * 16) * burst;
-    addSt(s + k, (bp * .8 + Math.sin(2 * Math.PI * 190 * x) * .25) * env * gain, (k % 2 ? .15 : -.15));
+// Gated, roomy synthwave snare: tone + noise, sent hard to the reverb.
+function snare(t, g = .55) {
+  const s = at(t); let lp = 0;
+  for (let k = 0; k < at(.3); k++) {
+    const x = k / SR, n = rand(); lp += .25 * (n - lp);
+    const v = ((n - lp) * .75 + Math.sin(2 * Math.PI * 185 * x) * .35) * Math.exp(-x * 13) * g;
+    put(s + k, v, 0, .9);
   }
 }
-function hat(t, open = false, gain = .16) {
-  const s = at(t), len = at(open ? .22 : .05);
-  let lp = 0;
-  for (let k = 0; k < len; k++) {
-    const x = k / SR, n = rand(); lp += .6 * (n - lp);
-    addSt(s + k, (n - lp) * Math.exp(-x * (open ? 14 : 80)) * gain, open ? .3 : -.25);
+function hat(t, g = .07, open = false) {
+  const s = at(t); let lp = 0;
+  for (let k = 0; k < at(open ? .25 : .045); k++) {
+    const x = k / SR, n = rand(); lp += .55 * (n - lp);
+    put(s + k, (n - lp) * Math.exp(-x * (open ? 12 : 90)) * g, .3, .1);
   }
 }
-// Simple state-variable low-pass for synth voices.
-function voice({ t, dur, midi, gain, wave = 'saw', cutoff = 1800, envCut = 0, attack = .005, release = .08, pan = 0, detune = 0, sidechain = true }) {
-  const s = at(t), len = at(dur + release), f = hz(midi);
-  let p1 = 0, p2 = .37, low = 0, band = 0;
-  for (let k = 0; k < len; k++) {
-    const x = k / SR;
-    p1 = (p1 + f / SR) % 1; p2 = (p2 + f * (1 + detune) / SR) % 1;
-    const osc = wave === 'saw' ? (2 * p1 - 1) * .5 + (2 * p2 - 1) * .5
-      : wave === 'pulse' ? (p1 < .42 ? .6 : -.6) + (p2 < .42 ? .4 : -.4)
-      : Math.sin(2 * Math.PI * p1);
-    const cut = Math.min(.95, 2 * Math.sin(Math.PI * Math.min(cutoff + envCut * Math.exp(-x * 14), SR / 3) / SR));
-    low += cut * band; band += cut * (osc - low - .55 * band);
-    const env = (x < attack ? x / attack : 1) * (x > dur ? Math.max(0, 1 - (x - dur) / release) : 1);
-    const i = s + k;
-    addSt(i, low * env * gain * (sidechain && i < N ? duck[i] : 1), pan);
-  }
-}
-function riser(t0, t1, gain = .22) {
-  const s = at(t0), len = at(t1 - t0);
+function synth({ t, dur, midi, g, osc = 'saw', voices = 1, detune = .008, cut = 1600, env = 0, q = .5, atk = .01, rel = .1, pan = 0, send = .2, vib = 0, side = true }) {
+  const s = at(t), len = at(dur + rel), f = hz(midi);
+  const ph = Array.from({ length: voices }, (_, v) => (v * .31) % 1);
   let low = 0, band = 0;
   for (let k = 0; k < len; k++) {
-    const p = k / len, n = rand(), f = 300 + 7000 * p * p;
-    const c = 2 * Math.sin(Math.PI * f / SR);
-    low += c * band; band += c * (n - low - .3 * band);
-    addSt(s + k, band * p * p * gain, Math.sin(p * 9) * .4);
+    const x = k / SR, vf = vib ? 1 + vib * Math.sin(2 * Math.PI * 5.2 * x) * Math.min(1, x / .4) : 1;
+    let o = 0;
+    for (let v = 0; v < voices; v++) {
+      const dv = voices > 1 ? (v / (voices - 1) - .5) * 2 * detune : 0;
+      ph[v] = (ph[v] + f * (1 + dv) * vf / SR) % 1;
+      o += osc === 'saw' ? 2 * ph[v] - 1 : osc === 'sq' ? (ph[v] < .5 ? 1 : -1) : Math.sin(2 * Math.PI * ph[v]);
+    }
+    o /= voices;
+    const fc = Math.min(cut + env * Math.exp(-x * 9), SR / 3), c = Math.min(.95, 2 * Math.sin(Math.PI * fc / SR));
+    low += c * band; band += c * (o - low - q * band);
+    const a = (x < atk ? x / atk : 1) * (x > dur ? Math.max(0, 1 - (x - dur) / rel) : 1);
+    const i = s + k;
+    put(i, low * a * g * (side && i < N ? duck[i] : 1), pan, send);
   }
 }
 
 // ---- arrangement ----
-for (let bar = 0; bar < DUR / BAR; bar++) {
-  const t0 = bar * BAR, ch = chords[chordAt(t0)], root = roots[chordAt(t0)];
-  // Pad: always present, louder in the breakdown and outro.
-  const padGain = t0 >= 20 && t0 < 24 ? .07 : t0 >= 36 ? .08 : .045;
-  ch.forEach((m, i) => voice({ t: t0, dur: BAR, midi: m, gain: padGain, cutoff: 900 + (t0 >= 20 && t0 < 24 ? 900 : 0), attack: .35, release: .6, pan: (i - 1) * .5, detune: .006, sidechain: inDrop(t0) }));
-  for (let b = 0; b < 4; b++) {
-    const t = t0 + b * BEAT;
-    if (inDrop(t)) {
-      kick(t);
-      if (b % 2 === 1) clap(t);
-      hat(t + BEAT / 2, true, .09);
-      for (let q = 0; q < 4; q++) hat(t + q * BEAT / 4, false, q % 2 ? .1 : .06);
-      // Off-beat bass with a filter pluck.
-      voice({ t: t + BEAT / 2, dur: BEAT * .42, midi: root - 12, gain: .32, cutoff: 260, envCut: 900, release: .03 });
-      voice({ t: t + BEAT * .75, dur: BEAT * .2, midi: root, gain: .12, cutoff: 400, envCut: 1200, release: .02 });
-    } else if (t < 4) {
-      if (t >= 2) for (let q = 0; q < 4; q++) hat(t + q * BEAT / 4, false, .05 + .02 * q);
-    } else if (t >= 20 && t < 24) {
-      hat(t + BEAT / 2, false, .05);
-    }
-    // Arp: 16ths on chord tones, from bar 3 onward; an octave up in drop B.
-    if (t >= 6 && t < 36) {
-      for (let q = 0; q < 4; q++) {
-        const note = ch[(b * 4 + q) % 3] + 12 + (t >= 24 ? 12 : 0) + ((b * 4 + q) % 6 === 5 ? 12 : 0);
-        const g = t >= 20 && t < 24 ? .05 : .04;
-        voice({ t: t + q * BEAT / 4, dur: BEAT / 4 * .5, midi: note, gain: g, wave: 'pulse', cutoff: 2200, envCut: 2400, release: .05, pan: q % 2 ? .45 : -.45 });
-        // 3/16 echo
-        voice({ t: t + q * BEAT / 4 + BEAT * .75, dur: BEAT / 4 * .4, midi: note, gain: g * .35, wave: 'pulse', cutoff: 1400, release: .05, pan: q % 2 ? -.5 : .5 });
-      }
-    }
+// Drums first so the sidechain envelope exists before the tonal parts read it.
+for (let t = 0; t < DUR; t += BEAT) {
+  const b = Math.round(t / BEAT) % 4;
+  if (drums(t)) {
+    kick(t);
+    if (b === 1 || b === 3) snare(t);
+    hat(t + BEAT / 2, t >= 50 ? .09 : .06, t >= 50);
+    hat(t + BEAT / 4, .035); hat(t + BEAT * .75, .035);
   }
 }
-riser(1.0, 4.0, .26);
-riser(21.0, 24.0, .3);
-kick(36, 1.15); clap(36, .6);
-// Final sub drop under the end card.
-voice({ t: 36, dur: 3.2, midi: 33, gain: .35, wave: 'sine', cutoff: 200, release: .8, sidechain: false });
+for (let i = 0; i < 16; i++) snare(5 + i * .0625, .12 + i * .022); // roll into the drop
+kick(60, 1.1); snare(60, .5);
 
-// ---- master: gentle saturation, fade-out, normalise to -1 dBFS ----
+for (let bar = 0; bar < DUR / BAR; bar++) {
+  const t0 = bar * BAR, ch = chords[chordAt(t0)], root = roots[chordAt(t0)];
+  const intro = t0 < 6, outro = t0 >= 60;
+  // Lush detuned pads; the intro opens its filter bar by bar.
+  const padCut = intro ? 500 + t0 * 260 : outro ? 1500 : 1300;
+  ch.forEach((m, i) => synth({ t: t0, dur: outro ? 5.2 : BAR, midi: m, g: outro ? .085 : .06, voices: 3, detune: .009, cut: padCut, atk: .25, rel: outro ? 1.6 : .5, pan: (i - 1.5) * .35, send: .45, side: !intro && !outro }));
+  if (outro) { synth({ t: t0, dur: 5, midi: root - 12, g: .3, osc: 'sine', cut: 400, rel: 1.2, send: 0, side: false }); break; }
+  // Driving eighth-note bass.
+  if (!intro) for (let e = 0; e < 8; e++) synth({ t: t0 + e * BEAT / 2, dur: BEAT / 2 * .8, midi: root - 12 + (e === 7 ? 12 : 0), g: .3, voices: 2, detune: .004, cut: 380, env: 900, q: .35, rel: .03, send: .02 });
+  // Sixteenth arp through a dotted-eighth echo.
+  for (let s16 = 0; s16 < 16; s16++) {
+    const t = t0 + s16 * BEAT / 4; if (t < 2) continue;
+    const note = ch[[0, 1, 2, 3, 2, 1][s16 % 6]] + 12, g = intro ? .018 + t0 * .004 : .028;
+    synth({ t, dur: .06, midi: note, g, osc: 'sq', cut: 2200, env: 1800, rel: .05, pan: s16 % 2 ? .4 : -.4, send: .25 });
+    synth({ t: t + .375, dur: .05, midi: note, g: g * .35, osc: 'sq', cut: 1400, rel: .05, pan: s16 % 2 ? -.45 : .45, send: .3 });
+  }
+}
+// Lead melody (34–60), an octave up for the climax (50–60).
+const motif = [[[76, 0, 1.5], [74, 1.5, .5], [72, 2, 1], [71, 3, 1]], [[72, 0, 1.5], [69, 1.5, .5], [72, 2, 2]], [[76, 0, 1.5], [79, 1.5, .5], [76, 2, 1], [74, 3, 1]], [[74, 0, 2], [71, 2, 1], [74, 3, 1]]];
+for (let t0 = 34; t0 < 60; t0 += BAR) {
+  const up = t0 >= 50 ? 12 : 0;
+  motif[chordAt(t0)].forEach(([m, b, d]) => {
+    synth({ t: t0 + b * BEAT, dur: d * BEAT * .92, midi: m + up - 12, g: .11, voices: 2, detune: .006, cut: 2600, env: 1200, atk: .02, rel: .18, send: .5, vib: .006 });
+  });
+}
+
+// ---- reverb (Schroeder: 4 combs + 2 allpasses per channel) ----
+function reverb(input, offset) {
+  const out = new Float32Array(N);
+  [1557, 1617, 1491, 1422].forEach(len => {
+    const d = len + offset, buf = new Float32Array(d); let idx = 0, filt = 0;
+    for (let i = 0; i < N; i++) { const y = buf[idx]; filt = y * .7 + filt * .3; buf[idx] = input[i] + filt * .84; out[i] += y * .25; idx = (idx + 1) % d; }
+  });
+  [556, 225].forEach(len => {
+    const d = len + offset, buf = new Float32Array(d); let idx = 0;
+    for (let i = 0; i < N; i++) { const b = buf[idx], y = -out[i] + b; buf[idx] = out[i] + b * .5; out[i] = y; idx = (idx + 1) % d; }
+  });
+  return out;
+}
+const rv = [reverb(wet[0], 0), reverb(wet[1], 23)];
+
+// ---- master ----
 let peak = 0;
+const L = new Float32Array(N), R = new Float32Array(N);
 for (let i = 0; i < N; i++) {
-  const fade = i > at(38.6) ? Math.max(0, 1 - (i - at(38.6)) / at(1.4)) : 1;
-  L[i] = Math.tanh(L[i] * 1.25) * fade; R[i] = Math.tanh(R[i] * 1.25) * fade;
+  const fade = i > at(64.2) ? Math.max(0, 1 - (i - at(64.2)) / at(1.8)) : 1;
+  L[i] = Math.tanh((dry[0][i] + rv[0][i] * .55) * 1.15) * fade;
+  R[i] = Math.tanh((dry[1][i] + rv[1][i] * .55) * 1.15) * fade;
   peak = Math.max(peak, Math.abs(L[i]), Math.abs(R[i]));
 }
-const norm = .89 / peak;
-const data = Buffer.alloc(44 + N * 4);
-data.write('RIFF', 0); data.writeUInt32LE(36 + N * 4, 4); data.write('WAVE', 8);
-data.write('fmt ', 12); data.writeUInt32LE(16, 16); data.writeUInt16LE(1, 20); data.writeUInt16LE(2, 22);
-data.writeUInt32LE(SR, 24); data.writeUInt32LE(SR * 4, 28); data.writeUInt16LE(4, 32); data.writeUInt16LE(16, 34);
-data.write('data', 36); data.writeUInt32LE(N * 4, 40);
+const norm = .89 / peak, data = Buffer.alloc(44 + N * 4);
+data.write('RIFF', 0); data.writeUInt32LE(36 + N * 4, 4); data.write('WAVE', 8); data.write('fmt ', 12);
+data.writeUInt32LE(16, 16); data.writeUInt16LE(1, 20); data.writeUInt16LE(2, 22); data.writeUInt32LE(SR, 24);
+data.writeUInt32LE(SR * 4, 28); data.writeUInt16LE(4, 32); data.writeUInt16LE(16, 34); data.write('data', 36); data.writeUInt32LE(N * 4, 40);
 for (let i = 0; i < N; i++) {
   data.writeInt16LE(Math.round(Math.max(-1, Math.min(1, L[i] * norm)) * 32767), 44 + i * 4);
   data.writeInt16LE(Math.round(Math.max(-1, Math.min(1, R[i] * norm)) * 32767), 46 + i * 4);
 }
 writeFileSync(new URL('./music.wav', import.meta.url), data);
-console.log(`music.wav: ${DUR}s, peak ${peak.toFixed(2)} -> normalised`);
+console.log(`music.wav: ${DUR}s synthwave, peak ${peak.toFixed(2)}`);

@@ -28,3 +28,10 @@ confident, never arrogant. Concept: the career as a flight, read off avionics in
   fast-learner role flicker, breakdown on the three disciplines, "features" drop, verified traits, end card.
 - Audio: original 120 BPM track synthesised by `audio/make-music.mjs` (no samples), mixed with Pixabay-licensed
   SFX by `audio/mix.mjs` to -14 LUFS. Rebuild: `node audio/make-music.mjs && node audio/mix.mjs <sfx-dir>`.
+
+## v3 (2026-10-07) — current
+- User direction: synthwave only, beats aligned with every cut, no sound effects. Sequence: "Who is César Solla González —
+  in a nutshell" → profile (aerospace engineer; curious, proactive, leads from any position; systems engineering,
+  programme management, data science) → experience one role per two bars → certifications colour-coded by domain →
+  languages with waving flag + greeting → skills mapped to disciplines → "Ready for the next mission."
+- 66 s, 120 BPM. Audio: `node audio/make-music.mjs && node audio/mix.mjs` (music only, -14 LUFS).
