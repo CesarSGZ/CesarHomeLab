@@ -67,7 +67,7 @@
 .fc-palette footer{padding:10px 16px;border-top:1px solid var(--line);font:500 9px "DM Mono",monospace;letter-spacing:.1em;color:var(--muted)}
 
 @media(prefers-reduced-motion:reduce){
-  .view.active>*,.status-strip::after,[data-workspace] .view-heading h1 em{animation:none!important}
+  .view.active>*,.status-strip::after,[data-workspace] .view :is(h1,h2) em{animation:none!important}
   [data-workspace] .view :is(h1,h2) em{background-position:0 0}
   #overview .module,#overview .module:hover,.sidebar .nav-item:hover{transform:none}
 }
