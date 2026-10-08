@@ -8,7 +8,9 @@ import {validateRuntimeDbRequest} from '../trading-worker/runtime-db.js';
 import {cycle, status, ownerCommand, planTurns} from '../trading-worker/v2/cycle.js';
 import {callModel} from '../trading-worker/v2/llm.js';
 import {locked} from '../trading-worker/store.js';
-import {checkPolicy, companyMood, initCompany} from '../trading-worker/v2/company.js';
+import {checkPolicy, companyMood, initCompany, newIdea} from '../trading-worker/v2/company.js';
+import {planMath} from '../trading-worker/v2/agents.js';
+import {findAsset} from '../trading-worker/spain.js';
 import {equity} from '../trading-worker/core.js';
 
 const T0 = Date.parse('2026-10-07T15:00:00Z'); // miércoles 17:00 Madrid · 11:00 Nueva York (sesión abierta)
@@ -19,7 +21,7 @@ function fixture() {
   const run = (sql, params) => { validateRuntimeDbRequest({action: 'runtime-db', sql, params}); sqlSeen.add(sql); const st = sqlite.prepare(sql); return /^\s*SELECT|RETURNING/i.test(sql) ? st.all(...params) : (st.run(...params), []); };
   const prepare = (sql, params = []) => ({sql, params, bind: (...p) => prepare(sql, p), async first() { return run(sql, params)[0] || null; }, async all() { return {results: run(sql, params)}; }, async run() { return {success: true, results: run(sql, params)}; }});
   const env = {OPENAI_RUNTIME_KEY: 'test-only-not-a-live-key', CONTROL_DB: {prepare, async batch(ops) { return ops.map(o => ({success: true, results: run(o.sql, o.params)})); }}};
-  const prices = {AAPL: 100, MSFT: 50, 'SAN.MC': 8, 'ITX.MC': 50};
+  const prices = {AAPL: 100, MSFT: 50, NVDA: 120, AMD: 90, META: 300, AMZN: 150, GOOGL: 140, 'SAN.MC': 8, 'ITX.MC': 50};
   const chart = symbol => { const now = Date.now(), ts = [], close = [], volume = [], es = symbol.endsWith('.MC'); for (let i = 25; i >= 2; i--) { ts.push(Math.floor((now - i * 864e5) / 1000)); close.push(prices[symbol] * (es ? 1 - i / 200 : 1)); volume.push(2e6); } return {chart: {result: [{meta: {symbol, currency: es ? 'EUR' : 'USD', instrumentType: 'EQUITY', exchangeName: es ? 'MCE' : 'NMS', regularMarketPrice: prices[symbol], regularMarketTime: Math.floor((now - 60e3) / 1000)}, timestamp: ts, indicators: {quote: [{close, volume}]}}]}}; };
   const script = {}, calls = [];
   const fetcher = async (url, init) => {
@@ -37,7 +39,7 @@ function fixture() {
   const opts = {fetcher, radar: async s => { s.real.lastScan = Date.now(); }, call: (e, s, o) => callModel(e, s, {...o, fetcher})};
   return {sqlite, env, prices, script, calls, opts, sqlSeen};
 }
-const act = (type, extra = {}) => ({type, symbol: '', to: '', text: '', eur: 0, stopPct: 0, targetPct: 0, days: 0, param: '', value: '', ...extra});
+const act = (type, extra = {}) => ({type, symbol: '', to: '', text: '', eur: 0, stopPct: 0, targetPct: 0, prob: 0, days: 0, param: '', value: '', ...extra});
 const turn = (actions, say = '') => () => ({thought: 'ok', say, mood: 'motivado', note: '', actions});
 const clockAt = t => mock.timers.enable({apis: ['Date'], now: t});
 
@@ -72,39 +74,39 @@ test('una idea recorre el equipo entero y acaba en compra y venta con beneficio'
   } finally { mock.timers.reset(); }
 });
 
-test('María veta, Augusto levanta el veto y la orden espera a que abra el mercado', async () => {
+test('María devuelve el plan con un ajuste, Augusto da luz verde y la orden espera a que abra el mercado', async () => {
   const closed = Date.parse('2026-10-07T09:00:00Z'); clockAt(closed); const f = fixture();
   try {
     f.script['turn:SANTI'] = c => c.input.ideasEnCurso.length ? turn([act('wait', {value: '60'})])() : turn([act('pitch', {symbol: 'MSFT', text: 'Contrato grande anunciado esta mañana'})])();
-    f.script['turn:PEDRO'] = c => c.input.pendientes.some(p => p.estado === 'nueva') ? turn([act('plan', {symbol: 'MSFT', eur: 0, text: 'Entrada en apertura'})])() : turn([act('message', {to: 'auditor', text: 'María ha vetado MSFT y creo que se equivoca'})])();
-    f.script['turn:MARÍA'] = c => c.input.planesPorRevisar.length ? turn([act('veto', {symbol: 'MSFT', text: 'No me creo el contrato sin fuente'})])() : turn([])();
+    f.script['turn:PEDRO'] = c => c.input.pendientes.some(p => p.estado === 'nueva') ? turn([act('plan', {symbol: 'MSFT', eur: 0, text: 'Entrada en apertura'})])() : turn([act('message', {to: 'auditor', text: 'María ha devuelto MSFT y creo que compensa tal cual'})])();
+    f.script['turn:MARÍA'] = c => c.input.planesPorRevisar.length ? turn([act('revise', {symbol: 'MSFT', text: 'Con prob. del 40 % el stop del 1,5 % no compensa: bájalo al 1 %'})])() : turn([])();
     f.script['turn:AUGUSTO'] = c => c.input.bandeja.length ? turn([act('overrule', {symbol: 'MSFT', text: 'Asumimos el riesgo'})])() : turn([])();
     f.script['turn:YARI'] = c => c.input.listasParaComprar.length ? turn([act('buy', {symbol: 'MSFT'})])() : turn([])();
     for (let i = 0; i < 8; i++) { await cycle(f.env, {...f.opts, manual: true}); mock.timers.tick(5 * 60e3); }
     let live = await status(f.env);
     assert.equal(live.positions.length, 0, 'mercado cerrado: no hay ejecución');
     assert.equal(live.orders.length, 1); assert.equal(live.orders[0].symbol, 'MSFT'); assert.match(live.orders[0].note, /precio reciente/);
-    assert.ok(live.timeline.some(e => e.type === 'handoff' && e.tone === 'veto')); assert.ok(live.timeline.some(e => e.type === 'handoff' && e.tone === 'overrule'));
+    assert.ok(live.timeline.some(e => e.type === 'handoff' && e.tone === 'revise' && /bájalo al 1 %/.test(e.text))); assert.ok(live.timeline.some(e => e.type === 'handoff' && e.tone === 'overrule'));
     mock.timers.setTime(T0); f.script.turn = turn([]);
     await cycle(f.env, f.opts); live = await status(f.env);
     assert.equal(live.positions.length, 1); assert.equal(live.orders.length, 0);
-    assert.ok(Math.abs(live.positions[0].eur - 2000) < 60, 'lote de la casa: 20 % de 10.000 €');
+    assert.ok(Math.abs(live.positions[0].eur - 1000) < 60, 'tamaño por defecto: 10 % de 10.000 €');
   } finally { mock.timers.reset(); }
 });
 
 test('la reunión de premercado se transcribe, vota y aplica cambios de estrategia', async () => {
   clockAt(Date.parse('2026-10-07T13:02:00Z')); const f = fixture(); // 15:02 Madrid
   try {
-    await locked(f.env, s => { initCompany(s).proposals.push({id: 'p-test', param: 'maxPositions', value: 12, text: 'Más diversificación', by: 'scout', at: Date.now(), status: 'pendiente', votes: {}}); });
+    await locked(f.env, s => { initCompany(s).proposals.push({id: 'p-test', param: 'pipeline', value: 12, text: 'Más candidatas vivas', by: 'scout', at: Date.now(), status: 'pendiente', votes: {}}); });
     f.script.meeting = c => ({say: 'Opino desde mi puesto', votes: [{id: 'p-test', vote: 'no'}], proposal: {param: '', value: '', text: ''}});
     f.script['meeting:CADAQUI'] = () => ({say: 'Vamos lentos: propongo apalancarnos', votes: [{id: 'p-test', vote: 'no'}], proposal: {param: 'leverage', value: '1.5', text: 'Sin palanca no llegamos al alquiler'}});
-    f.script['meeting:AUGUSTO'] = c => ({say: 'Cerramos: más palanca y nuevo nombre', summary: 'Subimos apalancamiento a 1,5', decisions: [{param: 'leverage', value: '1.5', reason: 'Necesitamos más ritmo'}, {param: 'maxPositions', value: '12', reason: 'intento'}, {param: 'strategy', value: 'Momentum agresivo', reason: 'Cambio de rumbo'}, {param: 'inventado', value: '3', reason: 'no existe'}], tasks: [{to: 'scout', text: 'Trae tres candidatas de momentum'}]});
+    f.script['meeting:AUGUSTO'] = c => ({say: 'Cerramos: más palanca y nuevo nombre', summary: 'Subimos apalancamiento a 1,5', decisions: [{param: 'leverage', value: '1.5', reason: 'Necesitamos más ritmo'}, {param: 'pipeline', value: '12', reason: 'intento'}, {param: 'strategy', value: 'Momentum agresivo', reason: 'Cambio de rumbo'}, {param: 'inventado', value: '3', reason: 'no existe'}], tasks: [{to: 'scout', text: 'Trae tres candidatas de momentum'}]});
     const r = await cycle(f.env, f.opts); assert.equal(r.meeting, 'Premercado: qué hacemos hoy');
     const live = await status(f.env), m = live.meetings[0];
     assert.equal(m.status, 'terminada'); assert.equal(m.lines.length, 6); assert.equal(m.lines.at(-1).agent, 'auditor');
     assert.equal(live.policy.leverage, 1.5); assert.equal(live.policy.strategy, 'Momentum agresivo');
-    assert.equal(live.policy.maxPositions, 5, 'una propuesta rechazada por mayoría no se aplica');
-    assert.ok(m.decisions.some(d => d.param === 'maxPositions' && d.applied === false));
+    assert.equal(live.policy.pipeline, 6, 'una propuesta rechazada por mayoría no se aplica');
+    assert.ok(m.decisions.some(d => d.param === 'pipeline' && d.applied === false));
     assert.ok(live.timeline.some(e => e.type === 'meeting' && e.lines.length === 6)); assert.ok(live.timeline.filter(e => e.type === 'strategy').length >= 2);
     assert.equal(live.board.name, 'Momentum agresivo');
     mock.timers.tick(5 * 60e3); const again = await cycle(f.env, f.opts); assert.equal(again.meeting, null, 'no se repite la misma reunión');
@@ -162,7 +164,7 @@ test('pulso sin IA: stop dinámico, marcador por estrategia, contadores y regalo
     f.script['turn:AUGUSTO'] = c => c.input.reglas.trailPct ? turn([act('wait', {value: '60'})])() : turn([act('apply', {param: 'trailPct', value: '5', text: 'Que el stop persiga al precio'})])();
     for (let i = 0; i < 4; i++) { await cycle(f.env, f.opts); mock.timers.tick(5 * 60e3); }
     let live = await status(f.env);
-    assert.equal(live.positions.length, 1); assert.equal(live.policy.trailPct, 5); assert.match(live.board.lines[1], /STOP 8~/);
+    assert.equal(live.positions.length, 1); assert.equal(live.policy.trailPct, 5); assert.match(live.board.lines[1], /STOP 1\.5~/);
     assert.equal(live.life.agents.scout.pitches, 1); assert.equal(live.life.agents.risk.approvals, 1); assert.equal(live.life.agents.operator.buys, 1); assert.equal(live.life.agents.auditor.ruleChanges, 1);
     assert.equal(live.life.daysSinceTrade, 0); assert.equal(live.life.everTraded, true); assert.equal(live.life.streak, null);
     // sube un 20 %: el stop sube detrás (5 % por debajo de 120) sin ninguna llamada
@@ -172,9 +174,9 @@ test('pulso sin IA: stop dinámico, marcador por estrategia, contadores y regalo
     // cae a 113: salta el stop con beneficio y se apunta a la estrategia vigente
     f.prices.AAPL = 113; mock.timers.tick(5 * 60e3); await cycle(f.env, f.opts); live = await status(f.env);
     assert.equal(live.positions.length, 0); assert.equal(live.closed[0].reason, 'stop'); assert.ok(live.closed[0].pnl > 150);
-    assert.deepEqual(live.life.strategies.map(x => [x.name, x.trades, x.wins, x.current]), [['Catalizadores cercanos', 1, 1, true]]);
+    assert.deepEqual(live.life.strategies.map(x => [x.name, x.trades, x.wins, x.current]), [['Intradía', 1, 1, true]]);
     assert.deepEqual(live.life.streak, {kind: 'win', n: 1}); assert.equal(live.life.lastStop.symbol, 'AAPL'); assert.equal(live.life.agents.scout.ideasClosed, 1);
-    assert.match(f.calls.at(-1).input.empresa.pulso || 'estrategias: Catalizadores', /Catalizadores/);
+    assert.match(f.calls.at(-1).input.empresa.pulso || 'estrategias: Intradía', /Intradía/);
     // regalo de César: aparece en la oficina y la caja no cambia
     const cash = live.company.cash;
     await locked(f.env, s => { ownerCommand(s, '/gift', {item: 'gato'}); assert.throws(() => ownerCommand(s, '/gift', {item: 'gato'}), /ya está/); assert.throws(() => ownerCommand(s, '/gift', {item: 'yate'}), /catálogo/); });
@@ -229,8 +231,8 @@ test('Santi llena la cantera, se opera en la bolsa española en euros y conviven
     assert.deepEqual(live.positions.map(p => p.symbol).sort(), ['ITX.MC', 'SAN.MC'], 'las españolas se compran en su sesión; AAPL espera a Nueva York');
     assert.equal(live.orders[0].symbol, 'AAPL'); assert.equal(live.market.es, true); assert.equal(live.market.us, false);
     const san = live.positions.find(p => p.symbol === 'SAN.MC'), itx = live.positions.find(p => p.symbol === 'ITX.MC');
-    assert.equal(san.currency, 'EUR'); assert.equal(san.strategy, 'Ibex de ida y vuelta'); assert.equal(itx.strategy, 'Catalizadores cercanos');
-    assert.ok(Math.abs(san.eur - 1000) < 12, 'lote del 10 % de la estrategia paralela, sin conversión a dólares: ' + san.eur); assert.ok(itx.eur > 1400 && itx.eur < 2050);
+    assert.equal(san.currency, 'EUR'); assert.equal(san.strategy, 'Ibex de ida y vuelta'); assert.equal(itx.strategy, 'Intradía');
+    assert.ok(Math.abs(san.eur - 1000) < 12, 'lote del 10 % de la estrategia paralela, sin conversión a dólares: ' + san.eur); assert.ok(itx.eur > 700 && itx.eur < 1050);
     assert.ok(Math.abs(san.stop - 8.02 * 0.97) < 0.01); assert.ok(Math.abs(live.company.equity - 10000) < 15, 'entrar solo cuesta deslizamiento y comisión');
     assert.equal(live.books.length, 1); assert.equal(live.books[0].days, 2);
     // el Santander sube un 7 %: objetivo del +6 % cumplido, en euros y apuntado a su estrategia
@@ -251,8 +253,8 @@ test('regla de la casa: lo que nadie decide en dos turnos sigue adelante y Cadaq
     for (let i = 0; i < 9; i++) { await cycle(f.env, f.opts); mock.timers.tick(5 * 60e3); }
     const live = await status(f.env);
     assert.deepEqual(live.positions.map(p => p.symbol), ['AAPL'], 'aunque nadie decida, la idea acaba comprada con el lote de la casa');
-    assert.ok(Math.abs(live.positions[0].eur - 2000) < 110, 'lote ' + live.positions[0].eur + ' ' + JSON.stringify(live.ideas[0].plan)); assert.ok(live.life.agents.analyst.nudged >= 1 && live.life.agents.risk.nudged >= 1 && live.life.agents.operator.nudged >= 1);
-    assert.equal(live.shares.operator, 1.8); assert.equal(checkPolicy('leverage', '9').value, 5); assert.equal(checkPolicy('maxPositions', '50').value, 20);
+    assert.ok(Math.abs(live.positions[0].eur - 1000) < 110, 'lote ' + live.positions[0].eur + ' ' + JSON.stringify(live.ideas[0].plan)); assert.ok(live.life.agents.analyst.nudged >= 1 && live.life.agents.risk.nudged >= 1 && live.life.agents.operator.nudged >= 1);
+    assert.equal(live.shares.operator, 1.8); assert.equal(checkPolicy('leverage', '9').value, 5); assert.equal(checkPolicy('maxPositions', '50').ok, false, 'ya no hay máximo de posiciones');
   } finally { mock.timers.reset(); }
 });
 
@@ -266,8 +268,8 @@ test('trading por horas, mensaje de César entregado una vez y colchón para el 
     for (let i = 0; i < 3; i++) { await cycle(f.env, f.opts); mock.timers.tick(5 * 60e3); }
     let live = await status(f.env);
     assert.equal(live.positions.length, 1); assert.ok(live.positions[0].expiresAt - live.positions[0].openedAt < 75 * 60e3, 'plazo de 0,05 días = 72 minutos');
-    assert.equal(live.timeline.filter(e => e.type === 'owner' && /libertad total/.test(e.text)).length, 1); assert.ok(f.calls.some(c => c.who === 'AUGUSTO' && c.input.bandeja.some(b => /César \(el dueño\).*rocambolescas/.test(b))));
-    assert.ok(f.calls[0].input.mensajeDelDueño.some(t => /operar por horas/.test(t)));
+    assert.equal(live.timeline.filter(e => e.type === 'owner' && /cambio de rumbo/.test(e.text)).length, 1); assert.ok(f.calls.some(c => c.who === 'AUGUSTO' && c.input.bandeja.some(b => /César \(el dueño\).*intradía/.test(b))));
+    assert.ok(f.calls[0].input.mensajeDelDueño.some(t => /intradía/.test(t)));
     f.script.turn = turn([act('wait', {value: '240'})]); for (const k of Object.keys(f.script)) if (k.startsWith('turn:')) delete f.script[k];
     mock.timers.tick(75 * 60e3); await cycle(f.env, f.opts); live = await status(f.env);
     assert.equal(live.positions.length, 0); assert.equal(live.closed[0].reason, 'tiempo');
@@ -276,5 +278,30 @@ test('trading por horas, mensaje de César entregado una vez y colchón para el 
     await locked(f.env, s => { s.real.book.cash += 12500 - (equity(s.real.book) - s.operatingLedger.openingEquity); });
     mock.timers.setTime(Date.parse('2026-11-02T15:00:00Z')); await cycle(f.env, f.opts); live = await status(f.env);
     assert.equal(live.company.months['2026-10'].paid, true); assert.ok(Math.abs(live.company.monthPnl - 2500) < 5, 'noviembre arranca con el sobrante: ' + live.company.monthPnl);
+  } finally { mock.timers.reset(); }
+});
+
+test('sin máximo de posiciones, esperanza de cada plan y migración única a intradía', async () => {
+  // Esperanza: 40 % × 6 % − 60 % × 2 % = +1,2 %; probabilidad mínima para compensar = 2 / 8 = 25 %.
+  const m = planMath({eur: 1000, stopPct: 2, targetPct: 6, prob: 40});
+  assert.equal(m.esperanzaPct, 1.2); assert.equal(m.esperanzaEur, 12); assert.equal(m.probMinimaParaCompensarPct, 25); assert.equal(m.ratioGananciaPerdida, 3);
+  assert.equal(planMath({eur: 1000, stopPct: 2, targetPct: 6}).probGanarPct, 'sin estimar');
+  // La empresa en marcha pasa a intradía una sola vez y conserva lo que no se toca.
+  const s = {v2: null, real: {book: {positions: [], closed: [], orders: []}}};
+  initCompany(s, T0); s.v2.policyRev = 1; s.v2.policy = {...s.v2.policy, strategy: 'Catalizadores cercanos', maxPositions: 5, leverage: 2};
+  initCompany(s, T0 + 1);
+  assert.equal(s.v2.policy.strategy, 'Intradía'); assert.equal(s.v2.policy.leverage, 2); assert.equal('maxPositions' in s.v2.policy, false);
+  assert.ok(s.v2.strategyLog.some(l => /Indicación de César/.test(l.reason)));
+  s.v2.policy.strategy = 'Lo que decida Augusto'; initCompany(s, T0 + 2); assert.equal(s.v2.policy.strategy, 'Lo que decida Augusto', 'la migración no se repite');
+  // Siete posiciones a la vez: ya no hay tope de cartera.
+  clockAt(T0); const f = fixture();
+  try {
+    const syms = ['AAPL', 'MSFT', 'NVDA', 'AMD', 'META', 'AMZN', 'GOOGL'];
+    await locked(f.env, st => { initCompany(st); for (const sym of syms) { const idea = newIdea(st.v2, findAsset(st, sym) || {symbol: sym, name: sym}, 'analyst', 'prueba', T0); idea.status = 'aprobada'; idea.plan = {eur: 600, stopPct: 2, targetPct: 4, days: 0.25, prob: 50, text: 'x'}; } });
+    f.script['turn:YARI'] = c => turn(c.input.listasParaComprar.map(i => act('buy', {symbol: i.symbol})).slice(0, 3))();
+    f.script.turn = turn([act('wait', {value: '240'})]);
+    for (let i = 0; i < 4; i++) { await cycle(f.env, {...f.opts, manual: true}); mock.timers.tick(5 * 60e3); }
+    const live = await status(f.env);
+    assert.ok(live.positions.length > 5, 'más de las 5 posiciones de antes: ' + live.positions.length);
   } finally { mock.timers.reset(); }
 });

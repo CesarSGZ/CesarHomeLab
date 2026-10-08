@@ -37,16 +37,25 @@ si no, turnos de los empleados con trabajo o a los que les toca ronda; (3) diari
 
 ### Empleados
 
-Santi (explorador) trae candidatas; Pedro (analista) las convierte en plan; María (riesgo) aprueba,
-recorta o veta; Yari (trader) ejecuta y gestiona posiciones; Augusto (dirección) saca lecciones,
-cambia reglas, convoca reuniones y puede levantar vetos; Cadaqui (finanzas y tokens) controla el
+Santi (explorador) trae candidatas; Pedro (analista) las convierte en plan cuantificado (ganancia y
+pérdida potenciales y su probabilidad estimada); María (riesgo) revisa con él que la esperanza compense
+y que el riesgo de la cartera entera esté controlado: aprueba, ajusta o devuelve con el número a cambiar
+(no veta); Yari (trader) ejecuta y gestiona posiciones; Augusto (dirección) dirige la estrategia con los
+datos (acierto y resultado por estrategia, calibración de las probabilidades de Pedro), saca lecciones,
+convoca reuniones y puede dar luz verde a un plan devuelto; Cadaqui (finanzas y tokens) controla el
 ritmo de gasto, escribe el resumen diario y decide gastos de oficina.
+
+### Estrategia inicial (octubre 2026)
+
+Por indicación de César, la empresa en marcha pasó una sola vez (`policyRev` 2) de «Catalizadores
+cercanos» a «Intradía»: valores líquidos que se mueven hoy, stop 1,5 %, objetivo 3 %, plazo 6 h y
+tamaño por defecto del 10 %. A partir de ahí Augusto la ajusta según los datos.
 
 ### Libertad del equipo
 
 Pueden cambiar, por acción directa de Augusto o por acuerdo de reunión: nombre y foco de la
-estrategia, reglas de la casa, tamaño por posición (2–100 % del capital), posiciones máximas (1–20),
-apalancamiento (×1–×5), stop, objetivo y plazo por defecto, si María debe aprobar (`riskGate`),
+estrategia, reglas de la casa, tamaño por defecto (1–100 % del capital; cada plan fija su importe y no
+hay máximo de posiciones), apalancamiento (×1–×5), stop, objetivo y plazo por defecto, si María debe aprobar (`riskGate`),
 ritmo de trabajo y número de reuniones. Una propuesta rechazada por mayoría no puede aplicarse en
 esa reunión. No modifican código: la autoprogramación de la versión anterior está retirada.
 

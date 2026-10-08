@@ -6,19 +6,19 @@ export const RENT_TARGET = 10000; // € ficticios de beneficio al mes = 10 € 
 export const STAFF = [
   {id: 'scout', name: 'Santi', role: 'Explorador', color: '#9ccb98',
     persona: 'Curioso y entusiasta; te emocionas rápido con una buena historia y te pica que te tumben ideas.',
-    duty: 'Encontrar oportunidades: lees el radar (resultados cercanos, noticias, movimientos de precio) y traes candidatas con una razón concreta. Puedes pedir UNA búsqueda web cuando un dato importante falte.'},
+    duty: 'Encontrar oportunidades que encajen con la estrategia vigente: lees el radar (movimientos de precio y volumen, noticias, resultados) y traes candidatas con una razón concreta. Para intradía buscas valores líquidos que se estén moviendo hoy. Puedes pedir UNA búsqueda web cuando un dato importante falte.'},
   {id: 'analyst', name: 'Pedro', role: 'Analista', color: '#b6a4e8',
     persona: 'Meticuloso y algo desconfiado del entusiasmo de Santi; te gustan los números, pero sabes que una candidata descartada no paga el alquiler.',
-    duty: 'Convertir candidatas en planes operables: importe en €, stop, objetivo, plazo y por qué. Tu oficio es encontrar CÓMO se puede operar cada una (tamaño pequeño, stop corto, plazo de horas si el catalizador es inmediato, estrategia paralela si no encaja en la principal); descartar es la excepción, solo para lo que no tiene ni precio ni motivo.'},
+    duty: 'Convertir candidatas en planes operables y cuantificados: importe en €, stop (pérdida potencial), objetivo (ganancia potencial), plazo, tu probabilidad estimada de que llegue al objetivo antes que al stop (prob, 1-99) y por qué. Trabajas en equipo con María: ella revisa que esos números compensen y te devuelve ajustes concretos; tú los incorporas. Tu oficio es encontrar CÓMO se puede operar cada una (tamaño, stop, plazo de horas, estrategia paralela si no encaja en la principal); descartar es la excepción, solo para lo que no tiene ni precio ni motivo.'},
   {id: 'risk', name: 'María', role: 'Riesgo', color: '#e8b67c',
-    persona: 'Directa y escéptica; llevas la contraria por oficio, pero sabes que sin asumir riesgo no se paga el alquiler.',
-    duty: 'Revisar cada plan: lo normal es aprobar ajustando tamaño o stop; vetas solo lo que pone en peligro la empresa entera, explicando qué cambiar. Vigilas la exposición total y puedes ajustar stops o cerrar posiciones.'},
+    persona: 'Directa y cuantitativa; no te asusta el riesgo, te asusta el riesgo mal pagado.',
+    duty: 'Controlar el riesgo junto con Pedro, no vetar compras. En cada plan revisas sus números: ganancia potencial frente a pérdida potencial, probabilidad estimada y esperanza (lo que se gana de media por operación). Si compensan, apruebas; si no, ajustas tú tamaño o stop al aprobar, o se lo devuelves a Pedro (revise) diciendo exactamente qué número cambiar. También vigilas la cartera entera: cuánto se perdería si saltaran todos los stops y si hay demasiado concentrado en un mismo sitio, y puedes ajustar stops o cerrar posiciones.'},
   {id: 'operator', name: 'Yari', role: 'Trader', color: '#81cbd0',
     persona: 'Rápida y competitiva; odias devolver beneficios y esperar de brazos cruzados.',
     duty: 'Ejecutar: compras lo aprobado, vigilas las posiciones abiertas, mueves stops y objetivos y cierras cuando toca.'},
   {id: 'auditor', name: 'Augusto', role: 'Dirección', color: '#e7a6bf',
     persona: 'Tranquilo, ves el conjunto y medias en las discusiones; no te tiembla la mano para cambiar de rumbo.',
-    duty: 'Dirigir: revisas qué funciona, sacas lecciones de las operaciones cerradas, propones o aplicas cambios de estrategia, convocas reuniones y puedes levantar un veto.'},
+    duty: 'Dirigir la estrategia con datos: cada día miras qué arrojan las operaciones (acierto, ganancia y pérdida medias, esperanza por estrategia y si las probabilidades de Pedro se cumplen) y vas ajustando la estrategia, sus parámetros y las paralelas en consecuencia; sacas lecciones de las cerradas, convocas reuniones y puedes dar luz verde a un plan que María devolvió.'},
   {id: 'designer', name: 'Cadaqui', role: 'Finanzas y tokens', color: '#91afe8',
     persona: 'Ahorrador y obsesivo con los números; cada token gastado te duele, pero sabes cuándo merece la pena gastar.',
     duty: 'Llevar las cuentas: controlas el gasto de IA y el ritmo de trabajo (ahorro, normal o intensivo), sigues el objetivo del alquiler, escribes el resumen del día y decides gastos de oficina.'}
@@ -32,17 +32,17 @@ export const OFFICE_CATALOG = {
 };
 
 export const POLICY_DEFAULT = {
-  strategy: 'Catalizadores cercanos', focus: 'Empresas con resultados o noticias en los próximos días y movimiento de precio que lo acompañe.',
-  rules: 'Entrar antes del evento, cortar rápido lo que no arranca.',
-  lotPct: 20, maxPositions: 5, leverage: 1, stopPct: 8, targetPct: 20, holdDays: 7, trailPct: 0,
+  strategy: 'Intradía', focus: 'Valores líquidos que se mueven hoy con volumen: entrar a favor del movimiento y cerrar en la misma sesión.',
+  rules: 'Stop corto, objetivo al menos el doble que el stop y nada abierto de un día para otro salvo decisión expresa.',
+  lotPct: 10, leverage: 1, stopPct: 1.5, targetPct: 3, holdDays: 0.25, trailPct: 0,
   riskGate: 'on', pace: 'normal', meetingsPerDay: 3, minDollarVolume: 1e6, pipeline: 6
 };
-const NUM = {lotPct: [2, 100], maxPositions: [1, 20], leverage: [1, 5], stopPct: [1, 40], targetPct: [2, 300], holdDays: [0.04, 30], trailPct: [0, 30], meetingsPerDay: [1, 6], pipeline: [1, 12], minDollarVolume: [3e5, 5e7]};
+const NUM = {lotPct: [1, 100], leverage: [1, 5], stopPct: [0.3, 40], targetPct: [0.5, 300], holdDays: [0.04, 30], trailPct: [0, 30], meetingsPerDay: [1, 6], pipeline: [1, 12], minDollarVolume: [3e5, 5e7]};
 const ENUM = {riskGate: ['on', 'off'], pace: ['ahorro', 'normal', 'intensivo']};
 const TEXT = {strategy: 28, focus: 220, rules: 220};
 export const POLICY_PARAMS = [...Object.keys(TEXT), ...Object.keys(NUM), ...Object.keys(ENUM)];
-export const POLICY_HELP = 'strategy (nombre corto), focus (qué buscamos), rules (reglas de la casa), lotPct 2-100 (% del capital por posición), maxPositions 1-20, leverage 1-5 (con palanca, si el capital cae por debajo del 30 % de lo invertido se liquida todo), stopPct 1-40, targetPct 2-300, holdDays 0.04-30 (plazo en días; admite fracciones para operar por horas: 0.1 ≈ 2 h 24 min), trailPct 0-30 (stop que persigue al precio; 0 = apagado), riskGate on|off (si María debe aprobar), pace ahorro|normal|intensivo, meetingsPerDay 1-6, pipeline 1-12 (cuántas candidatas vivas debe mantener Santi), minDollarVolume 300000-50000000';
-const LABEL = {strategy: 'estrategia', focus: 'foco', rules: 'reglas', lotPct: 'tamaño por posición (%)', maxPositions: 'posiciones máximas', leverage: 'apalancamiento', stopPct: 'stop (%)', targetPct: 'objetivo (%)', holdDays: 'plazo (días)', trailPct: 'stop dinámico (%)', riskGate: 'filtro de riesgo', pace: 'ritmo de trabajo', meetingsPerDay: 'reuniones al día', pipeline: 'candidatas vivas', minDollarVolume: 'liquidez mínima ($)'};
+export const POLICY_HELP = 'strategy (nombre corto), focus (qué buscamos), rules (reglas de la casa), lotPct 1-100 (tamaño por defecto, % del capital por posición; cada plan puede fijar su propio importe y no hay máximo de posiciones), leverage 1-5 (con palanca, si el capital cae por debajo del 30 % de lo invertido se liquida todo), stopPct 0.3-40, targetPct 0.5-300, holdDays 0.04-30 (plazo en días; admite fracciones para operar por horas: 0.1 ≈ 2 h 24 min), trailPct 0-30 (stop que persigue al precio; 0 = apagado), riskGate on|off (si María debe aprobar), pace ahorro|normal|intensivo, meetingsPerDay 1-6, pipeline 1-12 (cuántas candidatas vivas debe mantener Santi), minDollarVolume 300000-50000000';
+const LABEL = {strategy: 'estrategia', focus: 'foco', rules: 'reglas', lotPct: 'tamaño por defecto (%)', leverage: 'apalancamiento', stopPct: 'stop (%)', targetPct: 'objetivo (%)', holdDays: 'plazo (días)', trailPct: 'stop dinámico (%)', riskGate: 'filtro de riesgo', pace: 'ritmo de trabajo', meetingsPerDay: 'reuniones al día', pipeline: 'candidatas vivas', minDollarVolume: 'liquidez mínima ($)'};
 export const policyLabel = p => LABEL[p] || p;
 
 // Valida y normaliza un cambio de política. Devuelve {ok, value} o {ok:false, reason}.
@@ -52,23 +52,33 @@ export function checkPolicy(param, raw) {
   if (NUM[param]) {
     const n = Number(String(raw ?? '').replace(',', '.').replace(/[^0-9.\-]/g, '')), [lo, hi] = NUM[param];
     if (!Number.isFinite(n)) return {ok: false, reason: 'Hace falta un número'};
-    const c = Math.min(hi, Math.max(lo, n)), value = ['maxPositions', 'meetingsPerDay', 'pipeline'].includes(param) || (param === 'holdDays' && c >= 1) ? Math.round(c) : param === 'holdDays' ? Math.round(c * 100) / 100 : c;
+    const c = Math.min(hi, Math.max(lo, n)), value = ['meetingsPerDay', 'pipeline'].includes(param) || (param === 'holdDays' && c >= 1) ? Math.round(c) : param === 'holdDays' ? Math.round(c * 100) / 100 : ['stopPct', 'targetPct'].includes(param) ? Math.round(c * 10) / 10 : c;
     return {ok: true, value};
   }
   return {ok: false, reason: 'Parámetro desconocido. Disponibles: ' + POLICY_PARAMS.join(', ')};
 }
 
 export function initCompany(s, now = Date.now()) {
-  if (s.v2?.schema === 1) { const v2 = s.v2; for (const m of STAFF) { v2.agents[m.id] ??= newAgent(); v2.agents[m.id].stats ??= {}; } v2.policy = {...POLICY_DEFAULT, ...v2.policy}; v2.strategyStats ??= {}; v2.books ??= []; v2.shares ??= {}; ownerNote(v2, now); return v2; }
+  if (s.v2?.schema === 1) { const v2 = s.v2; for (const m of STAFF) { v2.agents[m.id] ??= newAgent(); v2.agents[m.id].stats ??= {}; } v2.policy = {...POLICY_DEFAULT, ...v2.policy}; v2.strategyStats ??= {}; v2.books ??= []; v2.shares ??= {}; migratePolicy(v2, now); ownerNote(v2, now); return v2; }
   s.v2 = {
     schema: 1, startedAt: now, policy: {...POLICY_DEFAULT}, strategyLog: [], agents: Object.fromEntries(STAFF.map(m => [m.id, newAgent()])),
     ideas: [], orders: [], timeline: [], seq: 0, meetings: [], meetingDay: {day: '', done: [], extra: 0}, meetingRequests: [], proposals: [], lessons: [],
     days: {}, months: {}, strategyStats: {}, books: [], shares: {}, office: {upgrades: [], purchases: []}, owner: [], reviewedUntil: now, radarCursor: 0,
     stats: {turnCostEur: 0.0008, web: {day: '', n: 0, fails: 0}, deep: {day: '', n: 0}, errors: 0, lastErrorAt: 0}
   };
+  s.v2.policyRev = POLICY_REV;
   ownerNote(s.v2, now);
   emit(s.v2, 'system', {text: 'Nueva etapa de la oficina: equipo con libertad total sobre estrategia, riesgo y ritmo. La cartera y el alquiler siguen donde estaban.'}, now);
   return s.v2;
+}
+// Cambios de reglas decididos por César para la empresa en marcha: se aplican una sola vez,
+// quedan en el registro de cambios y a partir de ahí el equipo los ajusta como quiera.
+const POLICY_REV = 2;
+function migratePolicy(v2, now) {
+  if ((v2.policyRev || 1) >= POLICY_REV) return;
+  delete v2.policy.maxPositions;
+  for (const param of ['strategy', 'focus', 'rules', 'lotPct', 'stopPct', 'targetPct', 'holdDays']) setPolicy(v2, param, POLICY_DEFAULT[param], 'auditor', 'Indicación de César: empezar por intradía e ir ajustando con los datos', now);
+  v2.policyRev = POLICY_REV;
 }
 function newAgent() { return {mood: 'tenso', task: 'Incorporándose', thought: '', say: '', lastAt: 0, waitUntil: 0, notes: [], inbox: [], calls: 0, eur: 0, today: {day: '', calls: 0, eur: 0}, paused: false, stats: {}, seenSeq: 0}; }
 export function count(v2, id, what) { const st = v2.agents[id]?.stats; if (st) st[what] = (st[what] || 0) + 1; }
@@ -92,7 +102,7 @@ export function setPolicy(v2, param, raw, by, reason, now = Date.now()) {
   for (const p of v2.proposals) if (p.status === 'pendiente' && p.param === param) p.status = String(p.value) === String(check.value) ? 'aplicada' : 'superada';
   return {ok: true, value: check.value};
 }
-export const boardLines = p => ['LOTE ' + Math.round(p.lotPct) + '% MAX ' + p.maxPositions + (p.leverage > 1 ? ' X' + p.leverage : ''), 'STOP ' + Math.round(p.stopPct) + (p.trailPct > 0 ? '~' : '') + ' OBJ ' + Math.round(p.targetPct)];
+export const boardLines = p => ['LOTE ' + Math.round(p.lotPct) + '%' + (p.leverage > 1 ? ' X' + p.leverage : ''), 'STOP ' + p.stopPct + (p.trailPct > 0 ? '~' : '') + ' OBJ ' + p.targetPct];
 
 // ---- ideas ----
 export const ACTIVE = ['nueva', 'plan', 'aprobada', 'vetada', 'ordenada'];
@@ -177,7 +187,7 @@ export const bookNamed = (v2, name) => v2.books.find(b => b.name.toLowerCase() =
 // Plazo de una operación: días enteros o, por debajo de un día, fracciones (trading por horas).
 export const horizon = d => d >= 1 ? Math.round(d) : Math.max(0.04, Math.round(d * 100) / 100);
 // Mensaje permanente de César; se entrega una vez por versión como si lo hubiera escrito en el dashboard.
-const OWNER_NOTE = {id: 'n2', text: 'De parte de César: libertad total y no os cortéis. Quiero veros probar estrategias con asiduidad, también extravagantes o rocambolescas, y si hace falta operar por horas alrededor de un catalizador, hacedlo. Si ganáis los 10.000 € en tres días, mejor: lo que sobre cuenta para el alquiler del mes siguiente. Organizaos vosotros, repartid el trabajo y los tokens como veáis y mejorad vuestra propia eficiencia.'};
+const OWNER_NOTE = {id: 'n3', text: 'De parte de César: cambio de rumbo. Empezad con trading intradía (los catalizadores eran demasiado a corto plazo) y que Augusto vaya cambiando la estrategia según lo que digan los datos de las operaciones. Ya no hay máximo de posiciones ni límites de compra: decidís vosotros cuántas y de cuánto. María no veta: trabaja con Pedro para que cada operación tenga una ganancia potencial, una pérdida potencial y una probabilidad que compensen, y vigila el riesgo de la cartera entera. Si ganáis los 10.000 € antes, mejor: lo que sobre cuenta para el mes siguiente.'};
 function ownerNote(v2, now) {
   if (v2.ownerNote === OWNER_NOTE.id) return; v2.ownerNote = OWNER_NOTE.id;
   v2.owner.push({text: OWNER_NOTE.text, at: now}); v2.owner = v2.owner.slice(-10); tell(v2, 'auditor', 'cesar', OWNER_NOTE.text, now); v2.agents.auditor.waitUntil = 0; emit(v2, 'owner', {text: OWNER_NOTE.text}, now);

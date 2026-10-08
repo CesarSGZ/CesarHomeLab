@@ -9,7 +9,7 @@ const IDS = STAFF.map(s => s.id);
 const CAN = {
   scout: ['pitch', 'web', 'discard', 'playbook', 'message', 'propose', 'meeting', 'wait'],
   analyst: ['plan', 'pitch', 'discard', 'playbook', 'message', 'propose', 'meeting', 'wait'],
-  risk: ['approve', 'veto', 'adjust', 'sell', 'playbook', 'message', 'propose', 'meeting', 'wait'],
+  risk: ['approve', 'revise', 'adjust', 'sell', 'playbook', 'message', 'propose', 'meeting', 'wait'],
   operator: ['buy', 'sell', 'adjust', 'pitch', 'playbook', 'message', 'propose', 'meeting', 'wait'],
   auditor: ['apply', 'playbook', 'retire', 'overrule', 'lesson', 'discard', 'sell', 'message', 'propose', 'meeting', 'wait'],
   designer: ['pace', 'budget', 'office', 'message', 'propose', 'meeting', 'wait']
@@ -17,17 +17,17 @@ const CAN = {
 const ACTION_HELP = {
   pitch: 'pitch{symbol,text}: propones una candidata con su motivo; pasa a Pedro.',
   web: 'web{symbol,text}: una búsqueda web sobre esa empresa (text = qué quieres saber). Cuesta unas 40 veces más que un turno normal.',
-  plan: 'plan{symbol,eur,stopPct,targetPct,days,text,param}: plan operable (days puede ser una fracción para operar por horas: 0.1 ≈ 2 h 24 min; eur=0 usa el lote; param = nombre de una estrategia paralela si el plan es de esa, o vacío para la principal).',
+  plan: 'plan{symbol,eur,stopPct,targetPct,prob,days,text,param}: plan operable y cuantificado. eur = importe que decides (0 usa el tamaño por defecto; no hay máximo de posiciones); stopPct = pérdida potencial; targetPct = ganancia potencial; prob = tu probabilidad (1-99) de que toque el objetivo antes que el stop; days puede ser una fracción para operar por horas (0.25 ≈ 6 h); param = nombre de una estrategia paralela si el plan es de esa, o vacío para la principal.',
   playbook: 'playbook{param,text,value,stopPct,targetPct,days}: creas o ajustas una estrategia PARALELA que convive con la principal (param = nombre, text = en qué consiste, value = % del capital por posición). Máximo cuatro.',
   retire: 'retire{param,text}: retiras una estrategia paralela que no funciona.',
-  approve: 'approve{symbol,eur,stopPct,text}: apruebas el plan; eur o stopPct > 0 lo corrigen.',
-  veto: 'veto{symbol,text}: tumbas el plan explicando qué tendría que cambiar.',
+  approve: 'approve{symbol,eur,stopPct,targetPct,text}: apruebas el plan porque su riesgo compensa; eur, stopPct o targetPct > 0 lo ajustan.',
+  revise: 'revise{symbol,text}: devuelves el plan a Pedro porque sus números no compensan, diciendo exactamente qué cambiar (tamaño, stop, objetivo o probabilidad).',
   buy: 'buy{symbol,text}: compras una idea aprobada (si el mercado está cerrado queda pendiente para la apertura).',
   sell: 'sell{symbol,text}: cierras la posición entera.',
   adjust: 'adjust{symbol,stopPct,targetPct,days}: mueves stop/objetivo (en % desde el precio actual) o el plazo; 0 = no tocar.',
   discard: 'discard{symbol,text}: descartas una idea.',
   apply: 'apply{param,value,text}: cambias ya una regla de la empresa.',
-  overrule: 'overrule{symbol,text}: levantas un veto de María.',
+  overrule: 'overrule{symbol,text}: das luz verde a un plan que María devolvió.',
   lesson: 'lesson{text}: apuntas una lección de la casa para todos.',
   pace: 'pace{value}: ritmo de trabajo ahorro|normal|intensivo.',
   budget: 'budget{to,value}: repartes los tokens: value entre 0.5 y 2 es la frecuencia con la que se llama a ese compañero (1 = normal). Da más a quien convierte turnos en operaciones y menos a quien los gasta sin resultado.',
@@ -39,8 +39,8 @@ const ACTION_HELP = {
 };
 const MOODS = ['tranquilo', 'motivado', 'tenso', 'agobiado', 'euforico', 'frustrado'];
 const actionSchema = {
-  type: 'object', additionalProperties: false, required: ['type', 'symbol', 'to', 'text', 'eur', 'stopPct', 'targetPct', 'days', 'param', 'value'],
-  properties: {type: {type: 'string', enum: Object.keys(ACTION_HELP)}, symbol: {type: 'string'}, to: {type: 'string', enum: [...IDS, '']}, text: {type: 'string'}, eur: {type: 'number'}, stopPct: {type: 'number'}, targetPct: {type: 'number'}, days: {type: 'number'}, param: {type: 'string'}, value: {type: 'string'}}
+  type: 'object', additionalProperties: false, required: ['type', 'symbol', 'to', 'text', 'eur', 'stopPct', 'targetPct', 'prob', 'days', 'param', 'value'],
+  properties: {type: {type: 'string', enum: Object.keys(ACTION_HELP)}, symbol: {type: 'string'}, to: {type: 'string', enum: [...IDS, '']}, text: {type: 'string'}, eur: {type: 'number'}, stopPct: {type: 'number'}, targetPct: {type: 'number'}, prob: {type: 'number'}, days: {type: 'number'}, param: {type: 'string'}, value: {type: 'string'}}
 };
 export const turnSchema = {
   type: 'object', additionalProperties: false, required: ['thought', 'say', 'mood', 'actions', 'note'],
@@ -61,6 +61,18 @@ export function instructionsFor(member) {
 }
 
 const pct = x => Number.isFinite(x) ? Math.round(x * 1000) / 10 : null;
+// Lo que se perdería si saltaran todos los stops a la vez, y la mayor concentración.
+export function portfolioRisk(book) {
+  const eq = Math.max(1, equity(book)), loss = book.positions.reduce((sum, p) => sum + Math.max(0, positionEur(p) * (1 - p.stop / (p.mark ?? p.entry))), 0);
+  const biggest = book.positions.reduce((b, p) => !b || positionEur(p) > positionEur(b) ? p : b, null);
+  return {posiciones: book.positions.length, invertidoPct: pct(invested(book) / eq), perdidaSiSaltanTodosLosStopsEur: Math.round(loss), perdidaSiSaltanTodosLosStopsPct: pct(loss / eq), mayorPosicion: biggest ? biggest.symbol + ' ' + pct(positionEur(biggest) / eq) + ' %' : null};
+}
+// Esperanza de un plan: probabilidad × ganancia − (1 − probabilidad) × pérdida, en % y en €.
+export function planMath(plan) {
+  const p = Number.isFinite(plan?.prob) ? plan.prob / 100 : null, up = plan.targetPct, down = plan.stopPct;
+  return {gananciaPotEur: Math.round(plan.eur * up / 100), perdidaPotEur: Math.round(plan.eur * down / 100), ratioGananciaPerdida: Math.round(up / Math.max(0.01, down) * 10) / 10,
+    ...(p != null ? {probGanarPct: Math.round(p * 100), esperanzaPct: Math.round((p * up - (1 - p) * down) * 100) / 100, esperanzaEur: Math.round(plan.eur * (p * up - (1 - p) * down) / 100), probMinimaParaCompensarPct: Math.round(down / (up + down) * 100)} : {probGanarPct: 'sin estimar'})};
+}
 const short = (s, n) => String(s || '').replace(/\s+/g, ' ').trim().slice(0, n);
 
 export function brief(s, env) {
@@ -72,10 +84,10 @@ export function brief(s, env) {
     ahora: m.weekday + ' ' + m.label + ' (Madrid)', mercado: 'EEUU ' + (env.usOpen ? 'ABIERTO' : 'cerrado') + ' · España ' + (spanishSession(env.now) ? 'ABIERTO' : 'cerrado'),
     empresa: {capital: Math.round(eq), beneficioMes: Math.round(b.monthlyProfit), objetivoMes: RENT_TARGET, falta: Math.round(missing), diasRestantes: b.daysLeft, hayQueGanarAlDia: Math.round(missing / Math.max(1, b.daysLeft)), animo: env.mood, ...(pulso ? {pulso} : {})},
     tokens: {quedanEur: Number(b.remainingEur.toFixed(2)), hoyGastadoEur: Number((b.daySpentEur || 0).toFixed(3)), hoyDisponibleEur: Number(env.allowanceToday.toFixed(3)), ritmo: v2.policy.pace},
-    reglas: {estrategia: v2.policy.strategy, foco: v2.policy.focus, casa: v2.policy.rules, lotPct: v2.policy.lotPct, maxPositions: v2.policy.maxPositions, leverage: v2.policy.leverage, stopPct: v2.policy.stopPct, targetPct: v2.policy.targetPct, holdDays: v2.policy.holdDays, trailPct: v2.policy.trailPct, riskGate: v2.policy.riskGate},
+    reglas: {estrategia: v2.policy.strategy, foco: v2.policy.focus, casa: v2.policy.rules, lotPctPorDefecto: v2.policy.lotPct, leverage: v2.policy.leverage, stopPct: v2.policy.stopPct, targetPct: v2.policy.targetPct, holdDays: v2.policy.holdDays, trailPct: v2.policy.trailPct, riskGate: v2.policy.riskGate},
     ...(v2.books.length ? {estrategiasParalelas: v2.books.map(b => ({nombre: b.name, foco: short(b.focus, 90), lotPct: b.lotPct, stopPct: b.stopPct, targetPct: b.targetPct, dias: b.days}))} : {}),
     cartera: book.positions.map(p => ({symbol: p.symbol, ...(p.strategy ? {estrategia: p.strategy} : {}), eur: Math.round(positionEur(p)), pnlEur: Math.round(positionPnl(p)), pnlPct: pct((p.mark ?? p.entry) / p.entry - 1), stopPct: pct(1 - p.stop / (p.mark ?? p.entry)), objetivoPct: pct(p.target / (p.mark ?? p.entry) - 1), ...(p.expiresAt - env.now < 864e5 ? {horasRestantes: Math.max(0, Math.round((p.expiresAt - env.now) / 36e5 * 10) / 10)} : {diasRestantes: Math.round((p.expiresAt - env.now) / 864e5)}), tesis: short(p.thesis, 90)})),
-    huecosEnCartera: Math.max(0, v2.policy.maxPositions - book.positions.length), caja: Math.round(book.cash), poderDeCompra: Math.round(buyingPower(book, v2.policy.leverage)),
+    riesgoCartera: portfolioRisk(book), caja: Math.round(book.cash), poderDeCompra: Math.round(buyingPower(book, v2.policy.leverage)),
     ordenesPendientes: v2.orders.map(o => o.side + ' ' + o.symbol),
     lecciones: v2.lessons.slice(0, 4),
     ...(v2.owner.filter(o => env.now - o.at < 864e5).length ? {mensajeDelDueño: v2.owner.filter(o => env.now - o.at < 864e5).slice(-2).map(o => o.text)} : {})
@@ -102,7 +114,7 @@ const ideaView = (s, i, env) => {
     ...(mk ? {r5d: pct(mk.return5d), r21d: pct(mk.return21d), r63d: pct(mk.return63d), caidaDesdeMax1a: pct(mk.drawdown1y)} : {}),
     ...(f ? {ventasYoY: pct(f.revenueYoY), margenNeto: pct(f.netMargin), fcfPositivo: Number.isFinite(f.fcf) ? f.fcf > 0 : null} : {}),
     ...(i.research ? {web: short(i.research.summary, 260), sentimiento: i.research.sentiment} : {}),
-    ...(i.plan ? {plan: {eur: Math.round(i.plan.eur), pctCapital: pct(i.plan.eur / equity(d.book)), stopPct: i.plan.stopPct, targetPct: i.plan.targetPct, days: i.plan.days, perdidaMaxEur: Math.round(i.plan.eur * i.plan.stopPct / 100), motivo: short(i.plan.text, 160)}} : {}),
+    ...(i.plan ? {plan: {eur: Math.round(i.plan.eur), pctCapital: pct(i.plan.eur / equity(d.book)), stopPct: i.plan.stopPct, targetPct: i.plan.targetPct, days: i.plan.days, ...planMath(i.plan), motivo: short(i.plan.text, 160)}} : {}),
     ...(i.risk ? {riesgoDice: short(i.risk, 160)} : {})};
 };
 
@@ -127,7 +139,7 @@ export function contextFor(s, member, env) {
     ctx.bolsaEspañola = ES_ASSETS.map(a => ({a, q: s.real.quotes[a.symbol]})).filter(x => x.q && !active.has(x.a.symbol) && Number.isFinite(x.q.r5d)).sort((x, y) => Math.abs(y.q.r5d) - Math.abs(x.q.r5d)).slice(0, 8).map(x => ({symbol: x.a.symbol, empresa: x.a.name, sector: x.a.sector, precioEur: x.q.price, r5d: pct(x.q.r5d), r21d: pct(x.q.r21d)}));
     ctx.radar = radar(s, env); ctx.ideasEnCurso = v2.ideas.filter(i => ['nueva', 'plan', 'aprobada', 'vetada', 'ordenada'].includes(i.status)).map(i => i.symbol + ' (' + i.status + ')'); ctx.busquedasWebHoy = v2.stats.web.n + ' de ' + env.webLimit; }
   if (member.id === 'analyst') { ctx.pendientes = work.slice(0, 4).map(i => ideaView(s, i, env)); ctx.loteDeLaCasaEur = Math.round(equity(book) * v2.policy.lotPct / 100); const st = a.stats || {}; ctx.tuBalance = {planes: st.plans || 0, descartes: st.discards || 0, aviso: (st.discards || 0) > (st.plans || 0) ? 'Llevas más descartes que planes: así la cartera sigue vacía. Busca la forma de operar las siguientes.' : 'Cada plan es una oportunidad de aprender algo; cada descarte, ninguna.'}; }
-  if (member.id === 'risk') { ctx.planesPorRevisar = work.slice(0, 4).map(i => ideaView(s, i, env)); ctx.exposicion = {invertidoPct: pct(invested(book) / Math.max(1, equity(book))), posiciones: book.positions.length, maxPositions: v2.policy.maxPositions}; }
+  if (member.id === 'risk') { ctx.planesPorRevisar = work.slice(0, 4).map(i => ideaView(s, i, env)); ctx.criterio = 'Aprueba si la esperanza es positiva y la probabilidad de Pedro supera la mínima para compensar; si no, ajusta o devuelve con el número a cambiar. Mira también riesgoCartera.'; }
   if (member.id === 'operator') { ctx.listasParaComprar = work.slice(0, 4).map(i => ideaView(s, i, env)); ctx.ultimasCerradas = book.closed.slice(-3).map(c => c.symbol + ' ' + eur(c.pnl) + ' (' + c.reason + ')'); }
   if (member.id === 'auditor') {
     const st = bookStats(book, env.monthStart);
@@ -136,6 +148,10 @@ export function contextFor(s, member, env) {
     ctx.propuestasPendientes = v2.proposals.filter(p => p.status === 'pendiente').map(p => ({param: p.param, value: p.value, de: staffById(p.by)?.name, motivo: short(p.text, 120)}));
     ctx.embudo = Object.fromEntries(['nueva', 'plan', 'aprobada', 'vetada', 'comprada', 'descartada'].map(k => [k, v2.ideas.filter(i => i.status === k).length]));
     ctx.cambiosRecientes = v2.strategyLog.slice(0, 3).map(c => policyLabel(c.param) + ' → ' + c.to);
+    ctx.porEstrategia = Object.entries(v2.strategyStats).map(([name, x]) => ({estrategia: name, cierres: x.trades, aciertoPct: x.trades ? Math.round(x.wins / x.trades * 100) : null, resultadoEur: Math.round(x.pnl), mediaPorOperacionEur: x.trades ? Math.round(x.pnl / x.trades) : null})).slice(0, 6);
+    const judged = v2.ideas.filter(i => i.result != null && Number.isFinite(i.plan?.prob));
+    if (judged.length) ctx.calibracionDePedro = {operaciones: judged.length, probMediaEstimadaPct: Math.round(judged.reduce((a, i) => a + i.plan.prob, 0) / judged.length), aciertoRealPct: Math.round(judged.filter(i => i.result > 0).length / judged.length * 100)};
+    ctx.riesgoCartera = portfolioRisk(book);
   }
   if (member.id === 'designer') {
     ctx.gastoIA = {costePorTurnoEur: Number(v2.stats.turnCostEur.toFixed(4)), porEmpleadoHoy: Object.fromEntries(STAFF.map(m => [m.name, Number((v2.agents[m.id].today.eur || 0).toFixed(4))])), reunionesHoy: v2.meetingDay.done.length + v2.meetingDay.extra, busquedasWebHoy: v2.stats.web.n};
@@ -170,30 +186,31 @@ function applyAction(s, member, act, env, out) {
       const pb = String(act.param || '').trim() ? bookNamed(v2, act.param) : null; if (String(act.param || '').trim() && !pb && String(act.param).trim().toLowerCase() !== v2.policy.strategy.toLowerCase()) return 'No existe la estrategia «' + short(act.param, 28) + '». Créala con playbook o deja param vacío';
       const base = pb ? {lotPct: pb.lotPct, stopPct: pb.stopPct, targetPct: pb.targetPct, holdDays: pb.days} : v2.policy;
       const eq = equity(book), eurAmount = Math.min(eq * v2.policy.leverage, act.eur > 0 ? act.eur : eq * base.lotPct / 100);
-      target.plan = {eur: Math.max(50, eurAmount), stopPct: clamp(act.stopPct || base.stopPct, 1, 60), targetPct: clamp(act.targetPct || base.targetPct, 1, 400), days: horizon(clamp(act.days || base.holdDays, 0.04, 60)), text}; target.strategy = pb ? pb.name : v2.policy.strategy;
+      target.plan = {eur: Math.max(50, eurAmount), stopPct: clamp(act.stopPct || base.stopPct, 0.3, 60), targetPct: clamp(act.targetPct || base.targetPct, 0.5, 400), days: horizon(clamp(act.days || base.holdDays, 0.04, 60)), ...(act.prob > 0 ? {prob: clamp(act.prob, 1, 99)} : {}), text}; target.strategy = pb ? pb.name : v2.policy.strategy;
       target.revisions++; target.updatedAt = now; count(v2, me, 'plans'); const gate = v2.policy.riskGate === 'on'; target.status = gate ? 'plan' : 'aprobada'; target.risk = null;
       const to = gate ? 'risk' : 'operator';
-      emit(v2, 'handoff', {from: me, to, symbol, text: `Plan ${symbol}: ${eur(target.plan.eur)}, stop -${target.plan.stopPct}%, objetivo +${target.plan.targetPct}%, ${target.plan.days} días. ${text}`}, now); out.wake.add(to); return null;
+      emit(v2, 'handoff', {from: me, to, symbol, text: `Plan ${symbol}: ${eur(target.plan.eur)}, stop -${target.plan.stopPct}%, objetivo +${target.plan.targetPct}%${target.plan.prob ? ', prob. ' + target.plan.prob + '%' : ''}, ${target.plan.days} días. ${text}`}, now); out.wake.add(to); return null;
     }
     case 'approve': {
       if (!idea || idea.status !== 'plan' || !idea.plan) return symbol + ' no tiene un plan esperando revisión';
-      if (act.eur > 0) idea.plan.eur = Math.min(idea.plan.eur * 3, Math.max(50, act.eur)); if (act.stopPct > 0) idea.plan.stopPct = clamp(act.stopPct, 1, 60);
+      if (act.eur > 0) idea.plan.eur = Math.max(50, act.eur); if (act.stopPct > 0) idea.plan.stopPct = clamp(act.stopPct, 0.3, 60); if (act.targetPct > 0) idea.plan.targetPct = clamp(act.targetPct, 0.5, 400);
       idea.status = 'aprobada'; idea.risk = text; idea.updatedAt = now; count(v2, me, 'approvals');
       emit(v2, 'handoff', {from: me, to: 'operator', symbol, text: `${symbol} aprobado con ${eur(idea.plan.eur)} y stop -${idea.plan.stopPct}%. ${text}`}, now); out.wake.add('operator'); return null;
     }
-    case 'veto': {
+    case 'revise': {
       if (!idea || idea.status !== 'plan') return symbol + ' no tiene un plan esperando revisión';
-      idea.status = 'vetada'; idea.risk = text || 'Sin explicación'; idea.updatedAt = now; count(v2, me, 'vetoes'); count(v2, idea.by, 'vetoed');
-      emit(v2, 'handoff', {from: me, to: 'analyst', symbol, tone: 'veto', text: `Veto a ${symbol}. ${text}`}, now); out.wake.add('analyst'); return null;
+      if (text.length < 10) return 'Di qué número hay que cambiar para que compense';
+      idea.status = 'vetada'; idea.risk = text; idea.updatedAt = now; count(v2, me, 'returns'); tell(v2, 'analyst', me, `${symbol}: ${text}`, now);
+      emit(v2, 'handoff', {from: me, to: 'analyst', symbol, tone: 'revise', text: `Devuelvo ${symbol} a Pedro para ajustar: ${text}`}, now); out.wake.add('analyst'); return null;
     }
     case 'overrule': {
-      if (!idea || idea.status !== 'vetada' || !idea.plan) return symbol + ' no tiene un veto que levantar';
-      idea.status = 'aprobada'; idea.updatedAt = now; count(v2, me, 'overrules'); count(v2, 'risk', 'overruled'); tell(v2, 'risk', me, `He levantado tu veto sobre ${symbol}: ${text}`, now);
-      emit(v2, 'handoff', {from: me, to: 'operator', symbol, tone: 'overrule', text: `Levanto el veto de ${symbol}: adelante. ${text}`}, now); out.wake.add('operator'); return null;
+      if (!idea || idea.status !== 'vetada' || !idea.plan) return symbol + ' no tiene un plan devuelto por María';
+      idea.status = 'aprobada'; idea.updatedAt = now; count(v2, me, 'overrules'); count(v2, 'risk', 'overruled'); tell(v2, 'risk', me, `Doy luz verde a ${symbol} aunque lo devolviste: ${text}`, now);
+      emit(v2, 'handoff', {from: me, to: 'operator', symbol, tone: 'overrule', text: `Luz verde a ${symbol}: adelante. ${text}`}, now); out.wake.add('operator'); return null;
     }
     case 'buy': {
       const ok = idea && idea.plan && (idea.status === 'aprobada' || (idea.status === 'plan' && v2.policy.riskGate === 'off'));
-      if (!ok) return symbol + ' no tiene un plan aprobado' + (idea ? ' (está ' + idea.status + ')' : '') + '. Pide plan a Pedro o aprobación a María';
+      if (!ok) return symbol + ' no tiene un plan aprobado' + (idea ? ' (está ' + idea.status + ')' : '') + '. Pide plan a Pedro o revisión a María';
       const q = s.real.quotes[symbol];
       v2.orders.push({id: 'o' + (++v2.seq), side: 'buy', symbol, ideaId: idea.id, eur: idea.plan.eur, stopPct: idea.plan.stopPct, targetPct: idea.plan.targetPct, days: idea.plan.days, limit: q?.price > 0 ? q.price * 1.04 : 0, thesis: idea.thesis, strategy: idea.strategy || v2.policy.strategy, by: me, at: now, expiresAt: now + 30 * 3600e3, said: text});
       idea.status = 'ordenada'; idea.updatedAt = now; count(v2, me, 'buys'); return null;
@@ -263,12 +280,12 @@ async function webResearch(envDb, s, member, job, env) {
 // con los valores por defecto, para que la cadena idea → plan → riesgo → compra no se atasque.
 function nudge(s, member, env, out, actions) {
   const v2 = s.v2, me = member.id; if (!['analyst', 'risk', 'operator'].includes(me)) return;
-  const touched = new Set(actions.filter(a => ['plan', 'discard', 'approve', 'veto', 'buy'].includes(a.type)).map(a => String(a.symbol || '').toUpperCase().trim())); // pedir datos o mandar mensajes no cuenta como decidir
+  const touched = new Set(actions.filter(a => ['plan', 'discard', 'approve', 'revise', 'buy'].includes(a.type)).map(a => String(a.symbol || '').toUpperCase().trim())); // pedir datos o mandar mensajes no cuenta como decidir
   for (const idea of workFor(s, me).slice(0, 4)) {
     if (touched.has(idea.symbol)) continue; const key = me + ':' + idea.status; idea.stall = idea.stall?.key === key ? {key, n: idea.stall.n + 1} : {key, n: 1};
     if (idea.stall.n < 2) continue; idea.stall = null;
-    const act = me === 'analyst' ? (idea.status === 'vetada' ? {type: 'discard', symbol: idea.symbol, text: 'Vetada y sin plan nuevo: se descarta'} : {type: 'plan', symbol: idea.symbol, text: 'Plan de la casa: nadie lo afinó a tiempo'}) : me === 'risk' ? {type: 'approve', symbol: idea.symbol, text: 'Pasa sin objeciones: dos turnos sin reparos'} : {type: 'buy', symbol: idea.symbol, text: 'Orden lanzada por regla de la casa'};
-    applyAction(s, member, {symbol: '', to: '', text: '', eur: 0, stopPct: 0, targetPct: 0, days: 0, param: '', value: '', ...act}, env, out); count(v2, me, 'nudged');
+    const act = me === 'analyst' ? (idea.status === 'vetada' ? {type: 'discard', symbol: idea.symbol, text: 'Devuelta y sin plan nuevo: se descarta'} : {type: 'plan', symbol: idea.symbol, text: 'Plan de la casa: nadie lo afinó a tiempo'}) : me === 'risk' ? {type: 'approve', symbol: idea.symbol, text: 'Pasa sin objeciones: dos turnos sin reparos'} : {type: 'buy', symbol: idea.symbol, text: 'Orden lanzada por regla de la casa'};
+    applyAction(s, member, {symbol: '', to: '', text: '', eur: 0, stopPct: 0, targetPct: 0, prob: 0, days: 0, param: '', value: '', ...act}, env, out); count(v2, me, 'nudged');
   }
 }
 

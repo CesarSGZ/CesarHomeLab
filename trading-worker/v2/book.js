@@ -15,7 +15,6 @@ export function openPosition(book, asset, order, quote, config, policy, t = Date
   if (!fxValid(book, t)) return {ok: false, reason: 'Sin cambio EUR/USD reciente'};
   if (!freshQuote(quote, t, config)) return {ok: false, retry: true, reason: 'Sin precio reciente en sesión (mercado cerrado o dato retrasado)'};
   if (book.positions.some(p => p.symbol === asset.symbol)) return {ok: false, reason: 'Ya hay una posición abierta en ' + asset.symbol};
-  if (book.positions.length >= policy.maxPositions) return {ok: false, reason: 'Cartera llena: el máximo acordado es ' + policy.maxPositions + ' posiciones'};
   const fx = isSpanish(asset.symbol) ? 1 : book.fx.rate, price = quote.price * (1 + config.slippageBps / 1e4);
   if (order.limit > 0 && price > order.limit) return {ok: false, retry: true, reason: 'Precio por encima del límite fijado (' + order.limit.toFixed(2) + ')'};
   if (!(quote.dollarVolume >= policy.minDollarVolume)) return {ok: false, reason: 'Liquidez insuficiente para entrar sin mover el precio'};
