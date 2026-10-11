@@ -33,10 +33,13 @@ jobs:
       - name: Run regression checks
         run: node --test tests/*.test.mjs
 
+      - name: Build public Pages output
+        run: node scripts/build-pages-dist.mjs
+
       - name: Publish website and multiplayer game
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           wranglerVersion: "4.124.0"
-          command: pages deploy . --project-name=cesar-solla --branch=main
+          command: pages deploy dist --project-name=cesar-solla --branch=main

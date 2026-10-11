@@ -16,7 +16,7 @@ export const SYSTEMS = [
     summary:'Turns a saved change into a published website.',
     explanation:'The deploy workflow checks out main, builds the Galaxy snapshot, and uses Wrangler to upload the site and its Functions to Cloudflare Pages. It runs on pushes and on the configured schedule. A successful GitHub workflow is deployment evidence, not a health check for every service.',
     input:'A push, a scheduled run, or a manual workflow run.',output:'A new Cloudflare Pages deployment.',
-    matches:path=>path.startsWith('.github/workflows/')||path.startsWith('scripts/')||path==='wrangler.jsonc'||path==='.assetsignore'},
+    matches:path=>path.startsWith('.github/workflows/')||path.startsWith('scripts/')||path==='wrangler.jsonc'},
   {id:'edge',number:'03',name:'Cloudflare Pages',tag:'THE PUBLIC FRONT DOOR',colour:'#83d7ed',icon:'cloud',x:46,y:30,
     summary:'One address. The public website and private portal.',
     explanation:'cesar-solla.pages.dev serves the portfolio and Mission Control. Static HTML, styles, JavaScript and images are delivered here; requests under /control/ and /api/agent/ are routed through Pages Functions. Public browsing does not require CesarPC to be switched on.',

@@ -4,6 +4,7 @@ Motor de backtesting propio (pandas) para estrategias semanales sobre ~117 valor
 continuo español con datos gratuitos de Yahoo Finance. Lo ejecuta GitHub Actions
 (`.github/workflows/backtest-lab.yml`) y el resultado se ve en Mission Control → **08 · Backtest Lab**.
 Flujo completo y seguridad: [`docs/backtest-lab.md`](../docs/backtest-lab.md). No se conecta a ningún bróker.
+Esta carpeta no se publica en la web: Pages solo sirve `dist/` (ver `scripts/build-pages-dist.mjs`).
 
 ## Ejecutarlo en local
 
