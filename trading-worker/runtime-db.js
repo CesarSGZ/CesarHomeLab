@@ -11,6 +11,11 @@ const model=x=>['gpt-6-luna','gpt-6.1-sol'].includes(x),agent=x=>['scout','analy
 const oneOf=(...values)=>x=>values.includes(x);
 const jsonPayload=x=>{if(typeof x!=='string'||new TextEncoder().encode(x).length>runtimeDbLimits.payloadBytes)return false;try{const p=JSON.parse(x);return !!p&&typeof p==='object'&&!Array.isArray(p);}catch{return false;}};
 const nowish=(x,now)=>integer(x)&&Math.abs(x-now)<=5*60e3;
+const isoString=x=>typeof x==='string'&&/^\d{4}-\d{2}-\d{2}T[\d:.]+Z$/.test(x);
+const isoNowish=(x,now)=>isoString(x)&&Math.abs(Date.parse(x)-now)<=5*60e3;
+// Backtest Lab: resultados (<1,5 MB, cabe en una fila de D1) y estado de la peticion lanzada desde la web.
+const backtestPayload=x=>jsonPayload(x)&&new TextEncoder().encode(x).length<=1_500_000;
+const backtestRequest=x=>jsonPayload(x)&&x.length<=20000;
 const leaseWindow=(start,end,now)=>nowish(start,now)&&integer(end)&&end>start&&end-start<=900000+1000;
 const spec=(sql,params=[],check=()=>true)=>[sql,{params,check}];
 const specs=new Map([
@@ -43,7 +48,10 @@ const specs=new Map([
  spec("SELECT * FROM trading_command_queue WHERE status='queued' ORDER BY created_at LIMIT 10"),
  spec("UPDATE trading_command_queue SET status='running' WHERE id=? AND status='queued' RETURNING id",[identity]),
  spec("UPDATE trading_command_queue SET status='queued' WHERE id=? AND status='running'",[identity]),
- spec('UPDATE trading_command_queue SET status=?,completed_at=?,result=? WHERE id=?',[oneOf('complete','failed'),integer,jsonPayload,identity],(p,n)=>nowish(p[1],n))
+ spec('UPDATE trading_command_queue SET status=?,completed_at=?,result=? WHERE id=?',[oneOf('complete','failed'),integer,jsonPayload,identity],(p,n)=>nowish(p[1],n)),
+ spec("SELECT payload,updated_at FROM personal_datasets WHERE name='backtest-lab-request'"),
+ spec("UPDATE personal_datasets SET payload=?,updated_at=? WHERE name='backtest-lab-request' AND json_extract(payload,'$.status')=? RETURNING payload",[backtestRequest,isoString,oneOf('queued','running')],(p,n)=>isoNowish(p[1],n)),
+ spec("INSERT INTO personal_datasets(name,payload,updated_at) VALUES('backtest-lab',?,?) ON CONFLICT(name) DO UPDATE SET payload=excluded.payload,updated_at=excluded.updated_at",[backtestPayload,isoString],(p,n)=>isoNowish(p[1],n))
 ]);
 export const runtimeSqlStatements=Object.freeze([...specs.keys()]);
 function invalid(message,status=400){const e=Error(message);e.status=status;return e;}

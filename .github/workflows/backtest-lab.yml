@@ -1,0 +1,87 @@
+name: Backtest Lab
+
+# Cada 10 minutos mira si hay una petición lanzada desde Mission Control (no hace nada si no la hay).
+# Los sábados recalcula con los parámetros por defecto y datos frescos.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '*/10 * * * *'
+    - cron: '17 5 * * 6'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: backtest-lab
+  cancel-in-progress: false
+
+jobs:
+  backtest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Is there a backtest to run?
+        id: claim
+        env:
+          OFFICE_DEV_TOKEN: ${{ secrets.OFFICE_DEV_TOKEN }}
+        run: node scripts/backtest-lab.mjs claim "$RUNNER_TEMP/params.json" ${{ (github.event_name == 'workflow_dispatch' || github.event.schedule == '17 5 * * 6') && 'weekly' || '' }}
+
+      - uses: actions/setup-python@v5
+        if: steps.claim.outputs.run == 'true'
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: backtest-lab/requirements.txt
+
+      - name: Restore market data cache
+        if: steps.claim.outputs.run == 'true'
+        id: datos
+        uses: actions/cache/restore@v4
+        with:
+          path: backtest-lab/datos
+          key: backtest-datos-${{ github.run_id }}
+          restore-keys: backtest-datos-
+
+      - name: Download data from Yahoo Finance
+        if: steps.claim.outputs.run == 'true'
+        working-directory: backtest-lab
+        run: |
+          pip install -q -r requirements.txt
+          # Datos completos los sábados o si no hay copia previa; si no, solo precios (más rápido).
+          if [ "${{ steps.claim.outputs.trigger }}" = "weekly" ] || [ ! -f datos/fundamentales.csv.gz ]; then
+            python descargar_datos.py || echo "::warning::descarga incompleta, se usan los datos en caché"
+          else
+            python descargar_datos.py --precios || echo "::warning::descarga incompleta, se usan los datos en caché"
+          fi
+
+      - name: Run backtest
+        if: steps.claim.outputs.run == 'true'
+        working-directory: backtest-lab
+        run: python backtest.py --params "$RUNNER_TEMP/params.json" --web "$RUNNER_TEMP/web.json" --origen "${{ steps.claim.outputs.trigger }}" --sin-informe
+
+      - name: Publish results to Mission Control
+        if: steps.claim.outputs.run == 'true'
+        env:
+          OFFICE_DEV_TOKEN: ${{ secrets.OFFICE_DEV_TOKEN }}
+        run: node scripts/backtest-lab.mjs publish "$RUNNER_TEMP/web.json"
+
+      - name: Mark request as failed
+        if: failure() && steps.claim.outputs.run == 'true'
+        env:
+          OFFICE_DEV_TOKEN: ${{ secrets.OFFICE_DEV_TOKEN }}
+        run: node scripts/backtest-lab.mjs fail "La ejecución en GitHub Actions falló (run ${{ github.run_id }})."
+
+      - name: Save market data cache
+        if: always() && steps.claim.outputs.run == 'true' && hashFiles('backtest-lab/datos/precios.csv.gz') != ''
+        uses: actions/cache/save@v4
+        with:
+          path: backtest-lab/datos
+          key: backtest-datos-${{ github.run_id }}

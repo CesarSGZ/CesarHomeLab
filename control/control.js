@@ -451,6 +451,7 @@ async function initialiseControl(){
     window.dispatchEvent(new CustomEvent('homelab:trading-init',{detail:csrfToken}));
     window.TradingLab?.initialise(csrfToken);
   }
+  if(hasCapability('backtest:read')){window.BacktestLabPending=csrfToken;window.BacktestLab?.initialise(csrfToken)}
   if(hasCapability('thermal:read'))await loadThermalLab();
 }
 
