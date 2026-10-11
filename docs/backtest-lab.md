@@ -58,3 +58,20 @@ mire los números.
 Supervivencia (Yahoo no tiene empresas excluidas), solo 4 ejercicios de cuentas (estrategia de valor
 desde abril de 2023), comisión de IBKR aproximada y sin impuestos. Están explicadas en el propio
 apartado («Antes de fiarte»).
+
+
+## Versión global (octubre 2026)
+
+- **Universo**: ~8.400 acciones de 23 bolsas que IBKR ofrece a un particular europeo (EE. UU., Canadá,
+  México, Europa incl. toda la bolsa española, Japón, Hong Kong, Singapur, Australia), construido con el
+  screener de Yahoo (`backtest-lab/universo.py`). Todo en EUR. Benchmark: S&P 500 con dividendos en EUR.
+- **Datos**: `descargar_global.py` (precios desde 2006 en parquet, tipos de cambio, fundamentales por valor).
+  Limpieza de errores de Yahoo (picos de un día, splits no aplicados, rupturas de serie) en `bt/global_datos.py`.
+- **Motor**: `bt/motor_global.py` (costes por mercado: comisión IBKR aprox., stamp duty UK/IE/HK, TTF Francia,
+  Tobin Italia, ITF España, cambio de divisa, slippage por liquidez).
+- **Búsqueda**: `investigar.py` prueba rejillas solo en entrenamiento (precio 2008-2018; fundamentales
+  abr-2023 a dic-2024), valida las finalistas en el periodo no visto y calcula el Sharpe deflactado.
+  Todo lo probado queda en `resultados/investigacion_*.csv` (local, no versionado).
+- **Publicación**: `estrategias_elegidas.json` dice qué estrategias se muestran; `publicar.py` las ejecuta y
+  genera el JSON de la web. El workflow semanal ejecuta `descargar_global.py semanal` + `publicar.py`.
+- **Interfaz**: sin formularios; los cambios de estrategia se piden por chat.

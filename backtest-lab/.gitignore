@@ -1,4 +1,5 @@
 datos/
+datos_global/
 resultados/
 .venv/
 __pycache__/
