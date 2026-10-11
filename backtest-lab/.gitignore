@@ -1,0 +1,4 @@
+datos/
+resultados/
+.venv/
+__pycache__/

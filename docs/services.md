@@ -10,6 +10,7 @@
 | LAB-01 | Terra Powerplant Lab | Cloudflare Pages | Owner portal | `control/data/` | Engineering experiment |
 | GIT-01 | GitHub Galaxy | GitHub API + Cloudflare Pages | Owner portal | `control/galaxy-model.js` and authenticated read-only endpoint | Current architecture and source explorer |
 | TRD-01 | Agent Office | Cloudflare Worker + Pages + D1 | Owner portal; token-authenticated IBKR bridge | `trading-worker/` and `control/trading.js` | Small-cap research and local simulated trading |
+| BTL-01 | Backtest Lab | GitHub Actions (Python) + Pages + D1 | Owner portal; runner token via the scoped D1 bridge | `backtest-lab/` and `control/backtest.js` | Weekly strategy backtests on the Spanish continuous market |
 
 ## Naming rule
 

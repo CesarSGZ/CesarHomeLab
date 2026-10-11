@@ -17,6 +17,7 @@
   <link rel="stylesheet" href="training.css?v=20261001strength">
   <link rel="stylesheet" href="office/office.css?v=20261007d">
   <link rel="stylesheet" href="doors.css?v=20261006a">
+  <link rel="stylesheet" href="backtest.css?v=20261011b">
   <link rel="stylesheet" href="/theme.css?v=20261001contrast">
   <link rel="stylesheet" href="flight-control.css?v=20261007b">
 </head>
@@ -37,6 +38,7 @@
       <button class="nav-item" data-view="training"><span>05</span>Training</button>
       <button class="nav-item" data-view="trading"><span>06</span>Agent Office</button>
       <button class="nav-item" data-view="doors"><span>07</span>Juego de las Puertas</button>
+      <button class="nav-item" data-view="backtest"><span>08</span>Backtest Lab</button>
     </nav>
     <div class="sidebar-foot"><span><i></i> Secure session</span><button id="sign-out" type="button">Sign out ↗</button></div>
   </aside>
@@ -62,6 +64,10 @@
         <article class="module module-wide" data-requires="trading:manage" data-accent="violet">
           <header><span>AGENT OFFICE</span><small>EXPERIMENT / 06</small></header>
           <div class="thermal-summary-body"><div class="thermal-mark" aria-hidden="true"><b>AO</b></div><div><p>SMALL CAPS / PAPER TRADING</p><strong>Tu equipo de inversión, en pruebas.</strong><small>Oficina de agentes, universo amplio y cartera completamente simulada.</small></div><button class="module-action" data-open="trading">Entrar a la oficina →</button></div>
+        </article>
+        <article class="module module-wide" data-requires="backtest:read" data-accent="acid">
+          <header><span>BACKTEST LAB</span><small>EXPERIMENT / 08</small></header>
+          <div class="thermal-summary-body"><div class="thermal-mark" aria-hidden="true"><b>BT</b></div><div><p>MERCADO CONTINUO / ESTRATEGIAS SEMANALES</p><strong>¿Bate la estrategia al IBEX?</strong><small>Reglas en simple, resultados frente al índice con dividendos y botón para relanzar el cálculo.</small></div><button class="module-action" data-open="backtest">Abrir el laboratorio →</button></div>
         </article>
         <article class="module module-wide standard-welcome" data-accent="cyan" data-standard-only>
           <header><span>WELCOME</span><small>HOME / 01</small></header>
@@ -318,6 +324,9 @@
     <section class="view trading-view" id="trading" data-title="Agent Office" data-code="06" lang="es">
       <div id="trading-app"><p class="eyebrow"><span></span> AGENT OFFICE / PAPER TRADING</p><h2>Preparando la oficina.</h2><p>Conectando con el servicio privado.</p></div>
     </section>
+    <section class="view backtest-view" id="backtest" data-title="Backtest Lab" data-code="08" lang="es">
+      <div id="backtest-app" aria-live="polite"><p class="eyebrow"><span></span> BACKTEST LAB</p><h2>Cargando el último backtest.</h2></div>
+    </section>
     <section class="view doors-view" id="doors" data-title="Juego de las Puertas" data-code="07" lang="es">
       <div id="doors-app"><p class="eyebrow"><span></span> JUEGO DE LAS PUERTAS</p><h2>Abriendo el portal.</h2><p>Conectando con las salas compartidas…</p></div>
     </section>
@@ -325,8 +334,9 @@
   <script src="doors.js?v=20261006a"></script>
   <script type="module" src="office/app.js?v=20261008risk"></script>
   <script src="training.js?v=20261001strength"></script>
+  <script type="module" src="backtest.js?v=20261011c"></script>
   <script src="github-galaxy.js?v=20260928atlas"></script>
-  <script src="control.js?v=20261001training"></script>
+  <script src="control.js?v=20261011backtest"></script>
   <script src="flight-control.js?v=20261007a" defer></script>
   <script src="thermal-viewer.bundle.js?v=20260805o"></script>
 </body>

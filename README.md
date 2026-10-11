@@ -19,6 +19,7 @@ small agents that connect cloud controls to services running on ServerCesar.
 | Minecraft recovery agent | `/server-agent/` | ServerCesar / Windows |
 | GitHub Galaxy | `/control/` | GitHub Actions + browser canvas |
 | Thermal experiment | `/control/data/` and `/control/assets/thermal/` | Versioned static evidence |
+| Backtest Lab (strategy backtests) | `/backtest-lab/` and `/control/backtest.js` | GitHub Actions (Python) + D1 |
 
 The detailed boundaries and request flows are documented in
 [`docs/architecture.md`](docs/architecture.md). The service inventory lives in
@@ -32,6 +33,7 @@ The detailed boundaries and request flows are documented in
 |-- functions/       Cloudflare backend functions and API routes
 |-- migrations/      D1 database schema history
 |-- server-agent/    Restricted Minecraft recovery agent for Windows
+|-- backtest-lab/    Python backtesting engine run by GitHub Actions (not published)
 |-- docs/            Architecture and service documentation
 |-- assets/          Public portfolio assets
 |-- index.html       Public portfolio entry point

@@ -65,7 +65,7 @@ test('actual engine lock and cost settlement use the exact RPC without OAuth or 
  assert.equal(f.sqlite.prepare('SELECT status FROM trading_calls').get().status,'complete');assert.ok(f.sqlite.prepare('SELECT spent_eur FROM trading_operating_budget').get().spent_eur>0);
 });
 test('current engine and infrastructure literal queries are covered, with credential operations deliberately excluded',()=>{
- const paths=['trading-worker/store.js','trading-worker/v2/llm.js','trading-worker/v2/cycle.js','scripts/office-cloud-cycle.mjs','scripts/office-recovery.mjs','scripts/office-availability.mjs'];
+ const paths=['trading-worker/store.js','trading-worker/v2/llm.js','trading-worker/v2/cycle.js','scripts/office-cloud-cycle.mjs','scripts/office-recovery.mjs','scripts/office-availability.mjs','scripts/backtest-lab.mjs'];
  const protectedSql=new Set(['SELECT cipher,iv FROM trading_secrets WHERE name=?','DELETE FROM trading_secrets WHERE name=?','INSERT INTO trading_secrets (name,cipher,iv,updated_at) VALUES (?,?,?,?) ON CONFLICT(name) DO UPDATE SET cipher=excluded.cipher,iv=excluded.iv,updated_at=excluded.updated_at']);
  const allowed=new Set(runtimeSqlStatements),used=new Set();let checked=0;
  for(const path of paths){const source=readFileSync(new URL('../'+path,import.meta.url),'utf8');
