@@ -96,7 +96,18 @@ def leer_todo():
                 t["tipo"], t["disponible"] = "ttm", t.index + pd.Timedelta(days=RETRASO_TRIM)
                 fotos.append(t.assign(ticker=tk))
     f = pd.concat(fotos).rename_axis("periodo").reset_index()
-    return f.sort_values(["ticker", "disponible"]), pd.DataFrame.from_dict(info, orient="index")
+    info = pd.DataFrame.from_dict(info, orient="index")
+    # Yahoo bloquea la ficha de empresa a los servidores de GitHub: se completa con la copia versionada
+    # (sector, divisa de las cuentas, capitalización...), que apenas cambia.
+    respaldo = DIR.parent / "fichas_empresas.csv"
+    if respaldo.exists():
+        r = pd.read_csv(respaldo).set_index("ticker")
+        info = info.reindex(info.index.union(r.index))
+        for c in r.columns:
+            if c not in info:
+                info[c] = np.nan
+            info[c] = info[c].where(info[c].notna(), r[c].reindex(info.index))
+    return f.sort_values(["ticker", "disponible"]), info
 
 
 def _invertir(estado):

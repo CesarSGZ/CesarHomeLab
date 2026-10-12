@@ -151,8 +151,18 @@ def fundamentales_valor(tk, forzar=False):
                 time.sleep(5)
     else:
         return tk, "fallo"
+    nueva_ficha = bool(salida["info"].get("marketCap") or salida["info"].get("sector"))
+    if not nueva_ficha and not salida["estados"]:
+        return tk, "fallo"
+    if ruta.exists():
+        # nunca sustituir datos buenos por una descarga peor (Yahoo a veces bloquea la ficha o las cuentas)
+        viejo = json.loads(ruta.read_text(encoding="utf-8"))
+        if not nueva_ficha and viejo.get("info"):
+            salida["info"] = viejo["info"]
+        for k, v in viejo.get("estados", {}).items():
+            salida["estados"].setdefault(k, v)
     ruta.write_text(json.dumps(salida), encoding="utf-8")
-    return tk, "ok"
+    return tk, "ok" if nueva_ficha else "solo cuentas"
 
 
 def fundamentales(hilos=4, max_minutos=None, refrescar_dias=None):
@@ -175,7 +185,7 @@ def fundamentales(hilos=4, max_minutos=None, refrescar_dias=None):
         for f in as_completed(futuros):
             tk, estado = f.result()
             hechos += 1
-            fallos += estado == "fallo"
+            fallos += estado in ("fallo", "solo cuentas")
             if hechos % 100 == 0:
                 ritmo = hechos / (time.time() - t0)
                 print(f"  {hechos}/{len(pendientes)} ({fallos} fallos) · {ritmo:.1f}/s · "
