@@ -19,11 +19,14 @@ export async function onRequest(context) {
 
   if (request.method === 'GET') {
     const url = new URL(request.url);
-    const [result, pending] = await Promise.all([
-      url.searchParams.get('only') === 'request' ? null : readRow(env, 'backtest-lab'),
+    const soloPeticion = url.searchParams.get('only') === 'request';
+    const [result, pending, paper] = await Promise.all([
+      soloPeticion ? null : readRow(env, 'backtest-lab'),
       readRow(env, 'backtest-lab-request'),
+      soloPeticion ? null : readRow(env, 'ibkr-paper'),
     ]);
     return json({ok: true, result: result?.payload || null, resultUpdatedAt: result?.updatedAt || null,
+      paper: paper?.payload || null,
       request: pending?.payload || null, active: requestIsActive(pending?.payload),
       canRun: userCan(session.user, 'backtest:run')});
   }

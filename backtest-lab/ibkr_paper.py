@@ -30,6 +30,7 @@ REPO = "CesarSGZ/CesarHomeLab"
 DIR = Path(__file__).resolve().parent / "ibkr"
 DIR.mkdir(exist_ok=True)
 PUERTOS_PAPER = {4002, 7497}
+DIRECTAS = {"WSE"}
 
 # sufijo de Yahoo -> (bolsa principal en IBKR, divisa)
 MERCADOS = {
@@ -58,6 +59,8 @@ def contrato(ticker):
     simbolo = simbolo.replace("-", ".") if sufijo == "" else simbolo.replace("-", " ")
     if sufijo == "":
         return Stock(simbolo, "SMART", "USD")
+    if bolsa in DIRECTAS:
+        return Stock(simbolo, bolsa, divisa)            # bolsas sin enrutado SMART en IBKR
     return Stock(simbolo, "SMART", divisa, primaryExchange=bolsa)
 
 
@@ -99,6 +102,62 @@ def precios_eur(tickers):
     return precio, fx
 
 
+def foto(puerto, enviar=True):
+    """Foto de la cuenta paper para la web: valor, posiciones, operaciones recientes y S&P 500 del día.
+    Se manda a GitHub (workflow ibkr-paper-foto.yml), que la guarda en la base de datos de la web."""
+    import yfinance as yf
+    from ib_async import IB, ExecutionFilter
+    ib = IB()
+    ib.connect("127.0.0.1", puerto, clientId=21, readonly=True, timeout=20)
+    cuentas = ib.managedAccounts()
+    if not cuentas or not all(c.startswith("DU") for c in cuentas):
+        ib.disconnect()
+        raise SystemExit(f"Cuentas {cuentas}: no parecen PAPER. Me paro.")
+    cuenta = cuentas[0]
+    res = {v.tag: v for v in ib.accountSummary(cuenta)}
+    num = lambda tag: round(float(res[tag].value), 2) if tag in res and res[tag].value not in ("", None) else None
+    posiciones = []
+    for it in ib.portfolio(cuenta):
+        c = it.contract
+        coste = it.averageCost * it.position
+        posiciones.append({"simbolo": c.symbol, "divisa": c.currency, "bolsa": c.primaryExchange or c.exchange,
+                           "acciones": round(it.position, 4), "precioMedio": round(it.averageCost, 4),
+                           "precio": round(it.marketPrice, 4), "valor": round(it.marketValue, 2),
+                           "ganancia": round(it.unrealizedPNL, 2),
+                           "gananciaPct": round(it.unrealizedPNL / coste, 4) if coste else None})
+    # IBKR trocea cada orden en muchas ejecuciones: se agrupan por valor, sentido y día (precio medio ponderado)
+    grupos = {}
+    for f in ib.reqExecutions(ExecutionFilter()):
+        e = f.execution
+        clave = (e.time.date().isoformat(), f.contract.symbol, e.side)
+        g = grupos.setdefault(clave, {"fecha": e.time.date().isoformat(), "simbolo": f.contract.symbol,
+                                      "lado": "compra" if e.side == "BOT" else "venta", "acciones": 0.0,
+                                      "importe": 0.0, "divisa": f.contract.currency})
+        g["acciones"] += e.shares
+        g["importe"] += e.shares * e.price
+    ejecuciones = [{**{k: v for k, v in g.items() if k != "importe"}, "acciones": round(g["acciones"], 4),
+                    "precio": round(g["importe"] / g["acciones"], 4)} for g in grupos.values() if g["acciones"]]
+    pendientes = len(ib.openTrades())
+    ib.disconnect()
+    sp = yf.download(["^SP500TR", "EURUSD=X"], period="10d", progress=False)["Close"].ffill().dropna()
+    sp_eur = float(sp["^SP500TR"].iloc[-1] / sp["EURUSD=X"].iloc[-1])
+    datos = {"fecha": datetime.now(timezone.utc).isoformat(timespec="seconds"), "cuenta": cuenta,
+             "divisa": res["NetLiquidation"].currency, "valor": num("NetLiquidation"), "efectivo": num("TotalCashValue"),
+             "gananciaNoRealizada": num("UnrealizedPnL"), "gananciaRealizada": num("RealizedPnL"),
+             "sp500eur": round(sp_eur, 4), "ordenesPendientes": pendientes,
+             "posiciones": sorted(posiciones, key=lambda x: -(x["valor"] or 0)),
+             "ejecuciones": sorted(ejecuciones, key=lambda x: x["fecha"], reverse=True)[:60]}
+    texto = json.dumps(datos, ensure_ascii=False, separators=(",", ":"))
+    (DIR / "fotos").mkdir(exist_ok=True)
+    (DIR / "fotos" / f"{datetime.now():%Y-%m-%d_%H%M}.json").write_text(texto, encoding="utf-8")
+    log(f"Foto: valor {datos['valor']:,.0f} {datos['divisa']}, {len(posiciones)} posiciones, "
+        f"{len(ejecuciones)} ejecuciones recientes, {pendientes} órdenes pendientes ({len(texto)} bytes)")
+    if enviar:
+        subprocess.run(["gh", "workflow", "run", "ibkr-paper-foto.yml", "-R", REPO, "--ref", "main", "-f", f"foto={texto}"],
+                       check=True)
+        log("Foto enviada a GitHub; en 1-2 minutos aparece en la web.")
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--ejecutar", action="store_true", help="enviar las órdenes (si no, solo simulación)")
@@ -106,7 +165,13 @@ def main():
     ap.add_argument("--cartera", help="fichero cartera_objetivo.json local")
     ap.add_argument("--pesos", nargs="*", default=["fundamental=0.5", "precio=0.5"])
     ap.add_argument("--max-dias", type=int, default=9, help="no operar con una cartera más antigua que esto")
+    ap.add_argument("--foto", action="store_true", help="solo sacar la foto de la cuenta y mandarla a la web")
+    ap.add_argument("--sin-enviar", action="store_true", help="con --foto: guardarla en local sin mandarla")
     args = ap.parse_args()
+    if args.foto:
+        if args.puerto not in PUERTOS_PAPER:
+            raise SystemExit("Puerto no paper. Me paro.")
+        return foto(args.puerto, enviar=not args.sin_enviar)
     if args.puerto not in PUERTOS_PAPER:
         raise SystemExit(f"Puerto {args.puerto} no es de paper trading ({sorted(PUERTOS_PAPER)}). Me paro.")
     pesos = {k: float(v) for k, v in (p.split("=") for p in args.pesos)}
