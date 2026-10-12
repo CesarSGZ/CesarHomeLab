@@ -1,6 +1,6 @@
 /* Backtest Lab (Mission Control 08) · versión sencilla */
-.backtest-view{--bt-bg:#0c1a20;--bt-soft:#11252d;--bt-ink:#eef3ec;--bt-muted:#93a5a0;--bt-line:rgba(238,243,236,.13);--bt-s:#c9ff3d;--bt-b:#ff9f5a;--bt-u:#a98be0;--bt-up:#7fdc8f;--bt-down:#ff7b72;--bt-accent:#52d9ff;color:var(--bt-ink)}
-html[data-theme=day] .backtest-view{--bt-bg:#f9fcfe;--bt-soft:#e9f0f5;--bt-ink:#17303f;--bt-muted:#557083;--bt-line:#c4d5e1;--bt-s:#3f7d12;--bt-b:#c25a12;--bt-u:#6d4fb0;--bt-up:#1d7a3a;--bt-down:#b3261e;--bt-accent:#1d6f9a}
+.backtest-view{--bt-bg:#0c1a20;--bt-soft:#11252d;--bt-ink:#eef3ec;--bt-muted:#93a5a0;--bt-line:rgba(238,243,236,.13);--bt-s:#c9ff3d;--bt-b:#ff9f5a;--bt-u:#a98be0;--bt-up:#7fdc8f;--bt-down:#ff7b72;--bt-amber:#f2c14e;--bt-accent:#52d9ff;color:var(--bt-ink)}
+html[data-theme=day] .backtest-view{--bt-bg:#f9fcfe;--bt-soft:#e9f0f5;--bt-ink:#17303f;--bt-muted:#557083;--bt-line:#c4d5e1;--bt-s:#3f7d12;--bt-b:#c25a12;--bt-u:#6d4fb0;--bt-up:#1d7a3a;--bt-down:#b3261e;--bt-amber:#946b07;--bt-accent:#1d6f9a}
 .backtest-view button{font:inherit;color:inherit}
 .bt-hero h2{margin:0;font-size:clamp(38px,4.6vw,66px);line-height:1;letter-spacing:-.05em}
 .bt-hero h2 em{font:italic 1em Georgia,serif;color:var(--bt-b)}
@@ -121,6 +121,6 @@ html[data-theme=day] .backtest-view{--bt-bg:#f9fcfe;--bt-soft:#e9f0f5;--bt-ink:#
 .bt-paper-sel{margin:0 0 14px}
 .bt-sem{display:inline-block;min-width:26px;padding:3px 8px;border-radius:999px;text-align:center;font:600 12px DM Mono,monospace;cursor:help}
 .bt-sem.verde{background:color-mix(in srgb,var(--bt-up) 18%,transparent);color:var(--bt-up)}
-.bt-sem.ambar{background:color-mix(in srgb,#d9a521 22%,transparent);color:#a77a0c}
+.bt-sem.ambar{background:color-mix(in srgb,var(--bt-amber) 20%,transparent);color:var(--bt-amber)}
 .bt-sem.rojo{background:color-mix(in srgb,var(--bt-down) 18%,transparent);color:var(--bt-down)}
 .bt-sem.na{color:var(--bt-muted)}
