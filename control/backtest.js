@@ -1,7 +1,7 @@
 // Backtest Lab (Mission Control 08): resultados de las estrategias frente al S&P 500, en simple.
 // El cálculo lo hace backtest-lab/ (Python) en GitHub Actions; aquí solo se dibuja lo guardado en D1.
 const app = document.getElementById('backtest-app');
-let data = null, paper = null, sid = null, tramo = 'test', loaded = false, loading = false, verTodas = false, ejemplo = 'ganadora', anioSel = null;
+let data = null, paper = null, vistaPaper = 'global', sid = null, tramo = 'test', loaded = false, loading = false, verTodas = false, ejemplo = 'ganadora', anioSel = null;
 
 const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
 const nf = (d = 1) => new Intl.NumberFormat('es-ES', {minimumFractionDigits: d, maximumFractionDigits: d, useGrouping: 'always'});
@@ -233,18 +233,25 @@ function cabecera() {
 
 function renderPaper() {
   const u = paper.ultima, h = paper.historial, ini = h[0];
-  const rent = u.valor / ini.valor - 1;
+  const ests = u.estrategias || {};
+  if (vistaPaper !== 'global' && !ests[vistaPaper]) vistaPaper = 'global';
+  const e = vistaPaper === 'global' ? null : ests[vistaPaper];
+  const inicial = e ? e.asignado : (u.capitalInicial || ini.valor);
+  const actual = e ? e.valor : u.valor;
+  const rent = actual / inicial - 1;
   const rentSp = u.sp500eur && ini.sp500eur ? u.sp500eur / ini.sp500eur - 1 : null;
-  const invertido = u.efectivo !== null ? (u.valor - u.efectivo) / u.valor : null;
-  const pos = (u.posiciones || []).slice().sort((a, b) => (b.gananciaPct ?? 0) - (a.gananciaPct ?? 0));
+  const invertido = e ? e.invertido / e.valor : (u.efectivo !== null ? (u.valor - u.efectivo) / u.valor : null);
+  const pos = (u.posiciones || []).filter(x => !e || x.estrategia === vistaPaper).sort((a, b) => (b.gananciaPct ?? 0) - (a.gananciaPct ?? 0));
   const ganan = pos.filter(x => (x.gananciaPct ?? 0) > 0).length;
-  const ops = (paper.ejecuciones || []).slice(0, 30);
-  app.innerHTML = `${cabecera()}
+  const ops = (paper.ejecuciones || []).filter(x => !e || x.estrategia === vistaPaper).slice(0, 30);
+  const selector = Object.keys(ests).length ? `<div class="bt-pills bt-paper-sel" role="group" aria-label="Qué cartera ver">${[['global', 'Global'], ...Object.entries(ests).map(([k, x]) => [k, x.nombre])].map(([k, l]) =>
+    `<button type="button" aria-pressed="${vistaPaper === k}" data-vp="${esc(k)}">${esc(l)}</button>`).join('')}</div>` : '';
+  app.innerHTML = `${cabecera()}${selector}
     <section class="bt-verdict ${rentSp === null ? '' : rent >= rentSp ? 'gana' : 'pierde'}"><b>${signed(rent, 2)} % desde ${fecha(ini.fecha)}</b>
       <span>${rentSp === null ? '' : `El S&P 500 (en euros) ha hecho ${signed(rentSp, 2)} % en el mismo tiempo. `}Cuenta ${esc(u.cuenta)} · última foto ${fechaHora(u.fecha)}${u.ordenesPendientes ? ` · ${u.ordenesPendientes} órdenes pendientes` : ''}</span></section>
     <section class="bt-res bt-paper-kpis">
-      <div><small>Valor de la cuenta</small><b>${eur0(u.valor)}</b><span>empezó con ${eur0(ini.valor)}</span></div>
-      <div class="${rent >= 0 ? 'up' : 'down'}"><small>Ganancia</small><b>${eur0(u.valor - ini.valor)}</b><span>${signed(rent, 2)} %</span></div>
+      <div><small>${e ? 'Valor de la estrategia' : 'Valor de la cuenta'}</small><b>${eur0(actual)}</b><span>empezó con ${eur0(inicial)}</span></div>
+      <div class="${rent >= 0 ? 'up' : 'down'}"><small>Ganancia</small><b>${eur0(actual - inicial)}</b><span>${signed(rent, 2)} %${e && e.realizada ? ` · ${eur0(e.realizada)} ya cerrados` : ''}</span></div>
       <div><small>Invertido</small><b>${pct(invertido, 0)}</b><span>${pos.length} posiciones · ${ganan} en positivo</span></div>
     </section>
     <section class="bt-card"><div class="bt-legend"><span class="s">Cartera paper</span><span class="b">S&amp;P 500</span></div>
@@ -258,19 +265,21 @@ function renderPaper() {
         <tr><td>${fecha(e.fecha)}</td><td><span class="${e.lado === 'compra' ? 'up' : 'down'}">${e.lado === 'compra' ? '▲ Compra' : '▼ Venta'}</span> ${nf(0).format(e.acciones)} <b>${esc(e.simbolo)}</b></td><td>${num(e.precio)} ${esc(e.divisa)}</td></tr>`).join('')}</tbody></table></div></section>
     <p class="bt-foot">Dinero ficticio en la cuenta paper de Interactive Brokers. Cada lunes Claude aplica la cartera objetivo de las dos estrategias (50 % cada una).</p>`;
   app.querySelectorAll('[data-s]').forEach(b => b.onclick = () => { sid = b.dataset.s; render(); });
-  graficoPaper(h);
+  app.querySelectorAll('[data-vp]').forEach(b => b.onclick = () => { vistaPaper = b.dataset.vp; renderPaper(); });
+  graficoPaper(h, e ? vistaPaper : null, inicial);
 }
 
 const eur0 = x => x === null || x === undefined ? '–' : new Intl.NumberFormat('es-ES', {style: 'currency', currency: 'EUR', maximumFractionDigits: 0, useGrouping: 'always'}).format(x);
 
-function graficoPaper(h) {
+function graficoPaper(h, clave, inicial) {
   const box = app.querySelector('#bt-paper-chart');
   if (h.length < 2) { box.innerHTML = '<p class="bt-note">La gráfica aparecerá en cuanto haya dos fotos de la cuenta (se toman cada día de mercado).</p>'; return; }
-  const v = h.map(x => x.valor / h[0].valor), b = h.map(x => x.sp500eur && h[0].sp500eur ? x.sp500eur / h[0].sp500eur : null);
-  const all = [...v, ...b.filter(Boolean)], lo = Math.min(...all), hi = Math.max(...all);
+  const valorDe = x => clave ? (x.estrategias?.[clave] ?? null) : x.valor;
+  const v = h.map(x => valorDe(x) === null ? null : valorDe(x) / inicial), b = h.map(x => x.sp500eur && h[0].sp500eur ? x.sp500eur / h[0].sp500eur : null);
+  const all = [...v.filter(x => x !== null), ...b.filter(Boolean), 1], lo = Math.min(...all), hi = Math.max(...all);
   const narrow = box.clientWidth < 600, W = narrow ? 600 : 1000, H = narrow ? 360 : 300, L = 60, R = 12, T = 12, B = 28, n = h.length;
   const x = i => L + i / (n - 1) * (W - L - R), y = val => T + (1 - (val - lo) / (hi - lo || 1)) * (H - T - B);
-  const path = arr => arr.map((val, i) => val === null ? '' : `${i ? 'L' : 'M'}${x(i).toFixed(1)},${y(val).toFixed(1)}`).join('');
+  const path = arr => arr.map((val, i) => val === null ? '' : `${i && arr[i - 1] !== null ? 'L' : 'M'}${x(i).toFixed(1)},${y(val).toFixed(1)}`).join('');
   const ticks = [lo, 1, hi].filter((t, i, a) => a.indexOf(t) === i);
   box.innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Cartera paper frente al S&P 500">
     ${ticks.map(t => `<line class="grid" x1="${L}" x2="${W - R}" y1="${y(t)}" y2="${y(t)}"/><text class="axis" x="${L - 6}" y="${y(t) + 4}" text-anchor="end">${signed(t - 1, 1)}%</text>`).join('')}

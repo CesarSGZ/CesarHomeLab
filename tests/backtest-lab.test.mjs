@@ -127,8 +127,12 @@ test('IBKR paper snapshots: only paper accounts, one history point per day, stor
     ejecuciones: [{fecha: '2026-10-12', simbolo: 'TEAM', lado: 'compra', acciones: 180, precio: 210}]};
   assert.throws(() => limpiarFoto({...base, cuenta: 'U1234567'}), /cuenta_no_paper/);
   assert.throws(() => limpiarFoto({...base, valor: 'mucho'}), /foto_incompleta/);
-  const limpia = limpiarFoto(JSON.stringify(base));
+  const limpia = limpiarFoto(JSON.stringify({...base, capitalInicial: 1e6,
+    estrategias: {fundamental: {nombre: 'Valor + momentum', asignado: 5e5, valor: 493746.5, invertido: 474431.6, noRealizada: -6253.5, realizada: 0, posiciones: 19},
+      'NO VALIDA': {valor: 1}}}));
   assert.equal(limpia.posiciones[0].extra, undefined);
+  assert.deepEqual(Object.keys(limpia.estrategias), ['fundamental'], 'only well-formed strategy keys');
+  assert.equal(combinar(null, limpia).historial[0].estrategias.fundamental, 493746.5);
   const dos = combinar(combinar(null, limpia), {...limpia, fecha: '2026-10-12T20:00:00+00:00', valor: 1000100});
   assert.equal(dos.historial.length, 1, 'same day replaces');
   const tres = combinar(dos, {...limpia, fecha: '2026-10-13T20:00:00+00:00', valor: 1001000});

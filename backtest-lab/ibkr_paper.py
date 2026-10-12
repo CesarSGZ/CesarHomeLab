@@ -102,6 +102,35 @@ def precios_eur(tickers):
     return precio, fx
 
 
+LIBRO = DIR / "libro.json"
+CAPITAL_INICIAL = 1_000_000.0
+
+
+def leer_libro():
+    """Libreta local: capital inicial, peso y nombre de cada estrategia, a qué estrategia pertenece cada
+    acción (se anota al comprarla) y lo ganado/perdido en ventas cerradas (por ejecución, sin duplicar)."""
+    libro = {"capitalInicial": CAPITAL_INICIAL, "pesos": {"fundamental": 0.5, "precio": 0.5},
+             "nombres": {"fundamental": "Valor + momentum", "precio": "Momentum en EE. UU."},
+             "asignacion": {}, "realizado": {}}
+    if LIBRO.exists():
+        libro.update(json.loads(LIBRO.read_text(encoding="utf-8")))
+    return libro
+
+
+def guardar_libro(libro):
+    LIBRO.write_text(json.dumps(libro, ensure_ascii=False, indent=1), encoding="utf-8")
+
+
+def asignar_desde_cartera(libro, cartera):
+    """Para acciones ya en cuenta sin estrategia anotada: la deduce de la cartera objetivo."""
+    for e in cartera.get("estrategias", []):
+        libro["nombres"][e["id"]] = e.get("nombre", e["id"])
+        for v in e["valores"]:
+            c = contrato(v["ticker"])
+            if c is not None:
+                libro["asignacion"].setdefault(c.symbol, e["id"])
+
+
 def foto(puerto, enviar=True):
     """Foto de la cuenta paper para la web: valor, posiciones, operaciones recientes y S&P 500 del día.
     Se manda a GitHub (workflow ibkr-paper-foto.yml), que la guarda en la base de datos de la web."""
@@ -137,14 +166,57 @@ def foto(puerto, enviar=True):
         g["importe"] += e.shares * e.price
     ejecuciones = [{**{k: v for k, v in g.items() if k != "importe"}, "acciones": round(g["acciones"], 4),
                     "precio": round(g["importe"] / g["acciones"], 4)} for g in grupos.values() if g["acciones"]]
+    libro = leer_libro()
+    if any(p["simbolo"] not in libro["asignacion"] for p in posiciones):
+        local = Path(__file__).resolve().parent / "resultados" / "cartera_objetivo.json"
+        try:
+            asignar_desde_cartera(libro, json.loads(local.read_text(encoding="utf-8")) if local.exists() else descargar_cartera())
+        except Exception as e:  # noqa: BLE001
+            log(f"Aviso: no pude deducir la estrategia de algunas posiciones ({e})")
+    realizadas_nuevas = []
+    for f in ib.fills():
+        cr = f.commissionReport
+        pnl = getattr(cr, "realizedPNL", 0.0) if cr else 0.0
+        if pnl and abs(pnl) < 1e100 and f.execution.execId not in libro["realizado"]:
+            realizadas_nuevas.append((f.execution.execId, f.contract.symbol, f.contract.currency, pnl))
     pendientes = len(ib.openTrades())
     ib.disconnect()
-    sp = yf.download(["^SP500TR", "EURUSD=X"], period="10d", progress=False)["Close"].ffill().dropna()
-    sp_eur = float(sp["^SP500TR"].iloc[-1] / sp["EURUSD=X"].iloc[-1])
+    divisas = sorted({p["divisa"] for p in posiciones} | {r[2] for r in realizadas_nuevas} | {"USD"})
+    cambios = yf.download(["^SP500TR"] + [f"EUR{d}=X" for d in divisas if d != "EUR"], period="10d", progress=False)["Close"].ffill()
+    eur = {"EUR": 1.0, **{d: 1 / float(cambios[f"EUR{d}=X"].dropna().iloc[-1]) for d in divisas if d != "EUR"}}
+    sp_eur = float(cambios["^SP500TR"].dropna().iloc[-1] * eur["USD"])
+    for execid, sim, div, pnl in realizadas_nuevas:
+        libro["realizado"][execid] = {"simbolo": sim, "eur": round(pnl * eur.get(div, float("nan")), 2)}
+    estrategias = {}
+    for k, w in libro["pesos"].items():
+        estrategias[k] = {"nombre": libro["nombres"].get(k, k), "asignado": round(libro["capitalInicial"] * w, 2),
+                          "invertido": 0.0, "noRealizada": 0.0, "realizada": 0.0, "posiciones": 0}
+    for p in posiciones:
+        f_eur = eur.get(p["divisa"], float("nan"))
+        p["valorEur"] = round(p["valor"] * f_eur, 2)
+        p["gananciaEur"] = round(p["ganancia"] * f_eur, 2)
+        p["estrategia"] = libro["asignacion"].get(p["simbolo"])
+        if p["estrategia"] in estrategias:
+            e = estrategias[p["estrategia"]]
+            e["invertido"] += p["valorEur"]
+            e["noRealizada"] += p["gananciaEur"]
+            e["posiciones"] += 1
+    for r in libro["realizado"].values():
+        k = libro["asignacion"].get(r["simbolo"])
+        if k in estrategias and r["eur"] == r["eur"]:
+            estrategias[k]["realizada"] += r["eur"]
+    for e in estrategias.values():
+        e["valor"] = round(e["asignado"] + e["noRealizada"] + e["realizada"], 2)
+        for c in ("invertido", "noRealizada", "realizada"):
+            e[c] = round(e[c], 2)
+    for x in ejecuciones:
+        x["estrategia"] = libro["asignacion"].get(x["simbolo"])
+    guardar_libro(libro)
     datos = {"fecha": datetime.now(timezone.utc).isoformat(timespec="seconds"), "cuenta": cuenta,
              "divisa": res["NetLiquidation"].currency, "valor": num("NetLiquidation"), "efectivo": num("TotalCashValue"),
              "gananciaNoRealizada": num("UnrealizedPnL"), "gananciaRealizada": num("RealizedPnL"),
              "sp500eur": round(sp_eur, 4), "ordenesPendientes": pendientes,
+             "capitalInicial": libro["capitalInicial"], "estrategias": estrategias,
              "posiciones": sorted(posiciones, key=lambda x: -(x["valor"] or 0)),
              "ejecuciones": sorted(ejecuciones, key=lambda x: x["fecha"], reverse=True)[:60]}
     texto = json.dumps(datos, ensure_ascii=False, separators=(",", ":"))
@@ -207,6 +279,10 @@ def main():
             o["estrategias"].append(e["id"])
     if base != "EUR":
         log(f"Aviso: la divisa base de la cuenta es {base}; los importes se tratan como si fueran EUR.")
+    libro = leer_libro()
+    if args.ejecutar:
+        libro["pesos"] = pesos
+        asignar_desde_cartera(libro, cartera)       # las que ya teníamos sin anotar
 
     posiciones = {}
     for p in ib.positions(cuenta):
@@ -254,10 +330,15 @@ def main():
                 "simbolo": c.symbol, "bolsa": getattr(c, "primaryExchange", c.exchange), "divisa": c.currency,
                 "acciones": n, "motivo": porque, "enviada": args.ejecutar, "estado": ""}
         if args.ejecutar:
+            if accion == "COMPRAR":
+                tk = next(t for t, k in contratos.items() if k.conId == c.conId)
+                libro["asignacion"][c.symbol] = objetivo[tk]["estrategias"][0]
             t = ib.placeOrder(c, MarketOrder("SELL" if accion == "VENDER" else "BUY", n, tif="DAY"))
             ib.sleep(1)
             fila["estado"] = t.orderStatus.status
         filas.append(fila)
+    if args.ejecutar:
+        guardar_libro(libro)
     if filas:
         reg = DIR / "registro_ordenes.csv"
         pd.DataFrame(filas).to_csv(reg, mode="a", header=not reg.exists(), index=False)
