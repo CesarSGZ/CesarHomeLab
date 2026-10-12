@@ -3,16 +3,35 @@
     "id": "fundamental",
     "tipo": "Fundamentales + precio",
     "familia": "valor_momentum",
-    "parametros": {"n": 10, "peso_mom": 0.3, "liquidez": 2000000.0, "zona": "global", "tendencia": false},
-    "busqueda": {"variantes": 110, "sharpeDeflactado": 0.03, "miradasValidacion": 3,
-                 "nota": "Datos de cuentas solo desde 2023: entrenamiento abr-2023 a dic-2024 y validación 2025-hoy (1,8 años, muy poco para estar seguros). Net-net, Greenblatt, múltiplo del adquirente y Piotroski no batieron al S&P."}
+    "parametros": {
+      "n": 20,
+      "peso_mom": 0.3,
+      "liquidez": 2000000.0,
+      "zona": "global",
+      "tendencia": true
+    },
+    "busqueda": {
+      "variantes": 110,
+      "sharpeDeflactado": 0.03,
+      "miradasValidacion": 4,
+      "nota": "Cuentas solo desde 2023: entrenamiento abr-2023 a dic-2024 y validación 2025-hoy (1,8 años). Elegida de nuevo tras filtrar ratios imposibles de Yahoo (que una estrategia de 'lo más barato' compraría por error). Net-net, Greenblatt, múltiplo del adquirente y Piotroski no batieron al S&P."
+    }
   },
   {
     "id": "precio",
     "tipo": "Solo precio y volumen",
     "familia": "megacaps",
-    "parametros": {"n": 15, "mom": "mom_6m", "liquidez": 50000000.0, "filtro_mercado": true},
-    "busqueda": {"variantes": 353, "sharpeDeflactado": 0.058, "miradasValidacion": 3,
-                 "nota": "Su versión con stop del 25 % puntuó casi igual en 2008-2018 pero solo hizo un 19 % al año en 2019-hoy: el resultado es frágil. De 12 ideas distintas, las demás no batieron al S&P en los años no vistos."}
+    "parametros": {
+      "n": 15,
+      "mom": "mom_6m",
+      "liquidez": 50000000.0,
+      "filtro_mercado": true
+    },
+    "busqueda": {
+      "variantes": 353,
+      "sharpeDeflactado": 0.058,
+      "miradasValidacion": 3,
+      "nota": "Elige entre las acciones de EE. UU. más negociadas (no por tamaño). Su versión con stop del 25 % puntuó casi igual en 2008-2018 pero solo hizo un 19 % al año en 2019-hoy: el resultado es frágil."
+    }
   }
 ]

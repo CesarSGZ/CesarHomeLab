@@ -79,12 +79,17 @@ def megacaps(n=10, mom="mom_12_1", liquidez=100e6, filtro_mercado=True):
     def ok(t):
         return operable(t) & t["es_eeuu"].fillna(False).astype(bool) & (t["efectivo_60d"] >= liquidez) & (t["px"] > t["sma200"])
 
-    return _base("Mega-caps de EE. UU. con momentum", "megacaps",
+    e = _base("Momentum en EE. UU. (las más negociadas)", "megacaps",
                  lambda t: t[mom].where(ok(t)).rank(ascending=False) <= n,
                  lambda t: (t["px"] > t["sma200"]) & (t[mom].where(ok(t)).rank(ascending=False) <= n * 2.5),
                  lambda t: t[mom], n, dict(n=n, mom=mom, liquidez=liquidez, filtro_mercado=filtro_mercado),
-                 {"compra": [f"Las {n} gigantes de EE. UU. que más suben", "sobre su media de 200"],
-                  "venta": ["Pierde la media de 200 o deja de estar entre las que más suben"]}, filtro_mercado, liquidez)
+                 {"compra": [f"Entre las acciones de EE. UU. con más de {liquidez / 1e6:g} M€ negociados al día",
+                             f"compra las {n} que más han subido en " + {"mom_6m": "6 meses", "mom_12_1": "12 meses", "mom_3m": "3 meses"}.get(mom, mom),
+                             "si están por encima de su media de 200 sesiones"],
+                  "venta": ["Cae por debajo de su media de 200", f"o deja de estar entre las {int(n * 2.5)} que más suben"]},
+                 filtro_mercado, liquidez)
+    e.elegibles = ok
+    return e
 
 
 def cambio_mes(n=30, liquidez=50e6, mom=True):

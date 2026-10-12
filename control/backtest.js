@@ -1,7 +1,7 @@
 // Backtest Lab (Mission Control 08): resultados de las estrategias frente al S&P 500, en simple.
 // El cálculo lo hace backtest-lab/ (Python) en GitHub Actions; aquí solo se dibuja lo guardado en D1.
 const app = document.getElementById('backtest-app');
-let data = null, sid = null, tramo = 'test', loaded = false, loading = false, verTodas = false;
+let data = null, sid = null, tramo = 'test', loaded = false, loading = false, verTodas = false, ejemplo = 'ganadora', anioSel = null;
 
 const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
 const nf = (d = 1) => new Intl.NumberFormat('es-ES', {minimumFractionDigits: d, maximumFractionDigits: d, useGrouping: 'always'});
@@ -66,10 +66,21 @@ function render() {
       <article class="sell"><h3>Vende</h3><ul>${s.rules.venta.map(r => `<li>${esc(r)}</li>`).join('')}</ul></article>
     </section>
 
+    ${s.examples?.ganadora ? `<section class="bt-card bt-ex"><header class="bt-exhead"><h3 class="bt-h">Un ejemplo real</h3>
+      <div class="bt-pills" role="group" aria-label="Ejemplo">${[['ganadora', 'Una que salió bien'], ['perdedora', 'Una que salió mal']].map(([id, l]) =>
+        `<button type="button" aria-pressed="${ejemplo === id}" data-ej="${id}">${l}</button>`).join('')}</div></header>
+      <div id="bt-ex"></div></section>` : ''}
+
     <section class="bt-card"><div class="bt-legend"><span class="s">Estrategia</span><span class="b">S&amp;P 500</span><span class="u">Universo equiponderado</span></div>
       <div class="bt-chart" id="bt-chart"></div></section>
 
     <section class="bt-card"><h3 class="bt-h">Cada año frente al S&amp;P 500</h3><div class="bt-years">${years(s)}</div></section>
+
+    ${s.examples?.resumen ? `<section class="bt-card"><header class="bt-exhead"><h3 class="bt-h">Un año de operaciones</h3><div class="bt-pills" id="bt-anios"></div></header><div id="bt-gantt"></div></section>` : ''}
+
+    ${s.examples?.repetida ? `<section class="bt-card"><h3 class="bt-h">Una empresa a lo largo de los años · ${esc(s.examples.repetida.nombre)}</h3><div id="bt-rep"></div></section>` : ''}
+
+    ${s.examples?.resumen ? resumen(s) : ''}
 
     <section class="bt-card"><h3 class="bt-h">En cartera ahora</h3>${holdings(s)}</section>
 
@@ -81,6 +92,123 @@ function render() {
   app.querySelectorAll('[data-t]').forEach(b => b.onclick = () => { tramo = b.dataset.t; render(); });
   app.querySelector('.bt-more:last-of-type').addEventListener('toggle', e => { if (e.target.open) trades(s); }, {once: true});
   chart(s);
+  if (s.examples?.ganadora) {
+    app.querySelectorAll('[data-ej]').forEach(b => b.onclick = () => {
+      ejemplo = b.dataset.ej;
+      app.querySelectorAll('[data-ej]').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+      ejemploReal(s);
+    });
+    ejemploReal(s);
+  }
+  if (s.examples?.resumen) gantt(s);
+  if (s.examples?.repetida) repetida(s);
+}
+
+const dinero = (x, m) => x === null || x === undefined ? '–' : `${nf(x < 10 ? 2 : x < 1000 ? 1 : 0).format(x)} ${m}`;
+
+// Gráfico de precio con los tramos en cartera (verde/rojo) y marcas de compra ▲ y venta ▼.
+function precioSvg(serie, tramos, opts = {}) {
+  const n = serie.dates.length, narrow = (opts.ancho || 800) < 600;
+  const W = narrow ? 600 : 1000, H = narrow ? 340 : 300, L = narrow ? 70 : 60, R = 14, T = 16, B = 28;
+  const vals = serie.close.filter(v => v !== null), lo = Math.min(...vals), hi = Math.max(...vals);
+  const x = i => L + i / Math.max(1, n - 1) * (W - L - R);
+  const y = v => T + (1 - (v - lo) / (hi - lo || 1)) * (H - T - B);
+  const idx = d => { const i = serie.dates.findIndex(z => z >= d); return i < 0 ? n - 1 : i; };
+  const linea = serie.close.map((v, i) => v === null ? '' : `${i ? 'L' : 'M'}${x(i).toFixed(1)},${y(v).toFixed(1)}`).join('');
+  const marcas = []; let last = '';
+  serie.dates.forEach((d, i) => { const k = n > 400 ? d.slice(0, 4) : d.slice(0, 7); if (k !== last) { last = k; marcas.push([i, k]); } });
+  const step = Math.ceil(marcas.length / (narrow ? 4 : 7));
+  const etiqueta = k => k.length > 4 ? `${k.slice(5)}/${k.slice(2, 4)}` : k;
+  const ticks = [lo, (lo + hi) / 2, hi];
+  return `<svg viewBox="0 0 ${W} ${H}" class="bt-px" role="img" aria-label="Precio con compras y ventas">
+    ${ticks.map(t => `<line class="grid" x1="${L}" x2="${W - R}" y1="${y(t)}" y2="${y(t)}"/><text class="axis" x="${L - 6}" y="${y(t) + 4}" text-anchor="end">${nf(t < 10 ? 2 : 0).format(t)}</text>`).join('')}
+    ${marcas.filter((_, i) => i % step === 0).map(([i, k]) => `<text class="axis" x="${x(i)}" y="${H - 6}" text-anchor="middle">${etiqueta(k)}</text>`).join('')}
+    ${tramos.map(t => { const a = idx(t.in), b = t.out ? idx(t.out) : n - 1; return `<rect class="hold ${(t.ret ?? 0) >= 0 ? 'up' : 'down'}" x="${x(a)}" y="${T}" width="${Math.max(2, x(b) - x(a))}" height="${H - T - B}"/>`; }).join('')}
+    <path class="pxl" d="${linea}"/>
+    ${tramos.map(t => {
+      const a = idx(t.in), b = t.out ? idx(t.out) : null;
+      const compra = `<path class="mk buy" d="M${x(a)},${y(serie.close[a]) + 8} l-7,13 h14 z"/>`;
+      const venta = b !== null ? `<path class="mk sell" d="M${x(b)},${y(serie.close[b]) - 8} l-7,-13 h14 z"/>` : '';
+      return compra + venta;
+    }).join('')}
+  </svg>`;
+}
+
+function ejemploReal(s) {
+  const e = s.examples[ejemplo], box = app.querySelector('#bt-ex');
+  if (!e) { box.innerHTML = ''; return; }
+  const d = e.compra.datos || {}, m = e.moneda;
+  const tiene = v => v !== null && v !== undefined;
+  const vs = r => !tiene(r) ? '' : ` <small>(${r < 1 ? Math.round((1 - r) * 100) + ' % más barata' : Math.round((r - 1) * 100) + ' % más cara'} que su sector)</small>`;
+  const vio = [
+    tiene(d.per) ? `PER <b>${num(d.per, 1)}</b>${vs(d.per_rel)}` : '',
+    tiene(d.pb) ? `P/VC <b>${num(d.pb, 2)}</b>${vs(d.pb_rel)}` : '',
+    tiene(d.ev_ebitda) ? `EV/EBITDA <b>${num(d.ev_ebitda, 1)}</b>${vs(d.ev_ebitda_rel)}` : '',
+    tiene(d.roe) ? `ROE <b>${pct(d.roe, 0)}</b>` : '',
+    tiene(d.mom6m) ? `Subió <b>${signed(d.mom6m, 0)} %</b> en 6 meses` : '',
+    tiene(d.sobreMedia200) ? `<b>${signed(d.sobreMedia200, 0)} %</b> sobre su media de 200` : '',
+    d.puesto ? `Puesto <b>${d.puesto}</b> de ${nf(0).format(d.candidatas)} candidatas` : '',
+  ].filter(Boolean);
+  box.innerHTML = `<div class="bt-exgrid">
+    <div><p class="bt-exname">${zona(e.zona)}<b>${esc(e.nombre)}</b> <span>${esc(e.ticker)}</span></p>
+      <div class="bt-chart">${precioSvg(e.serie, [{in: e.compra.fecha, out: e.venta.abierta ? null : e.venta.fecha, ret: e.ganancia}], {ancho: box.clientWidth})}</div></div>
+    <ol class="bt-steps">
+      <li><i>1</i><div><small>El viernes antes · lo que vio</small><ul>${vio.map(v => `<li>${v}</li>`).join('')}</ul></div></li>
+      <li class="b"><i>▲</i><div><small>${fecha(e.compra.fecha)} · compra</small><b>${dinero(e.compra.precio, m)}</b></div></li>
+      <li class="v"><i>▼</i><div><small>${fecha(e.venta.fecha)} · venta</small><b>${dinero(e.venta.precio, m)}</b><span>${esc(e.venta.motivo)}</span></div></li>
+    </ol></div>
+    <div class="bt-res">
+      <div class="${(e.ganancia ?? 0) >= 0 ? 'up' : 'down'}"><small>Ganamos</small><b>${signed(e.ganancia)} %</b><span>con costes, en ${e.dias} días</span></div>
+      <div><small>La acción hizo</small><b>${signed(e.subidaAccion)} %</b><span>de la compra a la venta</span></div>
+      <div><small>El S&amp;P 500 hizo</small><b>${signed(e.subidaSP500)} %</b><span>en esos mismos días</span></div>
+    </div>`;
+}
+
+function gantt(s) {
+  const lista = s.trades.filter(t => t.in);
+  const anios = [...new Set(lista.map(t => t.in.slice(0, 4)))].sort();
+  if (!anioSel || !anios.includes(anioSel)) anioSel = anios.length > 1 ? anios[anios.length - 2] : anios[0];
+  const sel = app.querySelector('#bt-anios');
+  sel.innerHTML = anios.slice(-6).map(a => `<button type="button" aria-pressed="${a === anioSel}" data-a="${a}">${a}</button>`).join('');
+  sel.querySelectorAll('[data-a]').forEach(b => b.onclick = () => { anioSel = b.dataset.a; gantt(s); });
+  const ini = new Date(`${anioSel}-01-01`), fin = new Date(`${Number(anioSel) + 1}-01-01`), span = fin - ini;
+  const ops = lista.filter(t => new Date(t.in) < fin && (!t.out || new Date(t.out) >= ini)).sort((a, b) => a.in.localeCompare(b.in));
+  const pos = d => Math.max(0, Math.min(100, (new Date(d) - ini) / span * 100));
+  const ganadas = ops.filter(t => (t.ret ?? 0) > 0).length;
+  const filas = ops.map(t => {
+    const a = pos(t.in), b = t.out ? pos(t.out) : 100, r = t.ret ?? 0;
+    return `<div class="row" title="${esc(t.name)} · ${fecha(t.in)} → ${t.out ? fecha(t.out) : 'abierta'} · ${signed(r)} %"><span>${esc(t.ticker)}</span>
+      <div><i class="${r >= 0 ? 'up' : 'down'}" style="left:${a}%;width:${Math.max(0.8, b - a)}%;opacity:${Math.min(1, 0.35 + Math.abs(r) * 2)}"></i></div>
+      <b class="${r >= 0 ? 'up' : 'down'}">${signed(r, 0)}</b></div>`;
+  }).join('');
+  app.querySelector('#bt-gantt').innerHTML = `<p class="bt-mini">${ops.length} operaciones · ${ganadas} ganaron, ${ops.length - ganadas} perdieron · cada barra es el tiempo en cartera</p>
+    <div class="bt-months"><span></span>${['E', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'].map(x => `<span>${x}</span>`).join('')}<span></span></div>
+    <div class="bt-gantt">${filas}</div>`;
+}
+
+function repetida(s) {
+  const e = s.examples.repetida, box = app.querySelector('#bt-rep');
+  box.innerHTML = `<div class="bt-chart">${precioSvg(e.serie, e.operaciones, {ancho: box.clientWidth})}</div>
+    <div class="bt-res">
+      <div><small>Veces que se compró</small><b>${e.operaciones.length}</b><span>▲ compra · ▼ venta</span></div>
+      <div class="${(e.gananciaEstrategia ?? 0) >= 0 ? 'up' : 'down'}"><small>La estrategia ganó con ella</small><b>${signed(e.gananciaEstrategia, 0)} %</b><span>sumando todas sus operaciones</span></div>
+      <div><small>Comprar y no tocarla</small><b>${signed(e.subidaAccion, 0)} %</b><span>en todo el periodo del gráfico</span></div>
+    </div>`;
+}
+
+function resumen(s) {
+  const r = s.examples.resumen, tot = Object.values(r.zonas).reduce((a, b) => a + b, 0);
+  const anios = (new Date(data.dataUntil) - new Date(s.start)) / 3.15576e10;
+  const orden = ['EE. UU.', 'Europa', 'Asia-Pacífico', 'América'];
+  return `<section class="bt-card"><h3 class="bt-h">¿Con qué opera?</h3>
+    <div class="bt-res">
+      <div><small>Operaciones</small><b>${nf(0).format(r.operaciones / anios)}</b><span>al año, unas ${nf(1).format(r.operaciones / anios / 52)} por semana</span></div>
+      <div><small>Salen bien</small><b>${pct(r.ganadoras, 0)}</b><span>las buenas ganan ${signed(r.mediaGanadora, 0)} % · las malas ${signed(r.mediaPerdedora, 0)} %</span></div>
+      <div><small>En cartera</small><b>${nf(0).format(r.diasMedios)} días</b><span>de media cada operación</span></div>
+    </div>
+    <div class="bt-zonas">${Object.entries(r.zonas).map(([z, n]) => `<i style="flex:${n}" class="z${orden.indexOf(z)}" title="${esc(z)}: ${n}"><span>${esc(ZONA_CORTA[z] || z)} ${Math.round(n / tot * 100)} %</span></i>`).join('')}</div>
+    <p class="bt-mini">Las más repetidas</p><div class="bt-chips">${r.masUsadas.map(x => `<span title="${esc(x.nombre)}"><b>${esc(x.ticker)}</b> ×${x.n} <em class="${(x.total ?? 0) >= 0 ? 'up' : 'down'}">${signed(x.total, 0)} %</em></span>`).join('')}</div>
+  </section>`;
 }
 
 function duel(label, a, b, fmt, higherBetter) {

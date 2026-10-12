@@ -76,3 +76,44 @@ html[data-theme=day] .backtest-view{--bt-bg:#f9fcfe;--bt-soft:#e9f0f5;--bt-ink:#
 @media(max-width:900px){.bt-duels{grid-template-columns:1fr}.bt-rules{grid-template-columns:1fr}}
 @media(max-width:620px){.bt-hero h2{font-size:38px}.bt-duel .row{grid-template-columns:70px 1fr auto}.bt-chart .axis,.bt-chart .zone{font-size:18px}.bt-card{padding:14px}}
 @media(prefers-reduced-motion:reduce){.backtest-view *{transition:none!important;animation:none!important}}
+
+/* Ejemplos didácticos */
+.bt-exhead{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:10px}.bt-exhead .bt-h{margin:0}
+.bt-pills{display:flex;flex-wrap:wrap;gap:4px}
+.bt-pills button{border:1px solid var(--bt-line);border-radius:999px;background:transparent;padding:7px 13px;min-height:36px;font-size:12px;color:var(--bt-muted)}
+.bt-pills [aria-pressed=true]{background:var(--bt-soft);color:var(--bt-ink);border-color:var(--bt-accent);font-weight:700}
+.bt-exgrid{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(220px,1fr);gap:18px;align-items:start}
+.bt-exname{margin:0 0 6px;font-size:15px}.bt-exname span{color:var(--bt-muted);font:11px DM Mono,monospace}
+.bt-px{display:block;width:100%;height:auto}
+.bt-px .pxl{fill:none;stroke:var(--bt-ink);stroke-width:1.6;vector-effect:non-scaling-stroke;opacity:.85}
+.bt-px .hold{opacity:.14}.bt-px .hold.up{fill:var(--bt-up)}.bt-px .hold.down{fill:var(--bt-down)}
+.bt-px .mk.buy{fill:var(--bt-up)}.bt-px .mk.sell{fill:var(--bt-down)}
+.bt-px .grid{stroke:var(--bt-line)}.bt-px .axis{fill:var(--bt-muted);font:11px DM Mono,monospace}
+.bt-steps{list-style:none;margin:0;padding:0;display:grid;gap:10px}
+.bt-steps>li{display:grid;grid-template-columns:30px 1fr;gap:10px;align-items:start}
+.bt-steps>li>i{display:grid;place-items:center;width:30px;height:30px;border-radius:50%;background:var(--bt-soft);font-style:normal;font-weight:800;color:var(--bt-accent)}
+.bt-steps>li.b>i{color:var(--bt-up)}.bt-steps>li.v>i{color:var(--bt-down)}
+.bt-steps small{display:block;font:10px DM Mono,monospace;letter-spacing:.06em;color:var(--bt-muted);text-transform:uppercase;margin-bottom:3px}
+.bt-steps b{font-size:18px}.bt-steps span{display:block;font-size:13px;color:var(--bt-muted)}
+.bt-steps ul{margin:0;padding-left:16px;font-size:13px;line-height:1.6}
+.bt-steps ul small{display:inline;font:12px Manrope,sans-serif;text-transform:none;letter-spacing:0}
+.bt-steps ul b{font-size:13px}
+.bt-res{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:12px}
+.bt-res>div{padding:12px 14px;border-radius:10px;background:var(--bt-soft)}
+.bt-res small{display:block;font:10px DM Mono,monospace;letter-spacing:.06em;color:var(--bt-muted);text-transform:uppercase}
+.bt-res b{display:block;font-size:24px;letter-spacing:-.02em;margin:4px 0 2px;font-variant-numeric:tabular-nums}
+.bt-res span{font-size:11px;color:var(--bt-muted)}
+.bt-res .up b{color:var(--bt-up)}.bt-res .down b{color:var(--bt-down)}
+.bt-months{display:grid;grid-template-columns:70px repeat(12,1fr) 40px;font:10px DM Mono,monospace;color:var(--bt-muted);margin-bottom:4px}
+.bt-gantt{max-height:420px;overflow:auto;display:grid;gap:2px}
+.bt-gantt .row{display:grid;grid-template-columns:70px 1fr 40px;align-items:center;font-size:11px}
+.bt-gantt .row>span{font:10px DM Mono,monospace;color:var(--bt-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bt-gantt .row>div{position:relative;height:10px;background:linear-gradient(90deg,var(--bt-line) 1px,transparent 1px) 0 0/8.333% 100%}
+.bt-gantt .row i{position:absolute;top:1px;bottom:1px;border-radius:3px}
+.bt-gantt i.up{background:var(--bt-up)}.bt-gantt i.down{background:var(--bt-down)}
+.bt-gantt .row>b{text-align:right;font-variant-numeric:tabular-nums;font-size:11px}
+.bt-zonas{display:flex;height:26px;border-radius:8px;overflow:hidden;margin:14px 0 4px;gap:2px}
+.bt-zonas i{display:flex;align-items:center;justify-content:center;font:normal 10px DM Mono,monospace;color:#0b1a07;min-width:0;overflow:hidden;white-space:nowrap}
+.bt-zonas .z0{background:var(--bt-b)}.bt-zonas .z1{background:var(--bt-accent)}.bt-zonas .z2{background:var(--bt-u)}.bt-zonas .z3{background:var(--bt-s)}
+@media(max-width:900px){.bt-exgrid{grid-template-columns:1fr}}
+@media(max-width:560px){.bt-res{grid-template-columns:1fr}.bt-res b{font-size:20px}.bt-px .axis{font-size:18px}}
