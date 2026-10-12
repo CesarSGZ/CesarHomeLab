@@ -73,7 +73,7 @@ def veredicto(m_test):
             "text": f"+{es(d * 100)} puntos al año en los años no vistos y {sh}, aún no significativo (t = {es(t, 2)}; hace falta ≥ 2)."}
 
 
-def bloque(cfg, res, d, ew):
+def bloque(cfg, res, d, ew, ejemplos=None):
     est = res.estrategia
     eq = res.equity / res.equity.iloc[0]
     sp = d.sp500_eur.reindex(eq.index).ffill()
@@ -115,7 +115,8 @@ def bloque(cfg, res, d, ew):
                   **{c: [round(float(v), 4) for v in sem[c]] for c in sem.columns}},
         "annual": [{"year": int(y), "strategy": f(r["strategy"]), "sp500": f(r["sp500"])} for y, r in anual.iterrows()],
         "holdings": [t for t in trades if t["out"] is None],
-        "trades": trades[-400:], "tradesTotal": len(trades), "costs": f(res.costes_totales, 0),
+        "trades": trades, "tradesTotal": len(trades), "costs": f(res.costes_totales, 0),
+        "examples": ejemplos or {},
         "capital": est.capital_inicial, "finalValue": f(res.equity.iloc[-1], 0),
     }
 
@@ -140,7 +141,9 @@ def main():
             raise SystemExit(f"{est.nombre}: ninguna operación (¿faltan datos?). No se publica para no pisar "
                              "el resultado bueno anterior.")
         ew = benchmark_equiponderado(ind, est.inicio, None, est.liquidez_min)
-        bloques.append(bloque(cfg, res, d, ew))
+        from bt import ejemplos as EJ
+        ej = EJ.generar(est, res, d, ind, extra if est.usa_fundamentales else None, columnas)
+        bloques.append(bloque(cfg, res, d, ew, ej))
         IV.log(f"{est.nombre}: {time.time() - t0:.0f}s")
     zonas = d.universo["zona"].value_counts().to_dict()
     payload = {

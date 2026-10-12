@@ -35,6 +35,7 @@ class EstrategiaG:
     reglas: dict = field(default_factory=dict)
     familia: str = ""
     frecuencia: str = "W"                 # "W": revisa cada viernes; "D": cada sesión
+    elegibles: Callable | None = None     # opcional: qué valores compiten en el ranking (para explicarlo)
 
 
 @dataclass

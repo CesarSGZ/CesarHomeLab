@@ -182,6 +182,12 @@ def ratios(d, fechas, ind):
             r["fscore"] = m["fscore"].values if "fscore" in m else np.nan
         salida.append(r)
     out = pd.concat(salida, ignore_index=True)
+    # Ratios imposibles = errores de Yahoo (unidades, nº de acciones...). Una estrategia "de lo más barato"
+    # los compraría en masa, así que se anulan.
+    for c, minimo in [("per", 2.0), ("pb", 0.1), ("ev_ebitda", 1.0), ("ev_ebit", 1.0)]:
+        out.loc[out[c] < minimo, c] = np.nan
+    out.loc[out["roe"] > 2, "roe"] = np.nan
+    out.loc[out["cap_ncav"] < 0.2, "cap_ncav"] = np.nan
     out["sector"] = out["ticker"].map(info["sector"]).fillna("Desconocido")
     out["zona"] = out["ticker"].map(uni["zona"])
     out["insiders"] = out["ticker"].map(pd.to_numeric(info["heldPercentInsiders"], errors="coerce"))
