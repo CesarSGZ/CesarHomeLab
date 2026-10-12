@@ -117,3 +117,5 @@ html[data-theme=day] .backtest-view{--bt-bg:#f9fcfe;--bt-soft:#e9f0f5;--bt-ink:#
 .bt-zonas .z0{background:var(--bt-b)}.bt-zonas .z1{background:var(--bt-accent)}.bt-zonas .z2{background:var(--bt-u)}.bt-zonas .z3{background:var(--bt-s)}
 @media(max-width:900px){.bt-exgrid{grid-template-columns:1fr}}
 @media(max-width:560px){.bt-res{grid-template-columns:1fr}.bt-res b{font-size:20px}.bt-px .axis{font-size:18px}}
+
+.bt-paper-sel{margin:0 0 14px}
