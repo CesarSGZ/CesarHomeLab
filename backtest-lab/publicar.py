@@ -155,6 +155,13 @@ def main():
     }
     texto = json.dumps(payload, ensure_ascii=False, separators=(",", ":"), allow_nan=False)
     Path(args.web).write_text(texto, encoding="utf-8")
+    # cartera objetivo para el robot de IBKR (paper): lo que tendría cada estrategia con el último cierre
+    cartera = {"generatedAt": payload["generatedAt"], "dataUntil": payload["dataUntil"], "estrategias": [
+        {"id": b["id"], "nombre": b["name"], "posiciones": b["positions"],
+         "valores": [{"ticker": h["ticker"], "nombre": h["name"], "desde": h["in"],
+                      "divisa": str(d.universo.at[h["ticker"], "divisa"]) if h["ticker"] in d.universo.index else None}
+                     for h in b["holdings"]]} for b in bloques]}
+    Path(args.web).with_name("cartera_objetivo.json").write_text(json.dumps(cartera, ensure_ascii=False, indent=1), encoding="utf-8")
     IV.log(f"JSON web: {args.web} ({len(texto) / 1024:.0f} KB)")
 
 
