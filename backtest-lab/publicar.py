@@ -136,6 +136,9 @@ def main():
             extra, _, _ = IV.preparar_fundamentales(d, ind)
         t0 = time.time()
         res = ejecutar(est, d, ind, costes, columnas, extra if est.usa_fundamentales else None, regimen)
+        if res.operaciones.empty:
+            raise SystemExit(f"{est.nombre}: ninguna operación (¿faltan datos?). No se publica para no pisar "
+                             "el resultado bueno anterior.")
         ew = benchmark_equiponderado(ind, est.inicio, None, est.liquidez_min)
         bloques.append(bloque(cfg, res, d, ew))
         IV.log(f"{est.nombre}: {time.time() - t0:.0f}s")
