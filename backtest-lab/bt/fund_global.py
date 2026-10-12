@@ -127,9 +127,10 @@ def _fx_divisa(d):
     return _fx(pd.read_parquet(DIR / "mercado.parquet"), d.close.index)
 
 
-def ratios(d, fechas, ind):
-    """Tabla larga (fecha, ticker) con ratios point-in-time en EUR y sus relativos sectoriales."""
-    fotos, info = leer_todo()
+def ratios(d, fechas, ind, lector=None, max_edad=None):
+    """Tabla larga (fecha, ticker) con ratios point-in-time en EUR y sus relativos sectoriales.
+    lector: función que devuelve (fotos, info); por defecto las cuentas de Yahoo (bt/fund_sec.py da las de la SEC)."""
+    fotos, info = (lector or leer_todo)()
     fx = _fx_divisa(d)
     uni = d.universo
     salida = []
@@ -144,6 +145,8 @@ def ratios(d, fechas, ind):
         f = f.sort_values(["disponible", "periodo"]).drop_duplicates("disponible", keep="last")
         f = f[f["periodo"] == f["periodo"].cummax()]
         m = pd.merge_asof(base, f, left_on="fecha", right_on="disponible", direction="backward").dropna(subset=["periodo"])
+        if max_edad is not None:                       # cuentas demasiado viejas = sin dato (no se arrastran años)
+            m = m[(m["fecha"] - m["periodo"]).dt.days <= max_edad]
         if m.empty:
             continue
         close = d.close[tk].reindex(m["fecha"]).ffill().values

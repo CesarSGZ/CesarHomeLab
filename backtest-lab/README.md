@@ -33,6 +33,30 @@ bt/informe.py          informe HTML completo (uso local)
 bt/web.py              JSON para Mission Control y veredicto automático
 ```
 
+## Datos: dónde está cada cosa
+
+Todo vive en `datos_global/` (no se versiona: pesa ~2 GB). GitHub Actions vuelve a bajar lo que necesita en
+cada ejecución; en el PC sirve para investigar. Conviene guardar una copia de esta carpeta fuera del PC.
+
+| Carpeta / fichero | Qué es | De dónde | Cómo se actualiza |
+|---|---|---|---|
+| `universo.csv` | ~8.600 acciones (todas las bolsas) con zona, divisa y liquidez | screener de Yahoo | `universo.py` |
+| `precios.parquet` | precios diarios desde 2006 (OHLC, volumen, dividendos, splits) | Yahoo | `descargar_global.py precios/actualizar` |
+| `mercado.parquet`, `vix.csv` | S&P 500, divisas, VIX | Yahoo | `descargar_global.py mercado` |
+| `fundamentales/` | cuentas de ~5 años por empresa (todas las bolsas) | Yahoo | `descargar_global.py fundamentales` |
+| `sec/companyfacts/` | cuentas XBRL de ~3.400 empresas de EE. UU. desde 2009, con fecha real de presentación | SEC (gratis) | `descargar_sec.py` |
+| `sec/fotos_sec.parquet` | las cuentas SEC ya en 12 meses + balance, listas para el motor | `bt/fund_sec.py` | se rehace solo si se borra |
+| `alternativos/wiki/` | visitas diarias en Wikipedia desde 2015 (~1.350 empresas) | Wikimedia | análisis de operaciones |
+| `alternativos/yahoo/` | fechas de resultados con sorpresa del BPA y cambios de recomendación | Yahoo | análisis de operaciones |
+| `alternativos/sec_form4/` | compras y ventas de directivos (formularios 4) desde 2008 | SEC | análisis de operaciones |
+| `alternativos/finra/` | volumen vendido a corto diario (desde 2019) | FINRA | análisis de operaciones |
+| `alternativos/fred.csv` | diferencial high yield, curva de tipos, condiciones financieras | FRED | análisis de operaciones |
+| `alternativos/rasgos_operaciones.parquet` | ~140 rasgos de cada operación de las dos estrategias | análisis de octubre de 2026 | — |
+
+Estudio con las cuentas de la SEC: `estudio_sec.py validar` (cuadre con Yahoo) y `estudio_sec.py backtest`
+(Valor + momentum en EE. UU. desde 2010). Límite conocido: faltan las empresas que dejaron de cotizar
+(`resultados/supervivencia_sec.csv` mide cuántas).
+
 ## Reglas de honestidad que aplica el motor
 
 - Señal con el cierre del viernes, ejecución en la apertura del lunes.

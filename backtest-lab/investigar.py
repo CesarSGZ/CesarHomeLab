@@ -79,12 +79,13 @@ def buscar(familias, nombre, columnas, extra=None):
     return df
 
 
-def preparar_fundamentales(d, ind, desde="2022-06-01"):
-    """dict fecha -> tabla (ticker) con ratios point-in-time, métricas de precio y percentiles sectoriales."""
+def preparar_fundamentales(d, ind, desde="2022-06-01", lector=None, max_edad=None):
+    """dict fecha -> tabla (ticker) con ratios point-in-time, métricas de precio y percentiles sectoriales.
+    lector=None usa las cuentas de Yahoo; bt.fund_sec.leer_todo usa las de la SEC (EE. UU., desde 2009)."""
     from bt import fund_global as FG
     from bt.motor_global import fechas_revision
     fechas = pd.DatetimeIndex(sorted(fechas_revision(d.close.loc[desde:].index)))
-    r, info = FG.ratios(d, fechas, ind)
+    r, info = FG.ratios(d, fechas, ind, lector, max_edad)
     hoy = r[r["fecha"] == r["fecha"].max()]
     fiable = FG.control_cap(hoy, info, d.universo)
     malos = set(fiable.index[~fiable])
