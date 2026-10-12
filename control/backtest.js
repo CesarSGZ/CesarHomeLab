@@ -244,6 +244,10 @@ function renderPaper() {
   const pos = (u.posiciones || []).filter(x => !e || x.estrategia === vistaPaper).sort((a, b) => (b.gananciaPct ?? 0) - (a.gananciaPct ?? 0));
   const ganan = pos.filter(x => (x.gananciaPct ?? 0) > 0).length;
   const ops = (paper.ejecuciones || []).filter(x => !e || x.estrategia === vistaPaper).slice(0, 30);
+  const cerradas = (u.cerradas || []).filter(x => !e || x.estrategia === vistaPaper).slice().reverse();
+  const conDias = pos.filter(x => x.dias !== null && x.dias !== undefined);
+  const mediaDias = conDias.length ? conDias.reduce((a, x) => a + x.dias, 0) / conDias.length : null;
+  const mediaCerr = cerradas.length ? cerradas.reduce((a, x) => a + (x.dias || 0), 0) / cerradas.length : null;
   const selector = Object.keys(ests).length ? `<div class="bt-pills bt-paper-sel" role="group" aria-label="Qué cartera ver">${[['global', 'Global'], ...Object.entries(ests).map(([k, x]) => [k, x.nombre])].map(([k, l]) =>
     `<button type="button" aria-pressed="${vistaPaper === k}" data-vp="${esc(k)}">${esc(l)}</button>`).join('')}</div>` : '';
   app.innerHTML = `${cabecera()}${selector}
@@ -256,10 +260,14 @@ function renderPaper() {
     </section>
     <section class="bt-card"><div class="bt-legend"><span class="s">Cartera paper</span><span class="b">S&amp;P 500</span></div>
       <div class="bt-chart" id="bt-paper-chart"></div></section>
-    <section class="bt-card"><h3 class="bt-h">Posiciones</h3>
-      <div class="bt-table"><table><thead><tr><th>Valor</th><th>Acciones</th><th>Compra → ahora</th><th>Resultado</th></tr></thead><tbody>${pos.map(x => `
-        <tr><td><b>${esc(x.simbolo)}</b><small>${esc(x.bolsa)} · ${esc(x.divisa)}</small></td><td>${nf(0).format(x.acciones)}</td>
+    <section class="bt-card"><h3 class="bt-h">Posiciones abiertas${mediaDias !== null ? ` · ${nf(0).format(mediaDias)} días de media en cartera` : ''}</h3>
+      <div class="bt-table"><table><thead><tr><th>Valor</th><th>En cartera</th><th>Compra → ahora</th><th>Resultado</th></tr></thead><tbody>${pos.map(x => `
+        <tr><td><b>${esc(x.simbolo)}</b><small>${nf(0).format(x.acciones)} acc. · ${esc(x.bolsa)}</small></td><td>${x.dias ?? '–'} días<small>desde ${fecha(x.desde)}</small></td>
         <td>${num(x.precioMedio)} → ${num(x.precio)}</td><td class="${(x.gananciaPct ?? 0) >= 0 ? 'up' : 'down'}"><b>${signed(x.gananciaPct)} %</b><small>${nf(0).format(x.ganancia ?? 0)} ${esc(x.divisa)}</small></td></tr>`).join('')}</tbody></table></div></section>
+    ${cerradas.length ? `<section class="bt-card"><h3 class="bt-h">Posiciones cerradas · ${cerradas.length}${mediaCerr !== null ? ` · ${nf(0).format(mediaCerr)} días de media` : ''}</h3>
+      <div class="bt-table"><table><thead><tr><th>Valor</th><th>Estuvo en cartera</th><th>Resultado</th></tr></thead><tbody>${cerradas.map(x => `
+        <tr><td><b>${esc(x.simbolo)}</b></td><td>${x.dias} días<small>${fecha(x.desde)} → ${fecha(x.hasta)}</small></td>
+        <td class="${(x.gananciaEur ?? 0) >= 0 ? 'up' : 'down'}"><b>${eur0(x.gananciaEur)}</b></td></tr>`).join('')}</tbody></table></div></section>` : ''}
     <section class="bt-card"><h3 class="bt-h">Últimas operaciones</h3>
       <div class="bt-table"><table><thead><tr><th>Día</th><th>Operación</th><th>Precio</th></tr></thead><tbody>${ops.map(e => `
         <tr><td>${fecha(e.fecha)}</td><td><span class="${e.lado === 'compra' ? 'up' : 'down'}">${e.lado === 'compra' ? '▲ Compra' : '▼ Venta'}</span> ${nf(0).format(e.acciones)} <b>${esc(e.simbolo)}</b></td><td>${num(e.precio)} ${esc(e.divisa)}</td></tr>`).join('')}</tbody></table></div></section>
