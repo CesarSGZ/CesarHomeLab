@@ -30,7 +30,7 @@ Mission Control lee GET /control/api/backtest/status y dibuja el informe.
 
 | Archivo | Qué hace |
 | --- | --- |
-| `backtest-lab/` | Motor en Python (pandas). No se publica en Pages (`.assetsignore`). Ver su `README.md`. |
+| `backtest-lab/` | Motor en Python (pandas). No se publica en Pages: el despliegue sube solo `dist/`, construido por `scripts/build-pages-dist.mjs` con una lista blanca (web raíz, `assets/`, `control/`). Ver su `README.md`. |
 | `backtest-lab/estrategias.py` | Las estrategias: reglas, explicación en lenguaje llano y límites de parámetros. |
 | `backtest-lab/bt/web.py` | JSON compacto para la web (~190 KB) y veredicto automático con regla fija. |
 | `scripts/backtest-lab.mjs` | Lado Actions: reclamar petición, publicar resultado o marcar fallo. |

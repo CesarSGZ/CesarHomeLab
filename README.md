@@ -33,7 +33,7 @@ The detailed boundaries and request flows are documented in
 |-- functions/       Cloudflare backend functions and API routes
 |-- migrations/      D1 database schema history
 |-- server-agent/    Restricted Minecraft recovery agent for Windows
-|-- backtest-lab/    Python backtesting engine run by GitHub Actions (not published)
+|-- backtest-lab/    Python backtesting engine run by GitHub Actions (not in the Pages output)
 |-- docs/            Architecture and service documentation
 |-- assets/          Public portfolio assets
 |-- index.html       Public portfolio entry point
@@ -41,14 +41,20 @@ The detailed boundaries and request flows are documented in
 `-- .github/         Automated production deployment
 ```
 
-The public website deliberately remains at the repository root because
-Cloudflare Pages deploys the project without a build step. Runtime services and
-private data are not stored in GitHub.
+The public website source lives at the repository root, but Pages does not
+serve the repository as-is: `scripts/build-pages-dist.mjs` copies an allowlist
+(root `*.html`/`*.css`/`*.js`, `_headers`, `_routes.json`, `assets/` and
+`control/`) into `dist/`, and only `dist/` is uploaded as static assets.
+Everything else (`trading-worker/`, `migrations/`, `server-agent/`,
+`backtest-lab/`, `video/`, docs, tests, config) stays out of the website.
+Pages Functions are still bundled from `functions/` at the project root, so
+their imports from `trading-worker/` and `control/` resolve at build time.
+Runtime services and private data are not stored in GitHub.
 
 ## Deployment
 
 Every push to `main` runs the GitHub Actions workflow in
-`.github/workflows/deploy.yml`. Wrangler publishes the repository to the
+`.github/workflows/deploy.yml`. Wrangler publishes `dist/` plus the bundled `functions/` to the
 `cesar-solla` Cloudflare Pages project. Required tokens are GitHub Actions
 secrets and are never committed.
 

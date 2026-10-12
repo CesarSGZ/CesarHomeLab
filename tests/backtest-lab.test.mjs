@@ -6,6 +6,7 @@ import {accessForUser} from '../functions/_lib/auth.js';
 import {onRequest} from '../functions/control/api/backtest/status.js';
 import {validateBacktestParams, requestIsActive, STALE_RUN_MS} from '../control/backtest-model.js';
 import {runtimeDatabase} from '../trading-worker/runtime-db.js';
+import {publicRootFiles, PUBLIC_DIRECTORIES} from '../scripts/build-pages-dist.mjs';
 import {claim, publish, fail, readRequest} from '../scripts/backtest-lab.mjs';
 
 function d1() {
@@ -115,5 +116,6 @@ test('the workflow uses only the scoped runner token and never deploys or pushes
   const workflow = readFileSync(new URL('../.github/workflows/backtest-lab.yml', import.meta.url), 'utf8');
   assert.doesNotMatch(workflow, /CLOUDFLARE_|wrangler|contents: write|git push/);
   assert.match(workflow, /OFFICE_DEV_TOKEN/);
-  assert.match(readFileSync(new URL('../.assetsignore', import.meta.url), 'utf8'), /^backtest-lab$/m, 'Python sources are not published by Pages');
+  assert.ok(!PUBLIC_DIRECTORIES.includes('backtest-lab') && !publicRootFiles().includes('backtest-lab'), 'Python sources are not in the Pages output');
+  assert.match(readFileSync(new URL('../.github/workflows/deploy.yml', import.meta.url), 'utf8'), /pages deploy dist /, 'Pages publishes only the dist/ allowlist');
 });

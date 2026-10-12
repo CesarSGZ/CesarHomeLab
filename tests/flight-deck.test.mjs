@@ -30,8 +30,10 @@ test('mission brief player ships a web-sized video and poster', async () => {
 });
 
 test('video sources stay in the repository but out of the Pages deployment', async () => {
-  const ignore = await readFile(file('.assetsignore'), 'utf8');
-  assert.match(ignore, /^video$/m);
+  const {publicRootFiles, PUBLIC_DIRECTORIES} = await import('../scripts/build-pages-dist.mjs');
+  assert.ok(!PUBLIC_DIRECTORIES.includes('video') && !publicRootFiles().includes('video'));
+  const deploy = await readFile(file('.github/workflows/deploy.yml'), 'utf8');
+  assert.match(deploy, /pages deploy dist /);
 });
 
 test('private sign-in keeps its form intact under the flight layer', async () => {
