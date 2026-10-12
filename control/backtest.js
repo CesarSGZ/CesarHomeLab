@@ -231,6 +231,34 @@ function cabecera() {
       </button>`).join('')}${pestanaPaper()}</nav>`;
 }
 
+const NOMBRES_ALERTA = {
+  va_por_libre: 'Va por libre (se mueve poco con el S&P 500)', loteria: 'Días de lotería (subidas bruscas en el último mes)',
+  diluye: 'Ha emitido más de un 3 % de acciones en un año', pico_wiki: 'Pico de visitas en Wikipedia',
+  vol_propia: 'Volatilidad propia alta', no_bate_bpa: 'No bate el beneficio esperado (BPA)', sin_dividendo: 'No paga dividendo',
+};
+
+function chipSemaforo(s) {
+  if (!s) return '<span class="bt-sem na" title="Comprada antes de anotar el semáforo">–</span>';
+  const n = (s.alertas || []).length;
+  const lista = (s.alertas || []).map(a => NOMBRES_ALERTA[a] || a);
+  const faltan = (s.sinDato || []).map(a => NOMBRES_ALERTA[a] || a);
+  const titulo = `${n ? lista.join(' · ') : 'Sin alertas'}${faltan.length ? ` (sin dato: ${faltan.join(', ')})` : ''}${s.aprox ? ' · calculado la semana después de comprar' : ''}`;
+  return `<span class="bt-sem ${n >= 2 ? 'rojo' : n === 1 ? 'ambar' : 'verde'}" title="${esc(titulo)}">${n}${s.aprox ? '*' : ''}</span>`;
+}
+
+function resumenSemaforo(pos, cerradas) {
+  if (!pos.some(x => x.semaforo) && !cerradas.some(x => x.semaforo)) return '';
+  const grupo = (lista, alto) => lista.filter(x => x.semaforo && ((x.semaforo.alertas || []).length >= 2) === alto);
+  const celda = (titulo, cerr, abiertas) => {
+    const n = cerr.length, ganan = cerr.filter(x => (x.gananciaEur ?? 0) > 0).length;
+    const media = n ? cerr.reduce((a, x) => a + (x.gananciaEur ?? 0), 0) / n : null;
+    return `<div><small>${titulo}</small><b>${n ? `${pct(ganan / n, 0)} ganan` : 'sin cerrar aún'}</b><span>${n} cerradas${media !== null ? ` · ${eur0(media)} de media` : ''} · ${abiertas.length} abiertas</span></div>`;
+  };
+  return `<section class="bt-card"><h3 class="bt-h">Semáforo de riesgo · prueba en marcha</h3>
+    <p class="bt-mini">Cada compra se anota con sus alertas (las del análisis de operaciones perdedoras). No cambia lo que se compra: sirve para comprobar con el tiempo si las de 2 o más alertas salen peor.</p>
+    <div class="bt-res bt-paper-kpis">${celda('0 o 1 alertas', grupo(cerradas, false), grupo(pos, false))}${celda('2 o más alertas', grupo(cerradas, true), grupo(pos, true))}</div></section>`;
+}
+
 function renderPaper() {
   const u = paper.ultima, h = paper.historial, ini = h[0];
   const ests = u.estrategias || {};
@@ -261,13 +289,14 @@ function renderPaper() {
     <section class="bt-card"><div class="bt-legend"><span class="s">Cartera paper</span><span class="b">S&amp;P 500</span></div>
       <div class="bt-chart" id="bt-paper-chart"></div></section>
     <section class="bt-card"><h3 class="bt-h">Posiciones abiertas${mediaDias !== null ? ` · ${nf(0).format(mediaDias)} días de media en cartera` : ''}</h3>
-      <div class="bt-table"><table><thead><tr><th>Valor</th><th>En cartera</th><th>Compra → ahora</th><th>Resultado</th></tr></thead><tbody>${pos.map(x => `
-        <tr><td><b>${esc(x.simbolo)}</b><small>${nf(0).format(x.acciones)} acc. · ${esc(x.bolsa)}</small></td><td>${x.dias ?? '–'} días<small>desde ${fecha(x.desde)}</small></td>
+      <div class="bt-table"><table><thead><tr><th>Valor</th><th>Alertas</th><th>En cartera</th><th>Compra → ahora</th><th>Resultado</th></tr></thead><tbody>${pos.map(x => `
+        <tr><td><b>${esc(x.simbolo)}</b><small>${nf(0).format(x.acciones)} acc. · ${esc(x.bolsa)}</small></td><td>${chipSemaforo(x.semaforo)}</td><td>${x.dias ?? '–'} días<small>desde ${fecha(x.desde)}</small></td>
         <td>${num(x.precioMedio)} → ${num(x.precio)}</td><td class="${(x.gananciaPct ?? 0) >= 0 ? 'up' : 'down'}"><b>${signed(x.gananciaPct)} %</b><small>${nf(0).format(x.ganancia ?? 0)} ${esc(x.divisa)}</small></td></tr>`).join('')}</tbody></table></div></section>
     ${cerradas.length ? `<section class="bt-card"><h3 class="bt-h">Posiciones cerradas · ${cerradas.length}${mediaCerr !== null ? ` · ${nf(0).format(mediaCerr)} días de media` : ''}</h3>
-      <div class="bt-table"><table><thead><tr><th>Valor</th><th>Estuvo en cartera</th><th>Resultado</th></tr></thead><tbody>${cerradas.map(x => `
-        <tr><td><b>${esc(x.simbolo)}</b></td><td>${x.dias} días<small>${fecha(x.desde)} → ${fecha(x.hasta)}</small></td>
+      <div class="bt-table"><table><thead><tr><th>Valor</th><th>Alertas</th><th>Estuvo en cartera</th><th>Resultado</th></tr></thead><tbody>${cerradas.map(x => `
+        <tr><td><b>${esc(x.simbolo)}</b></td><td>${chipSemaforo(x.semaforo)}</td><td>${x.dias} días<small>${fecha(x.desde)} → ${fecha(x.hasta)}</small></td>
         <td class="${(x.gananciaEur ?? 0) >= 0 ? 'up' : 'down'}"><b>${eur0(x.gananciaEur)}</b></td></tr>`).join('')}</tbody></table></div></section>` : ''}
+    ${resumenSemaforo(pos, cerradas)}
     <section class="bt-card"><h3 class="bt-h">Últimas operaciones</h3>
       <div class="bt-table"><table><thead><tr><th>Día</th><th>Operación</th><th>Precio</th></tr></thead><tbody>${ops.map(e => `
         <tr><td>${fecha(e.fecha)}</td><td><span class="${e.lado === 'compra' ? 'up' : 'down'}">${e.lado === 'compra' ? '▲ Compra' : '▼ Venta'}</span> ${nf(0).format(e.acciones)} <b>${esc(e.simbolo)}</b></td><td>${num(e.precio)} ${esc(e.divisa)}</td></tr>`).join('')}</tbody></table></div></section>

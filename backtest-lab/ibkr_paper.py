@@ -112,7 +112,7 @@ def leer_libro():
     acción (se anota al comprarla) y lo ganado/perdido en ventas cerradas (por ejecución, sin duplicar)."""
     libro = {"capitalInicial": CAPITAL_INICIAL, "pesos": {"fundamental": 0.5, "precio": 0.5},
              "nombres": {"fundamental": "Valor + momentum", "precio": "Momentum en EE. UU."},
-             "asignacion": {}, "realizado": {}, "entradas": {}, "cerradas": []}
+             "asignacion": {}, "realizado": {}, "entradas": {}, "cerradas": [], "semaforo": {}}
     if LIBRO.exists():
         libro.update(json.loads(LIBRO.read_text(encoding="utf-8")))
     return libro
@@ -120,6 +120,22 @@ def leer_libro():
 
 def guardar_libro(libro):
     LIBRO.write_text(json.dumps(libro, ensure_ascii=False, indent=1), encoding="utf-8")
+
+
+def semaforo_corto(s):
+    """Lo que se enseña en la web del semáforo de una compra: alertas y datos que faltaron."""
+    return {"alertas": s.get("alertas", []), "sinDato": s.get("sinDato", []), "fecha": s.get("fecha"),
+            **({"aprox": True} if s.get("aprox") else {})} if s else None
+
+
+def semaforos_de_cartera(cartera):
+    """ticker -> semáforo calculado al publicar la cartera (la primera estrategia que la tenga)."""
+    out = {}
+    for e in cartera.get("estrategias", []):
+        for v in e["valores"]:
+            if v.get("semaforo") and v["ticker"] not in out:
+                out[v["ticker"]] = v["semaforo"]
+    return out
 
 
 def asignar_desde_cartera(libro, cartera):
@@ -207,9 +223,11 @@ def foto(puerto, enviar=True, salida=None):
         desde = libro["entradas"].pop(sim)
         ganancia = sum(r["eur"] for r in libro["realizado"].values()
                        if r["simbolo"] == sim and r.get("fecha", hoy.isoformat()) >= desde and r["eur"] == r["eur"])
+        sem = libro.setdefault("semaforo", {}).pop(sim, None)
         libro["cerradas"].append({"simbolo": sim, "estrategia": libro["asignacion"].get(sim), "desde": desde,
                                   "hasta": hoy.isoformat(), "dias": (hoy - datetime.fromisoformat(desde).date()).days,
-                                  "gananciaEur": round(ganancia, 2)})
+                                  "gananciaEur": round(ganancia, 2),
+                                  **({"semaforo": semaforo_corto(sem)} if sem else {})})
     for p in posiciones:
         p["desde"] = libro["entradas"].get(p["simbolo"])
         p["dias"] = (hoy - datetime.fromisoformat(p["desde"]).date()).days if p["desde"] else None
@@ -217,6 +235,8 @@ def foto(puerto, enviar=True, salida=None):
         p["valorEur"] = round(p["valor"] * f_eur, 2)
         p["gananciaEur"] = round(p["ganancia"] * f_eur, 2)
         p["estrategia"] = libro["asignacion"].get(p["simbolo"])
+        if libro.get("semaforo", {}).get(p["simbolo"]):
+            p["semaforo"] = semaforo_corto(libro["semaforo"][p["simbolo"]])
         if p["estrategia"] in estrategias:
             e = estrategias[p["estrategia"]]
             e["invertido"] += p["valorEur"]
@@ -306,6 +326,7 @@ def main():
     if base != "EUR":
         log(f"Aviso: la divisa base de la cuenta es {base}; los importes se tratan como si fueran EUR.")
     libro = leer_libro()
+    semaforos = semaforos_de_cartera(cartera)
     if args.ejecutar:
         libro["pesos"] = pesos
         asignar_desde_cartera(libro, cartera)       # las que ya teníamos sin anotar
@@ -360,11 +381,19 @@ def main():
                 tk = next(t for t, k in contratos.items() if k.conId == c.conId)
                 libro["asignacion"][c.symbol] = objetivo[tk]["estrategias"][0]
                 libro["entradas"][c.symbol] = datetime.now().date().isoformat()
+                if semaforos.get(tk):
+                    libro.setdefault("semaforo", {})[c.symbol] = semaforos[tk]
             t = ib.placeOrder(c, MarketOrder("SELL" if accion == "VENDER" else "BUY", n, tif="DAY"))
             ib.sleep(1)
             fila["estado"] = t.orderStatus.status
         filas.append(fila)
     if args.ejecutar:
+        # posiciones que ya estaban antes de anotar el semáforo: se les pone el de esta semana, marcado como aproximado
+        tk_de = {k.conId: t for t, k in contratos.items()}
+        for p in posiciones.values():
+            t = tk_de.get(p.contract.conId)
+            if p.position > 0 and t and semaforos.get(t) and p.contract.symbol not in libro.setdefault("semaforo", {}):
+                libro["semaforo"][p.contract.symbol] = {**semaforos[t], "aprox": True}
         guardar_libro(libro)
     if filas:
         reg = DIR / "registro_ordenes.csv"

@@ -135,6 +135,11 @@ test('IBKR paper snapshots: only paper accounts, one history point per day, stor
   const conDias = limpiarFoto({...base, posiciones: [{simbolo: 'TEAM', desde: '2026-10-12', dias: 3}],
     cerradas: [{simbolo: 'MU', estrategia: 'precio', desde: '2026-10-12', hasta: '2026-11-02', dias: 21, gananciaEur: 1234.5, raro: 1}]});
   assert.equal(conDias.posiciones[0].dias, 3); assert.equal(conDias.cerradas[0].dias, 21); assert.equal(conDias.cerradas[0].raro, undefined);
+  const conSemaforo = limpiarFoto({...base, posiciones: [{simbolo: 'HIMS', semaforo: {alertas: ['va_por_libre', 'loteria', 'inventada'], sinDato: ['diluye'], fecha: '2026-10-09', aprox: true, datos: {r2: 0.09}}}],
+    cerradas: [{simbolo: 'MU', semaforo: 'roto'}]});
+  assert.deepEqual(conSemaforo.posiciones[0].semaforo, {alertas: ['va_por_libre', 'loteria'], sinDato: ['diluye'], fecha: '2026-10-09', aprox: true},
+    'risk-light alerts: only known keys, no raw data');
+  assert.equal(conSemaforo.cerradas[0].semaforo, null);
   assert.equal(combinar(null, limpia).historial[0].estrategias.fundamental, 493746.5);
   const dos = combinar(combinar(null, limpia), {...limpia, fecha: '2026-10-12T20:00:00+00:00', valor: 1000100});
   assert.equal(dos.historial.length, 1, 'same day replaces');
