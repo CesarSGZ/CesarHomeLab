@@ -155,3 +155,21 @@ test('the snapshot workflow passes the input through an environment variable and
   assert.doesNotMatch(wf, /run: .*\$\{\{ inputs/);
   assert.doesNotMatch(wf, /CLOUDFLARE_|wrangler|contents: write|git push/);
 });
+
+test('robot ledger round-trips through the allowlisted bridge and rejects malformed ledgers', async () => {
+  const {leer, guardar, validarLibro} = await import('../scripts/ibkr-paper-libro.mjs');
+  const {db} = d1();
+  const runner = bridge({CONTROL_DB: db});
+  assert.equal(await leer(runner), '{}');
+  await guardar(runner, JSON.stringify({capitalInicial: 1e6, asignacion: {MU: 'precio'}, entradas: {MU: '2026-10-12'}, cerradas: []}));
+  assert.equal(JSON.parse(await leer(runner)).asignacion.MU, 'precio');
+  for (const malo of ['[]', '{"cerradas":{}}', '{"capitalInicial":-1}', 'no json']) assert.throws(() => validarLibro(malo));
+});
+
+test('the cloud robot only uses paper mode, secrets via env, and never deploys or pushes', () => {
+  const wf = readFileSync(new URL('../.github/workflows/ibkr-paper-robot.yml', import.meta.url), 'utf8');
+  assert.match(wf, /TRADING_MODE=paper/);
+  assert.match(wf, /TWS_PASSWORD: \$\{\{ secrets\.IBKR_PAPER_PASSWORD \}\}/);
+  assert.doesNotMatch(wf, /run: .*secrets\./);
+  assert.doesNotMatch(wf, /CLOUDFLARE_|wrangler|contents: write|git push|TRADING_MODE=live/);
+});

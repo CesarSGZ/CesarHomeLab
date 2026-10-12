@@ -53,6 +53,8 @@ const specs=new Map([
  spec("UPDATE personal_datasets SET payload=?,updated_at=? WHERE name='backtest-lab-request' AND json_extract(payload,'$.status')=? RETURNING payload",[backtestRequest,isoString,oneOf('queued','running')],(p,n)=>isoNowish(p[1],n)),
  spec("INSERT INTO personal_datasets(name,payload,updated_at) VALUES('backtest-lab',?,?) ON CONFLICT(name) DO UPDATE SET payload=excluded.payload,updated_at=excluded.updated_at",[backtestPayload,isoString],(p,n)=>isoNowish(p[1],n)),
  spec("SELECT payload,updated_at FROM personal_datasets WHERE name='ibkr-paper'"),
+ spec("SELECT payload,updated_at FROM personal_datasets WHERE name='ibkr-paper-libro'"),
+ spec("INSERT INTO personal_datasets(name,payload,updated_at) VALUES('ibkr-paper-libro',?,?) ON CONFLICT(name) DO UPDATE SET payload=excluded.payload,updated_at=excluded.updated_at",[backtestPayload,isoString],(p,n)=>isoNowish(p[1],n)),
  spec("INSERT INTO personal_datasets(name,payload,updated_at) VALUES('ibkr-paper',?,?) ON CONFLICT(name) DO UPDATE SET payload=excluded.payload,updated_at=excluded.updated_at",[backtestPayload,isoString],(p,n)=>isoNowish(p[1],n))
 ]);
 export const runtimeSqlStatements=Object.freeze([...specs.keys()]);
