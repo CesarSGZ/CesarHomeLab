@@ -119,3 +119,8 @@ html[data-theme=day] .backtest-view{--bt-bg:#f9fcfe;--bt-soft:#e9f0f5;--bt-ink:#
 @media(max-width:560px){.bt-res{grid-template-columns:1fr}.bt-res b{font-size:20px}.bt-px .axis{font-size:18px}}
 
 .bt-paper-sel{margin:0 0 14px}
+.bt-sem{display:inline-block;min-width:26px;padding:3px 8px;border-radius:999px;text-align:center;font:600 12px DM Mono,monospace;cursor:help}
+.bt-sem.verde{background:color-mix(in srgb,var(--bt-up) 18%,transparent);color:var(--bt-up)}
+.bt-sem.ambar{background:color-mix(in srgb,#d9a521 22%,transparent);color:#a77a0c}
+.bt-sem.rojo{background:color-mix(in srgb,var(--bt-down) 18%,transparent);color:var(--bt-down)}
+.bt-sem.na{color:var(--bt-muted)}

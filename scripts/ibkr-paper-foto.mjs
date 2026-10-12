@@ -6,6 +6,14 @@ const num = x => (typeof x === 'number' && Number.isFinite(x) ? x : null);
 const txt = (x, max = 40) => (typeof x === 'string' ? x.slice(0, max) : '');
 const fecha = x => (typeof x === 'string' && /^\d{4}-\d{2}-\d{2}([T ][\d:.+\-Z]+)?$/.test(x) ? x.slice(0, 25) : null);
 
+const CLAVES_ALERTA = new Set(['va_por_libre', 'loteria', 'diluye', 'pico_wiki', 'vol_propia', 'no_bate_bpa', 'sin_dividendo']);
+const claves = xs => (Array.isArray(xs) ? xs.filter(x => CLAVES_ALERTA.has(x)).slice(0, 8) : []);
+
+export function limpiarSemaforo(s) {
+  if (!s || typeof s !== 'object' || Array.isArray(s)) return null;
+  return {alertas: claves(s.alertas), sinDato: claves(s.sinDato), fecha: fecha(s.fecha), ...(s.aprox === true ? {aprox: true} : {})};
+}
+
 export function limpiarFoto(bruta) {
   const f = typeof bruta === 'string' ? JSON.parse(bruta) : bruta;
   if (!f || typeof f !== 'object' || Array.isArray(f)) throw new Error('foto_invalida');
@@ -26,10 +34,10 @@ export function limpiarFoto(bruta) {
       simbolo: txt(p.simbolo, 16), divisa: txt(p.divisa, 4), bolsa: txt(p.bolsa, 12), acciones: num(p.acciones),
       precioMedio: num(p.precioMedio), precio: num(p.precio), valor: num(p.valor), ganancia: num(p.ganancia),
       gananciaPct: num(p.gananciaPct), valorEur: num(p.valorEur), gananciaEur: num(p.gananciaEur),
-      estrategia: txt(p.estrategia, 24) || null, desde: fecha(p.desde), dias: num(p.dias)})),
+      estrategia: txt(p.estrategia, 24) || null, desde: fecha(p.desde), dias: num(p.dias), semaforo: limpiarSemaforo(p.semaforo)})),
     cerradas: lista(f.cerradas, 300).map(c => ({
       simbolo: txt(c.simbolo, 16), estrategia: txt(c.estrategia, 24) || null, desde: fecha(c.desde), hasta: fecha(c.hasta),
-      dias: num(c.dias), gananciaEur: num(c.gananciaEur)})),
+      dias: num(c.dias), gananciaEur: num(c.gananciaEur), semaforo: limpiarSemaforo(c.semaforo)})),
     ejecuciones: lista(f.ejecuciones, 200).map(e => ({
       fecha: fecha(e.fecha), simbolo: txt(e.simbolo, 16), lado: e.lado === 'venta' ? 'venta' : 'compra',
       acciones: num(e.acciones), precio: num(e.precio), divisa: txt(e.divisa, 4), estrategia: txt(e.estrategia, 24) || null})),
