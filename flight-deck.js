@@ -120,6 +120,19 @@
   $$('[data-brief-close]').forEach(button => button.addEventListener('click', () => dialog?.close()));
   dialog?.addEventListener('click', event => { if (event.target === dialog) dialog.close(); });
 
+  /* ---------- Hero player: the brief plays inline, where the portrait used to be ---------- */
+  const player = $('[data-brief-player]'), heroVideo = player?.querySelector('video');
+  const playInline = () => {
+    if (!heroVideo) return;
+    player.classList.add('is-playing');
+    heroVideo.controls = true;
+    heroVideo.play?.().catch(() => {});
+  };
+  player?.querySelector('.brief-play')?.addEventListener('click', playInline);
+  $$('[data-brief-inline]').forEach(button => button.addEventListener('click', () => { player?.scrollIntoView({ behavior: 'smooth', block: 'center' }); playInline(); }));
+  heroVideo?.addEventListener('ended', () => { player.classList.remove('is-playing'); heroVideo.controls = false; heroVideo.currentTime = 0; });
+  $$('[data-brief-open]').forEach(button => button.addEventListener('click', () => heroVideo?.pause()));
+
   /* ---------- Pointer-lit surfaces ---------- */
   const spotTargets = $$('.pillars article, .log-content, .credential, .language-channel');
   spotTargets.forEach(card => {
@@ -163,7 +176,7 @@
   const intro = gsap.timeline({ paused: true, defaults: { ease: 'expo.out' } });
   [heroCopy, identity].forEach(node => { if (node) { gsap.set(node, { opacity: 1, y: 0 }); node.classList.remove('reveal'); } });
   gsap.set(['.hero .eyebrow', '.hero-lead', '.hero-actions > *', '.fd-brief-link', '.id-card > *', '.coordinate', '.scroll-hint'], { autoAlpha: 0 });
-  gsap.set('.portrait-shell', { clipPath: 'inset(100% 0% 0% 0% round 110px 110px 12px 12px)' });
+  gsap.set('.brief-player', { clipPath: 'inset(50% 0% 50% 0% round 18px)' });
   gsap.set('.hero h1', { autoAlpha: 0 });
   if (pitchGroup) gsap.set(pitchGroup, { scaleX: 0, svgOrigin: '0 0', opacity: 0 });
 
@@ -177,8 +190,8 @@
       .fromTo('.hero h1 em', { '--fd-fill': '100%' }, { '--fd-fill': '0%', duration: 1.3, ease: 'power2.inOut' }, .75)
       .to('.hero .eyebrow', { autoAlpha: 1, duration: .4 }, .05)
       .from('.hero .eyebrow', { x: -12, duration: .9 }, .05)
-      .to('.portrait-shell', { clipPath: 'inset(0% 0% 0% 0% round 110px 110px 12px 12px)', duration: 1.4, ease: 'expo.inOut' }, .25)
-      .from('.portrait-shell img', { scale: 1.25, duration: 1.8 }, .25)
+      .to('.brief-player', { clipPath: 'inset(0% 0% 0% 0% round 18px)', duration: 1.3, ease: 'expo.inOut' }, .25)
+      .from('.brief-player video', { scale: 1.2, duration: 1.8 }, .25)
       .to('.hero-lead', { autoAlpha: 1, duration: .8 }, .7).from('.hero-lead', { y: 18, duration: .8 }, .7)
       .to('.hero-actions > *', { autoAlpha: 1, duration: .6, stagger: .08 }, .85).from('.hero-actions > *', { y: 16, duration: .8, stagger: .08 }, .85)
       .to('.fd-brief-link', { autoAlpha: 1, duration: .6 }, 1.05)

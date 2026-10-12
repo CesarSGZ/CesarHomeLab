@@ -1,0 +1,934 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>César Solla — Mission Brief</title>
+<style>
+@font-face{font-family:'InterD';src:url(fonts/inter-display.woff2) format('woff2');font-weight:100 900;font-display:block}
+@font-face{font-family:'ISerif';src:url(fonts/instrument-serif-italic.woff2) format('woff2');font-style:italic;font-display:block}
+:root{--v:#8b5cff;--p:#ff4d8d;--c:#5fd4ff;--bg:#07060b;--fg:#f6f2ff;--mut:rgba(246,242,255,.62)}
+html,body{margin:0;background:var(--bg);overflow:hidden}
+#stage{position:relative;width:1920px;height:1080px;overflow:hidden;background:var(--bg);font-family:InterD,sans-serif;color:var(--fg)}
+canvas{position:absolute;left:0;top:0}
+.scene{position:absolute;inset:0;visibility:hidden}
+#s0{visibility:visible}
+
+/* ---------- type system ---------- */
+.h{position:relative;margin:0;font-weight:900;font-variation-settings:'opsz' 32;letter-spacing:-.058em;line-height:.92;white-space:nowrap}
+.h em{position:relative;display:inline-block;font-family:ISerif;font-style:italic;font-weight:400;letter-spacing:-.012em;padding-right:.06em;color:#ff86b0;
+  text-shadow:0 0 .4em rgba(255,77,141,.42)}
+.c{display:inline-block;will-change:transform,filter,opacity}
+.w{display:inline-block;white-space:nowrap}
+.scan{position:absolute;top:-8%;bottom:-8%;left:0;width:3px;margin-left:-1.5px;background:#fff;opacity:0;pointer-events:none;
+  box-shadow:0 0 10px 2px #fff,0 0 36px 8px rgba(255,77,141,.75),0 0 110px 34px rgba(139,92,255,.45)}
+.scan:after{content:'';position:absolute;right:3px;top:10%;bottom:10%;width:120px;background:linear-gradient(to left,rgba(255,200,230,.12),rgba(139,92,255,0))}
+.swash{position:absolute;left:-2%;width:104%;bottom:-.16em;height:.28em;overflow:visible;pointer-events:none}
+.swash path{fill:none;stroke:#ff4d8d;stroke-width:3;stroke-linecap:round;filter:drop-shadow(0 0 6px #ff4d8d)}
+.kick{font-weight:600;font-variation-settings:'opsz' 14;font-size:19px;letter-spacing:.34em;text-transform:uppercase;color:var(--mut);white-space:nowrap}
+.kick b{color:#ff86b0;font-weight:700}
+.body{font-weight:500;font-variation-settings:'opsz' 14;letter-spacing:-.005em;color:var(--mut)}
+.center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
+.panel{background:linear-gradient(160deg,rgba(255,255,255,.075),rgba(255,255,255,.015));border:1px solid rgba(255,255,255,.13);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.14),0 30px 80px rgba(0,0,0,.5);border-radius:20px;position:relative;overflow:hidden}
+.panel:before{content:'';position:absolute;left:0;right:0;top:0;height:3px;background:var(--cc,#8b5cff);box-shadow:0 0 22px 4px var(--cc,#8b5cff)}
+
+/* ---------- HUD frame ---------- */
+#hud{position:absolute;inset:0;pointer-events:none;opacity:0}
+.br{position:absolute;width:34px;height:34px;border:0 solid rgba(255,255,255,.45)}
+.br.tl{left:44px;top:44px;border-left-width:2px;border-top-width:2px}
+.br.tr{right:44px;top:44px;border-right-width:2px;border-top-width:2px}
+.br.bl{left:44px;bottom:44px;border-left-width:2px;border-bottom-width:2px}
+.br.brr{right:44px;bottom:44px;border-right-width:2px;border-bottom-width:2px}
+.hl{position:absolute;font-weight:600;font-variation-settings:'opsz' 14;font-size:14px;letter-spacing:.3em;text-transform:uppercase;color:rgba(246,242,255,.55);white-space:nowrap}
+#hudSec{left:96px;top:54px;color:#fff}
+#hudSec > span{position:absolute;left:0;top:0}
+#hudSec i{font-style:normal;color:#ff86b0}
+#hudId{right:96px;top:54px}
+#hudLoc{left:96px;bottom:52px}
+#hudTc{right:96px;bottom:52px;font-variant-numeric:tabular-nums;color:#fff}
+#hudBar{position:absolute;left:96px;right:96px;bottom:40px;height:1px;background:rgba(255,255,255,.12)}
+#hudBar i{position:absolute;left:0;top:-1px;height:3px;width:100%;transform-origin:0 50%;transform:scaleX(0);background:linear-gradient(90deg,var(--v),var(--p));box-shadow:0 0 10px var(--p)}
+
+/* ---------- S0 ---------- */
+#s0name{font-size:150px}
+#s0role{font-size:84px;margin-top:30px}
+#s0tag{font-size:50px;margin-top:46px;font-weight:800;letter-spacing:-.035em}
+#s0tag em{text-shadow:0 0 .4em rgba(255,77,141,.5)}
+#s0loc{margin-top:40px}
+
+/* ---------- S1 ---------- */
+#dot{position:absolute;left:944px;top:384px;width:32px;height:32px;border-radius:50%;
+  background:radial-gradient(circle,#fff 0 30%,#d9c8ff 45%,rgba(139,92,255,0) 72%);
+  box-shadow:0 0 40px 14px rgba(139,92,255,.75),0 0 120px 40px rgba(255,77,141,.35);opacity:0}
+#plane{position:absolute;left:810px;top:250px;width:300px;height:300px;overflow:visible;opacity:0;
+  filter:drop-shadow(0 0 18px rgba(139,92,255,.9)) drop-shadow(0 0 50px rgba(255,77,141,.45))}
+#s1t{position:absolute;left:0;right:0;top:110px;text-align:center;font-size:116px}
+.cards{position:absolute;left:130px;right:130px;top:612px;display:flex;gap:34px}
+.card{flex:1;padding:30px 34px 34px}
+.cnum{font-weight:700;font-variation-settings:'opsz' 14;font-size:16px;letter-spacing:.32em;color:var(--cc);margin-bottom:18px}
+.card .h{font-size:58px}
+.card .h em{color:var(--cc);text-shadow:0 0 .4em var(--cc)}
+.ctag{margin-top:18px;font-family:ISerif;font-style:italic;font-size:31px;color:#fff;line-height:1.1}
+.cs{margin-top:14px;font-size:21px}
+
+/* ---------- S1b leadership ---------- */
+#s1bk{position:absolute;left:0;right:0;top:300px;text-align:center}
+#s1bt{position:absolute;left:0;right:0;top:370px;text-align:center;font-size:128px}
+#s1bs{position:absolute;left:0;right:0;top:690px;text-align:center;font-size:34px}
+
+/* ---------- S2 trajectory ---------- */
+#s2t{position:absolute;left:120px;top:96px;font-size:250px;transform-origin:0 0}
+#s2k{position:absolute;left:124px;top:200px;opacity:0}
+.role{position:absolute;left:120px;bottom:118px;width:1150px}
+.rk{margin-bottom:18px;color:#c9b6ff}
+.role .h{font-size:76px}
+.rs{margin-top:18px;font-size:27px;max-width:1000px;white-space:normal;line-height:1.3}
+.chips{display:flex;gap:12px;margin-top:22px}
+.chip{padding:9px 18px;border-radius:999px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.06);font-weight:600;font-variation-settings:'opsz' 14;font-size:18px;color:rgba(255,255,255,.9);white-space:nowrap}
+#s2c{position:absolute;right:120px;bottom:130px;font-size:96px;text-align:right}
+
+/* ---------- S3 credentials ---------- */
+#s3t{position:absolute;left:0;right:0;top:92px;text-align:center;font-size:96px;line-height:1}
+#ringWrap{position:absolute;left:0;top:300px;width:1920px;height:700px;perspective:2100px;perspective-origin:50% 40%}
+#ring{position:absolute;left:50%;top:50%;width:0;height:0;transform-style:preserve-3d}
+.cred{position:absolute;width:560px;height:330px;left:-280px;top:-165px;box-sizing:border-box;padding:30px 36px;border-radius:26px;
+  backface-visibility:hidden;overflow:hidden;
+  background:linear-gradient(150deg,rgba(40,26,72,.94),rgba(14,10,24,.96) 55%,rgba(52,16,38,.94));
+  border:1px solid rgba(255,255,255,.16);box-shadow:inset 0 1px 0 rgba(255,255,255,.2),0 0 60px rgba(139,92,255,.25)}
+.cr1{display:flex;justify-content:space-between;font-weight:600;font-variation-settings:'opsz' 14;font-size:16px;letter-spacing:.3em;text-transform:uppercase;color:var(--mut)}
+.code{margin-top:14px;font-weight:900;font-variation-settings:'opsz' 32;letter-spacing:-.06em;font-size:120px;line-height:.9;
+  background:linear-gradient(100deg,#fff 10%,var(--cc) 90%);-webkit-background-clip:text;background-clip:text;color:transparent}
+.ctitle{margin-top:14px;font-family:ISerif;font-style:italic;font-size:40px;line-height:1}
+.ciss{margin-top:10px;font-weight:500;font-variation-settings:'opsz' 14;font-size:19px;color:var(--mut)}
+.sheen{position:absolute;inset:-40% -60%;background:linear-gradient(105deg,transparent 42%,rgba(255,255,255,.16) 50%,transparent 58%);transform:translateX(-70%)}
+.seal{position:absolute;right:30px;bottom:28px;width:58px;height:58px;border-radius:50%;border:2px solid var(--cc);box-shadow:0 0 22px var(--cc),inset 0 0 14px var(--cc)}
+
+/* ---------- S4 languages ---------- */
+#s4t{position:absolute;left:120px;top:330px;font-size:150px;line-height:.86}
+#s4k{position:absolute;left:124px;top:270px}
+#s4s{position:absolute;left:124px;top:640px;font-size:30px}
+.lang{position:absolute;transform:translate(-50%,-50%);padding:16px 24px 18px;white-space:nowrap;--cc:#ff4d8d}
+.hello{font-family:ISerif;font-style:italic;font-size:58px;line-height:1;color:#fff}
+.ln{margin-top:8px;font-weight:600;font-variation-settings:'opsz' 14;font-size:17px;letter-spacing:.18em;text-transform:uppercase;color:var(--mut)}
+.bars{display:flex;gap:6px;margin-top:12px}
+.bars i{width:30px;height:6px;border-radius:3px;background:rgba(255,255,255,.12)}
+.bars i.on{background:linear-gradient(90deg,var(--v),var(--p));box-shadow:0 0 10px rgba(255,77,141,.6)}
+
+/* ---------- S5 skills ---------- */
+#dheads{position:absolute;left:120px;top:140px;height:40px;width:900px}
+.dh{position:absolute;left:0;top:0;display:flex;align-items:center;gap:22px;font-weight:700;font-variation-settings:'opsz' 14;font-size:22px;letter-spacing:.32em;text-transform:uppercase}
+.dh b{display:inline-block;width:64px;height:4px;border-radius:2px;background:var(--cc);box-shadow:0 0 18px var(--cc)}
+.dh span:last-child{color:var(--mut);font-weight:500}
+.skc{position:absolute;inset:0;display:flex;align-items:center;justify-content:flex-end;padding-right:70px;font-weight:900;font-variation-settings:'opsz' 32;letter-spacing:-.05em;
+  font-size:560px;color:transparent;-webkit-text-stroke:2px rgba(255,255,255,.07);opacity:0}
+.skb{position:absolute;left:120px;top:262px;width:1700px}
+.skr{display:flex;gap:44px;align-items:flex-start;margin-bottom:52px}
+.sc{flex:0 0 120px;padding-top:18px;font-weight:700;font-variation-settings:'opsz' 14;font-size:20px;letter-spacing:.3em;color:var(--cc)}
+.skr .h{font-size:108px}
+.skr .h em{color:var(--cc);text-shadow:0 0 .35em var(--cc)}
+.skr .ev{margin-top:16px;font-size:28px}
+#ticks{position:absolute;left:120px;right:120px;bottom:110px;display:flex;gap:14px}
+#ticks i{flex:1;height:4px;border-radius:2px;background:rgba(255,255,255,.1)}
+
+/* ---------- S6 ---------- */
+#s6a1{font-size:84px;color:rgba(246,242,255,.8)}
+#s6a2{font-size:170px;margin-top:20px}
+#s6a2 em{font-size:1.15em}
+#s6as{margin-top:48px}
+#mono{position:absolute;left:0;right:0;top:340px;text-align:center;font-size:150px;letter-spacing:-.07em;
+  background:linear-gradient(120deg,#fff 20%,#c3adff 55%,#ff7aa8);-webkit-background-clip:text;background-clip:text;color:transparent}
+#s6t{position:absolute;left:0;right:0;top:700px;text-align:center;font-size:118px}
+#url{position:absolute;left:0;right:0;top:866px;text-align:center;font-size:24px;letter-spacing:.42em;color:#fff}
+#url2{position:absolute;left:0;right:0;top:910px;text-align:center}
+
+/* ---------- overlays ---------- */
+#flash{position:absolute;inset:0;opacity:0;pointer-events:none;mix-blend-mode:screen;
+  background:radial-gradient(ellipse at 50% 50%,rgba(255,240,255,.8),rgba(160,110,255,.35) 40%,rgba(255,77,141,0) 75%)}
+#vig{position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse 75% 70% at 50% 50%,rgba(0,0,0,0) 55%,rgba(0,0,0,.62) 100%)}
+#fade{position:absolute;inset:0;background:#000;opacity:0}
+</style>
+</head>
+<body>
+<div id="stage">
+  <canvas id="bg" width="1920" height="1080"></canvas>
+  <canvas id="fx" width="1920" height="1080"></canvas>
+
+  <!-- 0 · Ignition -->
+  <section class="scene" id="s0">
+    <div class="center">
+      <h1 class="h" id="s0name">César Solla González</h1>
+      <h2 class="h" id="s0role" data-swash>Aerospace Systems <em>Engineer</em></h2>
+      <div class="h" id="s0tag">I connect complex systems with clear <em>decisions.</em></div>
+      <div class="kick" id="s0loc">Based in Madrid · <b>Airbus Defence and Space</b></div>
+    </div>
+  </section>
+
+  <!-- 1 · Three disciplines -->
+  <section class="scene" id="s1">
+    <div id="dot"></div>
+    <svg id="plane" viewBox="0 0 200 200">
+      <defs><linearGradient id="pg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#d4c4ff"/><stop offset=".55" stop-color="#8b5cff"/><stop offset="1" stop-color="#ff4d8d"/></linearGradient></defs>
+      <path id="planeFill" fill="url(#pg)" opacity="0"/>
+      <path id="planeStroke" fill="none" stroke="#fff" stroke-width="1.4" stroke-linejoin="round" pathLength="1" stroke-dasharray="1" stroke-dashoffset="1"/>
+    </svg>
+    <h2 class="h" id="s1t" data-swash>Three <em>Disciplines</em></h2>
+    <div class="cards">
+      <div class="card panel" style="--cc:#ff4d8d"><div class="cnum">01 · ORCHESTRATE</div><div class="h">Programme <em>Execution</em></div><div class="ctag">Connect the people. Move the programme.</div><div class="cs body">Planning · Risk · Budget · Stakeholders</div></div>
+      <div class="card panel" style="--cc:#8b5cff"><div class="cnum">02 · ENGINEER</div><div class="h">Systems <em>Engineering</em></div><div class="ctag">Understand the system. Master the detail.</div><div class="cs body">Requirements · Interfaces · V&amp;V · Qualification</div></div>
+      <div class="card panel" style="--cc:#5fd4ff"><div class="cnum">03 · ILLUMINATE</div><div class="h">Data &amp; <em>Automation</em></div><div class="ctag">Find the signal. Make it actionable.</div><div class="cs body">SAP analytics · Python · Decision-ready reporting</div></div>
+    </div>
+  </section>
+
+  <!-- 1b · Leadership -->
+  <section class="scene" id="s1b">
+    <div class="kick" id="s1bk">Leadership · <b>without a title</b></div>
+    <h2 class="h" id="s1bt" data-swash>Leadership can come<br>from <em>any position.</em></h2>
+    <div class="body" id="s1bs">The best systems are still built by people who understand people.</div>
+  </section>
+
+  <!-- 2 · Trajectory -->
+  <section class="scene" id="s2">
+    <h2 class="h" id="s2t"><em>Trajectory</em></h2>
+    <div class="kick" id="s2k">Flight log · <b>2021 → now</b></div>
+    <div class="role"><div class="kick rk">EY · Nov 2021 — Apr 2022</div><div class="h">R&amp;D <em>Consultant</em></div><div class="body rs">Turned complex R&amp;D across defence, AI, energy and manufacturing into defensible project documentation.</div><div class="chips"><span class="chip">Technical assessment</span><span class="chip">Defence &amp; AI</span><span class="chip">Executive documentation</span></div></div>
+    <div class="role"><div class="kick rk">Deloitte · May — Oct 2022</div><div class="h">Salesforce <em>Analyst</em></div><div class="body rs">Certified administrator and functional developer for Stellantis' C1ST sales platform.</div><div class="chips"><span class="chip">Salesforce admin</span><span class="chip">Agile &amp; Scrum</span><span class="chip">JIRA</span></div></div>
+    <div class="role"><div class="kick rk">Airbus Defence and Space · Oct 2022 — May 2023</div><div class="h">BI &amp; SAP BW/HANA <em>Expert</em></div><div class="body rs">Procurement and supply-chain analytics, turned into automated, decision-ready information.</div><div class="chips"><span class="chip">SAP BW modelling</span><span class="chip">SAP Analytics Cloud</span><span class="chip">KPI dashboards</span></div></div>
+    <div class="role"><div class="kick rk">Airbus · Eurodrone · May 2023 — Apr 2024</div><div class="h">Powerplant Systems <em>Engineer</em></div><div class="body rs">Requirements, V&amp;V and test preparation across engine, nacelle, propeller and avionics interfaces.</div><div class="chips"><span class="chip">DOORS &amp; CAMEO</span><span class="chip">Means of Compliance</span><span class="chip">SRR · PDR · CDR</span></div></div>
+    <div class="role"><div class="kick rk">Airbus · A330 MRTT · Apr 2024 — Now</div><div class="h">Programme Management <em>Office</em></div><div class="body rs">Risks, budgets, schedules and deliverables consolidated into decision-ready executive reporting.</div><div class="chips"><span class="chip">Risk &amp; budget</span><span class="chip">MS Project &amp; BigPicture</span><span class="chip">Executive reporting</span></div></div>
+    <h3 class="h" id="s2c" data-swash>Increasing<br><em>responsibility.</em></h3>
+  </section>
+
+  <!-- 3 · Credentials -->
+  <section class="scene" id="s3">
+    <h2 class="h" id="s3t" data-swash>Built on engineering.<br>Certified to <em>lead.</em></h2>
+    <div id="ringWrap"><div id="ring">
+      <div class="pivot"><div class="cred" style="--cc:#ff4d8d"><div class="cr1"><span>Certification</span><span>2026</span></div><div class="code">PMP</div><div class="ctitle">Project Management Professional</div><div class="ciss">Project Management Institute</div><div class="seal"></div><div class="sheen"></div></div></div>
+      <div class="pivot"><div class="cred" style="--cc:#8b5cff"><div class="cr1"><span>Master's degree</span><span>2023 — 2025</span></div><div class="code">MSc</div><div class="ctitle">Aerospace Engineering</div><div class="ciss">Universidad Europea de Madrid</div><div class="seal"></div><div class="sheen"></div></div></div>
+      <div class="pivot"><div class="cred" style="--cc:#a98bff"><div class="cr1"><span>Bachelor's degree</span><span>2017 — 2021</span></div><div class="code">BSc</div><div class="ctitle">Aerospace Engineering</div><div class="ciss">Technical University of Madrid · UPM</div><div class="seal"></div><div class="sheen"></div></div></div>
+      <div class="pivot"><div class="cred" style="--cc:#5fd4ff"><div class="cr1"><span>Certification</span><span>2022</span></div><div class="code">SFDC</div><div class="ctitle">Salesforce Administrator</div><div class="ciss">Certified admin &amp; functional developer</div><div class="seal"></div><div class="sheen"></div></div></div>
+      <div class="pivot"><div class="cred" style="--cc:#ff86b0"><div class="cr1"><span>Certificate</span><span>C1</span></div><div class="code">CAE</div><div class="ctitle">Cambridge English · Advanced</div><div class="ciss">University of Cambridge</div><div class="seal"></div><div class="sheen"></div></div></div>
+    </div></div>
+  </section>
+
+  <!-- 4 · Languages -->
+  <section class="scene" id="s4">
+    <div class="kick" id="s4k">Communication <b>range</b></div>
+    <h2 class="h" id="s4t" data-swash>Five<br><em>languages.</em></h2>
+    <div class="body" id="s4s">Passionate about languages.<br>Connecting with people.</div>
+    <div id="langs"></div>
+  </section>
+
+  <!-- 5 · Skills -->
+  <section class="scene" id="s5">
+    <div id="skcodes"></div>
+    <div id="dheads">
+      <div class="dh" style="--cc:#ff4d8d"><b></b><span>Management</span><span>01 / 03</span></div>
+      <div class="dh" style="--cc:#8b5cff"><b></b><span>Engineering</span><span>02 / 03</span></div>
+      <div class="dh" style="--cc:#5fd4ff"><b></b><span>Data</span><span>03 / 03</span></div>
+    </div>
+    <div id="skills"></div>
+    <div id="ticks"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+  </section>
+
+  <!-- 6a · AI wink -->
+  <section class="scene" id="s6a">
+    <div class="center">
+      <div class="h" id="s6a1">And yes, obviously…</div>
+      <div class="h" id="s6a2" data-swash>I can use <em>AI</em> too.</div>
+      <div class="kick" id="s6as">Engineered with intent · <b>augmented with AI</b></div>
+    </div>
+  </section>
+
+  <!-- 6 · End card -->
+  <section class="scene" id="s6">
+    <div class="h" id="mono">CSG</div>
+    <h2 class="h" id="s6t" data-swash>Ready for the next <em>mission.</em></h2>
+    <div class="kick" id="url">cesar-solla.pages.dev</div>
+    <div class="kick" id="url2">Based in Madrid · <b>Let's build something complex</b></div>
+  </section>
+
+  <div id="hud">
+    <i class="br tl"></i><i class="br tr"></i><i class="br bl"></i><i class="br brr"></i>
+    <div class="hl" id="hudSec"></div>
+    <div class="hl" id="hudId">CSG-01 · Mission brief</div>
+    <div class="hl" id="hudLoc">40.4168° N · 03.7038° W · Madrid</div>
+    <div class="hl" id="hudTc">T+00:00.00</div>
+    <div id="hudBar"><i></i></div>
+  </div>
+
+  <div id="flash"></div>
+  <div id="vig"></div>
+  <canvas id="grain" width="1920" height="1080"></canvas>
+  <div id="fade"></div>
+</div>
+
+<script src="node_modules/gsap/dist/gsap.min.js"></script>
+<script>
+// ===================================================================================
+// César Solla González — mission brief. One paused GSAP timeline + pure canvas draws.
+// window.seek(t) renders time t. No clock-driven animation, all randomness seeded.
+// ===================================================================================
+const W = 1920, H = 1080, BEAT = 0.5, DUR = 61;
+const CUTS = [8, 14, 18, 32, 38, 44, 53, 56];
+const SECTIONS = [[0, '01', 'Ignition'], [8, '02', 'Disciplines'], [14, '03', 'Leadership'], [18, '04', 'Flight log'], [32, '05', 'Credentials'], [38, '06', 'Communication'], [44, '07', 'Capabilities'], [53, '08', 'One last thing'], [56, '09', 'Next mission']];
+const COL = { v: '#8b5cff', p: '#ff4d8d', c: '#5fd4ff' };
+const q = s => document.querySelector(s), qa = s => [...document.querySelectorAll(s)];
+
+function rng(seed) { return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+const clamp = (x, a = 0, b = 1) => Math.max(a, Math.min(b, x));
+const lerp = (a, b, k) => a + (b - a) * k;
+const smooth = x => { x = clamp(x); return x * x * (3 - 2 * x); };
+const eOut = x => 1 - Math.pow(1 - clamp(x), 3);
+const eInOut = x => { x = clamp(x); return x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; };
+const eExpo = x => { x = clamp(x); return x === 1 ? 1 : 1 - Math.pow(2, -10 * x); };
+const hex = h => (h.length === 4 && (h = '#' + h[1] + h[1] + h[2] + h[2] + h[3] + h[3]), [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)]);
+const rgba = (h, a) => { const [r, g, b] = hex(h); return `rgba(${r},${g},${b},${clamp(a)})`; };
+const beatEnv = t => t < 0 ? 0 : Math.exp(-((t % BEAT)) * 7);
+const win = (t, a, b, fi = .25, fo = .3) => smooth((t - a) / fi) * (1 - smooth((t - (b - fo)) / fo)); // fade window
+
+// ---------- plane geometry (SVG + canvas share it) ----------
+const PR = [[100,8],[106,20],[108.5,40],[108.5,76],[190,114],[190,127],[108.5,106],[107,148],[131,165],[131,174],[103,168],[100,182]];
+const PLANE = 'M' + PR.concat(PR.slice(1, -1).reverse().map(([x, y]) => [200 - x, y])).map(p => p.join(',')).join('L') + 'Z';
+q('#planeFill').setAttribute('d', PLANE); q('#planeStroke').setAttribute('d', PLANE);
+const planePath = new Path2D(PLANE);
+function drawPlane(ctx, x, y, ang, s, col = '#fff') { ctx.save(); ctx.translate(x, y); ctx.rotate(ang); ctx.scale(s, s); ctx.translate(-100, -95); ctx.fillStyle = col; ctx.fill(planePath); ctx.restore(); }
+
+// ---------- data ----------
+const LANGS = [
+  { hello: '¡Hola!', name: 'Spanish', level: 'Native', bars: 5, lat: 40.4, lon: -3.7, x: 1700, y: 760 },
+  { hello: 'Ola!', name: 'Galician', level: 'Native', bars: 5, lat: 42.9, lon: -8.5, x: 960, y: 860 },
+  { hello: 'Hello!', name: 'English', level: 'C1 · Cambridge', bars: 4, lat: 51.5, lon: -0.1, x: 1100, y: 190 },
+  { hello: 'Bonjour !', name: 'French', level: 'B1', bars: 3, lat: 48.9, lon: 2.35, x: 1690, y: 300 },
+  { hello: 'Olá!', name: 'Portuguese', level: 'A2', bars: 2, lat: 38.7, lon: -9.1, x: 1340, y: 960 },
+];
+const SKILLS = [
+  [0, 'PM.02', 'Risk &amp; <em>budget</em> control', 'Programme execution · A330 MRTT · strategic R&amp;D'],
+  [0, 'PM.03', 'Integrated <em>planning</em>', 'MS Project · BigPicture · product roadmaps'],
+  [0, 'PM.04', 'Stakeholder <em>management</em>', 'Engineering · finance · procurement · executives'],
+  [1, 'SE.01', 'Requirements <em>engineering</em>', 'DOORS · CAMEO · end-to-end traceability'],
+  [1, 'SE.03', 'Verification &amp; <em>validation</em>', 'V-model · Means of Compliance · test benches'],
+  [1, 'SE.04', 'Aerospace <em>certification</em>', 'ARP4754A · ISO 15288 · DO-160 · CS-23'],
+  [2, 'DT.03', 'SAP BW / <em>HANA</em>', 'Data modelling · process chains · Analytics Cloud'],
+  [2, 'DT.08', '<em>Python</em> &amp; automation', 'Scripting · VBA · MATLAB &amp; Simulink'],
+  [2, 'DT.07', 'KPI <em>dashboards</em>', 'Decision-ready reporting for leadership'],
+];
+const DCOL = [COL.p, COL.v, COL.c];
+q('#langs').innerHTML = LANGS.map(l => `<div class="lang panel" style="left:${l.x}px;top:${l.y}px"><div class="hello">${l.hello}</div><div class="ln">${l.name} · ${l.level}</div><div class="bars">${[0,1,2,3,4].map(i => `<i class="${i < l.bars ? 'on' : ''}"></i>`).join('')}</div></div>`).join('');
+q('#skills').innerHTML = [0, 1, 2].map(d => `<div class="skb" style="--cc:${DCOL[d]}">` + SKILLS.filter(x => x[0] === d).map(([, code, s, ev]) => `<div class="skr"><span class="sc">${code}</span><div><h2 class="h">${s}</h2><div class="body ev">${ev}</div></div></div>`).join('') + '</div>').join('');
+q('#skcodes').innerHTML = ['01', '02', '03'].map(n => `<div class="skc">${n}</div>`).join('');
+q('#hudSec').innerHTML = SECTIONS.map(([, n, s]) => `<span><i>${n}</i> / ${s}</span>`).join('');
+
+// ---------- splitter: words stay whole, every glyph is its own node ----------
+function addText(parent, text, out) {
+  text.split(/(\s+)/).forEach(p => {
+    if (!p) return;
+    if (/^\s+$/.test(p)) { parent.appendChild(document.createTextNode(' ')); return; }
+    const w = document.createElement('span'); w.className = 'w';
+    for (const ch of p) { const c = document.createElement('span'); c.className = 'c'; c.textContent = ch; w.appendChild(c); out.push(c); }
+    parent.appendChild(w);
+  });
+}
+function split(el) {
+  if (el._c) return el._c;
+  const out = [], nodes = [...el.childNodes]; el.innerHTML = '';
+  nodes.forEach(n => {
+    if (n.nodeType === 3) addText(el, n.textContent, out);
+    else { const cl = n.cloneNode(false); el.appendChild(cl); addText(cl, n.textContent, out); }
+  });
+  return (el._c = out);
+}
+
+// ---------- canvases ----------
+const bg = q('#bg').getContext('2d'), fx = q('#fx').getContext('2d'), gr = q('#grain').getContext('2d');
+function glow(ctx, x, y, r, col, a) {
+  if (a <= 0.002 || r <= 0) return;
+  const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+  g.addColorStop(0, rgba(col, a)); g.addColorStop(.35, rgba(col, a * .4)); g.addColorStop(1, rgba(col, 0));
+  ctx.fillStyle = g; ctx.fillRect(x - r, y - r, 2 * r, 2 * r);
+}
+// anamorphic lens streak — the cinematic light accent used for every "hit"
+function flare(x, y, a, len = 900, col = COL.p) {
+  if (a <= 0.003) return;
+  fx.save(); fx.globalCompositeOperation = 'lighter';
+  const g = fx.createLinearGradient(x - len, 0, x + len, 0);
+  g.addColorStop(0, rgba(col, 0)); g.addColorStop(.42, rgba(col, a * .6)); g.addColorStop(.5, rgba('#ffffff', a)); g.addColorStop(.58, rgba(COL.v, a * .6)); g.addColorStop(1, rgba(COL.v, 0));
+  fx.fillStyle = g; fx.fillRect(x - len, y - 1.5, 2 * len, 3);
+  fx.globalAlpha = .5; fx.fillRect(x - len * .7, y - 7, len * 1.4, 14);
+  fx.globalAlpha = 1; fx.translate(x, y); fx.scale(1, .1); glow(fx, 0, 0, len * .55, col, a * .45);
+  fx.restore();
+  fx.save(); fx.globalCompositeOperation = 'lighter'; glow(fx, x, y, 70, '#ffffff', a * .9); fx.restore();
+}
+function label(text, x, y, a, size = 14, col = '#e9e2ff', chars = 999) {
+  if (a <= 0) return;
+  fx.save(); fx.font = `600 ${size}px InterD`; fx.letterSpacing = '3px'; fx.fillStyle = rgba(col, a); fx.fillText(text.slice(0, chars), x, y); fx.restore();
+}
+
+// background: two slow nebula glows + sparse dust (deliberately quiet)
+const DUST = (() => { const r = rng(7); return Array.from({ length: 90 }, () => ({ x: r() * W, y: r() * H, z: .25 + r() * .75, vx: (r() - .5) * 14, vy: -4 - r() * 12, ph: r() * 6.28 })); })();
+function tint(t) {
+  if (t >= 44 && t < 53) { const d = Math.min(2, Math.floor((t - 44) / 3)); return [DCOL[d], d === 0 ? COL.v : COL.p]; }
+  return [COL.v, COL.p];
+}
+function drawBg(t) {
+  bg.globalCompositeOperation = 'source-over'; bg.fillStyle = '#07060b'; bg.fillRect(0, 0, W, H);
+  bg.globalCompositeOperation = 'lighter';
+  const groove = t >= 8 && t < 53 && !(t >= 14 && t < 18) ? beatEnv(t) : 0;
+  const [c1, c2] = tint(t), ign = smooth(t / 2.2);
+  glow(bg, 960 + 560 * Math.sin(t * .21), 520 + 240 * Math.cos(t * .17), 900, c1, (.28 + .08 * groove) * ign);
+  glow(bg, 960 + 600 * Math.cos(t * .19 + 1.2), 560 + 230 * Math.sin(t * .23 + 2), 820, c2, (.2 + .06 * groove) * ign);
+  glow(bg, 960, 1200, 1100, COL.v, .1 * ign);
+  bg.globalCompositeOperation = 'source-over';
+  for (const p of DUST) {
+    const x = ((p.x + p.vx * t * p.z) % (W + 40) + W + 40) % (W + 40) - 20;
+    const y = ((p.y + p.vy * t * p.z) % (H + 40) + H + 40) % (H + 40) - 20;
+    const a = (.25 + .45 * (.5 + .5 * Math.sin(t * (1 + p.z) + p.ph))) * p.z * ign;
+    bg.fillStyle = rgba('#e6dcff', a); bg.fillRect(x, y, 1.2 + p.z, 1.2 + p.z);
+  }
+}
+const GRAIN = (() => { const r = rng(42); return Array.from({ length: 6 }, () => {
+  const c = document.createElement('canvas'); c.width = c.height = 256; const x = c.getContext('2d'); const d = x.createImageData(256, 256);
+  for (let i = 0; i < d.data.length; i += 4) { const v = r(); d.data[i] = d.data[i + 1] = d.data[i + 2] = v > .5 ? 255 : 0; d.data[i + 3] = Math.abs(v - .5) * 2 * 26; }
+  x.putImageData(d, 0, 0); return x.createPattern(c, 'repeat'); }); })();
+function drawGrain(t) { gr.clearRect(0, 0, W, H); gr.fillStyle = GRAIN[Math.floor(t * 60) % 6]; gr.fillRect(0, 0, W, H); }
+
+// ---------- scene transitions: lens streak + scan band ----------
+function drawCut(t) {
+  for (const c of CUTS) {
+    const dt = t - c; if (dt < -0.02 || dt > .7) continue;
+    flare(960, 540, Math.exp(-Math.max(0, dt) * 6), 1500, c % 4 ? COL.v : COL.p);
+    const y = -200 + eOut(dt / .35) * (H + 400);
+    if (dt < .35) {
+      fx.save(); fx.globalCompositeOperation = 'lighter';
+      const g = fx.createLinearGradient(0, y - 120, 0, y + 20); g.addColorStop(0, 'rgba(139,92,255,0)'); g.addColorStop(.85, 'rgba(255,170,220,.16)'); g.addColorStop(1, 'rgba(255,255,255,.35)');
+      fx.fillStyle = g; fx.fillRect(0, y - 120, W, 140); fx.restore();
+    }
+  }
+}
+
+// ===================================================================================
+// SCENE 0 — Ignition: four avionics "lock-on" events on the beat, then they converge
+// ===================================================================================
+const LOCKS = [[0, 470, 330], [.5, 1450, 300], [1, 560, 790], [1.5, 1390, 790]];
+function hudFade(t) { return 1 - smooth((t - 2.15) / .8); }
+function radar(t, t0, x, y) {
+  const dt = t - t0; if (dt < 0) return; const a = hudFade(t) * smooth(dt / .06);
+  if (a <= 0) return;
+  fx.save(); fx.globalCompositeOperation = 'lighter';
+  const L = eOut(dt / .4) * 2200;
+  fx.strokeStyle = rgba('#d9ccff', .22 * a); fx.lineWidth = 1;
+  fx.beginPath(); fx.moveTo(x - L, y); fx.lineTo(x + L, y); fx.moveTo(x, y - L); fx.lineTo(x, y + L); fx.stroke();
+  const R = 150 * eExpo(dt / .45);
+  [.33, .66, 1].forEach((k, i) => { fx.strokeStyle = rgba(i === 2 ? COL.p : '#c9b6ff', (.65 - i * .1) * a); fx.lineWidth = i === 2 ? 2 : 1; fx.setLineDash(i === 1 ? [4, 6] : []); fx.beginPath(); fx.arc(x, y, R * k, 0, 6.283); fx.stroke(); });
+  fx.setLineDash([]);
+  for (let i = 0; i < 72; i++) { const an = i / 72 * 6.283 + dt * .4, r1 = R + 6, r2 = R + (i % 6 ? 12 : 22); fx.strokeStyle = rgba('#fff', .5 * a); fx.beginPath(); fx.moveTo(x + Math.cos(an) * r1, y + Math.sin(an) * r1); fx.lineTo(x + Math.cos(an) * r2, y + Math.sin(an) * r2); fx.stroke(); }
+  const sw = dt * 4.2, cg = fx.createConicGradient(sw, x, y);
+  cg.addColorStop(0, rgba(COL.p, .55 * a)); cg.addColorStop(.12, rgba(COL.v, 0)); cg.addColorStop(1, rgba(COL.p, 0));
+  fx.fillStyle = cg; fx.beginPath(); fx.moveTo(x, y); fx.arc(x, y, R, 0, 6.283); fx.fill();
+  if (dt < .8) { fx.strokeStyle = rgba('#fff', .9 * (1 - dt / .8) * a); fx.lineWidth = 2; fx.beginPath(); fx.arc(x, y, 20 + 300 * eOut(dt / .8), 0, 6.283); fx.stroke(); }
+  // contact blips
+  const r = rng(31); for (let i = 0; i < 6; i++) { const an = r() * 6.283, rr = R * (.25 + r() * .7), lit = Math.exp(-(((sw - an) % 6.283 + 6.283) % 6.283) * 1.4); glow(fx, x + Math.cos(an) * rr, y + Math.sin(an) * rr, 14, '#fff', lit * a); }
+  fx.restore();
+  flare(x, y, Math.exp(-dt * 5) * a, 700);
+  label('ACQ 01 · RADAR · 40.4168N 03.7038W', x + R + 30, y - 10, a * .9, 14, '#e9e2ff', Math.floor(dt * 70));
+  label('RANGE 120 NM · 4 CONTACTS', x + R + 30, y + 14, a * .55, 12, '#c9b6ff', Math.floor((dt - .2) * 70));
+}
+function reticle(t, t0, x, y) {
+  const dt = t - t0; if (dt < 0) return; const a = hudFade(t) * smooth(dt / .06);
+  if (a <= 0) return;
+  const k = eExpo(dt / .42), s = lerp(260, 74, k), rot = (1 - k) * .8;
+  fx.save(); fx.globalCompositeOperation = 'lighter'; fx.translate(x, y); fx.rotate(rot);
+  const lockFlash = dt > .42 ? Math.exp(-(dt - .42) * 8) : 0;
+  fx.strokeStyle = rgba(lockFlash > .05 ? '#ffffff' : COL.p, (.9) * a); fx.lineWidth = 2.5;
+  for (const [sx, sy] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) { fx.beginPath(); fx.moveTo(sx * s, sy * (s - 26)); fx.lineTo(sx * s, sy * s); fx.lineTo(sx * (s - 26), sy * s); fx.stroke(); }
+  fx.rotate(-rot + dt * 1.5); fx.setLineDash([10, 8]); fx.strokeStyle = rgba('#c9b6ff', .6 * a); fx.lineWidth = 1.2; fx.beginPath(); fx.arc(0, 0, s * .62, 0, 6.283); fx.stroke(); fx.setLineDash([]);
+  fx.rotate(-dt * 1.5); fx.strokeStyle = rgba('#fff', .8 * a); fx.beginPath(); fx.moveTo(-14, 0); fx.lineTo(14, 0); fx.moveTo(0, -14); fx.lineTo(0, 14); fx.stroke();
+  fx.restore();
+  if (lockFlash) glow(fx, x, y, 140, COL.p, .5 * lockFlash * a);
+  flare(x, y, Math.exp(-dt * 5) * a, 600, COL.v);
+  label(dt > .42 ? 'TARGET LOCKED · ALT 41 000 FT' : 'ACQUIRING …', x - s - 10, y - s - 18, a * .9, 14, '#ffd3e4', Math.floor(dt * 80));
+  label('M 0.78 · HDG 274° · SAT 12', x - s - 10, y + s + 32, a * .55, 12, '#c9b6ff', Math.floor((dt - .25) * 70));
+}
+const TRACES = (() => { const r = rng(77), out = []; for (let i = 0; i < 12; i++) { let px = 0, py = 0, an = Math.round(r() * 8) * Math.PI / 4; const pts = [[0, 0]]; for (let s = 0; s < 3; s++) { const L = 40 + r() * 110; px += Math.cos(an) * L; py += Math.sin(an) * L; pts.push([px, py]); an += (r() < .5 ? -1 : 1) * Math.PI / 4; } let len = 0; for (let k = 1; k < pts.length; k++) len += Math.hypot(pts[k][0] - pts[k - 1][0], pts[k][1] - pts[k - 1][1]); out.push({ pts, len, ph: r() }); } return out; })();
+function pointAt(tr, d) { for (let k = 1; k < tr.pts.length; k++) { const [ax, ay] = tr.pts[k - 1], [bx, by] = tr.pts[k], L = Math.hypot(bx - ax, by - ay); if (d <= L) return [ax + (bx - ax) * d / L, ay + (by - ay) * d / L]; d -= L; } return tr.pts[tr.pts.length - 1]; }
+function circuit(t, t0, x, y) {
+  const dt = t - t0; if (dt < 0) return; const a = hudFade(t) * smooth(dt / .06);
+  if (a <= 0) return;
+  fx.save(); fx.globalCompositeOperation = 'lighter'; fx.translate(x, y);
+  const grow = eOut(dt / .55);
+  for (const tr of TRACES) {
+    const lim = tr.len * grow; let acc = 0;
+    fx.strokeStyle = rgba('#b69cff', .7 * a); fx.lineWidth = 1.6; fx.beginPath(); fx.moveTo(0, 0);
+    for (let k = 1; k < tr.pts.length; k++) { const L = Math.hypot(tr.pts[k][0] - tr.pts[k - 1][0], tr.pts[k][1] - tr.pts[k - 1][1]); if (acc + L <= lim) { fx.lineTo(...tr.pts[k]); acc += L; } else { const p = pointAt(tr, lim); fx.lineTo(p[0], p[1]); break; } }
+    fx.stroke();
+    if (grow > .98) { const e = tr.pts[tr.pts.length - 1]; fx.strokeStyle = rgba('#fff', .7 * a); fx.strokeRect(e[0] - 4, e[1] - 4, 8, 8); }
+    const pd = ((dt * 520 + tr.ph * tr.len) % tr.len);
+    if (pd < lim) { const p = pointAt(tr, pd); glow(fx, p[0], p[1], 16, COL.p, .9 * a); }
+  }
+  fx.strokeStyle = rgba('#fff', .85 * a); fx.lineWidth = 2; fx.strokeRect(-26, -26, 52, 52);
+  for (let i = -2; i <= 2; i++) for (const s of [-1, 1]) { fx.beginPath(); fx.moveTo(i * 9, s * 26); fx.lineTo(i * 9, s * 34); fx.moveTo(s * 26, i * 9); fx.lineTo(s * 34, i * 9); fx.stroke(); }
+  fx.restore();
+  flare(x, y, Math.exp(-dt * 5) * a, 650);
+  label('DATA BUS · MIL-STD-1553 · NOMINAL', x + 60, y + 70, a * .9, 14, '#e9e2ff', Math.floor(dt * 70));
+}
+const ICO = (() => { const p = (1 + Math.sqrt(5)) / 2, v = [[-1, p, 0], [1, p, 0], [-1, -p, 0], [1, -p, 0], [0, -1, p], [0, 1, p], [0, -1, -p], [0, 1, -p], [p, 0, -1], [p, 0, 1], [-p, 0, -1], [-p, 0, 1]], e = []; for (let i = 0; i < 12; i++) for (let j = i + 1; j < 12; j++) { const d = Math.hypot(v[i][0] - v[j][0], v[i][1] - v[j][1], v[i][2] - v[j][2]); if (Math.abs(d - 2) < .01) e.push([i, j]); } return { v, e }; })();
+function imu(t, t0, x, y) {
+  const dt = t - t0; if (dt < 0) return; const a = hudFade(t) * smooth(dt / .06);
+  if (a <= 0) return;
+  const R = 70 * eExpo(dt / .5), ax = dt * 1.1 + .4, ay = dt * .7;
+  const P = ICO.v.map(([px, py, pz]) => { let X = px * Math.cos(ay) + pz * Math.sin(ay), Z = -px * Math.sin(ay) + pz * Math.cos(ay); let Y = py * Math.cos(ax) - Z * Math.sin(ax); Z = py * Math.sin(ax) + Z * Math.cos(ax); return [x + X * R, y + Y * R, Z]; });
+  fx.save(); fx.globalCompositeOperation = 'lighter'; fx.lineWidth = 1.4;
+  for (const [i, j] of ICO.e) { const d = (P[i][2] + P[j][2]) / 4 + .6; fx.strokeStyle = rgba(d > .5 ? '#d9ccff' : COL.v, (.25 + .5 * d) * a); fx.beginPath(); fx.moveTo(P[i][0], P[i][1]); fx.lineTo(P[j][0], P[j][1]); fx.stroke(); }
+  P.forEach(p => glow(fx, p[0], p[1], 10, '#fff', (.4 + .3 * p[2] / 2) * a));
+  fx.strokeStyle = rgba(COL.p, .6 * a); fx.beginPath(); fx.ellipse(x, y, R * 2.1, R * .55, -.3, 0, 6.283); fx.stroke();
+  fx.restore();
+  flare(x, y, Math.exp(-dt * 5) * a, 650, COL.v);
+  label('IMU · ALIGN 0.002° · GYRO OK', x - 300, y + 120, a * .9, 14, '#e9e2ff', Math.floor(dt * 70));
+}
+function drawS0(t) {
+  if (t > 8) return;
+  // boot grid
+  const ga = smooth(t / .4) * (1 - smooth((t - 2.1) / .9)) * .35;
+  if (ga > 0) { fx.save(); fx.strokeStyle = rgba('#b69cff', ga * .35); fx.lineWidth = 1; fx.beginPath(); for (let x = 0; x <= W; x += 120) { fx.moveTo(x, 0); fx.lineTo(x, H); } for (let y = 0; y <= H; y += 120) { fx.moveTo(0, y); fx.lineTo(W, y); } fx.stroke(); fx.restore(); }
+  radar(t, ...LOCKS[0]); reticle(t, ...LOCKS[1]); circuit(t, ...LOCKS[2]); imu(t, ...LOCKS[3]);
+  // convergence beams at 2.0
+  const dt = t - 2;
+  if (dt > -0.001 && dt < 1.2) {
+    fx.save(); fx.globalCompositeOperation = 'lighter';
+    LOCKS.forEach(([, x, y]) => {
+      const k = eOut(dt / .3), ex = lerp(x, 960, k), ey = lerp(y, 540, k), a = 1 - smooth((dt - .3) / .6);
+      fx.strokeStyle = rgba('#ffd3e4', .7 * a); fx.lineWidth = 2; fx.beginPath(); fx.moveTo(x, y); fx.lineTo(ex, ey); fx.stroke();
+      glow(fx, ex, ey, 40, '#fff', a);
+    });
+    fx.restore();
+    flare(960, 540, Math.exp(-dt * 3.5), 1600, COL.p);
+  }
+  // after ignition: two slow orbital ellipses behind the name
+  const oa = smooth((t - 2.2) / .8) * (1 - smooth((t - 7.5) / .5));
+  if (oa > 0) {
+    fx.save(); fx.globalCompositeOperation = 'lighter'; fx.translate(960, 540);
+    [[880, 250, -.12, .2], [760, 190, .1, -.25]].forEach(([rx, ry, rot, sp], i) => {
+      fx.save(); fx.rotate(rot); fx.strokeStyle = rgba(i ? COL.p : COL.v, .28 * oa); fx.lineWidth = 1.2; fx.beginPath(); fx.ellipse(0, 0, rx, ry, 0, 0, 6.283); fx.stroke();
+      const an = t * sp * 2 + i * 2; const px = Math.cos(an) * rx, py = Math.sin(an) * ry;
+      glow(fx, px, py, 30, i ? COL.p : COL.v, .8 * oa); drawPlane(fx, px, py, Math.atan2(Math.cos(an) * ry * Math.sign(sp), -Math.sin(an) * rx * Math.sign(sp)) + Math.PI / 2, .12);
+      fx.restore();
+    });
+    fx.restore();
+  }
+}
+
+// ===================================================================================
+// SCENE 1 — speed lines behind the aircraft
+// ===================================================================================
+function drawS1(t) {
+  if (t < 8 || t > 14.1) return;
+  const dt = t - 9;
+  if (dt > 0 && dt < 1) { flare(960, 400, Math.exp(-dt * 5), 900, COL.v); }
+  const k = smooth((t - 9) / .5) * (1 - smooth((t - 13.6) / .4));
+  if (k <= 0) return;
+  const r = rng(5); fx.save(); fx.globalCompositeOperation = 'lighter'; fx.lineCap = 'round';
+  for (let i = 0; i < 46; i++) {
+    const x = 960 + (r() - .5) * 1600, sp = 600 + r() * 1100, L = 80 + r() * 240;
+    const y = ((r() * H + (t - 9) * sp) % (H + L)) - L;
+    fx.strokeStyle = rgba(r() < .5 ? '#c9b6ff' : '#ff9cc0', .16 * k); fx.lineWidth = 1 + r() * 1.6;
+    fx.beginPath(); fx.moveTo(x, y); fx.lineTo(x, y + L); fx.stroke();
+  }
+  fx.restore();
+}
+
+// ===================================================================================
+// Network of people (leadership) — also reused faintly under the AI wink
+// ===================================================================================
+function network(t, t0, t1, seed, avoid) {
+  const a = win(t, t0, t1, .4, .5); if (a <= 0) return;
+  const r = rng(seed), N = 22, nodes = [];
+  while (nodes.length < N) { const x = 140 + r() * 1640, y = 130 + r() * 820; const dx = (x - 960) / avoid[0], dy = (y - 540) / avoid[1]; if (dx * dx + dy * dy > 1) nodes.push({ x, y, ph: r() * 6, at: t0 + .1 + r() * 1.4 }); }
+  const links = []; nodes.forEach((n, i) => nodes.forEach((m, j) => { if (j > i && Math.hypot(n.x - m.x, n.y - m.y) < 380) links.push([n, m, r()]); }));
+  fx.save(); fx.globalCompositeOperation = 'lighter';
+  for (const [n, m, ph] of links) {
+    const k = eOut((t - Math.max(n.at, m.at)) / .5); if (k <= 0) continue;
+    const ex = lerp(n.x, m.x, k), ey = lerp(n.y, m.y, k);
+    fx.strokeStyle = rgba('#b69cff', .22 * a); fx.lineWidth = 1; fx.beginPath(); fx.moveTo(n.x, n.y); fx.lineTo(ex, ey); fx.stroke();
+    const pp = ((t * .45 + ph) % 1); if (k >= 1) glow(fx, lerp(n.x, m.x, pp), lerp(n.y, m.y, pp), 10, COL.p, .7 * a);
+  }
+  for (const n of nodes) {
+    const k = eExpo((t - n.at) / .4); if (k <= 0) continue;
+    glow(fx, n.x, n.y, 26 * k, COL.v, .6 * a);
+    fx.strokeStyle = rgba('#fff', .7 * a * k); fx.lineWidth = 1.5; fx.beginPath(); fx.arc(n.x, n.y, 9 * k, 0, 6.283); fx.stroke();
+    fx.fillStyle = rgba('#fff', .9 * a * k); fx.beginPath(); fx.arc(n.x, n.y, 3, 0, 6.283); fx.fill();
+  }
+  fx.restore();
+}
+
+// ===================================================================================
+// SCENE 2 — 3D trajectory
+// ===================================================================================
+const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]], add = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
+const dot3 = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+const norm = a => { const l = Math.hypot(...a); return [a[0] / l, a[1] / l, a[2] / l]; };
+const lerp3 = (a, b, k) => [lerp(a[0], b[0], k), lerp(a[1], b[1], k), lerp(a[2], b[2], k)];
+const FOC = 1000;
+function camera(pos, tgt) { const f = norm(sub(tgt, pos)), r = norm(cross(f, [0, 1, 0])), u = cross(r, f); return { pos, f, r, u }; }
+function proj(cam, p) { const d = sub(p, cam.pos), z = dot3(d, cam.f); if (z < 30) return null; const s = FOC / z; return [960 + dot3(d, cam.r) * s, 540 - dot3(d, cam.u) * s, z, s]; }
+const Q = [[-2600, 0, 0], [-1700, 30, -80], [-1000, 160, 160], [-500, 320, -140], [0, 480, 120], [500, 650, -120], [1000, 840, 80], [1700, 1080, 0], [2400, 1320, -60]];
+const WP = [['2021', 'EY'], ['2022', 'Deloitte'], ['2022', 'Airbus · BI'], ['2023', 'Eurodrone'], ['2024 → now', 'A330 MRTT']];
+function cr(u) {
+  u = clamp(u, 0, Q.length - 1.0001); const i = Math.floor(u), f = u - i;
+  const p0 = Q[Math.max(0, i - 1)], p1 = Q[i], p2 = Q[i + 1], p3 = Q[Math.min(Q.length - 1, i + 2)];
+  return [0, 1, 2].map(k => .5 * ((2 * p1[k]) + (-p0[k] + p2[k]) * f + (2 * p0[k] - 5 * p1[k] + 4 * p2[k] - p3[k]) * f * f + (-p0[k] + 3 * p1[k] - 3 * p2[k] + p3[k]) * f * f * f));
+}
+// head dwells 1.2 s on each waypoint (reading time), then flies 0.8 s and lands on the next bar
+function headU(t) {
+  if (t < 20) return 2 * eInOut((t - 18.6) / 1.4);
+  if (t < 28) { const i = Math.floor((t - 20) / 2), f = t - 20 - 2 * i; return 2 + i + eInOut((f - 1.2) / .8); }
+  return 6 + 1.2 * eInOut((t - 29.2) / 1.8);
+}
+function cam2(t) {
+  const A = { pos: [-3300 + 320 * (t - 18), 230, 950], tgt: [-2000 + 320 * (t - 18), 120, 0] };
+  const uc = 2 + clamp((t - 20) / 2, -1, 4.6), h = cr(uc), th = .6 + .05 * (t - 20);
+  const B = { pos: add(h, [-Math.cos(th) * 1150, 420, Math.sin(th) * 1150]), tgt: add(h, [240, -330, 0]) };
+  const C = { pos: [-900 + 120 * (t - 30), 2350, 2900], tgt: [150, 420, 0] };
+  const kAB = eInOut((t - 19.2) / 1.0), kBC = eInOut((t - 29.8) / 1.4);
+  return camera(lerp3(lerp3(A.pos, B.pos, kAB), C.pos, kBC), lerp3(lerp3(A.tgt, B.tgt, kAB), C.tgt, kBC));
+}
+function line3(cam, a, b, n = 14) {
+  let started = false;
+  for (let i = 0; i <= n; i++) { const p = proj(cam, lerp3(a, b, i / n)); if (!p) { started = false; continue; } if (!started) { fx.moveTo(p[0], p[1]); started = true; } else fx.lineTo(p[0], p[1]); }
+}
+function drawS2(t) {
+  if (t < 18 || t > 32.1) return;
+  const cam = cam2(t), fade = win(t, 18, 32, .4, .45);
+  fx.save(); fx.globalAlpha = fade; fx.globalCompositeOperation = 'lighter';
+  fx.lineWidth = 1.2;
+  for (let i = -16; i <= 16; i++) { fx.strokeStyle = rgba(COL.v, .26); fx.beginPath(); line3(cam, [i * 250, 0, -4000], [i * 250, 0, 4000], 24); fx.stroke(); }
+  for (let i = -16; i <= 16; i++) { fx.strokeStyle = rgba(COL.p, .16); fx.beginPath(); line3(cam, [-4500, 0, i * 250], [4500, 0, i * 250], 24); fx.stroke(); }
+  const uh = headU(t), N = Math.max(2, Math.ceil(uh / .03));
+  const pts = [], shadow = [];
+  for (let i = 0; i <= N; i++) { const p = cr(uh * i / N); pts.push(proj(cam, p)); shadow.push(proj(cam, [p[0], 0, p[2]])); }
+  const strokePts = (arr, w, col, a) => { fx.strokeStyle = rgba(col, a); fx.lineWidth = w; fx.beginPath(); let s = false; arr.forEach(p => { if (!p) { s = false; return; } if (!s) { fx.moveTo(p[0], p[1]); s = true; } else fx.lineTo(p[0], p[1]); }); fx.stroke(); };
+  fx.setLineDash([10, 12]); strokePts(shadow, 2, '#c9b6ff', .32); fx.setLineDash([]);
+  strokePts(pts, 26, COL.v, .10); strokePts(pts, 10, COL.p, .26); strokePts(pts, 3.2, '#ffe3f0', .95);
+  WP.forEach(([yr, co], i) => {
+    const w = Q[i + 2], p = proj(cam, w), g = proj(cam, [w[0], 0, w[2]]); if (!p) return;
+    const tr = 20 + i * 2, on = t >= tr - 1e-6, cur = t >= tr && t < tr + 2;
+    if (g) { fx.setLineDash([4, 8]); fx.strokeStyle = rgba('#ffffff', on ? .35 : .1); fx.lineWidth = 1.5; fx.beginPath(); fx.moveTo(p[0], p[1]); fx.lineTo(g[0], g[1]); fx.stroke(); fx.setLineDash([]); }
+    if (!on) { fx.strokeStyle = rgba('#ffffff', .3); fx.lineWidth = 1.5; fx.beginPath(); fx.arc(p[0], p[1], 9, 0, 6.283); fx.stroke(); return; }
+    const dt = t - tr;
+    glow(fx, p[0], p[1], cur ? 90 : 60, COL.p, cur ? .7 : .45); glow(fx, p[0], p[1], 18, '#ffffff', 1);
+    if (dt < .8) { fx.strokeStyle = rgba('#ffd0e4', .9 * (1 - dt / .8)); fx.lineWidth = 3; fx.beginPath(); fx.arc(p[0], p[1], 12 + eOut(dt / .8) * 120, 0, 6.283); fx.stroke(); }
+    if (cur) { fx.strokeStyle = rgba('#ffffff', .8); fx.lineWidth = 1.5; const s = 26; for (const [sx, sy] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) { fx.beginPath(); fx.moveTo(p[0] + sx * s, p[1] + sy * (s - 9)); fx.lineTo(p[0] + sx * s, p[1] + sy * s); fx.lineTo(p[0] + sx * (s - 9), p[1] + sy * s); fx.stroke(); } }
+    const la = smooth(dt / .25);
+    label(yr, p[0] + 34, p[1] - 20, la, 24, '#ffffff');
+    label(co.toUpperCase(), p[0] + 34, p[1] + 6, .8 * la, 15, '#d9ccff');
+  });
+  const hp = proj(cam, cr(uh)), hp2 = proj(cam, cr(uh + .02));
+  if (hp && hp2) { glow(fx, hp[0], hp[1], 120, COL.v, .7); glow(fx, hp[0], hp[1], 30, '#ffffff', 1); drawPlane(fx, hp[0], hp[1], Math.atan2(hp2[1] - hp[1], hp2[0] - hp[0]) + Math.PI / 2, .3); }
+  fx.restore();
+}
+
+// ===================================================================================
+// SCENE 3 — light rails behind the credential ring
+// ===================================================================================
+function drawS3(t) {
+  const k = win(t, 32, 38, .35, .35); if (k <= 0) return;
+  fx.save(); fx.globalCompositeOperation = 'lighter';
+  glow(fx, 960, 650, 620, COL.v, .32 * k * (.75 + .25 * beatEnv(t)));
+  for (let i = 0; i < 3; i++) { const y = 650 + (i - 1) * 190, g = fx.createLinearGradient(0, 0, W, 0); g.addColorStop(0, rgba(COL.p, 0)); g.addColorStop(.5, rgba(i === 1 ? COL.p : COL.v, .5 * k)); g.addColorStop(1, rgba(COL.v, 0)); fx.fillStyle = g; fx.fillRect(0, y - 1, W, 2); }
+  for (let s = 33; s <= 36; s++) { const dt = t - s; if (dt >= 0 && dt < .6) flare(960, 650, Math.exp(-dt * 7) * .7 * k, 800, COL.p); }
+  fx.restore();
+}
+
+// ===================================================================================
+// SCENE 4 — globe
+// ===================================================================================
+const D2R = Math.PI / 180;
+function drawS4(t) {
+  const k = win(t, 38, 44, .6, .35); if (k <= 0) return;
+  const cx = 1310, cy = 570, R = 330 * (.6 + .4 * eExpo((t - 38) / .8));
+  const lon0 = -4 + 160 * (1 - eExpo((t - 38) / 1.3)) - 2.5 * (t - 38), lat0 = 36;
+  const P = (lat, lon) => { const p = lat * D2R, l = (lon - lon0) * D2R, p0 = lat0 * D2R;
+    return [cx + R * Math.cos(p) * Math.sin(l), cy - R * (Math.cos(p0) * Math.sin(p) - Math.sin(p0) * Math.cos(p) * Math.cos(l)), Math.sin(p0) * Math.sin(p) + Math.cos(p0) * Math.cos(p) * Math.cos(l)]; };
+  fx.save(); fx.globalAlpha = k; fx.globalCompositeOperation = 'lighter';
+  glow(fx, cx, cy, R * 1.6, COL.v, .32);
+  const gfill = fx.createRadialGradient(cx - R * .35, cy - R * .4, R * .1, cx, cy, R);
+  gfill.addColorStop(0, 'rgba(139,92,255,.22)'); gfill.addColorStop(1, 'rgba(255,77,141,.06)');
+  fx.fillStyle = gfill; fx.beginPath(); fx.arc(cx, cy, R, 0, 6.283); fx.fill();
+  const curve = (fn, n, col, a) => { fx.strokeStyle = rgba(col, a); fx.beginPath(); let s = false; for (let i = 0; i <= n; i++) { const p = fn(i / n); if (p[2] <= 0) { s = false; continue; } if (!s) { fx.moveTo(p[0], p[1]); s = true; } else fx.lineTo(p[0], p[1]); } fx.stroke(); };
+  fx.lineWidth = 1.2;
+  for (let lon = -180; lon < 180; lon += 15) curve(u => P(-90 + 180 * u, lon), 60, '#b69cff', .4);
+  for (let lat = -75; lat <= 75; lat += 15) curve(u => P(lat, -180 + 360 * u), 120, lat === 0 ? COL.p : '#b69cff', lat === 0 ? .6 : .3);
+  const r = rng(3);
+  for (let i = 0; i < 260; i++) { const p = P(Math.asin(r() * 2 - 1) / D2R, r() * 360 - 180); if (p[2] > 0) { fx.fillStyle = rgba('#ffffff', .35 * p[2]); fx.fillRect(p[0] - 1, p[1] - 1, 2, 2); } }
+  fx.strokeStyle = rgba('#d9ccff', .7); fx.lineWidth = 2; fx.beginPath(); fx.arc(cx, cy, R, 0, 6.283); fx.stroke();
+  const oa = t * 1.2;
+  fx.save(); fx.translate(cx, cy); fx.rotate(-.32);
+  fx.strokeStyle = rgba(COL.p, .55); fx.lineWidth = 1.5; fx.beginPath(); fx.ellipse(0, 0, R * 1.28, R * .3, 0, 0, Math.PI); fx.stroke();
+  fx.strokeStyle = rgba(COL.p, .18); fx.beginPath(); fx.ellipse(0, 0, R * 1.28, R * .3, 0, Math.PI, 6.283); fx.stroke();
+  const ox = Math.cos(oa) * R * 1.28, oy = Math.sin(oa) * R * .3;
+  if (Math.sin(oa) > -0.2) { glow(fx, ox, oy, 40, COL.p, .8); drawPlane(fx, ox, oy, Math.atan2(Math.cos(oa) * R * .3, -Math.sin(oa) * R * 1.28) + Math.PI / 2, .16); }
+  fx.restore();
+  LANGS.forEach((l, i) => {
+    const ti = 38.5 + i * .5, dt = t - ti; if (dt < 0) return;
+    const p = P(l.lat, l.lon); if (p[2] <= 0) return;
+    const a = eOut(dt / .3), ex = lerp(p[0], l.x, a), ey = lerp(p[1], l.y, a);
+    fx.strokeStyle = rgba('#ffd0e4', .8); fx.lineWidth = 1.6; fx.beginPath(); fx.moveTo(p[0], p[1]); fx.lineTo(ex, ey); fx.stroke();
+    glow(fx, p[0], p[1], 36, COL.p, .9); glow(fx, p[0], p[1], 9, '#ffffff', 1);
+    if (dt < .6) { fx.strokeStyle = rgba('#ffffff', 1 - dt / .6); fx.lineWidth = 2; fx.beginPath(); fx.arc(p[0], p[1], 6 + 60 * eOut(dt / .6), 0, 6.283); fx.stroke(); }
+  });
+  fx.restore();
+}
+
+// ===================================================================================
+// SCENE 5 — beat rings
+// ===================================================================================
+function drawS5(t) {
+  if (t < 44 || t >= 53) return;
+  const d = Math.min(2, Math.floor((t - 44) / 3)), k = Math.min(2, Math.floor((t - 44 - d * 3) / BEAT)), dt = t - (44 + d * 3 + k * BEAT), col = DCOL[d];
+  if (dt > 1) return;
+  fx.save(); fx.globalCompositeOperation = 'lighter';
+  fx.strokeStyle = rgba(col, .45 * (1 - dt)); fx.lineWidth = 2;
+  fx.beginPath(); fx.ellipse(960, 540, 300 + 900 * eOut(dt), 120 + 360 * eOut(dt), 0, 0, 6.283); fx.stroke();
+  glow(fx, 960, 540, 700, col, .2 * Math.exp(-dt * 4));
+  fx.restore();
+  flare(960, 300, Math.exp(-dt * 7) * .6, 1100, col);
+}
+
+// ===================================================================================
+// SCENE 6 — AI wink + orbit-ring logo
+// ===================================================================================
+function drawS6(t) {
+  network(t, 53, 56, 9, [700, 300]);
+  if (t < 56) return;
+  const cx = 960, cy = 425, R = 215, p = eExpo((t - 56) / 1.1);
+  flare(cx, cy, Math.exp(-(t - 56) * 3), 1700, COL.p);
+  fx.save(); fx.globalCompositeOperation = 'lighter';
+  for (let i = 0; i < 96; i++) {
+    const a = i / 96 * 6.283 - Math.PI / 2, on = clamp((t - 56.2) * 2.5 - i / 96 * 1.5); if (on <= 0) continue;
+    const r1 = R + 26, r2 = R + (i % 8 === 0 ? 46 : 36);
+    fx.strokeStyle = rgba('#d9ccff', .4 * on); fx.lineWidth = i % 8 === 0 ? 2 : 1;
+    fx.beginPath(); fx.moveTo(cx + Math.cos(a) * r1, cy + Math.sin(a) * r1); fx.lineTo(cx + Math.cos(a) * r2, cy + Math.sin(a) * r2); fx.stroke();
+  }
+  const a0 = -Math.PI / 2, a1 = a0 + p * 6.283;
+  const g = fx.createLinearGradient(cx - R, cy - R, cx + R, cy + R); g.addColorStop(0, COL.v); g.addColorStop(1, COL.p);
+  fx.strokeStyle = g; fx.lineCap = 'round';
+  [[22, .12], [9, .35], [3, 1]].forEach(([w, a]) => { fx.globalAlpha = a; fx.lineWidth = w; fx.beginPath(); fx.arc(cx, cy, R, a0, a1); fx.stroke(); });
+  fx.globalAlpha = 1;
+  const ha = a1 + .45 * clamp(t - 57.1, 0, 9), hx = cx + Math.cos(ha) * R, hy = cy + Math.sin(ha) * R;
+  glow(fx, hx, hy, 90, COL.p, .8); glow(fx, hx, hy, 22, '#ffffff', 1); drawPlane(fx, hx, hy, ha + Math.PI, .28);
+  glow(fx, cx, cy, 520, COL.v, .22 * p);
+  fx.restore();
+}
+
+function drawFx(t) {
+  fx.clearRect(0, 0, W, H);
+  drawS0(t); drawS1(t); network(t, 14, 18, 4, [760, 330]); drawS2(t); drawS3(t); drawS4(t); drawS5(t); drawS6(t);
+  drawCut(t);
+}
+function drawHud(t) {
+  const s = Math.floor(t), cs = Math.floor((t - s) * 100);
+  q('#hudTc').textContent = `T+00:${String(s).padStart(2, '0')}.${String(cs).padStart(2, '0')} · ${String(Math.min(61, s)).padStart(2, '0')}/61`;
+  q('#hudBar i').style.transform = `scaleX(${clamp(t / DUR)})`;
+}
+
+// ===================================================================================
+// GSAP — type engine
+// ===================================================================================
+const tl = gsap.timeline({ paused: true });
+const invInOut = r => r < .5 ? Math.sqrt(r / 2) : 1 - Math.sqrt((1 - r) / 2); // inverse of power2.inOut
+const CHROMA_ON = '-.09em 0 0 rgba(255,50,130,.95), .09em 0 0 rgba(70,210,255,.95)', CHROMA_OFF = '0em 0 0 rgba(255,50,130,0), 0em 0 0 rgba(70,210,255,0)';
+
+// Laser-scan reveal: a light blade sweeps the line; each glyph ignites as the blade passes —
+// stretched, over-exposed and RGB-split, then snaps into place. Serif keywords bloom like ink.
+function reveal(el, at, { scan } = {}) {
+  el = typeof el === 'string' ? q(el) : el;
+  const cs = split(el), er = el.getBoundingClientRect(), k = el.offsetWidth / Math.max(1, er.width);
+  const rects = cs.map(c => c.getBoundingClientRect());
+  const x0 = Math.min(...rects.map(r => r.left)) - er.left, x1 = Math.max(...rects.map(r => r.right)) - er.left, span = Math.max(1, x1 - x0);
+  const sd = scan ?? clamp(span / 2400, .32, .75);
+  let blade = el.querySelector(':scope > .scan');
+  if (!blade) { blade = document.createElement('span'); blade.className = 'scan'; el.appendChild(blade); }
+  tl.fromTo(blade, { left: (x0 - 24) * k }, { left: (x1 + 24) * k, duration: sd, ease: 'power2.inOut', immediateRender: false }, at);
+  tl.fromTo(blade, { opacity: 0 }, { opacity: 1, duration: .06, immediateRender: false }, at);
+  tl.to(blade, { opacity: 0, duration: .12 }, at + sd - .06);
+  cs.forEach((c, i) => {
+    const r = rects[i], d = at + invInOut(clamp(((r.left + r.width / 2) - er.left - x0) / span)) * sd;
+    if (c.closest('em')) {
+      tl.fromTo(c, { opacity: 0, y: '.32em', skewX: -14, scale: 1.18, filter: 'blur(14px)' }, { opacity: 1, y: 0, skewX: 0, scale: 1, filter: 'blur(0px)', duration: .9, ease: 'expo.out' }, d);
+    } else {
+      tl.fromTo(c, { opacity: 0, scaleX: 2.1, x: '-.18em', transformOrigin: '0% 60%', filter: 'blur(9px) brightness(2.6)', textShadow: CHROMA_ON },
+        { opacity: 1, scaleX: 1, x: 0, filter: 'blur(0px) brightness(1)', textShadow: CHROMA_OFF, duration: .62, ease: 'expo.out' }, d);
+    }
+  });
+  if (el.hasAttribute('data-swash')) el.querySelectorAll('em').forEach(em => {
+    let sv = em.querySelector('.swash');
+    if (!sv) { em.insertAdjacentHTML('beforeend', '<svg class="swash" viewBox="0 0 100 10" preserveAspectRatio="none"><path vector-effect="non-scaling-stroke" d="M2,6.5 C22,9.5 46,3 70,5.2 S94,6.6 98,3.8"/></svg>'); sv = em.querySelector('.swash'); }
+    tl.fromTo(sv, { clipPath: 'inset(-50% 100% -50% 0%)' }, { clipPath: 'inset(-50% 0% -50% 0%)', duration: .7, ease: 'power3.inOut' }, at + sd * .8);
+  });
+}
+// CRT power-down exit: glyphs collapse into bright scan lines from the centre out
+function crt(el, at, d = .3) {
+  el = typeof el === 'string' ? q(el) : el;
+  const cs = split(el);
+  tl.to(cs, { scaleY: .04, scaleX: 1.25, transformOrigin: '50% 60%', filter: 'blur(1px) brightness(3.5)', duration: d * .7, ease: 'power3.in', stagger: { amount: .1, from: 'center' } }, at);
+  tl.to(cs, { opacity: 0, duration: .1, stagger: { amount: .1, from: 'center' } }, at + d * .7);
+  el.querySelectorAll('.swash').forEach(s => tl.to(s, { opacity: 0, duration: .15 }, at));
+}
+// type-on for small technical labels
+function typeOn(el, at, cps = 55) {
+  el = typeof el === 'string' ? q(el) : el;
+  const cs = split(el);
+  tl.fromTo(cs, { opacity: 0 }, { opacity: 1, duration: .001, stagger: 1 / cps }, at);
+  tl.fromTo(cs, { textShadow: '0 0 12px rgba(255,77,141,1)' }, { textShadow: '0 0 0px rgba(255,77,141,0)', duration: .25, stagger: 1 / cps }, at);
+}
+function fadeOut(el, at, d = .2) { tl.to(el, { opacity: 0, filter: 'blur(8px)', duration: d, ease: 'power2.in' }, at); }
+// holographic panel: opens from a bright scan line, then expands
+function unfold(el, at) {
+  tl.fromTo(el, { opacity: 0, scaleX: .2, scaleY: .012, filter: 'brightness(3)' }, { opacity: 1, scaleX: 1, duration: .28, ease: 'expo.out' }, at);
+  tl.fromTo(el, { scaleY: .012 }, { scaleY: 1, filter: 'brightness(1)', duration: .5, ease: 'expo.out', immediateRender: false }, at + .2);
+}
+function fold(el, at) { tl.to(el, { scaleY: .012, filter: 'brightness(2.5)', duration: .2, ease: 'power3.in' }, at); tl.to(el, { scaleX: 0, opacity: 0, duration: .14, ease: 'power3.in' }, at + .2); }
+const show = (id, a, b) => { tl.set(id, { visibility: 'visible' }, a); tl.set(id, { visibility: 'hidden' }, b); };
+const fromTo = (el, at, a, b) => tl.fromTo(el, a, Object.assign({ duration: .5, ease: 'expo.out' }, b), at);
+
+function build() {
+  // cut flashes (soft) + HUD section label swap
+  CUTS.forEach(c => tl.fromTo('#flash', { opacity: .32 }, { opacity: 0, duration: .5, ease: 'power2.out', immediateRender: false }, c));
+  tl.fromTo('#flash', { opacity: .45 }, { opacity: 0, duration: .6, ease: 'power2.out', immediateRender: false }, 2);
+  tl.fromTo('#hud', { opacity: 0 }, { opacity: 1, duration: .6, ease: 'power2.out' }, .15);
+  qa('.br').forEach((b, i) => fromTo(b, .15 + i * .08, { scale: 2.2, opacity: 0 }, { scale: 1, opacity: 1, duration: .6 }));
+  const secs = qa('#hudSec span');
+  secs.forEach((s, i) => { typeOn(s, SECTIONS[i][0] + (i ? 0 : .3), 40); if (i < secs.length - 1) tl.to(s, { opacity: 0, duration: .08 }, SECTIONS[i + 1][0] - .05); });
+  typeOn('#hudId', .4, 40); typeOn('#hudLoc', .7, 40);
+
+  // ---------- S0 Ignition (0–8) ----------
+  reveal('#s0name', 2.0, { scan: .7 });
+  reveal('#s0role', 2.6);
+  reveal('#s0tag', 3.5, { scan: .6 });
+  typeOn('#s0loc', 4.5, 60);
+  crt('#s0name', 7.55); crt('#s0role', 7.6); crt('#s0tag', 7.62); fadeOut('#s0loc', 7.6);
+  tl.set('#s0', { visibility: 'hidden' }, 8.05);
+
+  // ---------- S1 Disciplines (8–14) ----------
+  show('#s1', 8, 14.05);
+  fromTo('#dot', 8.0, { scale: 0, opacity: 0 }, { scale: 1, opacity: 1, duration: .3, ease: 'back.out(3)' });
+  [8.5, 8.75].forEach(b => { tl.to('#dot', { scale: 1.9, duration: .06, ease: 'power2.out' }, b); tl.to('#dot', { scale: 1, duration: .18, ease: 'power2.in' }, b + .06); });
+  tl.to('#dot', { scale: 5, opacity: 0, duration: .3, ease: 'power3.out' }, 9.0);
+  fromTo('#plane', 9.0, { scale: .12, opacity: 0, rotation: -30 }, { scale: 1, opacity: 1, rotation: 0, duration: .9 });
+  tl.to('#planeStroke', { attr: { 'stroke-dashoffset': 0 }, duration: .7, ease: 'power2.out' }, 9.0);
+  tl.to('#planeFill', { attr: { opacity: .95 }, duration: .6, ease: 'power2.out' }, 9.25);
+  tl.to('#plane', { y: -16, duration: 4, ease: 'sine.inOut' }, 9.1);
+  reveal('#s1t', 9.0);
+  qa('#s1 .card').forEach((c, i) => {
+    const at = 9.5 + i * BEAT;
+    unfold(c, at);
+    typeOn(c.querySelector('.cnum'), at + .3, 60);
+    reveal(c.querySelector('.h'), at + .35);
+    fromTo(c.querySelector('.ctag'), at + .6, { opacity: 0, y: 14, filter: 'blur(10px)' }, { opacity: 1, y: 0, filter: 'blur(0px)', duration: .7 });
+    typeOn(c.querySelector('.cs'), at + .8, 70);
+  });
+  crt('#s1t', 13.55);
+  qa('#s1 .card').forEach((c, i) => fold(c, 13.55 + i * .04));
+  tl.to('#plane', { scale: 3, y: 260, opacity: 0, duration: .35, ease: 'power3.in' }, 13.6);
+
+  // ---------- S1b Leadership (14–18) ----------
+  show('#s1b', 14, 18.05);
+  typeOn('#s1bk', 14.0, 50);
+  reveal('#s1bt', 14.2, { scan: .7 });
+  fromTo('#s1bs', 15.2, { opacity: 0, y: 16, filter: 'blur(12px)' }, { opacity: 1, y: 0, filter: 'blur(0px)', duration: .8 });
+  crt('#s1bt', 17.6); fadeOut('#s1bs', 17.6); fadeOut('#s1bk', 17.6);
+
+  // ---------- S2 Trajectory (18–32) ----------
+  show('#s2', 18, 32.05);
+  const t2 = q('#s2t'); split(t2); const r2 = t2.getBoundingClientRect();
+  tl.fromTo(t2, { x: 960 - 120 - r2.width / 2, y: 540 - 96 - r2.height / 2, scale: 1 }, { x: 0, y: 0, scale: .34, duration: .9, ease: 'expo.inOut' }, 19.5);
+  reveal(t2, 18.0, { scan: .8 });
+  typeOn('#s2k', 20.0, 50); tl.set('#s2k', { opacity: 1 }, 20.0);
+  qa('#s2 .role').forEach((r, i) => {
+    const at = 20 + i * 2, out = at + 1.8;
+    typeOn(r.querySelector('.rk'), at, 70);
+    reveal(r.querySelector('.h'), at + .05);
+    fromTo(r.querySelector('.rs'), at + .3, { opacity: 0, y: 12, filter: 'blur(10px)' }, { opacity: 1, y: 0, filter: 'blur(0px)', duration: .6 });
+    r.querySelectorAll('.chip').forEach((c, j) => unfold(c, at + .5 + j * .12));
+    crt(r.querySelector('.h'), out, .22);
+    fadeOut([r.querySelector('.rk'), r.querySelector('.rs')], out, .16);
+    r.querySelectorAll('.chip').forEach(c => fold(c, out - .05));
+  });
+  reveal('#s2c', 30.0, { scan: .5 });
+  crt('#s2c', 31.6); crt(t2, 31.6); fadeOut('#s2k', 31.6);
+
+  // ---------- S3 Credentials (32–38) ----------
+  show('#s3', 32, 38.05);
+  reveal('#s3t', 32.0, { scan: .7 });
+  tl.set('#ring', { rotationX: -7 }, 0);
+  qa('.pivot').forEach((p, i) => { gsap.set(p, { position: 'absolute', left: 0, top: 0, transformStyle: 'preserve-3d', rotationY: i * 72 }); gsap.set(p.firstElementChild, { z: 560 }); });
+  fromTo('#ringWrap', 32.0, { opacity: 0 }, { opacity: 1, duration: .35, ease: 'power2.out' });
+  tl.fromTo('#ring', { rotationY: 200, z: -1600 }, { rotationY: 0, z: 0, duration: .9, ease: 'expo.out' }, 32.0);
+  qa('.cred .sheen').forEach((s, i) => tl.fromTo(s, { xPercent: -70 }, { xPercent: 70, duration: .7, ease: 'power2.inOut' }, 32.1 + i));
+  [33, 34, 35, 36].forEach((b, i) => tl.to('#ring', { rotationY: -(i + 1) * 72, duration: .6, ease: 'expo.inOut' }, b - .1));
+  tl.to('#ring', { z: 700, duration: .25, ease: 'power3.in' }, 37.65);
+  tl.to('#ringWrap', { opacity: 0, duration: .22, ease: 'power2.in' }, 37.65);
+  crt('#s3t', 37.6);
+
+  // ---------- S4 Languages (38–44) ----------
+  show('#s4', 38, 44.05);
+  typeOn('#s4k', 38.0, 50);
+  reveal('#s4t', 38.0, { scan: .55 });
+  fromTo('#s4s', 38.9, { opacity: 0, y: 14, filter: 'blur(10px)' }, { opacity: 1, y: 0, filter: 'blur(0px)', duration: .8 });
+  qa('.lang').forEach((l, i) => {
+    unfold(l, 38.75 + i * .5);
+    tl.fromTo(l.querySelectorAll('.bars i.on'), { scaleX: 0 }, { scaleX: 1, transformOrigin: '0 50%', duration: .25, stagger: .05, ease: 'power2.out' }, 39.1 + i * .5);
+  });
+  qa('.lang').forEach((l, i) => fold(l, 43.55 + i * .03));
+  crt('#s4t', 43.55); fadeOut(['#s4s', '#s4k'], 43.55);
+
+  // ---------- S5 Capabilities (44–53) ----------
+  show('#s5', 44, 53.05);
+  qa('.skb').forEach((b, d) => {
+    const at0 = 44 + d * 3, out = at0 + 2.78;
+    b.querySelectorAll('.skr').forEach((r, k) => {
+      const at = at0 + k * BEAT;
+      typeOn(r.querySelector('.sc'), at, 40);
+      reveal(r.querySelector('.h'), at, { scan: .42 });
+      typeOn(r.querySelector('.ev'), at + .3, 75);
+      crt(r.querySelector('.h'), out + k * .03, .2);
+      fadeOut([r.querySelector('.ev'), r.querySelector('.sc')], out, .15);
+    });
+    const code = qa('.skc')[d];
+    fromTo(code, at0, { opacity: 0, x: 80 }, { opacity: 1, x: 0, duration: 1.2, ease: 'expo.out' });
+    tl.to(code, { opacity: 0, x: -40, duration: .2, ease: 'power2.in' }, out);
+  });
+  qa('.dh').forEach((d, i) => {
+    const at = 44 + i * 3;
+    fromTo(d, at, { opacity: 0, x: -40 }, { opacity: 1, x: 0, duration: .4 });
+    fromTo(d.querySelector('b'), at, { scaleX: 0, transformOrigin: '0 50%' }, { scaleX: 1, duration: .5 });
+    tl.to(d, { opacity: 0, x: 30, duration: .14, ease: 'power2.in' }, at + 2.86);
+  });
+  qa('#ticks i').forEach((k, i) => tl.to(k, { backgroundColor: DCOL[Math.floor(i / 3)], boxShadow: `0 0 14px ${DCOL[Math.floor(i / 3)]}`, duration: .2, ease: 'power2.out' }, 44 + Math.floor(i / 3) * 3 + (i % 3) * BEAT));
+  tl.to('#ticks', { opacity: 0, duration: .15 }, 52.85);
+
+  // ---------- S6a AI wink (53–56) ----------
+  show('#s6a', 53, 56.05);
+  reveal('#s6a1', 53.0, { scan: .45 });
+  reveal('#s6a2', 53.5, { scan: .55 });
+  typeOn('#s6as', 54.3, 60);
+  crt('#s6a1', 55.6); crt('#s6a2', 55.62); fadeOut('#s6as', 55.6);
+
+  // ---------- S6 End card (56–61) ----------
+  show('#s6', 56, 61.5);
+  fromTo('#mono', 56.0, { scale: .5, opacity: 0, filter: 'blur(24px)' }, { scale: 1, opacity: 1, filter: 'blur(0px)', duration: 1.1 });
+  reveal('#s6t', 56.5, { scan: .7 });
+  typeOn('#url', 57.3, 40);
+  typeOn('#url2', 57.8, 60);
+  tl.fromTo('#fade', { opacity: 0 }, { opacity: 1, duration: .6, ease: 'power1.in', immediateRender: false }, 60.4);
+}
+
+window.seek = t => { tl.seek(t, false); drawBg(t); drawFx(t); drawHud(t); drawGrain(t); };
+window.__ready = false;
+document.fonts.ready.then(() => Promise.all([document.fonts.load('900 100px InterD'), document.fonts.load('italic 100px ISerif'), document.fonts.load('600 14px InterD')])).then(() => {
+  build(); window.seek(0); window.__ready = true;
+  if (location.hash === '#play') { const t0 = performance.now(); const loop = () => { window.seek(((performance.now() - t0) / 1000) % DUR); requestAnimationFrame(loop); }; loop(); }
+  const m = location.hash.match(/#t=([\d.]+)/); if (m) window.seek(parseFloat(m[1]));
+});
+</script>
+</body>
+</html>

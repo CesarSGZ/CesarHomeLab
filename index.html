@@ -21,6 +21,7 @@
   <link rel="stylesheet" href="profile-polish.css?v=20261001a">
   <link rel="stylesheet" href="/theme.css?v=20261001contrast">
   <link rel="stylesheet" href="flight-deck.css?v=20261007c">
+  <link rel="stylesheet" href="brief-player.css?v=20261012a">
 </head>
 <body>
   <div class="noise" aria-hidden="true"></div>
@@ -55,11 +56,11 @@
         <h1>I connect<br><em>complex systems</em><br>with clear decisions.</h1>
         <p class="hero-lead">Aerospace systems engineer with Airbus Defence and Space experience across <strong>Eurodrone powerplant V&amp;V</strong>, <strong>aircraft-system integration</strong> and <strong>A330 MRTT programme execution</strong>.</p>
         <div class="hero-actions"><a class="button primary" href="#trajectory">Explore the mission <span>↓</span></a><a class="button ghost" href="https://www.linkedin.com/in/cesarsgz/" target="_blank" rel="noreferrer">LinkedIn ↗</a></div>
-        <button class="fd-brief-link" type="button" data-brief-open><span class="fd-play" aria-hidden="true"></span><span>Watch the one-minute mission brief</span></button>
+        <button class="fd-brief-link" type="button" data-brief-inline><span class="fd-play" aria-hidden="true"></span><span>Watch the one-minute mission brief</span></button>
       </div>
       <div class="identity reveal" data-delay="1">
-        <div class="portrait-stage"><div class="portrait-shell"><div class="portrait-ring"></div><img src="assets/cesar-hq.png" alt="Portrait of César Solla González"><button class="fd-portrait-play" type="button" data-brief-open aria-label="Play the mission brief video"><span class="fd-play" aria-hidden="true"></span><span>Mission brief <b>1:06</b></span></button></div><span class="coordinate c1">40.4168° N</span><span class="coordinate c2">03.7038° W</span></div>
-        <div class="id-card"><span>MISSION SPECIALIST</span><strong>César Solla González</strong><small>Aerospace Systems Engineer</small></div>
+        <div class="brief-stage"><div class="brief-player" data-brief-player><video src="assets/brief/mission-brief.mp4?v=4" poster="assets/brief/mission-brief-poster.jpg?v=4" playsinline preload="metadata" aria-label="Mission brief: César Solla González in one minute"></video><button class="brief-play" type="button" aria-label="Play the one-minute mission brief"><span class="brief-play-ring"><span class="fd-play" aria-hidden="true"></span></span><span class="brief-play-label">Mission brief <b>1:01</b></span></button><i class="bc tl"></i><i class="bc tr"></i><i class="bc bl"></i><i class="bc br"></i></div><span class="coordinate c1">40.4168° N</span><span class="coordinate c2">03.7038° W</span></div>
+        <div class="id-card"><img class="id-avatar" src="assets/cesar-hq.png" alt="Portrait of César Solla González"><div><span>MISSION SPECIALIST</span><strong>César Solla González</strong><small>Aerospace Systems Engineer</small></div></div>
       </div>
       <div class="scroll-hint"><span></span>SCROLL TO LAUNCH</div>
     </section>
@@ -209,7 +210,7 @@
   <dialog class="fd-brief" id="mission-brief" aria-label="Mission brief video">
     <div class="fd-brief-frame">
       <div class="fd-brief-bar"><span>MISSION BRIEF · CSG-01</span><button type="button" class="fd-brief-close" data-brief-close aria-label="Close video">Close ✕</button></div>
-      <video src="assets/brief/mission-brief.mp4?v=3" poster="assets/brief/mission-brief-poster.jpg?v=3" controls playsinline preload="none"></video>
+      <video src="assets/brief/mission-brief.mp4?v=4" poster="assets/brief/mission-brief-poster.jpg?v=4" controls playsinline preload="none"></video>
     </div>
   </dialog>
   <div class="contact-toast" id="contact-toast" role="status" aria-live="polite">Email copied to clipboard</div>
@@ -220,6 +221,6 @@
   <script src="assets/vendor/gsap/ScrollTrigger.min.js" defer></script>
   <script src="assets/vendor/gsap/SplitText.min.js" defer></script>
   <script src="assets/vendor/gsap/ScrambleTextPlugin.min.js" defer></script>
-  <script src="flight-deck.js?v=20261007b" defer></script>
+  <script src="flight-deck.js?v=20261012a" defer></script>
 </body>
 </html>

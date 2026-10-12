@@ -1,0 +1,16 @@
+{
+  "name": "showreel-21s",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "music": "node audio/music.mjs",
+    "stills": "node capture.mjs --stills 1.8,5.4,11.5,16,21.3,29,33.5,41.5,45.6,54.8,58.5",
+    "capture": "node capture.mjs",
+    "render": "node render.mjs",
+    "all": "node audio/music.mjs && node capture.mjs && node render.mjs"
+  },
+  "dependencies": {
+    "gsap": "^3.13.0",
+    "playwright": "^1.56.1"
+  }
+}
