@@ -18,7 +18,7 @@ concurrency:
 jobs:
   backtest:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 330
     steps:
       - uses: actions/checkout@v4
         with:
@@ -46,26 +46,23 @@ jobs:
         id: datos
         uses: actions/cache/restore@v4
         with:
-          path: backtest-lab/datos
-          key: backtest-datos-${{ github.run_id }}
-          restore-keys: backtest-datos-
+          path: backtest-lab/datos_global
+          key: backtest-global-${{ github.run_id }}
+          restore-keys: backtest-global-
 
       - name: Download data from Yahoo Finance
         if: steps.claim.outputs.run == 'true'
         working-directory: backtest-lab
         run: |
           pip install -q -r requirements.txt
-          # Datos completos los sábados o si no hay copia previa; si no, solo precios (más rápido).
-          if [ "${{ steps.claim.outputs.trigger }}" = "weekly" ] || [ ! -f datos/fundamentales.csv.gz ]; then
-            python descargar_datos.py || echo "::warning::descarga incompleta, se usan los datos en caché"
-          else
-            python descargar_datos.py --precios || echo "::warning::descarga incompleta, se usan los datos en caché"
-          fi
+          [ -f datos_global/universo.csv ] || python universo.py
+          # precios del último mes (o todo si no hay copia) + fundamentales por tandas, con tope de tiempo
+          python descargar_global.py semanal 150 || echo "::warning::descarga incompleta, se usan los datos en caché"
 
       - name: Run backtest
         if: steps.claim.outputs.run == 'true'
         working-directory: backtest-lab
-        run: python backtest.py --params "$RUNNER_TEMP/params.json" --web "$RUNNER_TEMP/web.json" --origen "${{ steps.claim.outputs.trigger }}" --sin-informe
+        run: python publicar.py --web "$RUNNER_TEMP/web.json" --origen "${{ steps.claim.outputs.trigger }}"
 
       - name: Publish results to Mission Control
         if: steps.claim.outputs.run == 'true'
@@ -80,8 +77,8 @@ jobs:
         run: node scripts/backtest-lab.mjs fail "La ejecución en GitHub Actions falló (run ${{ github.run_id }})."
 
       - name: Save market data cache
-        if: always() && steps.claim.outputs.run == 'true' && hashFiles('backtest-lab/datos/precios.csv.gz') != ''
+        if: always() && steps.claim.outputs.run == 'true' && hashFiles('backtest-lab/datos_global/precios.parquet') != ''
         uses: actions/cache/save@v4
         with:
-          path: backtest-lab/datos
-          key: backtest-datos-${{ github.run_id }}
+          path: backtest-lab/datos_global
+          key: backtest-global-${{ github.run_id }}
