@@ -26,7 +26,10 @@ export function limpiarFoto(bruta) {
       simbolo: txt(p.simbolo, 16), divisa: txt(p.divisa, 4), bolsa: txt(p.bolsa, 12), acciones: num(p.acciones),
       precioMedio: num(p.precioMedio), precio: num(p.precio), valor: num(p.valor), ganancia: num(p.ganancia),
       gananciaPct: num(p.gananciaPct), valorEur: num(p.valorEur), gananciaEur: num(p.gananciaEur),
-      estrategia: txt(p.estrategia, 24) || null})),
+      estrategia: txt(p.estrategia, 24) || null, desde: fecha(p.desde), dias: num(p.dias)})),
+    cerradas: lista(f.cerradas, 300).map(c => ({
+      simbolo: txt(c.simbolo, 16), estrategia: txt(c.estrategia, 24) || null, desde: fecha(c.desde), hasta: fecha(c.hasta),
+      dias: num(c.dias), gananciaEur: num(c.gananciaEur)})),
     ejecuciones: lista(f.ejecuciones, 200).map(e => ({
       fecha: fecha(e.fecha), simbolo: txt(e.simbolo, 16), lado: e.lado === 'venta' ? 'venta' : 'compra',
       acciones: num(e.acciones), precio: num(e.precio), divisa: txt(e.divisa, 4), estrategia: txt(e.estrategia, 24) || null})),

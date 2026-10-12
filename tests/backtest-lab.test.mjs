@@ -132,6 +132,9 @@ test('IBKR paper snapshots: only paper accounts, one history point per day, stor
       'NO VALIDA': {valor: 1}}}));
   assert.equal(limpia.posiciones[0].extra, undefined);
   assert.deepEqual(Object.keys(limpia.estrategias), ['fundamental'], 'only well-formed strategy keys');
+  const conDias = limpiarFoto({...base, posiciones: [{simbolo: 'TEAM', desde: '2026-10-12', dias: 3}],
+    cerradas: [{simbolo: 'MU', estrategia: 'precio', desde: '2026-10-12', hasta: '2026-11-02', dias: 21, gananciaEur: 1234.5, raro: 1}]});
+  assert.equal(conDias.posiciones[0].dias, 3); assert.equal(conDias.cerradas[0].dias, 21); assert.equal(conDias.cerradas[0].raro, undefined);
   assert.equal(combinar(null, limpia).historial[0].estrategias.fundamental, 493746.5);
   const dos = combinar(combinar(null, limpia), {...limpia, fecha: '2026-10-12T20:00:00+00:00', valor: 1000100});
   assert.equal(dos.historial.length, 1, 'same day replaces');

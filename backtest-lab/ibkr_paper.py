@@ -111,7 +111,7 @@ def leer_libro():
     acción (se anota al comprarla) y lo ganado/perdido en ventas cerradas (por ejecución, sin duplicar)."""
     libro = {"capitalInicial": CAPITAL_INICIAL, "pesos": {"fundamental": 0.5, "precio": 0.5},
              "nombres": {"fundamental": "Valor + momentum", "precio": "Momentum en EE. UU."},
-             "asignacion": {}, "realizado": {}}
+             "asignacion": {}, "realizado": {}, "entradas": {}, "cerradas": []}
     if LIBRO.exists():
         libro.update(json.loads(LIBRO.read_text(encoding="utf-8")))
     return libro
@@ -173,6 +173,11 @@ def foto(puerto, enviar=True):
             asignar_desde_cartera(libro, json.loads(local.read_text(encoding="utf-8")) if local.exists() else descargar_cartera())
         except Exception as e:  # noqa: BLE001
             log(f"Aviso: no pude deducir la estrategia de algunas posiciones ({e})")
+    primeras = {}
+    for f in ib.fills():
+        if f.execution.side == "BOT":
+            d = f.execution.time.date().isoformat()
+            primeras[f.contract.symbol] = min(primeras.get(f.contract.symbol, d), d)
     realizadas_nuevas = []
     for f in ib.fills():
         cr = f.commissionReport
@@ -186,12 +191,27 @@ def foto(puerto, enviar=True):
     eur = {"EUR": 1.0, **{d: 1 / float(cambios[f"EUR{d}=X"].dropna().iloc[-1]) for d in divisas if d != "EUR"}}
     sp_eur = float(cambios["^SP500TR"].dropna().iloc[-1] * eur["USD"])
     for execid, sim, div, pnl in realizadas_nuevas:
-        libro["realizado"][execid] = {"simbolo": sim, "eur": round(pnl * eur.get(div, float("nan")), 2)}
+        libro["realizado"][execid] = {"simbolo": sim, "eur": round(pnl * eur.get(div, float("nan")), 2),
+                                      "fecha": datetime.now().date().isoformat()}
     estrategias = {}
     for k, w in libro["pesos"].items():
         estrategias[k] = {"nombre": libro["nombres"].get(k, k), "asignado": round(libro["capitalInicial"] * w, 2),
                           "invertido": 0.0, "noRealizada": 0.0, "realizada": 0.0, "posiciones": 0}
+    # tiempo en cartera: entrada de cada posición y cierre de las que ya no están
+    hoy = datetime.now().date()
+    abiertas = {p["simbolo"] for p in posiciones}
+    for sim in abiertas:
+        libro["entradas"].setdefault(sim, primeras.get(sim, hoy.isoformat()))
+    for sim in [s_ for s_ in libro["entradas"] if s_ not in abiertas]:
+        desde = libro["entradas"].pop(sim)
+        ganancia = sum(r["eur"] for r in libro["realizado"].values()
+                       if r["simbolo"] == sim and r.get("fecha", hoy.isoformat()) >= desde and r["eur"] == r["eur"])
+        libro["cerradas"].append({"simbolo": sim, "estrategia": libro["asignacion"].get(sim), "desde": desde,
+                                  "hasta": hoy.isoformat(), "dias": (hoy - datetime.fromisoformat(desde).date()).days,
+                                  "gananciaEur": round(ganancia, 2)})
     for p in posiciones:
+        p["desde"] = libro["entradas"].get(p["simbolo"])
+        p["dias"] = (hoy - datetime.fromisoformat(p["desde"]).date()).days if p["desde"] else None
         f_eur = eur.get(p["divisa"], float("nan"))
         p["valorEur"] = round(p["valor"] * f_eur, 2)
         p["gananciaEur"] = round(p["ganancia"] * f_eur, 2)
@@ -217,6 +237,7 @@ def foto(puerto, enviar=True):
              "gananciaNoRealizada": num("UnrealizedPnL"), "gananciaRealizada": num("RealizedPnL"),
              "sp500eur": round(sp_eur, 4), "ordenesPendientes": pendientes,
              "capitalInicial": libro["capitalInicial"], "estrategias": estrategias,
+             "cerradas": libro["cerradas"][-300:],
              "posiciones": sorted(posiciones, key=lambda x: -(x["valor"] or 0)),
              "ejecuciones": sorted(ejecuciones, key=lambda x: x["fecha"], reverse=True)[:60]}
     texto = json.dumps(datos, ensure_ascii=False, separators=(",", ":"))
@@ -333,6 +354,7 @@ def main():
             if accion == "COMPRAR":
                 tk = next(t for t, k in contratos.items() if k.conId == c.conId)
                 libro["asignacion"][c.symbol] = objetivo[tk]["estrategias"][0]
+                libro["entradas"][c.symbol] = datetime.now().date().isoformat()
             t = ib.placeOrder(c, MarketOrder("SELL" if accion == "VENDER" else "BUY", n, tif="DAY"))
             ib.sleep(1)
             fila["estado"] = t.orderStatus.status
