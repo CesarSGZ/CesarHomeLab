@@ -119,3 +119,32 @@ test('the workflow uses only the scoped runner token and never deploys or pushes
   assert.ok(!PUBLIC_DIRECTORIES.includes('backtest-lab') && !publicRootFiles().includes('backtest-lab'), 'Python sources are not in the Pages output');
   assert.match(readFileSync(new URL('../.github/workflows/deploy.yml', import.meta.url), 'utf8'), /pages deploy dist /, 'Pages publishes only the dist/ allowlist');
 });
+
+test('IBKR paper snapshots: only paper accounts, one history point per day, stored through the bridge', async () => {
+  const {limpiarFoto, combinar, guardar} = await import('../scripts/ibkr-paper-foto.mjs');
+  const base = {fecha: '2026-10-12T13:07:52+00:00', cuenta: 'DUR260665', divisa: 'EUR', valor: 994867.8, efectivo: 199180.7,
+    sp500eur: 15671.06, ordenesPendientes: 0, posiciones: [{simbolo: 'TEAM', divisa: 'USD', acciones: 180, precio: 208.8, gananciaPct: -0.0057, extra: 'x'}],
+    ejecuciones: [{fecha: '2026-10-12', simbolo: 'TEAM', lado: 'compra', acciones: 180, precio: 210}]};
+  assert.throws(() => limpiarFoto({...base, cuenta: 'U1234567'}), /cuenta_no_paper/);
+  assert.throws(() => limpiarFoto({...base, valor: 'mucho'}), /foto_incompleta/);
+  const limpia = limpiarFoto(JSON.stringify(base));
+  assert.equal(limpia.posiciones[0].extra, undefined);
+  const dos = combinar(combinar(null, limpia), {...limpia, fecha: '2026-10-12T20:00:00+00:00', valor: 1000100});
+  assert.equal(dos.historial.length, 1, 'same day replaces');
+  const tres = combinar(dos, {...limpia, fecha: '2026-10-13T20:00:00+00:00', valor: 1001000});
+  assert.equal(tres.historial.length, 2); assert.equal(tres.inicio.slice(0, 10), '2026-10-12');
+  const {db, sqlite} = d1();
+  await guardar(bridge({CONTROL_DB: db}), limpia);
+  const fila = JSON.parse(sqlite.prepare("SELECT payload FROM personal_datasets WHERE name='ibkr-paper'").get().payload);
+  assert.equal(fila.ultima.cuenta, 'DUR260665');
+  const status = await (await call({CONTROL_DB: db}, owner)).json();
+  assert.equal(status.paper.historial.length, 1);
+  await assert.rejects(runtimeDatabase({CONTROL_DB: db}, {action: 'runtime-db', sql: "INSERT INTO personal_datasets(name,payload,updated_at) VALUES('ibkr-paper',?,?) ON CONFLICT(name) DO UPDATE SET payload=excluded.payload,updated_at=excluded.updated_at", params: ['{}', '2020-01-01T00:00:00Z']}));
+});
+
+test('the snapshot workflow passes the input through an environment variable and only uses the runner token', () => {
+  const wf = readFileSync(new URL('../.github/workflows/ibkr-paper-foto.yml', import.meta.url), 'utf8');
+  assert.match(wf, /FOTO: \$\{\{ inputs\.foto \}\}/);
+  assert.doesNotMatch(wf, /run: .*\$\{\{ inputs/);
+  assert.doesNotMatch(wf, /CLOUDFLARE_|wrangler|contents: write|git push/);
+});

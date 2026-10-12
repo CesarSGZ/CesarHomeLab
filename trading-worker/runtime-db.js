@@ -51,7 +51,9 @@ const specs=new Map([
  spec('UPDATE trading_command_queue SET status=?,completed_at=?,result=? WHERE id=?',[oneOf('complete','failed'),integer,jsonPayload,identity],(p,n)=>nowish(p[1],n)),
  spec("SELECT payload,updated_at FROM personal_datasets WHERE name='backtest-lab-request'"),
  spec("UPDATE personal_datasets SET payload=?,updated_at=? WHERE name='backtest-lab-request' AND json_extract(payload,'$.status')=? RETURNING payload",[backtestRequest,isoString,oneOf('queued','running')],(p,n)=>isoNowish(p[1],n)),
- spec("INSERT INTO personal_datasets(name,payload,updated_at) VALUES('backtest-lab',?,?) ON CONFLICT(name) DO UPDATE SET payload=excluded.payload,updated_at=excluded.updated_at",[backtestPayload,isoString],(p,n)=>isoNowish(p[1],n))
+ spec("INSERT INTO personal_datasets(name,payload,updated_at) VALUES('backtest-lab',?,?) ON CONFLICT(name) DO UPDATE SET payload=excluded.payload,updated_at=excluded.updated_at",[backtestPayload,isoString],(p,n)=>isoNowish(p[1],n)),
+ spec("SELECT payload,updated_at FROM personal_datasets WHERE name='ibkr-paper'"),
+ spec("INSERT INTO personal_datasets(name,payload,updated_at) VALUES('ibkr-paper',?,?) ON CONFLICT(name) DO UPDATE SET payload=excluded.payload,updated_at=excluded.updated_at",[backtestPayload,isoString],(p,n)=>isoNowish(p[1],n))
 ]);
 export const runtimeSqlStatements=Object.freeze([...specs.keys()]);
 function invalid(message,status=400){const e=Error(message);e.status=status;return e;}

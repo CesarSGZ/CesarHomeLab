@@ -1,7 +1,7 @@
 // Backtest Lab (Mission Control 08): resultados de las estrategias frente al S&P 500, en simple.
 // El cálculo lo hace backtest-lab/ (Python) en GitHub Actions; aquí solo se dibuja lo guardado en D1.
 const app = document.getElementById('backtest-app');
-let data = null, sid = null, tramo = 'test', loaded = false, loading = false, verTodas = false, ejemplo = 'ganadora', anioSel = null;
+let data = null, paper = null, sid = null, tramo = 'test', loaded = false, loading = false, verTodas = false, ejemplo = 'ganadora', anioSel = null;
 
 const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
 const nf = (d = 1) => new Intl.NumberFormat('es-ES', {minimumFractionDigits: d, maximumFractionDigits: d, useGrouping: 'always'});
@@ -10,6 +10,7 @@ const signed = (x, d = 1) => x === null || x === undefined ? '–' : (x > 0 ? '+
 const num = (x, d = 2) => x === null || x === undefined ? '–' : nf(d).format(x);
 const fecha = s => s ? new Intl.DateTimeFormat('es-ES', {day: 'numeric', month: 'short', year: 'numeric'}).format(new Date(s)) : '–';
 const anio = s => s ? s.slice(0, 4) : '';
+const fechaHora = s => s ? new Intl.DateTimeFormat('es-ES', {day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'}).format(new Date(s)) : '–';
 const ZONA_CORTA = {'EE. UU.': 'EE. UU.', 'Europa': 'Europa', 'Asia-Pacífico': 'Asia', 'América': 'América'};
 const zona = z => z ? `<i class="bt-zone">${ZONA_CORTA[z] || esc(z)}</i>` : '';
 
@@ -20,7 +21,7 @@ async function load() {
     const r = await fetch('/control/api/backtest/status', {credentials: 'same-origin', headers: {accept: 'application/json'}});
     const j = await r.json();
     if (!r.ok) throw new Error(j.error);
-    data = j.result; loaded = true;
+    data = j.result; paper = j.paper || null; loaded = true;
     render();
   } catch {
     app.innerHTML = '<div class="bt-empty"><strong>No se pudieron cargar los resultados.</strong><p>Vuelve a intentarlo en un momento.</p></div>';
@@ -33,6 +34,7 @@ function render() {
       <div class="bt-empty"><strong>Calculando la primera versión…</strong><p>En cuanto termine el primer backtest aparecerán aquí los resultados.</p></div>`;
     return;
   }
+  if (sid === 'paper' && paper) { renderPaper(); return; }
   const s = data.strategies.find(x => x.id === sid) || data.strategies[0];
   sid = s.id;
   const k = s.kpis[tramo];
@@ -46,7 +48,7 @@ function render() {
     <nav class="bt-switch" role="tablist" aria-label="Estrategia">${data.strategies.map(x => `
       <button type="button" role="tab" aria-selected="${x.id === s.id}" data-s="${esc(x.id)}">
         <small>${esc(x.kind)}</small><b>${esc(x.name)}</b><i class="dot ${esc(x.verdict.level)}"></i>
-      </button>`).join('')}</nav>
+      </button>`).join('')}${pestanaPaper()}</nav>
 
     <section class="bt-verdict ${esc(s.verdict.level)}"><b>${esc(s.verdict.title)}</b><span>${esc(s.verdict.text)}</span></section>
 
@@ -209,6 +211,71 @@ function resumen(s) {
     <div class="bt-zonas">${Object.entries(r.zonas).map(([z, n]) => `<i style="flex:${n}" class="z${orden.indexOf(z)}" title="${esc(z)}: ${n}"><span>${esc(ZONA_CORTA[z] || z)} ${Math.round(n / tot * 100)} %</span></i>`).join('')}</div>
     <p class="bt-mini">Las más repetidas</p><div class="bt-chips">${r.masUsadas.map(x => `<span title="${esc(x.nombre)}"><b>${esc(x.ticker)}</b> ×${x.n} <em class="${(x.total ?? 0) >= 0 ? 'up' : 'down'}">${signed(x.total, 0)} %</em></span>`).join('')}</div>
   </section>`;
+}
+
+function pestanaPaper() {
+  if (!paper) return '';
+  const r = paper.ultima.valor / paper.historial[0].valor - 1;
+  return `<button type="button" role="tab" aria-selected="${sid === 'paper'}" data-s="paper">
+    <small>IBKR · dinero ficticio</small><b>Cartera paper</b><i class="dot ${r >= 0 ? 'gana' : 'pierde'}"></i></button>`;
+}
+
+function cabecera() {
+  const u = data.universe;
+  return `<header class="bt-hero"><p class="eyebrow"><span></span> BACKTEST LAB</p>
+      <h2>¿Ganamos al <em>S&amp;P 500</em>?</h2>
+      <p class="bt-sub">${nf(0).format(u.stocks)} acciones · ${u.markets} bolsas · todo en euros, con costes reales · datos hasta ${fecha(data.dataUntil)}</p></header>
+    <nav class="bt-switch" role="tablist" aria-label="Estrategia">${data.strategies.map(x => `
+      <button type="button" role="tab" aria-selected="${x.id === sid}" data-s="${esc(x.id)}">
+        <small>${esc(x.kind)}</small><b>${esc(x.name)}</b><i class="dot ${esc(x.verdict.level)}"></i>
+      </button>`).join('')}${pestanaPaper()}</nav>`;
+}
+
+function renderPaper() {
+  const u = paper.ultima, h = paper.historial, ini = h[0];
+  const rent = u.valor / ini.valor - 1;
+  const rentSp = u.sp500eur && ini.sp500eur ? u.sp500eur / ini.sp500eur - 1 : null;
+  const invertido = u.efectivo !== null ? (u.valor - u.efectivo) / u.valor : null;
+  const pos = (u.posiciones || []).slice().sort((a, b) => (b.gananciaPct ?? 0) - (a.gananciaPct ?? 0));
+  const ganan = pos.filter(x => (x.gananciaPct ?? 0) > 0).length;
+  const ops = (paper.ejecuciones || []).slice(0, 30);
+  app.innerHTML = `${cabecera()}
+    <section class="bt-verdict ${rentSp === null ? '' : rent >= rentSp ? 'gana' : 'pierde'}"><b>${signed(rent, 2)} % desde ${fecha(ini.fecha)}</b>
+      <span>${rentSp === null ? '' : `El S&P 500 (en euros) ha hecho ${signed(rentSp, 2)} % en el mismo tiempo. `}Cuenta ${esc(u.cuenta)} · última foto ${fechaHora(u.fecha)}${u.ordenesPendientes ? ` · ${u.ordenesPendientes} órdenes pendientes` : ''}</span></section>
+    <section class="bt-res bt-paper-kpis">
+      <div><small>Valor de la cuenta</small><b>${eur0(u.valor)}</b><span>empezó con ${eur0(ini.valor)}</span></div>
+      <div class="${rent >= 0 ? 'up' : 'down'}"><small>Ganancia</small><b>${eur0(u.valor - ini.valor)}</b><span>${signed(rent, 2)} %</span></div>
+      <div><small>Invertido</small><b>${pct(invertido, 0)}</b><span>${pos.length} posiciones · ${ganan} en positivo</span></div>
+    </section>
+    <section class="bt-card"><div class="bt-legend"><span class="s">Cartera paper</span><span class="b">S&amp;P 500</span></div>
+      <div class="bt-chart" id="bt-paper-chart"></div></section>
+    <section class="bt-card"><h3 class="bt-h">Posiciones</h3>
+      <div class="bt-table"><table><thead><tr><th>Valor</th><th>Acciones</th><th>Compra → ahora</th><th>Resultado</th></tr></thead><tbody>${pos.map(x => `
+        <tr><td><b>${esc(x.simbolo)}</b><small>${esc(x.bolsa)} · ${esc(x.divisa)}</small></td><td>${nf(0).format(x.acciones)}</td>
+        <td>${num(x.precioMedio)} → ${num(x.precio)}</td><td class="${(x.gananciaPct ?? 0) >= 0 ? 'up' : 'down'}"><b>${signed(x.gananciaPct)} %</b><small>${nf(0).format(x.ganancia ?? 0)} ${esc(x.divisa)}</small></td></tr>`).join('')}</tbody></table></div></section>
+    <section class="bt-card"><h3 class="bt-h">Últimas operaciones</h3>
+      <div class="bt-table"><table><thead><tr><th>Día</th><th>Operación</th><th>Precio</th></tr></thead><tbody>${ops.map(e => `
+        <tr><td>${fecha(e.fecha)}</td><td><span class="${e.lado === 'compra' ? 'up' : 'down'}">${e.lado === 'compra' ? '▲ Compra' : '▼ Venta'}</span> ${nf(0).format(e.acciones)} <b>${esc(e.simbolo)}</b></td><td>${num(e.precio)} ${esc(e.divisa)}</td></tr>`).join('')}</tbody></table></div></section>
+    <p class="bt-foot">Dinero ficticio en la cuenta paper de Interactive Brokers. Cada lunes Claude aplica la cartera objetivo de las dos estrategias (50 % cada una).</p>`;
+  app.querySelectorAll('[data-s]').forEach(b => b.onclick = () => { sid = b.dataset.s; render(); });
+  graficoPaper(h);
+}
+
+const eur0 = x => x === null || x === undefined ? '–' : new Intl.NumberFormat('es-ES', {style: 'currency', currency: 'EUR', maximumFractionDigits: 0, useGrouping: 'always'}).format(x);
+
+function graficoPaper(h) {
+  const box = app.querySelector('#bt-paper-chart');
+  if (h.length < 2) { box.innerHTML = '<p class="bt-note">La gráfica aparecerá en cuanto haya dos fotos de la cuenta (se toman cada día de mercado).</p>'; return; }
+  const v = h.map(x => x.valor / h[0].valor), b = h.map(x => x.sp500eur && h[0].sp500eur ? x.sp500eur / h[0].sp500eur : null);
+  const all = [...v, ...b.filter(Boolean)], lo = Math.min(...all), hi = Math.max(...all);
+  const narrow = box.clientWidth < 600, W = narrow ? 600 : 1000, H = narrow ? 360 : 300, L = 60, R = 12, T = 12, B = 28, n = h.length;
+  const x = i => L + i / (n - 1) * (W - L - R), y = val => T + (1 - (val - lo) / (hi - lo || 1)) * (H - T - B);
+  const path = arr => arr.map((val, i) => val === null ? '' : `${i ? 'L' : 'M'}${x(i).toFixed(1)},${y(val).toFixed(1)}`).join('');
+  const ticks = [lo, 1, hi].filter((t, i, a) => a.indexOf(t) === i);
+  box.innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Cartera paper frente al S&P 500">
+    ${ticks.map(t => `<line class="grid" x1="${L}" x2="${W - R}" y1="${y(t)}" y2="${y(t)}"/><text class="axis" x="${L - 6}" y="${y(t) + 4}" text-anchor="end">${signed(t - 1, 1)}%</text>`).join('')}
+    <text class="axis" x="${L}" y="${H - 6}">${fecha(h[0].fecha)}</text><text class="axis" x="${W - R}" y="${H - 6}" text-anchor="end">${fecha(h[n - 1].fecha)}</text>
+    <path class="ln sp500" d="${path(b)}"/><path class="ln strategy" d="${path(v)}"/></svg>`;
 }
 
 function duel(label, a, b, fmt, higherBetter) {

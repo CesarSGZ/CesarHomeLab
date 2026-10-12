@@ -1,0 +1,35 @@
+name: IBKR paper snapshot
+
+# La lanza backtest-lab/ibkr_paper.py --foto desde el PC de César (gh workflow run) con la foto de la
+# cuenta PAPER. Solo la guarda en la base de datos de la web; no ejecuta nada más.
+on:
+  workflow_dispatch:
+    inputs:
+      foto:
+        description: JSON con la foto de la cuenta paper
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ibkr-paper-foto
+  cancel-in-progress: false
+
+jobs:
+  guardar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Store snapshot in Mission Control
+        env:
+          OFFICE_DEV_TOKEN: ${{ secrets.OFFICE_DEV_TOKEN }}
+          FOTO: ${{ inputs.foto }}
+        run: node scripts/ibkr-paper-foto.mjs
