@@ -102,7 +102,8 @@ def precios_eur(tickers):
     return precio, fx
 
 
-LIBRO = DIR / "libro.json"
+import os
+LIBRO = Path(os.environ["IBKR_LIBRO"]) if os.environ.get("IBKR_LIBRO") else DIR / "libro.json"
 CAPITAL_INICIAL = 1_000_000.0
 
 
@@ -131,7 +132,7 @@ def asignar_desde_cartera(libro, cartera):
                 libro["asignacion"].setdefault(c.symbol, e["id"])
 
 
-def foto(puerto, enviar=True):
+def foto(puerto, enviar=True, salida=None):
     """Foto de la cuenta paper para la web: valor, posiciones, operaciones recientes y S&P 500 del día.
     Se manda a GitHub (workflow ibkr-paper-foto.yml), que la guarda en la base de datos de la web."""
     import yfinance as yf
@@ -245,7 +246,10 @@ def foto(puerto, enviar=True):
     (DIR / "fotos" / f"{datetime.now():%Y-%m-%d_%H%M}.json").write_text(texto, encoding="utf-8")
     log(f"Foto: valor {datos['valor']:,.0f} {datos['divisa']}, {len(posiciones)} posiciones, "
         f"{len(ejecuciones)} ejecuciones recientes, {pendientes} órdenes pendientes ({len(texto)} bytes)")
-    if enviar:
+    if salida:
+        Path(salida).write_text(texto, encoding="utf-8")
+        log(f"Foto guardada en {salida}")
+    elif enviar:
         subprocess.run(["gh", "workflow", "run", "ibkr-paper-foto.yml", "-R", REPO, "--ref", "main", "-f", f"foto={texto}"],
                        check=True)
         log("Foto enviada a GitHub; en 1-2 minutos aparece en la web.")
@@ -260,11 +264,12 @@ def main():
     ap.add_argument("--max-dias", type=int, default=9, help="no operar con una cartera más antigua que esto")
     ap.add_argument("--foto", action="store_true", help="solo sacar la foto de la cuenta y mandarla a la web")
     ap.add_argument("--sin-enviar", action="store_true", help="con --foto: guardarla en local sin mandarla")
+    ap.add_argument("--salida-foto", help="con --foto: escribirla en este fichero (lo usa GitHub Actions)")
     args = ap.parse_args()
     if args.foto:
         if args.puerto not in PUERTOS_PAPER:
             raise SystemExit("Puerto no paper. Me paro.")
-        return foto(args.puerto, enviar=not args.sin_enviar)
+        return foto(args.puerto, enviar=not args.sin_enviar, salida=args.salida_foto)
     if args.puerto not in PUERTOS_PAPER:
         raise SystemExit(f"Puerto {args.puerto} no es de paper trading ({sorted(PUERTOS_PAPER)}). Me paro.")
     pesos = {k: float(v) for k, v in (p.split("=") for p in args.pesos)}

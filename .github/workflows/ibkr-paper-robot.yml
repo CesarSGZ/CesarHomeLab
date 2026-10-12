@@ -1,0 +1,141 @@
+name: IBKR paper robot
+
+# Robot de la cuenta PAPER de IBKR sin depender del PC de César:
+# arranca IB Gateway en un contenedor (imagen abierta gnzsnz/ib-gateway, login automático con IBC)
+# con las credenciales PAPER guardadas como secretos, ejecuta backtest-lab/ibkr_paper.py y lo apaga.
+#   lunes 07:40 UTC  -> aplica la cartera objetivo de la semana (órdenes) + foto para la web
+#   L-V   20:45 UTC  -> solo foto para la web (al cierre de Wall Street)
+on:
+  schedule:
+    - cron: '40 7 * * 1'
+    - cron: '45 20 * * 1-5'
+  workflow_dispatch:
+    inputs:
+      modo:
+        description: 'simulacion (no envía órdenes), ejecutar (envía órdenes a la paper) o foto'
+        required: true
+        default: simulacion
+        type: choice
+        options: [simulacion, ejecutar, foto]
+
+permissions:
+  contents: read
+  actions: read          # para descargar el artefacto cartera-objetivo con gh
+
+concurrency:
+  group: ibkr-paper-robot
+  cancel-in-progress: false
+
+jobs:
+  robot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Which run is this?
+        id: modo
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then m="${{ inputs.modo }}";
+          elif [ "${{ github.event.schedule }}" = "40 7 * * 1" ]; then m=ejecutar; else m=foto; fi
+          echo "modo=$m" >> "$GITHUB_OUTPUT"; echo "Modo: $m"
+
+      - name: Check paper credentials are configured
+        id: cred
+        env:
+          U: ${{ secrets.IBKR_PAPER_USER }}
+          P: ${{ secrets.IBKR_PAPER_PASSWORD }}
+        run: |
+          if [ -z "$U" ] || [ -z "$P" ]; then
+            echo "::warning::Faltan los secretos IBKR_PAPER_USER / IBKR_PAPER_PASSWORD: no se hace nada."
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Start IB Gateway (paper) in a container
+        if: steps.cred.outputs.ok == 'true'
+        env:
+          TWS_USERID: ${{ secrets.IBKR_PAPER_USER }}
+          TWS_PASSWORD: ${{ secrets.IBKR_PAPER_PASSWORD }}
+        run: |
+          docker run -d --name ibgw -p 127.0.0.1:4002:4004 \
+            -e TWS_USERID -e TWS_PASSWORD -e TRADING_MODE=paper \
+            -e READ_ONLY_API=${{ steps.modo.outputs.modo == 'ejecutar' && 'no' || 'yes' }} \
+            -e TIME_ZONE=Europe/Madrid -e TWS_ACCEPT_INCOMING=accept \
+            ghcr.io/gnzsnz/ib-gateway:stable
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: backtest-lab/requirements.txt
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Install robot dependencies
+        if: steps.cred.outputs.ok == 'true'
+        run: pip install -q -r backtest-lab/requirements.txt ib_async==2.1.0
+
+      - name: Wait for IB Gateway to log in
+        if: steps.cred.outputs.ok == 'true'
+        run: |
+          python - <<'EOF'
+          import time
+          from ib_async import IB
+          fin = time.time() + 300
+          while time.time() < fin:
+              ib = IB()
+              try:
+                  ib.connect("127.0.0.1", 4002, clientId=99, readonly=True, timeout=10)
+                  print("IB Gateway listo. Cuentas:", ib.managedAccounts())
+                  ib.disconnect()
+                  raise SystemExit(0)
+              except SystemExit:
+                  raise
+              except Exception as e:
+                  print("Esperando a IB Gateway...", type(e).__name__)
+                  time.sleep(10)
+          raise SystemExit("IB Gateway no inició sesión en 5 minutos (¿credenciales, verificación de IBKR o mantenimiento nocturno?)")
+          EOF
+
+      - name: Load the robot's ledger
+        if: steps.cred.outputs.ok == 'true'
+        env:
+          OFFICE_DEV_TOKEN: ${{ secrets.OFFICE_DEV_TOKEN }}
+        run: node scripts/ibkr-paper-libro.mjs leer "$RUNNER_TEMP/libro.json"
+
+      - name: Run the robot
+        if: steps.cred.outputs.ok == 'true' && (steps.modo.outputs.modo != 'foto')
+        working-directory: backtest-lab
+        env:
+          GH_TOKEN: ${{ github.token }}
+          IBKR_LIBRO: ${{ runner.temp }}/libro.json
+          PYTHONIOENCODING: utf-8
+        run: python -u ibkr_paper.py ${{ steps.modo.outputs.modo == 'ejecutar' && '--ejecutar' || '' }}
+
+      - name: Take the snapshot
+        if: steps.cred.outputs.ok == 'true'
+        working-directory: backtest-lab
+        env:
+          GH_TOKEN: ${{ github.token }}
+          IBKR_LIBRO: ${{ runner.temp }}/libro.json
+          PYTHONIOENCODING: utf-8
+        run: python -u ibkr_paper.py --foto --salida-foto "$RUNNER_TEMP/foto.json"
+
+      - name: Store snapshot and ledger in Mission Control
+        if: steps.cred.outputs.ok == 'true'
+        env:
+          OFFICE_DEV_TOKEN: ${{ secrets.OFFICE_DEV_TOKEN }}
+          FOTO_FILE: ${{ runner.temp }}/foto.json
+        run: |
+          node scripts/ibkr-paper-foto.mjs
+          node scripts/ibkr-paper-libro.mjs guardar "$RUNNER_TEMP/libro.json"
+
+      - name: Stop IB Gateway
+        if: steps.cred.outputs.ok == 'true' && (always())
+        run: docker rm -f ibgw >/dev/null 2>&1 || true

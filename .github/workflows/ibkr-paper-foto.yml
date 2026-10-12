@@ -7,7 +7,11 @@ on:
     inputs:
       foto:
         description: JSON con la foto de la cuenta paper
-        required: true
+        required: false
+        type: string
+      libro:
+        description: (opcional) libreta del robot para darla de alta en la web
+        required: false
         type: string
 
 permissions:
@@ -29,7 +33,14 @@ jobs:
         with:
           node-version: '24'
       - name: Store snapshot in Mission Control
+        if: inputs.foto != ''
         env:
           OFFICE_DEV_TOKEN: ${{ secrets.OFFICE_DEV_TOKEN }}
           FOTO: ${{ inputs.foto }}
         run: node scripts/ibkr-paper-foto.mjs
+      - name: Import the robot's ledger
+        if: inputs.libro != ''
+        env:
+          OFFICE_DEV_TOKEN: ${{ secrets.OFFICE_DEV_TOKEN }}
+          LIBRO: ${{ inputs.libro }}
+        run: node scripts/ibkr-paper-libro.mjs importar

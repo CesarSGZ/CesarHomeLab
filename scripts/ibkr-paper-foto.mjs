@@ -59,7 +59,8 @@ export async function guardar(db, foto) {
 }
 
 if (process.argv[1]?.replaceAll('\\', '/').endsWith('/ibkr-paper-foto.mjs')) {
-  const foto = limpiarFoto(process.env.FOTO || '');
+  const {readFileSync} = await import('node:fs');
+  const foto = limpiarFoto(process.env.FOTO_FILE ? readFileSync(process.env.FOTO_FILE, 'utf8') : (process.env.FOTO || ''));
   const datos = await guardar(cloudDatabase(), foto);
   console.log(`Guardada la foto de ${foto.cuenta}: ${datos.historial.length} puntos en el histórico, ${foto.posiciones.length} posiciones.`);
 }
