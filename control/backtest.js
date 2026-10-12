@@ -59,7 +59,7 @@ function render() {
       ${duel('Sharpe (rentabilidad / riesgo)', k.strategy.sharpe, k.sp500.sharpe, x => num(x), true)}
       ${duel('Peor caída', k.strategy.maxdd, k.sp500.maxdd, x => pct(x, 0), true)}
     </section>
-    <p class="bt-mini">${num(k.strategy.tradesPerYear, 0)} compras al año · ${pct(k.strategy.hitRate, 0)} con beneficio · ${s.positions} posiciones · equiponderada del universo: ${pct(k.universe.cagr)} al año</p>
+    <p class="bt-mini">${num(k.strategy.tradesPerYear, 0)} compras al año · ${pct(k.strategy.hitRate, 0)} con beneficio · ${s.positions} posiciones${s.examples?.resumen ? ` · <b>${nf(0).format(s.examples.resumen.diasMedios)} días</b> de media en cartera cada acción` : ''} · equiponderada del universo: ${pct(k.universe.cagr)} al año</p>
 
     <section class="bt-rules">
       <article class="buy"><h3>Compra</h3><ul>${s.rules.compra.map(r => `<li>${esc(r)}</li>`).join('')}</ul></article>

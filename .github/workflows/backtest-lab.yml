@@ -64,6 +64,14 @@ jobs:
         working-directory: backtest-lab
         run: python publicar.py --web "$RUNNER_TEMP/web.json" --origen "${{ steps.claim.outputs.trigger }}"
 
+      - name: Keep the target portfolio for the IBKR paper robot
+        if: steps.claim.outputs.run == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: cartera-objetivo
+          path: ${{ runner.temp }}/cartera_objetivo.json
+          retention-days: 30
+
       - name: Publish results to Mission Control
         if: steps.claim.outputs.run == 'true'
         env:
