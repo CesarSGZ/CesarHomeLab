@@ -23,9 +23,11 @@ test('every public section declares a flight phase for the HUD', async () => {
 test('mission brief player ships a web-sized video and poster', async () => {
   const page = await readFile(file('index.html'), 'utf8');
   assert.match(page, /<dialog class="fd-brief" id="mission-brief"/);
-  assert.ok((page.match(/data-brief-open/g) || []).length >= 2, 'brief can be opened from hero and finale');
+  assert.match(page, /<div class="brief-player" data-brief-player><video src="assets\/brief\/mission-brief\.mp4/, 'the hero plays the brief inline');
+  assert.match(page, /data-brief-inline/, 'the hero link plays the inline player');
+  assert.ok((page.match(/data-brief-open/g) || []).length >= 1, 'the finale can still open the brief');
   const video = await stat(file('assets/brief/mission-brief.mp4'));
-  assert.ok(video.size > 500_000 && video.size < 15_000_000, `video size ${video.size} stays web-friendly`);
+  assert.ok(video.size > 500_000 && video.size < 25 * 1024 * 1024, `video size ${video.size} fits the Pages 25 MiB file limit`);
   await stat(file('assets/brief/mission-brief-poster.jpg'));
 });
 
