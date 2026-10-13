@@ -150,5 +150,57 @@ def mezcla():
     print("correlación diaria:", ret.corr().round(2).to_dict())
 
 
+
+def mezcla_aportes():
+    """Reparto entre la estrategia 1 (13F), momentum y el S&P SIN vender para reequilibrar (impuestos):
+    'nunca' (cada parte va a lo suyo) frente a 'aportes' (el ahorro de cada mes va a la parte más por debajo de su peso)."""
+    import estrategias_fondos as EF
+    from bt import clon13f
+    from publicar import construir
+    d, ind, regimen, costes = IV.preparar()
+    extra = IV.preparar_fundamentales(d, ind, desde="2013-06-01", lector=FS.leer_todo, max_edad=460)[0]
+    extra = clon13f.anadir_a_extra(extra)
+    cfgs = {c["id"]: c for c in json.loads((RAIZ / "estrategias_elegidas.json").read_text(encoding="utf-8"))}
+    e1 = construir(cfgs["fundamental"]); e1.inicio = "2014-03-03"
+    r1 = ejecutar(e1, d, ind, costes, DV.COLUMNAS_DV, extra, regimen)
+    e2 = construir(cfgs["precio"]); e2.inicio = "2014-03-03"
+    r2 = ejecutar(e2, d, ind, costes, ER.COLUMNAS_PRECIO_4, None, regimen)
+    navs = pd.DataFrame({"copia13f": r1.equity, "momentum": r2.equity, "sp500": d.sp500_eur.reindex(r1.equity.index).ffill()}).dropna()
+    ret = navs.pct_change().fillna(0)
+    meses = ret.index.to_period("M")
+    filas = []
+    for (w1, w2), modo in itertools.product([p for p in itertools.product([0, .25, .5, .75, 1], repeat=2) if sum(p) <= 1],
+                                            ["nunca", "aportes"]):
+        w = pd.Series({"copia13f": w1, "momentum": w2, "sp500": 1 - w1 - w2})
+        for tramo, (a, b) in {"ent": ("2014-03-03", FIN_ENTRENO), "val": ("2019-01-01", None)}.items():
+            rr = ret.loc[a:b]
+            mm = meses[(ret.index >= pd.Timestamp(a)) & ((ret.index <= pd.Timestamp(b)) if b else True)]
+            actual, aportado, serie, flujos, nav, unid = w * 100_000, 100_000.0, [], [], [], 100_000.0
+            for i, (dia, r) in enumerate(rr.iterrows()):
+                f = 0.0
+                if modo == "aportes" and i > 0 and mm[i] != mm[i - 1]:
+                    total = actual.sum()
+                    falta = (w * (total + 1000) - actual).clip(lower=0)
+                    actual = actual + (falta / falta.sum() * 1000 if falta.sum() > 0 else w * 1000)
+                    unid += 1000 / (nav[-1] / 100_000)
+                    f, aportado = 1000, aportado + 1000
+                elif modo == "nunca" and i > 0 and mm[i] != mm[i - 1]:
+                    actual = actual + w * 1000                   # el ahorro se reparte con los pesos objetivo
+                    unid += 1000 / (nav[-1] / 100_000)
+                    f, aportado = 1000, aportado + 1000
+                actual = actual * (1 + r)
+                serie.append(actual.sum()); flujos.append(f); nav.append(actual.sum() / unid * 100_000)
+            s, fl, nv = pd.Series(serie, index=rr.index), pd.Series(flujos, index=rr.index), pd.Series(nav, index=rr.index)
+            m = metricas(nv, d.sp500_eur, a, b)
+            filas.append({"copia13f": w1, "momentum": w2, "sp500": round(1 - w1 - w2, 2), "modo": modo, "tramo": tramo,
+                          "cagr": m["cagr"], "sharpe": m["sharpe"], "maxdd": m["maxdd"], "aportado": aportado,
+                          "final": s.iloc[-1], "tir": tir(s, fl, 100_000)})
+    t = pd.DataFrame(filas)
+    t.to_csv(RES / "gestion_mezcla_aportes.csv", index=False)
+    v = t.pivot_table(index=["copia13f", "momentum", "sp500", "modo"], columns="tramo", values=["cagr", "sharpe", "maxdd", "tir"])
+    print(v.round(3).to_string())
+    print("correlación diaria:", ret.corr().round(2).to_dict())
+
+
 if __name__ == "__main__":
-    {"politicas": politicas, "aportes": aportes, "mezcla": mezcla}[sys.argv[1]]()
+    {"politicas": politicas, "aportes": aportes, "mezcla": mezcla, "mezcla_aportes": mezcla_aportes}[sys.argv[1]]()
