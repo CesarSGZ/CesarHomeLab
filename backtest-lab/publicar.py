@@ -22,6 +22,7 @@ from bt.metricas import rentabilidad_anual
 from bt.motor_global import benchmark_equiponderado, ejecutar
 
 import estrategias_deepvalue as DV
+import estrategias_fondos as EF
 import estrategias_raras as ER
 
 RAIZ = Path(__file__).resolve().parent
@@ -29,7 +30,7 @@ ELEGIDAS = RAIZ / "estrategias_elegidas.json"
 FAMILIAS = {"ruptura": EG.ruptura_volumen, "acumulacion": EG.acumulacion, "momentum_volumen": EG.momentum_volumen,
             "capitulacion": EG.capitulacion, "cerca_maximos": EG.cerca_maximos, "volumen_anomalo": EG.volumen_anomalo,
             "momentum_riesgo": EG.momentum_riesgo, "ruptura_momentum": EG.ruptura_momentum, "fundamental": EG.fundamental,
-            **ER.FAMILIAS, **DV.FAMILIAS}
+            **ER.FAMILIAS, **DV.FAMILIAS, **EF.FAMILIAS}
 
 
 def f(x, dec=4):
@@ -133,9 +134,13 @@ def main():
     def cuentas(fuente):
         """Fundamentales por fuente: Yahoo (todo el mundo, ~5 años) o SEC (EE. UU., desde 2009)."""
         if fuente not in extras:
-            if fuente == "sec":
+            if fuente in ("sec", "sec13f"):
                 from bt import fund_sec as FS
-                extras[fuente] = IV.preparar_fundamentales(d, ind, desde="2010-01-01", lector=FS.leer_todo, max_edad=460)[0]
+                extras[fuente] = IV.preparar_fundamentales(d, ind, desde="2010-01-01" if fuente == "sec" else "2013-06-01",
+                                                           lector=FS.leer_todo, max_edad=460)[0]
+                if fuente == "sec13f":                   # + carteras 13F de los grandes inversores de valor
+                    from bt import clon13f
+                    extras[fuente] = clon13f.anadir_a_extra(extras[fuente])
             else:
                 extras[fuente] = IV.preparar_fundamentales(d, ind)[0]
         return extras[fuente]
@@ -148,6 +153,7 @@ def main():
         est.fin_entrenamiento = cfg.get("finEntreno", est.fin_entrenamiento)
         columnas = DV.COLUMNAS_DV if est.usa_fundamentales else ER.COLUMNAS_PRECIO_4
         opcional = cfg.get("fuente") == "sec"          # si faltan las cuentas de la SEC se omite, sin tumbar lo demás
+        # (la estrategia principal con 13F NO es opcional: si faltan datos, mejor no publicar que publicar otra cosa)
         try:
             extra = cuentas(cfg.get("fuente", "yahoo")) if est.usa_fundamentales else None
         except Exception as e:  # noqa: BLE001

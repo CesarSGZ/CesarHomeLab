@@ -38,6 +38,13 @@ FLUJO = {
                         "IncomeLossFromContinuingOperationsBeforeIncomeTaxesMinorityInterestAndIncomeLossFromEquityMethodInvestments",
                         "ifrs-full:ProfitLossBeforeTax"],
     "intereses": ["InterestExpense", "InterestExpenseDebt", "InterestExpenseNonoperating"],
+    # flujo de caja (para caja libre y lo que se devuelve al accionista)
+    "cfo": ["NetCashProvidedByUsedInOperatingActivities", "NetCashProvidedByUsedInOperatingActivitiesContinuingOperations",
+            "ifrs-full:CashFlowsFromUsedInOperatingActivities"],
+    "capex": ["PaymentsToAcquirePropertyPlantAndEquipment", "PaymentsToAcquireProductiveAssets",
+              "ifrs-full:PurchaseOfPropertyPlantAndEquipmentClassifiedAsInvestingActivities"],
+    "recompras": ["PaymentsForRepurchaseOfCommonStock", "PaymentsForRepurchaseOfEquity"],
+    "dividendos": ["PaymentsOfDividendsCommonStock", "PaymentsOfDividends", "ifrs-full:DividendsPaidClassifiedAsFinancingActivities"],
 }
 BALANCE = {
     "patrimonio": ["StockholdersEquity", "ifrs-full:EquityAttributableToOwnersOfParent"],

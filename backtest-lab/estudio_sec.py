@@ -205,5 +205,136 @@ def finalistas(k=5):
                                           encoding="utf-8")
 
 
+IMPUESTO = 0.26375          # Abgeltungsteuer + Soli en Alemania (sin iglesia)
+
+
+def despues_de_impuestos(equity: pd.Series, ops: pd.DataFrame, liquidar=True):
+    """Patrimonio tras pagar cada año el impuesto sobre las ganancias realizadas (con pérdidas compensables entre años).
+    liquidar=True: al final se venden las posiciones abiertas y se paga también por esas ganancias."""
+    eq = equity.copy()
+    if ops.empty:
+        return eq
+    c = ops[ops["motivo_salida"] != "abierta"].copy()
+    c["ganancia"] = c["importe_salida"] - c["coste_total"]
+    por_anio = c.groupby(c["fecha_salida"].dt.year)["ganancia"].sum()
+    factor, perdidas = pd.Series(1.0, index=eq.index), 0.0
+    acumulado = 1.0
+    for anio in sorted(set(eq.index.year)):
+        g = por_anio.get(anio, 0.0) - perdidas
+        perdidas = max(0.0, -g)
+        impuesto = max(0.0, g) * IMPUESTO
+        fin = eq[eq.index.year == anio]
+        if len(fin) and impuesto > 0:
+            acumulado *= 1 - impuesto / (fin.iloc[-1] * acumulado if acumulado else fin.iloc[-1])
+        factor[eq.index.year > anio] = acumulado
+    out = eq * factor
+    if liquidar:
+        a = ops[ops["motivo_salida"] == "abierta"]
+        latente = (a["importe_salida"] - a["coste_total"]).sum() - perdidas
+        out.iloc[-1] -= max(0.0, latente) * IMPUESTO * factor.iloc[-1]
+    return out
+
+
+def sp500_despues_de_impuestos(sp: pd.Series):
+    """ETF de acumulación comprado al principio y vendido al final (se paga solo al vender, sin exención parcial)."""
+    out = sp.copy()
+    out.iloc[-1] = sp.iloc[0] + (sp.iloc[-1] - sp.iloc[0]) * (1 - IMPUESTO)
+    return out
+
+
+RONDAS = {"fondos": "rejilla", "tendencia": "rejilla_3", "clon": "rejilla_4"}
+INICIO_RONDA = {"clon": "2014-03-03"}       # los 13F estructurados empiezan a mediados de 2013
+
+
+def rejilla_fondos(ronda="fondos"):
+    """Ideas de gestores de valor famosos (estrategias_fondos.py), elegidas SOLO con 2010-2018."""
+    import estrategias_fondos as EF
+    from bt import fund_largo as FL
+    t0 = time.time()
+    d, ind, regimen, costes = IV.preparar()
+    extra = IV.preparar_fundamentales(d, ind, desde="2010-01-01", lector=FS.leer_todo, max_edad=EDAD)[0]
+    fotos, _ = FS.leer_todo()
+    extra = FL.anadir_a_extra(extra, fotos, d, ind)
+    if ronda == "clon":
+        from bt import clon13f
+        extra = clon13f.anadir_a_extra(extra)
+    inicio = INICIO_RONDA.get(ronda, INICIO)
+    IV.log(f"Rasgos largos listos ({time.time() - t0:.0f}s)")
+    ew = benchmark_equiponderado(ind, inicio, FIN_ENTRENO, 2e6)
+    filas, ruta = [], RES / ("rejilla_fondos.csv" if ronda == "fondos" else f"rejilla_{ronda}.csv")
+    for i, (fam, est) in enumerate(getattr(EF, RONDAS[ronda])()):
+        est.inicio, est.fin_entrenamiento = inicio, FIN_ENTRENO
+        _, fila = IV.evaluar_entreno(est, d, ind, regimen, costes, DV.COLUMNAS_DV, extra, ew)
+        fila.update(familia=fam, nombre=est.nombre, i=i)
+        filas.append(fila)
+        pd.DataFrame(filas).to_csv(ruta, index=False)
+        IV.log(f"{i + 1} {fam} {est.parametros}: {fila['cagr']:.1%} vs S&P {fila['cagr_sp500']:.1%} | Sharpe {fila['sharpe']:.2f} "
+               f"| IR {fila['ir_sp500']:.2f} | {fila['compras_anio']:.0f}/año")
+    df = pd.DataFrame(filas)
+    previas = [RES / "rejilla_sec.csv", RES / "rejilla_fondos.csv"]
+    todos = df["ir_sp500"].tolist() + sum((pd.read_csv(p)["ir_sp500"].tolist() for p in previas if p.exists() and p != ruta), [])
+    df["sharpe_deflactado_ir"] = [S.sharpe_deflactado(x, int(w), todos) for x, w in zip(df["ir_sp500"], df["semanas"])]
+    df.to_csv(ruta, index=False)
+    IV.log(f"Hecho en {time.time() - t0:.0f}s")
+
+
+def finalistas_fondos(k=5, ronda="fondos"):
+    """Las k mejores de la rejilla de fondos SOLO por entrenamiento; ahora se miran en 2019-hoy (con y sin impuestos)."""
+    import estrategias_fondos as EF
+    from bt import fund_largo as FL
+    nombre = "rejilla_fondos" if ronda == "fondos" else f"rejilla_{ronda}"
+    rej = pd.read_csv(RES / f"{nombre}.csv")
+    top = rej.sort_values("ir_sp500", ascending=False).head(k)["i"].astype(int).tolist()
+    vs = list(getattr(EF, RONDAS[ronda])())
+    d, ind, regimen, costes = IV.preparar()
+    extra = IV.preparar_fundamentales(d, ind, desde="2010-01-01", lector=FS.leer_todo, max_edad=EDAD)[0]
+    extra = FL.anadir_a_extra(extra, FS.leer_todo()[0], d, ind)
+    if ronda == "clon":
+        from bt import clon13f
+        extra = clon13f.anadir_a_extra(extra)
+    inicio = INICIO_RONDA.get(ronda, INICIO)
+    sp = d.sp500_eur
+    out = []
+    for pos, i in enumerate(top):
+        fam, est = vs[i]
+        est.inicio, est.fin_entrenamiento = inicio, FIN_ENTRENO
+        res = ejecutar(est, d, ind, costes, DV.COLUMNAS_DV, extra, regimen)
+        tramos = {}
+        for t, (a, b) in {"entreno": (inicio, FIN_ENTRENO), "validacion": ("2019-01-01", None), "todo": (inicio, None)}.items():
+            m = S.metricas_vs(res.equity, sp, a, b)
+            eq = res.equity.loc[a:b]
+            o = res.operaciones
+            o = o[(o["fecha_entrada"] >= eq.index[0]) & (o["fecha_entrada"] <= eq.index[-1])]
+            c = o[o["motivo_salida"] != "abierta"]
+            # después de impuestos: solo las operaciones del tramo, patrimonio del tramo
+            ops_t = res.operaciones[(res.operaciones["fecha_entrada"] >= eq.index[0])].copy()
+            ops_t.loc[ops_t["fecha_salida"] > eq.index[-1], "motivo_salida"] = "abierta"
+            eq_imp = despues_de_impuestos(eq, ops_t)
+            spt = sp.reindex(eq.index).ffill()
+            anios = (eq.index[-1] - eq.index[0]).days / 365.25
+            tramos[t] = {"cagr": m["cagr"], "cagr_sp500": m["cagr_bench"], "t": m["t"], "sharpe": m["sharpe"], "sharpe_sp500": m["sharpe_bench"],
+                         "maxdd": m["maxdd"], "ops_anio": len(o) / anios, "aciertos": float((c["rentabilidad"] > 0).mean()) if len(c) else None,
+                         "dias_medios": float(c["dias"].mean()) if len(c) else None,
+                         "cagr_neto": (eq_imp.iloc[-1] / eq_imp.iloc[0]) ** (1 / anios) - 1,
+                         "cagr_sp500_neto": (sp500_despues_de_impuestos(spt).iloc[-1] / spt.iloc[0]) ** (1 / anios) - 1}
+        anual = res.equity.resample("YE").last()
+        anual = pd.concat([pd.Series([res.equity.iloc[0]], index=[res.equity.index[0]]), anual]).pct_change().dropna()
+        spa = sp.reindex(res.equity.index).ffill()
+        spa = pd.concat([pd.Series([spa.iloc[0]], index=[spa.index[0]]), spa.resample("YE").last()]).pct_change().dropna()
+        out.append({"puesto_entreno": pos + 1, "familia": fam, "nombre": est.nombre, "parametros": est.parametros, "reglas": est.reglas,
+                    "tramos": tramos, "deflactado_entreno": float(rej.loc[rej["i"] == i, "sharpe_deflactado_ir"].iloc[0]),
+                    "anual": {str(k_.year): [round(float(v), 4), round(float(spa.get(k_, np.nan)), 4)] for k_, v in anual.items()}})
+        e, v = tramos["entreno"], tramos["validacion"]
+        IV.log(f"#{pos + 1} {fam} {est.parametros}: ent {e['cagr']:.1%} vs {e['cagr_sp500']:.1%} | VAL {v['cagr']:.1%} vs {v['cagr_sp500']:.1%} "
+               f"(t={v['t']:.2f}) Sh {v['sharpe']:.2f} vs {v['sharpe_sp500']:.2f} DD {v['maxdd']:.0%} | neto VAL {v['cagr_neto']:.1%} vs "
+               f"{v['cagr_sp500_neto']:.1%} | {v['ops_anio']:.0f} ops/año, {v['dias_medios'] or 0:.0f} días")
+    (RES / f"{nombre}.json").write_text(json.dumps({"finalistas": out, "variantes": len(rej)}, ensure_ascii=False, indent=1, default=float),
+                                             encoding="utf-8")
+
+
 if __name__ == "__main__":
-    {"validar": validar, "backtest": backtest, "rejilla": rejilla, "finalistas": finalistas}[sys.argv[1]]()
+    if len(sys.argv) > 2:
+        {"rejilla_fondos": rejilla_fondos, "finalistas_fondos": lambda: finalistas_fondos(5, sys.argv[2])}.get(
+            sys.argv[1], lambda: rejilla_fondos(sys.argv[2]))() if sys.argv[1] == "finalistas_fondos" else rejilla_fondos(sys.argv[2])
+        sys.exit()
+    {"rejilla_fondos": rejilla_fondos, "finalistas_fondos": finalistas_fondos, "validar": validar, "backtest": backtest, "rejilla": rejilla, "finalistas": finalistas}[sys.argv[1]]()
