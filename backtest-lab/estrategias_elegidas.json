@@ -33,5 +33,27 @@
       "miradasValidacion": 3,
       "nota": "Elige entre las acciones de EE. UU. más negociadas (no por tamaño). Su versión con stop del 25 % puntuó casi igual en 2008-2018 pero solo hizo un 19 % al año en 2019-hoy: el resultado es frágil."
     }
+  },
+  {
+    "id": "valor_eeuu",
+    "tipo": "Fundamentales · EE. UU. desde 2010 (SEC)",
+    "nombre": "Valor extremo en EE. UU.",
+    "familia": "extremo",
+    "parametros": {
+      "n": 20,
+      "umbral": 0.8,
+      "deuda_max": 3.0,
+      "tendencia": false,
+      "zona": "eeuu"
+    },
+    "fuente": "sec",
+    "inicio": "2010-07-01",
+    "finEntreno": "2018-12-31",
+    "busqueda": {
+      "variantes": 100,
+      "sharpeDeflactado": 0.029,
+      "miradasValidacion": 1,
+      "nota": "Elegida entre 100 variantes de todas las familias de valor solo con 2010-2018 (cuentas de la SEC, con su fecha real de publicación). Ninguna fue significativa tras corregir por el número de pruebas. En 2019-hoy empata con el S&P 500 con más riesgo. No la opera el robot."
+    }
   }
 ]

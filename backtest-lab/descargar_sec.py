@@ -7,8 +7,10 @@ Se guarda todo lo de los informes 10-K/10-Q (y 20-F/40-F de extranjeras) por emp
   datos_global/sec/companyfacts/<ticker>.json.gz   {cik, nombre, facts: {concepto: [{start,end,val,filed,form,fy,fp,accn,unidad}]}}
   datos_global/sec/cik.json                        ticker -> CIK
 
-  python descargar_sec.py            descarga lo que falte (se puede relanzar)
-  python descargar_sec.py --todo     vuelve a bajar todo (p. ej. una vez al trimestre)
+  python descargar_sec.py            descarga lo que falte (se puede relanzar), empresa a empresa
+  python descargar_sec.py --todo     vuelve a bajar todo, empresa a empresa
+  python descargar_sec.py --zip      baja el fichero completo de la SEC (~1,4 GB, se actualiza a diario) y reescribe
+                                     solo las empresas cuyas cuentas cambiaron (lo usa GitHub Actions cada semana)
 """
 import argparse
 import gzip
@@ -54,8 +56,47 @@ def compactar(js):
     return {"cik": js.get("cik"), "nombre": js.get("entityName"), "facts": facts}
 
 
+def desde_zip(mapa):
+    """Fichero completo companyfacts.zip -> nuestras empresas. Solo se escribe lo que ha cambiado."""
+    import shutil
+    import tempfile
+    import zipfile
+    ruta_zip = Path(tempfile.gettempdir()) / "companyfacts.zip"
+    req = urllib.request.Request("https://www.sec.gov/Archives/edgar/daily-index/xbrl/companyfacts.zip", headers=UA)
+    t0 = time.time()
+    with urllib.request.urlopen(req, timeout=600) as r, open(ruta_zip, "wb") as f:
+        shutil.copyfileobj(r, f, length=16 * 1024 * 1024)
+    print(f"zip descargado ({ruta_zip.stat().st_size / 1e9:.2f} GB, {time.time() - t0:.0f}s)", flush=True)
+    nuevas = cambiadas = iguales = 0
+    with zipfile.ZipFile(ruta_zip) as z:
+        nombres = set(z.namelist())
+        for t, c in sorted(mapa.items()):
+            miembro = f"CIK{c:010d}.json"
+            if miembro not in nombres:
+                continue
+            texto = json.dumps(compactar(json.loads(z.read(miembro))), separators=(",", ":"))
+            ruta = DIR / "companyfacts" / f"{t}.json.gz"
+            if ruta.exists():
+                try:
+                    if gzip.open(ruta, "rt", encoding="utf-8").read() == texto:
+                        iguales += 1
+                        continue
+                except Exception:  # noqa: BLE001 - fichero roto: se reescribe
+                    pass
+                cambiadas += 1
+            else:
+                nuevas += 1
+            tmp = ruta.with_suffix(".tmp")
+            with gzip.open(tmp, "wt", encoding="utf-8") as f:
+                f.write(texto)
+            tmp.replace(ruta)
+    ruta_zip.unlink(missing_ok=True)
+    print(f"SEC: {nuevas} nuevas, {cambiadas} con cuentas nuevas, {iguales} sin cambios ({time.time() - t0:.0f}s)", flush=True)
+
+
 def main():
     ap = argparse.ArgumentParser()
+    ap.add_argument("--zip", action="store_true")
     ap.add_argument("--todo", action="store_true")
     ap.add_argument("--parte", default="0/1", help="k/n: descarga solo una de n partes (para ir en paralelo)")
     args = ap.parse_args()
@@ -68,6 +109,8 @@ def main():
     mapa = {t: c for t, c in mapa.items() if c}
     (DIR / "cik.json").write_text(json.dumps(mapa, indent=0), encoding="utf-8")
     print(f"{len(mapa)} de {len(tickers)} empresas de EE. UU. con CIK", flush=True)
+    if args.zip:
+        return desde_zip(mapa)
     hechos = 0
     k, n = map(int, args.parte.split("/"))
     for i, (t, c) in enumerate(sorted(mapa.items())[k::n]):

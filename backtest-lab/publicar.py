@@ -128,21 +128,44 @@ def main():
     args = ap.parse_args()
     cfgs = json.loads(ELEGIDAS.read_text(encoding="utf-8"))
     d, ind, regimen, costes = IV.preparar()
-    extra = None
+    extras = {}
+
+    def cuentas(fuente):
+        """Fundamentales por fuente: Yahoo (todo el mundo, ~5 años) o SEC (EE. UU., desde 2009)."""
+        if fuente not in extras:
+            if fuente == "sec":
+                from bt import fund_sec as FS
+                extras[fuente] = IV.preparar_fundamentales(d, ind, desde="2010-01-01", lector=FS.leer_todo, max_edad=460)[0]
+            else:
+                extras[fuente] = IV.preparar_fundamentales(d, ind)[0]
+        return extras[fuente]
+
     bloques = []
     for cfg in cfgs:
         est = construir(cfg)
+        est.nombre = cfg.get("nombre", est.nombre)
+        est.inicio = cfg.get("inicio", est.inicio)
+        est.fin_entrenamiento = cfg.get("finEntreno", est.fin_entrenamiento)
         columnas = DV.COLUMNAS_DV if est.usa_fundamentales else ER.COLUMNAS_PRECIO_4
-        if est.usa_fundamentales and extra is None:
-            extra, _, _ = IV.preparar_fundamentales(d, ind)
+        opcional = cfg.get("fuente") == "sec"          # si faltan las cuentas de la SEC se omite, sin tumbar lo demás
+        try:
+            extra = cuentas(cfg.get("fuente", "yahoo")) if est.usa_fundamentales else None
+        except Exception as e:  # noqa: BLE001
+            if not opcional:
+                raise
+            IV.log(f"AVISO: {cfg['id']} omitida, no hay cuentas de la SEC ({e})")
+            continue
         t0 = time.time()
-        res = ejecutar(est, d, ind, costes, columnas, extra if est.usa_fundamentales else None, regimen)
+        res = ejecutar(est, d, ind, costes, columnas, extra, regimen)
+        if res.operaciones.empty and opcional:
+            IV.log(f"AVISO: {cfg['id']} omitida, ninguna operación")
+            continue
         if res.operaciones.empty:
             raise SystemExit(f"{est.nombre}: ninguna operación (¿faltan datos?). No se publica para no pisar "
                              "el resultado bueno anterior.")
         ew = benchmark_equiponderado(ind, est.inicio, None, est.liquidez_min)
         from bt import ejemplos as EJ
-        ej = EJ.generar(est, res, d, ind, extra if est.usa_fundamentales else None, columnas)
+        ej = EJ.generar(est, res, d, ind, extra, columnas)
         bloques.append(bloque(cfg, res, d, ew, ej))
         IV.log(f"{est.nombre}: {time.time() - t0:.0f}s")
     zonas = d.universo["zona"].value_counts().to_dict()
