@@ -53,8 +53,10 @@ cada ejecución; en el PC sirve para investigar. Conviene guardar una copia de e
 | `alternativos/fred.csv` | diferencial high yield, curva de tipos, condiciones financieras | FRED | análisis de operaciones |
 | `alternativos/rasgos_operaciones.parquet` | ~140 rasgos de cada operación de las dos estrategias | análisis de octubre de 2026 | — |
 
-Estudio con las cuentas de la SEC: `estudio_sec.py validar` (cuadre con Yahoo) y `estudio_sec.py backtest`
-(Valor + momentum en EE. UU. desde 2010). Límite conocido: faltan las empresas que dejaron de cotizar
+Estudio con las cuentas de la SEC: `estudio_sec.py validar` (cuadre con Yahoo), `estudio_sec.py backtest`
+(Valor + momentum en EE. UU. desde 2010), `estudio_sec.py rejilla` y `finalistas` (reentreno 2010-2018 / 2019-hoy).
+Gestión del dinero (mismas acciones, distinta forma de invertir): `estudio_gestion.py politicas | aportes | mezcla`
+con el simulador `bt/gestion.py`. Límite conocido: faltan las empresas que dejaron de cotizar
 (`resultados/supervivencia_sec.csv` mide cuántas).
 
 ## Reglas de honestidad que aplica el motor
