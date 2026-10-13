@@ -133,9 +133,42 @@ def _limpiar(close, otros, volume):
     return log
 
 
-def cargar(desde="2006-01-01", min_sesiones=120) -> DatosGlobales:
+def _bajas_tiingo():
+    """Empresas de EE. UU. que dejaron de cotizar, con precios de Tiingo (datos_global/alternativos/tiingo).
+    Se pasan al formato de precios.parquet: OHLC ajustado SOLO por splits (como Yahoo), dividendos y splits aparte."""
+    carpeta = DIR / "alternativos" / "tiingo"
+    filas, uni = [], []
+    for p in sorted(carpeta.glob("*.csv")):
+        t = pd.read_csv(p)
+        if len(t) < 120:
+            continue
+        t["date"] = pd.to_datetime(t["date"].str[:10])
+        t = t.sort_values("date")
+        sf = t["splitFactor"].fillna(1.0).replace(0, 1.0)
+        # factor de los splits posteriores a cada día (para dejar el precio como lo da Yahoo)
+        posterior = sf[::-1].cumprod()[::-1].shift(-1).fillna(1.0)
+        tk = p.stem
+        filas.append(pd.DataFrame({"date": t["date"], "ticker": tk, "open": t["open"] / posterior, "high": t["high"] / posterior,
+                                   "low": t["low"] / posterior, "close": t["close"] / posterior, "adj_close": t["adjClose"],
+                                   "volume": t["volume"] * posterior, "dividends": t["divCash"].fillna(0) / posterior,
+                                   "stock_splits": sf.where(sf != 1.0, 0.0)}))
+        uni.append({"ticker": tk, "nombre": f"{tk} (dejó de cotizar)", "region": "us", "zona": "EE. UU.", "bolsa": "", "divisa": "USD",
+                    "cap_eur": np.nan, "volumen_3m": np.nan, "precio": np.nan, "efectivo_eur": np.nan})
+    if not filas:
+        return None, None
+    return pd.concat(filas, ignore_index=True), pd.DataFrame(uni).set_index("ticker")
+
+
+def cargar(desde="2006-01-01", min_sesiones=120, bajas=False) -> DatosGlobales:
+    """bajas=True: añade las empresas que dejaron de cotizar (Tiingo), para investigar sin sesgo de supervivencia."""
     uni = pd.read_csv(DIR / "universo.csv").set_index("ticker")
     df = pd.read_parquet(DIR / "precios.parquet")
+    if bajas:
+        extra_df, extra_uni = _bajas_tiingo()
+        if extra_df is not None:
+            nuevos = [t for t in extra_uni.index if t not in uni.index]
+            uni = pd.concat([uni, extra_uni.loc[nuevos]])
+            df = pd.concat([df, extra_df[extra_df["ticker"].isin(nuevos)]], ignore_index=True)
     df = df[df["date"] >= pd.Timestamp(desde)]
     n = df.groupby("ticker").size()
     df = df[df["ticker"].isin(n.index[n >= min_sesiones]) & df["ticker"].isin(uni.index)]

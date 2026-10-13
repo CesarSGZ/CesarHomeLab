@@ -24,14 +24,23 @@ def tabla():
 
 
 def anadir_a_extra(extra: dict, universo_tickers=None):
+    """universo_tickers: acciones con precios; las que tienen los gestores pero no cuentas de la SEC (ADR, etc.)
+    se añaden igualmente a la tabla semanal (sin fundamentales) para que puedan entrar."""
     t = tabla()
     informes = t[["gestor", "ACCESSION_NUMBER", "FILING_DATE", "PERIODOFREPORT"]].drop_duplicates("ACCESSION_NUMBER")
-    for fecha, tab in extra.items():
+    validos = set(universo_tickers) if universo_tickers is not None else None
+    for fecha in list(extra):
+        tab = extra[fecha]
         f = pd.Timestamp(fecha)
         vivos = informes[(informes["FILING_DATE"] <= f) & (informes["PERIODOFREPORT"] > f - pd.Timedelta(days=220))]
         vivos = vivos.sort_values("FILING_DATE").groupby("gestor").tail(1)
         x = t[t["ACCESSION_NUMBER"].isin(vivos["ACCESSION_NUMBER"])]
         agg = x.groupby("ticker").agg(clon_peso=("peso", "sum"), clon_n=("gestor", "nunique"))
+        if validos is not None:
+            nuevos = [k for k in agg.index if k in validos and k not in tab.index]
+            if nuevos:
+                tab = tab.reindex(tab.index.append(pd.Index(nuevos)))
+                extra[fecha] = tab
         tab["clon_peso"] = agg["clon_peso"].reindex(tab.index)
         tab["clon_n"] = agg["clon_n"].reindex(tab.index)
         tab["clon_gestores"] = len(vivos)

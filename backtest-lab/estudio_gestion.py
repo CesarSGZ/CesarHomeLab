@@ -159,7 +159,7 @@ def mezcla_aportes():
     from publicar import construir
     d, ind, regimen, costes = IV.preparar()
     extra = IV.preparar_fundamentales(d, ind, desde="2013-06-01", lector=FS.leer_todo, max_edad=460)[0]
-    extra = clon13f.anadir_a_extra(extra)
+    extra = clon13f.anadir_a_extra(extra, d.close.columns)
     cfgs = {c["id"]: c for c in json.loads((RAIZ / "estrategias_elegidas.json").read_text(encoding="utf-8"))}
     e1 = construir(cfgs["fundamental"]); e1.inicio = "2014-03-03"
     r1 = ejecutar(e1, d, ind, costes, DV.COLUMNAS_DV, extra, regimen)

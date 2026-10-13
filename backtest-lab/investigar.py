@@ -32,8 +32,10 @@ def log(m):
 
 
 def preparar():
+    """BT_BAJAS=1 en el entorno: incluye las empresas que dejaron de cotizar (Tiingo), solo para investigar."""
+    import os
     t0 = time.time()
-    d = GD.cargar()
+    d = GD.cargar(bajas=os.environ.get("BT_BAJAS") == "1")
     log(f"Datos: {d.close.shape[1]} valores, {d.close.shape[0]} sesiones ({time.time() - t0:.0f}s)")
     ind = I.calcular(d)
     sp = d.sp500_eur.ffill()
