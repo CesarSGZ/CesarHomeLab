@@ -1,0 +1,54 @@
+name: Tiingo delisted prices
+
+# Precios de empresas que dejaron de cotizar (sesgo de supervivencia del Backtest Lab). Solo a mano.
+# La clave es el secreto TIINGO_API_KEY; los datos quedan en la caché de Actions y como artefacto.
+on:
+  workflow_dispatch:
+    inputs:
+      lista:
+        description: 'Fichero con los tickers (en backtest-lab/)'
+        default: 'tiingo_pedir.txt'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tiingo
+  cancel-in-progress: false
+
+jobs:
+  tiingo:
+    runs-on: ubuntu-latest
+    timeout-minutes: 330
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Restore previous downloads
+        uses: actions/cache/restore@v4
+        with:
+          path: backtest-lab/datos_global/alternativos/tiingo
+          key: tiingo-${{ github.run_id }}
+          restore-keys: tiingo-
+      - name: Download from Tiingo
+        working-directory: backtest-lab
+        env:
+          TIINGO_API_KEY: ${{ secrets.TIINGO_API_KEY }}
+          LISTA: ${{ inputs.lista }}
+        run: python descargar_tiingo.py "$LISTA"
+      - name: Save downloads
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: backtest-lab/datos_global/alternativos/tiingo
+          key: tiingo-${{ github.run_id }}
+      - name: Keep them as an artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tiingo-precios
+          path: backtest-lab/datos_global/alternativos/tiingo
+          retention-days: 30
