@@ -208,30 +208,41 @@ def finalistas(k=5):
 IMPUESTO = 0.26375          # Abgeltungsteuer + Soli en Alemania (sin iglesia)
 
 
-def despues_de_impuestos(equity: pd.Series, ops: pd.DataFrame, liquidar=True):
-    """Patrimonio tras pagar cada año el impuesto sobre las ganancias realizadas (con pérdidas compensables entre años).
-    liquidar=True: al final se venden las posiciones abiertas y se paga también por esas ganancias."""
+def despues_de_impuestos(equity: pd.Series, ops: pd.DataFrame, tr: pd.DataFrame, liquidar=True):
+    """Patrimonio de un tramo tras pagar cada año el impuesto alemán sobre las ganancias realizadas (las pérdidas se
+    compensan con años siguientes). Lo que ya se tenía al empezar el tramo cuenta como comprado ese día, y al final
+    (liquidar=True) se vende todo y también se paga por esas ganancias."""
+    a, b = equity.index[0], equity.index[-1]
     eq = equity.copy()
     if ops.empty:
         return eq
-    c = ops[ops["motivo_salida"] != "abierta"].copy()
-    c["ganancia"] = c["importe_salida"] - c["coste_total"]
-    por_anio = c.groupby(c["fecha_salida"].dt.year)["ganancia"].sum()
-    factor, perdidas = pd.Series(1.0, index=eq.index), 0.0
-    acumulado = 1.0
+    def valor(op, dia):
+        s = tr[op.ticker].loc[:dia].dropna()
+        e = tr[op.ticker].loc[:op.fecha_entrada].dropna()
+        return op.coste_total * s.iloc[-1] / e.iloc[-1] if len(s) and len(e) else np.nan
+    gan_anio, latente = {}, 0.0
+    for op in ops.itertuples():
+        salida = op.fecha_salida if pd.notna(op.fecha_salida) else None
+        if op.fecha_entrada > b or (salida is not None and salida < a):
+            continue
+        base = op.coste_total if op.fecha_entrada >= a else valor(op, a)
+        if salida is not None and salida <= b:
+            g = op.importe_salida - base
+            gan_anio[salida.year] = gan_anio.get(salida.year, 0.0) + g
+        else:
+            latente += valor(op, b) - base
+    factor, perdidas, acumulado = pd.Series(1.0, index=eq.index), 0.0, 1.0
     for anio in sorted(set(eq.index.year)):
-        g = por_anio.get(anio, 0.0) - perdidas
+        g = gan_anio.get(anio, 0.0) - perdidas
         perdidas = max(0.0, -g)
         impuesto = max(0.0, g) * IMPUESTO
         fin = eq[eq.index.year == anio]
         if len(fin) and impuesto > 0:
-            acumulado *= 1 - impuesto / (fin.iloc[-1] * acumulado if acumulado else fin.iloc[-1])
+            acumulado *= 1 - impuesto / (fin.iloc[-1] * acumulado)
         factor[eq.index.year > anio] = acumulado
     out = eq * factor
     if liquidar:
-        a = ops[ops["motivo_salida"] == "abierta"]
-        latente = (a["importe_salida"] - a["coste_total"]).sum() - perdidas
-        out.iloc[-1] -= max(0.0, latente) * IMPUESTO * factor.iloc[-1]
+        out.iloc[-1] -= max(0.0, latente - perdidas) * IMPUESTO * factor.iloc[-1]
     return out
 
 
@@ -306,10 +317,7 @@ def finalistas_fondos(k=5, ronda="fondos"):
             o = res.operaciones
             o = o[(o["fecha_entrada"] >= eq.index[0]) & (o["fecha_entrada"] <= eq.index[-1])]
             c = o[o["motivo_salida"] != "abierta"]
-            # después de impuestos: solo las operaciones del tramo, patrimonio del tramo
-            ops_t = res.operaciones[(res.operaciones["fecha_entrada"] >= eq.index[0])].copy()
-            ops_t.loc[ops_t["fecha_salida"] > eq.index[-1], "motivo_salida"] = "abierta"
-            eq_imp = despues_de_impuestos(eq, ops_t)
+            eq_imp = despues_de_impuestos(eq, res.operaciones, d.tr_eur)
             spt = sp.reindex(eq.index).ffill()
             anios = (eq.index[-1] - eq.index[0]).days / 365.25
             tramos[t] = {"cagr": m["cagr"], "cagr_sp500": m["cagr_bench"], "t": m["t"], "sharpe": m["sharpe"], "sharpe_sp500": m["sharpe_bench"],

@@ -15,10 +15,10 @@
     "inicio": "2014-03-03",
     "finEntreno": "2018-12-31",
     "busqueda": {
-      "variantes": 24,
+      "variantes": 232,
       "sharpeDeflactado": 0.086,
       "miradasValidacion": 3,
-      "nota": "Sustituye a Valor + momentum, que con 16 años de cuentas de la SEC no batía al S&P. Probadas ~270 variantes de valor (SEC 2010-2018 y 13F 2014-2018); elegida solo con el entrenamiento. Compra las 10 acciones que más gestores de valor (Berkshire, Pabrai, Li Lu, Akre, Baupost...) tienen a la vez según sus 13F ya publicados. Rota muy poco: casi sin impuestos. 2019-hoy: 21.0 % frente a 17.9 % del S&P; tras impuestos 20.5 % frente a 14.8 %. Depende mucho de pocas acciones (Apple pesa mucho)."
+      "nota": "Sustituye a Valor + momentum, que con 16 años de cuentas de la SEC no batía al S&P. Probadas 232 variantes de valor (SEC 2010-2018 y 13F 2014-2018), elegida solo con el entrenamiento. Compra las 10 acciones que más gestores de valor (Berkshire, Pabrai, Li Lu, Akre, Baupost...) tienen a la vez según sus 13F ya publicados. Rota muy poco. 2019-hoy: 21,0 % frente a 17,9 % del S&P; tras impuestos alemanes 17,4 % frente a 14,8 %. Depende mucho de pocas acciones (Apple pesa mucho)."
     }
   },
   {
