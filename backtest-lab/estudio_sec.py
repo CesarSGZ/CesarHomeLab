@@ -268,7 +268,7 @@ def rejilla_fondos(ronda="fondos"):
     extra = FL.anadir_a_extra(extra, fotos, d, ind)
     if ronda == "clon":
         from bt import clon13f
-        extra = clon13f.anadir_a_extra(extra)
+        extra = clon13f.anadir_a_extra(extra, d.close.columns)
     inicio = INICIO_RONDA.get(ronda, INICIO)
     IV.log(f"Rasgos largos listos ({time.time() - t0:.0f}s)")
     ew = benchmark_equiponderado(ind, inicio, FIN_ENTRENO, 2e6)
@@ -302,7 +302,7 @@ def finalistas_fondos(k=5, ronda="fondos"):
     extra = FL.anadir_a_extra(extra, FS.leer_todo()[0], d, ind)
     if ronda == "clon":
         from bt import clon13f
-        extra = clon13f.anadir_a_extra(extra)
+        extra = clon13f.anadir_a_extra(extra, d.close.columns)
     inicio = INICIO_RONDA.get(ronda, INICIO)
     sp = d.sp500_eur
     out = []
