@@ -65,6 +65,12 @@ jobs:
         # fichero completo de la SEC (~1,4 GB); solo se reescriben las empresas con cuentas nuevas
         run: python descargar_sec.py --zip || echo "::warning::no se pudieron actualizar las cuentas de la SEC; se usan las de la caché"
 
+      - name: Download 13F portfolios of value investors
+        if: steps.claim.outputs.run == 'true'
+        working-directory: backtest-lab
+        # carteras declaradas a la SEC por ~25 gestores de valor (Berkshire, Pabrai, Li Lu...); solo baja los trimestres nuevos
+        run: python descargar_13f.py
+
       - name: Run backtest
         if: steps.claim.outputs.run == 'true'
         working-directory: backtest-lab

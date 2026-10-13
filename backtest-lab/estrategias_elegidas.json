@@ -1,20 +1,24 @@
 [
   {
     "id": "fundamental",
-    "tipo": "Fundamentales + precio",
-    "familia": "valor_momentum",
+    "tipo": "Fundamentales · lo que compran los grandes de valor",
+    "nombre": "Copiar a los grandes de valor (13F)",
+    "familia": "clon",
     "parametros": {
-      "n": 20,
-      "peso_mom": 0.3,
-      "liquidez": 2000000.0,
-      "zona": "global",
-      "tendencia": true
+      "n": 10,
+      "nota": "consenso",
+      "min_gestores": 2,
+      "banda": 3.0,
+      "tendencia": false
     },
+    "fuente": "sec13f",
+    "inicio": "2014-03-03",
+    "finEntreno": "2018-12-31",
     "busqueda": {
-      "variantes": 110,
-      "sharpeDeflactado": 0.03,
-      "miradasValidacion": 4,
-      "nota": "Cuentas solo desde 2023: entrenamiento abr-2023 a dic-2024 y validación 2025-hoy (1,8 años). Elegida de nuevo tras filtrar ratios imposibles de Yahoo (que una estrategia de 'lo más barato' compraría por error). Net-net, Greenblatt, múltiplo del adquirente y Piotroski no batieron al S&P."
+      "variantes": 24,
+      "sharpeDeflactado": 0.086,
+      "miradasValidacion": 3,
+      "nota": "Sustituye a Valor + momentum, que con 16 años de cuentas de la SEC no batía al S&P. Probadas ~270 variantes de valor (SEC 2010-2018 y 13F 2014-2018); elegida solo con el entrenamiento. Compra las 10 acciones que más gestores de valor (Berkshire, Pabrai, Li Lu, Akre, Baupost...) tienen a la vez según sus 13F ya publicados. Rota muy poco: casi sin impuestos. 2019-hoy: 21.0 % frente a 17.9 % del S&P; tras impuestos 20.5 % frente a 14.8 %. Depende mucho de pocas acciones (Apple pesa mucho)."
     }
   },
   {
@@ -32,28 +36,6 @@
       "sharpeDeflactado": 0.058,
       "miradasValidacion": 3,
       "nota": "Elige entre las acciones de EE. UU. más negociadas (no por tamaño). Su versión con stop del 25 % puntuó casi igual en 2008-2018 pero solo hizo un 19 % al año en 2019-hoy: el resultado es frágil."
-    }
-  },
-  {
-    "id": "valor_eeuu",
-    "tipo": "Fundamentales · EE. UU. desde 2010 (SEC)",
-    "nombre": "Valor extremo en EE. UU.",
-    "familia": "extremo",
-    "parametros": {
-      "n": 20,
-      "umbral": 0.8,
-      "deuda_max": 3.0,
-      "tendencia": false,
-      "zona": "eeuu"
-    },
-    "fuente": "sec",
-    "inicio": "2010-07-01",
-    "finEntreno": "2018-12-31",
-    "busqueda": {
-      "variantes": 100,
-      "sharpeDeflactado": 0.029,
-      "miradasValidacion": 1,
-      "nota": "Elegida entre 100 variantes de todas las familias de valor solo con 2010-2018 (cuentas de la SEC, con su fecha real de publicación). Ninguna fue significativa tras corregir por el número de pruebas. En 2019-hoy empata con el S&P 500 con más riesgo. No la opera el robot."
     }
   }
 ]
