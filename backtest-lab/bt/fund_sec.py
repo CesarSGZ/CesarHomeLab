@@ -212,33 +212,37 @@ def _una(trabajo):
 
 
 def leer_todo(tickers=None, cache=True):
-    """(fotos, info) con el mismo formato que fund_global.leer_todo()."""
-    destino = SEC / "fotos_sec.parquet"
-    if cache and destino.exists() and tickers is None:
-        fotos = pd.read_parquet(destino)
-    else:
+    """(fotos, info) con el mismo formato que fund_global.leer_todo().
+    Caché por empresa (sec/fotos/<ticker>.parquet): solo se recalculan las empresas cuyas cuentas son más nuevas."""
+    from concurrent.futures import ProcessPoolExecutor
+    import os
+    dir_fotos = SEC / "fotos"
+    dir_fotos.mkdir(parents=True, exist_ok=True)
+    rutas = [r for r in sorted((SEC / "companyfacts").glob("*.json.gz"))
+             if tickers is None or r.name[:-len(".json.gz")] in tickers]
+    nombre = lambda r: r.name[:-len(".json.gz")]
+    pendientes = [r for r in rutas if not cache or not (dir_fotos / f"{nombre(r)}.parquet").exists()
+                  or (dir_fotos / f"{nombre(r)}.parquet").stat().st_mtime < r.stat().st_mtime]
+    if pendientes:
         precios = pd.read_parquet(DIR / "precios.parquet", columns=["date", "ticker", "stock_splits"])
         sp = {tk: g.set_index("date")["stock_splits"] for tk, g in precios[precios["stock_splits"] > 0].groupby("ticker")}
-        partes, divisas = [], {}
-        rutas = [r for r in sorted((SEC / "companyfacts").glob("*.json.gz"))
-                 if tickers is None or r.name[:-len(".json.gz")] in tickers]
-        from concurrent.futures import ProcessPoolExecutor
-        import os
-        trabajos = [(r, sp.get(r.name[:-len(".json.gz")], pd.Series(dtype=float))) for r in rutas]
-        with ProcessPoolExecutor(max_workers=max(1, (os.cpu_count() or 2) - 2)) as ex:
+        trabajos = [(r, sp.get(nombre(r), pd.Series(dtype=float))) for r in pendientes]
+        print(f"fund_sec: recalculando {len(pendientes)} de {len(rutas)} empresas", flush=True)
+        with ProcessPoolExecutor(max_workers=max(1, (os.cpu_count() or 2) - 1)) as ex:
             for i, (tk, t, divisa) in enumerate(ex.map(_una, trabajos, chunksize=8)):
-                if divisa is not None:
-                    divisas[tk] = divisa
-                if t is not None:
-                    partes.append(t)
+                if t is None:
+                    t = pd.DataFrame({"ticker": [tk], "divisa_cuentas": [divisa], "vacia": [True]})
+                else:
+                    t["divisa_cuentas"] = divisa
+                t.to_parquet(dir_fotos / f"{tk}.parquet")
                 if i % 500 == 0:
-                    print("fund_sec", i, len(rutas), flush=True)
-        fotos = pd.concat(partes, ignore_index=True)
-        fotos["divisa_cuentas"] = fotos["ticker"].map(divisas)
-        if tickers is None:
-            fotos.to_parquet(destino)
+                    print("fund_sec", i, len(pendientes), flush=True)
+    partes = [pd.read_parquet(dir_fotos / f"{nombre(r)}.parquet") for r in rutas if (dir_fotos / f"{nombre(r)}.parquet").exists()]
+    fotos = pd.concat(partes, ignore_index=True)
+    divisas = fotos.groupby("ticker")["divisa_cuentas"].first()
+    if "vacia" in fotos:
+        fotos = fotos[fotos["vacia"].isna()].drop(columns="vacia")
     info = pd.read_csv(DIR.parent / "fichas_empresas.csv").set_index("ticker")
-    div = fotos.groupby("ticker")["divisa_cuentas"].first()
-    info = info.reindex(info.index.union(div.index))
-    info["financialCurrency"] = div.reindex(info.index).fillna(info.get("financialCurrency"))
+    info = info.reindex(info.index.union(divisas.index))
+    info["financialCurrency"] = divisas.reindex(info.index).fillna(info.get("financialCurrency"))
     return fotos.sort_values(["ticker", "disponible"]), info

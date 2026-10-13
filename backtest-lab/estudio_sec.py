@@ -7,6 +7,8 @@ Los años 2010-2022 nunca se usaron para diseñarla: son una prueba fuera de mue
 
   python estudio_sec.py validar     compara los ratios SEC con los de Yahoo donde coinciden (2023-2026)
   python estudio_sec.py backtest    ejecuta la estrategia y escribe resultados/estudio_sec.json
+  python estudio_sec.py rejilla     REENTRENA: ~90 variantes grandes de todas las familias de valor, elegidas SOLO con
+                                    2010-2018; las finalistas se miden en 2019-hoy -> resultados/rejilla_sec.csv/json
 """
 import json
 import sys
@@ -101,5 +103,107 @@ def backtest():
     IV.log(f"Hecho en {time.time() - t0:.0f}s: resultados/estudio_sec.json")
 
 
+FIN_ENTRENO = "2018-12-31"
+
+
+def variantes():
+    """Variaciones GRANDES (no ajuste fino) de cada familia de valor, todas en EE. UU."""
+    import itertools
+    from estrategias_global import fundamental
+    for n, pm, tend, liq, salir in itertools.product([20, 40], [0.0, 0.3, 0.5, 0.7], [True, False], [2e6, 50e6], [False, True]):
+        if salir and not tend:
+            continue
+        e = DV.valor_momentum(n, pm, liq, "eeuu", tend)
+        if salir:
+            e.vender_si_mercado_bajista = True
+            e.filtro_mercado = True
+            e.parametros["salir"] = True
+        yield "valor_momentum", e
+    for n, tend in itertools.product([20, 40], [False, True]):
+        yield "acquirer", DV.acquirers_multiple(n, tend, "eeuu")
+        yield "magica", DV.formula_magica(n, tend, "eeuu")
+    for n, fmin, tend in itertools.product([20, 40], [5, 6], [False, True]):
+        yield "piotroski", DV.piotroski(n, fmin, 0.2, tend, "eeuu")
+    for k, rentable, tend in itertools.product([1.0, 1.5], [False, True], [False, True]):
+        yield "netnet", DV.net_net(k, 30, 5e5, rentable, tend)
+    for n, umbral, tend in itertools.product([20, 40], [0.8, 0.9], [False, True]):
+        yield "extremo", DV.extremo_sectorial(n, umbral, 3.0, tend, "eeuu")
+    for n, decil in itertools.product([20, 40], [0.1, 0.2]):
+        yield "giro", DV.valor_giro(n, decil, "eeuu")
+    for pesos, tend, n in itertools.product(["valor", "calidad_barata", "equilibrado", "calidad_momentum"], [True, False], [20, 40]):
+        yield "fundamental", fundamental(pesos, tend, n, 2.0, 4.0, 0.0)
+
+
+def rejilla():
+    from estrategias_global import COLUMNAS_FUND
+    t0 = time.time()
+    d, ind, regimen, costes = IV.preparar()
+    extra = IV.preparar_fundamentales(d, ind, desde="2010-01-01", lector=FS.leer_todo, max_edad=EDAD)[0]
+    filas, ew = [], {}
+    ruta = RES / "rejilla_sec.csv"
+    for i, (fam, est) in enumerate(variantes()):
+        est.inicio, est.fin_entrenamiento = INICIO, FIN_ENTRENO
+        if est.liquidez_min not in ew:
+            ew[est.liquidez_min] = benchmark_equiponderado(ind, INICIO, FIN_ENTRENO, est.liquidez_min)
+        cols = COLUMNAS_FUND + ["es_eeuu"] if fam == "fundamental" else DV.COLUMNAS_DV
+        if fam == "fundamental":                         # la nota compuesta no tiene filtro de zona: se le pone aquí
+            entrada, mantener = est.entrada, est.mantener
+            est.entrada = lambda t, f=entrada: f(t[t["es_eeuu"].fillna(False).astype(bool)])
+            est.mantener = lambda t, f=mantener: f(t[t["es_eeuu"].fillna(False).astype(bool)])
+        _, fila = IV.evaluar_entreno(est, d, ind, regimen, costes, cols, extra, ew[est.liquidez_min])
+        fila["familia"] = fam
+        fila["nombre"] = est.nombre
+        filas.append(fila)
+        pd.DataFrame(filas).to_csv(ruta, index=False)
+        IV.log(f"{i + 1} {fam} {est.parametros}: {fila['cagr']:.1%} vs S&P {fila['cagr_sp500']:.1%} | Sharpe {fila['sharpe']:.2f} "
+               f"| IR {fila['ir_sp500']:.2f} | {fila['compras_anio']:.0f}/año")
+    df = pd.DataFrame(filas)
+    df["sharpe_deflactado_ir"] = [S.sharpe_deflactado(x, int(w), df["ir_sp500"].tolist()) for x, w in zip(df["ir_sp500"], df["semanas"])]
+    df.to_csv(ruta, index=False)
+    IV.log(f"Rejilla hecha en {time.time() - t0:.0f}s")
+
+
+def finalistas(k=5):
+    """Las k mejores SOLO por entrenamiento (IR frente al S&P 2010-2018); ahora sí se miran en 2019-hoy."""
+    from estrategias_global import COLUMNAS_FUND
+    rej = pd.read_csv(RES / "rejilla_sec.csv")
+    top = rej.sort_values("ir_sp500", ascending=False).head(k).index.tolist()
+    vs = list(variantes())
+    d, ind, regimen, costes = IV.preparar()
+    extra = IV.preparar_fundamentales(d, ind, desde="2010-01-01", lector=FS.leer_todo, max_edad=EDAD)[0]
+    sp = d.sp500_eur
+    out = []
+    for pos, i in enumerate(top):
+        fam, est = vs[i]
+        est.inicio, est.fin_entrenamiento = INICIO, FIN_ENTRENO
+        cols = COLUMNAS_FUND + ["es_eeuu"] if fam == "fundamental" else DV.COLUMNAS_DV
+        res = ejecutar(est, d, ind, costes, cols, extra, regimen)
+        ew = benchmark_equiponderado(ind, INICIO, None, est.liquidez_min)
+        tramos = {}
+        for t, (a, b) in {"entreno": (INICIO, FIN_ENTRENO), "validacion": ("2019-01-01", None), "todo": (INICIO, None)}.items():
+            m = S.metricas_vs(res.equity, sp, a, b)
+            o = res.operaciones
+            o = o[(o["fecha_entrada"] >= pd.Timestamp(a)) & ((o["fecha_entrada"] <= pd.Timestamp(b)) if b else True)]
+            c = o[o["motivo_salida"] != "abierta"]
+            tramos[t] = {"cagr": m["cagr"], "cagr_sp500": m["cagr_bench"], "exceso": m["exceso"], "t": m["t"], "sharpe": m["sharpe"],
+                         "sharpe_sp500": m["sharpe_bench"], "maxdd": m["maxdd"], "cagr_equiponderada": S.metricas_vs(res.equity, ew, a, b)["cagr_bench"],
+                         "ops_anio": len(o) / m["anios"], "aciertos": float((c["rentabilidad"] > 0).mean()) if len(c) else None,
+                         "dias_medios": float(c["dias"].mean()) if len(c) else None}
+        anual = res.equity.resample("YE").last()
+        anual = pd.concat([pd.Series([res.equity.iloc[0]], index=[res.equity.index[0]]), anual]).pct_change().dropna()
+        spa = sp.reindex(res.equity.index).ffill()
+        spa = pd.concat([pd.Series([spa.iloc[0]], index=[spa.index[0]]), spa.resample("YE").last()]).pct_change().dropna()
+        out.append({"puesto_entreno": pos + 1, "familia": fam, "nombre": est.nombre, "parametros": est.parametros, "reglas": est.reglas,
+                    "tramos": tramos, "anual": {str(k_.year): [round(float(v), 4), round(float(spa.get(k_, np.nan)), 4)] for k_, v in anual.items()},
+                    "deflactado_entreno": float(rej.loc[i, "sharpe_deflactado_ir"])})
+        e, v = tramos["entreno"], tramos["validacion"]
+        IV.log(f"#{pos + 1} {fam} {est.parametros}: ent {e['cagr']:.1%} vs {e['cagr_sp500']:.1%} | VAL {v['cagr']:.1%} vs S&P "
+               f"{v['cagr_sp500']:.1%} (t={v['t']:.2f}) Sharpe {v['sharpe']:.2f} vs {v['sharpe_sp500']:.2f} DD {v['maxdd']:.0%}")
+        res.equity.to_csv(RES / f"finalista_{pos + 1}_equity.csv")
+    (RES / "rejilla_sec.json").write_text(json.dumps({"elegida": out[0], "finalistas": out, "variantes": len(rej),
+                                                      "fin_entreno": FIN_ENTRENO}, ensure_ascii=False, indent=1, default=float),
+                                          encoding="utf-8")
+
+
 if __name__ == "__main__":
-    {"validar": validar, "backtest": backtest}[sys.argv[1]]()
+    {"validar": validar, "backtest": backtest, "rejilla": rejilla, "finalistas": finalistas}[sys.argv[1]]()

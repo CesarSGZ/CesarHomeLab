@@ -59,6 +59,12 @@ jobs:
           # precios del último mes (o todo si no hay copia) + fundamentales por tandas, con tope de tiempo
           python descargar_global.py semanal 150 || echo "::warning::descarga incompleta, se usan los datos en caché"
 
+      - name: Download SEC accounts (US, since 2009)
+        if: steps.claim.outputs.run == 'true'
+        working-directory: backtest-lab
+        # fichero completo de la SEC (~1,4 GB); solo se reescriben las empresas con cuentas nuevas
+        run: python descargar_sec.py --zip || echo "::warning::no se pudieron actualizar las cuentas de la SEC; se usan las de la caché"
+
       - name: Run backtest
         if: steps.claim.outputs.run == 'true'
         working-directory: backtest-lab
