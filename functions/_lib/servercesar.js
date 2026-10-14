@@ -92,18 +92,21 @@ export async function readReport(db) {
   try { return { ...JSON.parse(row.report), receivedAt: row.received_at }; } catch { return null; }
 }
 
-export async function lastReboot(db) {
-  return db.prepare("SELECT id, status, requested_by, requested_at, claimed_at, completed_at, result FROM servercesar_commands WHERE type = 'reboot' ORDER BY requested_at DESC LIMIT 1").first();
+export const POWER_ACTIONS = ["reboot", "shutdown"];
+
+export async function lastPowerCommand(db) {
+  return db.prepare("SELECT id, type, status, requested_by, requested_at, claimed_at, completed_at, result FROM servercesar_commands WHERE type IN ('reboot', 'shutdown') ORDER BY requested_at DESC LIMIT 1").first();
 }
 
-/** Queues a reboot for the agent. Returns {ok, id} or {ok: false, error}. */
-export async function queueReboot(db, username, now = Date.now()) {
+/** Queues a reboot or shutdown for the agent. Returns {ok, id} or {ok: false, error}. */
+export async function queuePowerCommand(db, action, username, now = Date.now()) {
+  if (!POWER_ACTIONS.includes(action)) return { ok: false, error: "invalid_action" };
   const report = await readReport(db);
   if (!report || now - report.receivedAt > REPORT_FRESH_MS) return { ok: false, error: "agent_offline" };
-  const previous = await lastReboot(db);
+  const previous = await lastPowerCommand(db);
   if (previous && now - previous.requested_at < REBOOT_COOLDOWN_MS) return { ok: false, error: "cooldown", retryAt: previous.requested_at + REBOOT_COOLDOWN_MS };
   const id = crypto.randomUUID();
-  await db.prepare("INSERT INTO servercesar_commands (id, type, status, requested_by, requested_at) VALUES (?, 'reboot', 'queued', ?, ?)").bind(id, username, now).run();
+  await db.prepare("INSERT INTO servercesar_commands (id, type, status, requested_by, requested_at) VALUES (?, ?, 'queued', ?, ?)").bind(id, action, username, now).run();
   return { ok: true, id };
 }
 

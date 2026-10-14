@@ -1,4 +1,4 @@
-// ServerCesar panel (Servers view): power status, app health from its agent, Wake-on-LAN and reboot buttons, owner configuration.
+// ServerCesar panel (Servers view): power status, app health from its agent, power on / reboot / shut down buttons, owner configuration.
 (() => {
   const $ = (s, c = document) => c.querySelector(s);
   let csrf = '', canWake = false, timer = 0, fastUntil = 0, cooldownUntil = 0, started = false;
@@ -40,24 +40,26 @@
     });
   }
 
-  // Reboot lifecycle: queued → claimed by the agent → PC back with a newer boot time.
-  function rebootPhase(data) {
-    const r = data.lastReboot; if (!r) return null;
-    if (r.status === 'queued') return {busy: true, text: 'Orden de reinicio en cola. El agente la recoge en menos de 30 s…'};
-    if (r.status === 'failed') return {busy: false, text: 'El reinicio falló: ' + (r.result || 'sin detalle'), kind: 'error', recent: Date.now() - r.at < 15 * 60e3};
-    if (r.status === 'expired') return null;
-    const back = data.agent?.bootTime && data.agent.bootTime > r.at && data.agent.fresh;
-    if (back) return Date.now() - r.at < 15 * 60e3 ? {busy: false, text: 'ServerCesar se reinició y ya está de vuelta (' + fmt(data.agent.bootTime) + ').', kind: 'success', recent: true} : null;
-    return Date.now() - r.at < 15 * 60e3 ? {busy: true, text: 'Reiniciando ServerCesar… vuelve en uno o dos minutos.'} : null;
+  // Reboot/shutdown lifecycle: queued → claimed by the agent → PC back with a newer boot time (reboot)
+  // or the agent goes silent (shutdown) until a Wake-on-LAN brings it back.
+  function powerPhase(data) {
+    const r = data.lastPower; if (!r || r.status === 'expired') return null;
+    const off = r.action === 'shutdown', recent = Date.now() - r.at < 15 * 60e3;
+    const back = data.agent?.fresh && data.agent.bootTime > r.at;
+    if (r.status === 'queued') return {busy: true, label: off ? 'APAGANDO' : 'REINICIANDO', text: 'Orden de ' + (off ? 'apagado' : 'reinicio') + ' en cola. El agente la recoge en menos de 30 s…'};
+    if (r.status === 'failed') return recent ? {text: (off ? 'El apagado' : 'El reinicio') + ' falló: ' + (r.result || 'sin detalle'), kind: 'error'} : null;
+    if (back) return recent ? {text: 'ServerCesar ' + (off ? 'se volvió a encender' : 'se reinició y ya está de vuelta') + ' (' + fmt(data.agent.bootTime) + ').', kind: 'success'} : null;
+    if (off) return data.agent?.fresh ? (Date.now() - r.at < 5 * 60e3 ? {busy: true, label: 'APAGANDO', text: 'Apagando ServerCesar…'} : null) : {label: 'APAGADO', text: 'ServerCesar se apagó desde Mission Control (' + fmt(r.at) + '). Usa «Encender ServerCesar» para volver a arrancarlo.'};
+    return recent ? {busy: true, label: 'REINICIANDO', text: 'Reiniciando ServerCesar… vuelve en uno o dos minutos.'} : null;
   }
 
   function render(data) {
     const p = data.power || {}, online = p.state === 'online', pill = $('[data-sc-pill]', card());
-    const phase = rebootPhase(data);
-    pill.textContent = phase?.busy ? 'REINICIANDO' : online ? 'ENCENDIDO' : p.state === 'unconfigured' ? 'SIN CONFIGURAR' : 'SIN RESPUESTA';
-    pill.classList.toggle('online', online && !phase?.busy);
+    const phase = powerPhase(data), label = phase?.label && (phase.busy || !online) ? phase.label : null;
+    pill.textContent = label || (online ? 'ENCENDIDO' : p.state === 'unconfigured' ? 'SIN CONFIGURAR' : 'SIN RESPUESTA');
+    pill.classList.toggle('online', online && !label);
     card().dataset.state = p.state || 'unknown';
-    set('[data-sc-state]', phase?.busy ? 'REINICIANDO' : online ? 'ENCENDIDO' : p.state === 'unconfigured' ? 'SIN CONFIGURAR' : 'APAGADO O SIN RESPUESTA');
+    set('[data-sc-state]', label || (online ? 'ENCENDIDO' : p.state === 'unconfigured' ? 'SIN CONFIGURAR' : 'APAGADO O SIN RESPUESTA'));
     set('[data-sc-via]', p.via === 'agent' ? 'AGENTE DE SERVERCESAR' : p.via ? p.via.toUpperCase().replace('PORT', 'PUERTO') : p.probed?.length ? 'PUERTOS ' + p.probed.join(', ') + ' CERRADOS' : 'SIN PUERTOS DE PRUEBA');
     set('[data-sc-last]', data.lastWake ? fmt(data.lastWake.at) + (data.lastWake.ok ? '' : ' · FALLÓ') : 'NUNCA');
     set('[data-sc-checked]', ago(Date.now()));
@@ -66,10 +68,10 @@
     const button = $('#sc-wake');
     button.hidden = !data.canWake;
     button.disabled = !data.canWake || p.state === 'unconfigured' || online || Date.now() < cooldownUntil;
-    const rebootRow = $('#sc-reboot-row'), reboot = $('#sc-reboot');
-    rebootRow.hidden = !data.canWake;
-    reboot.disabled = !data.canWake || !data.agent?.fresh || Boolean(phase?.busy) || Date.now() < (data.rebootCooldownUntil || 0);
-    if (phase && (phase.busy || phase.recent)) { feedback(phase.text, phase.kind); if (phase.busy) fastUntil = Math.max(fastUntil, Date.now() + 60e3); }
+    $('#sc-power-row').hidden = !data.canWake;
+    const powerBlocked = !data.canWake || !data.agent?.fresh || Boolean(phase?.busy) || Date.now() < (data.powerCooldownUntil || 0);
+    $('#sc-reboot').disabled = powerBlocked; $('#sc-shutdown').disabled = powerBlocked;
+    if (phase && !(online && phase.label === 'APAGADO')) { feedback(phase.text, phase.kind); if (phase.busy) fastUntil = Math.max(fastUntil, Date.now() + 60e3); }
     else if (p.state === 'unconfigured' && !online) feedback(data.canWake ? 'Abre «Configuración» y guarda la MAC, el host y el puerto para poder encenderlo.' : 'El propietario aún no ha configurado ServerCesar.');
     else if (online) {
       const bad = Object.entries(data.apps || {}).filter(([, a]) => a.health !== 'ok').map(([n]) => ({claude: 'Claude', chatgpt: 'ChatGPT', parsec: 'Parsec', tailscale: 'Tailscale'})[n]);
@@ -108,16 +110,21 @@
     setTimeout(refresh, 1500);
   }
 
-  async function reboot() {
-    if (!confirm('¿Reiniciar ServerCesar ahora? Se cerrará todo lo que esté abierto (Minecraft incluido) y volverá a arrancar solo.')) return;
-    const button = $('#sc-reboot'); button.disabled = true; feedback('Enviando orden de reinicio…');
+  async function power(action) {
+    const off = action === 'shutdown';
+    const question = off
+      ? '¿Apagar ServerCesar ahora? Se cerrará todo (Minecraft incluido) y se quedará apagado hasta que lo enciendas con «Encender ServerCesar».'
+      : '¿Reiniciar ServerCesar ahora? Se cerrará todo lo que esté abierto (Minecraft incluido) y volverá a arrancar solo.';
+    if (!confirm(question)) return;
+    $('#sc-reboot').disabled = true; $('#sc-shutdown').disabled = true;
+    feedback('Enviando orden de ' + (off ? 'apagado' : 'reinicio') + '…');
     try {
-      const response = await fetch('/control/api/servercesar/reboot', {method: 'POST', credentials: 'same-origin', headers: {'content-type': 'application/json', 'x-csrf-token': csrf}, body: '{}'});
+      const response = await fetch('/control/api/servercesar/power', {method: 'POST', credentials: 'same-origin', headers: {'content-type': 'application/json', 'x-csrf-token': csrf}, body: JSON.stringify({action})});
       const data = await response.json().catch(() => ({}));
       if (response.ok && data.ok) { fastUntil = Date.now() + 4 * 60e3; feedback('Orden enviada. El agente la recoge en menos de 30 s…', 'success'); }
-      else if (data.error === 'cooldown') feedback('Ya se pidió un reinicio hace menos de 3 minutos. Espera un momento.', 'error');
+      else if (data.error === 'cooldown') feedback('Ya se pidió un reinicio o apagado hace menos de 3 minutos. Espera un momento.', 'error');
       else if (data.error === 'agent_offline') feedback('El agente de ServerCesar no da señal, así que no puede recibir la orden.', 'error');
-      else feedback('No se pudo pedir el reinicio: ' + (data.error || response.status), 'error');
+      else feedback('No se pudo enviar la orden: ' + (data.error || response.status), 'error');
     } catch { feedback('No se pudo enviar la orden. Inténtalo de nuevo.', 'error'); }
     setTimeout(refresh, 1500);
   }
@@ -139,7 +146,8 @@
       csrf = token || ''; canWake = Boolean(wakeAllowed);
       if (started || !card()) return; started = true;
       $('#sc-wake').addEventListener('click', wake);
-      $('#sc-reboot').addEventListener('click', reboot);
+      $('#sc-reboot').addEventListener('click', () => power('reboot'));
+      $('#sc-shutdown').addEventListener('click', () => power('shutdown'));
       $('#sc-config-form').addEventListener('submit', save);
       addEventListener('homelab:view', event => { if (event.detail === 'infrastructure') refresh(); });
       document.addEventListener('visibilitychange', () => { if (!document.hidden) refresh(); });

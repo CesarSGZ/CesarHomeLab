@@ -153,12 +153,15 @@
           </div>
           <button class="wake-button" id="sc-wake" type="button" disabled><span>⏻</span> Encender ServerCesar</button>
         </div>
-        <div class="server-actions" id="sc-reboot-row" hidden>
+        <div class="server-actions" id="sc-power-row" hidden>
           <div>
-            <small>REINICIO REMOTO</small>
-            <p>Un paquete Wake-on-LAN solo sirve para encender. Para reiniciar, el agente de ServerCesar recoge la orden (en menos de 30 s) y reinicia Windows; al volver, todo arranca solo con la sesión iniciada.</p>
+            <small>REINICIO Y APAGADO REMOTOS</small>
+            <p>Un paquete Wake-on-LAN solo sirve para encender. Para reiniciar o apagar, el agente de ServerCesar recoge la orden (en menos de 30 s) y se la da a Windows. Tras reiniciar, todo vuelve solo con la sesión iniciada; tras apagar, se vuelve a encender con el botón de arriba.</p>
           </div>
-          <button class="wake-button reboot-button" id="sc-reboot" type="button" disabled><span>↻</span> Reiniciar ServerCesar</button>
+          <div class="sc-power-buttons">
+            <button class="wake-button reboot-button" id="sc-reboot" type="button" disabled><span>↻</span> Reiniciar</button>
+            <button class="wake-button shutdown-button" id="sc-shutdown" type="button" disabled><span>⏼</span> Apagar</button>
+          </div>
         </div>
         <p class="command-feedback" id="sc-feedback" role="status" aria-live="polite">Comprobando estado…</p>
         <details class="sc-config" id="sc-config" hidden>

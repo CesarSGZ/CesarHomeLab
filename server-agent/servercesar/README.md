@@ -4,15 +4,16 @@ Two scheduled tasks on ServerCesar, both outbound-only (no open port):
 
 | Task | Runs as | Job |
 | --- | --- | --- |
-| `ServerCesar Agent` | SYSTEM, at boot (+ revived every 5 min) | Keeps the Parsec and Tailscale services running, starts the guardian if it is missing, posts the PC + app health to `POST /api/agent/servercesar` every 30 s, and executes the only command Mission Control can send: `reboot` (`shutdown /r /f /t 20`). |
+| `ServerCesar Agent` | SYSTEM, at boot (+ revived every 5 min) | Keeps the Parsec and Tailscale services running, starts the guardian if it is missing, posts the PC + app health to `POST /api/agent/servercesar` every 30 s, and executes the only commands Mission Control can send: `reboot` (`shutdown /r /f /t 20`) and `shutdown` (`shutdown /s /f /t 20`). |
 | `ServerCesar Guardian` | SERVERCESAR, at logon, unelevated (+ revived every 5 min) | Keeps Claude, ChatGPT, Parsec and Tailscale open in the desktop session, relaunches them when they close or hang, restarts Claude/ChatGPT at 05:00 when an update is staged, and writes their state to `state\apps.json`. |
 
 "Signed in" is decided by the presence of each app's own session file (Claude
 `config.json` token cache, `~/.codex/auth.json`, Parsec `user.bin`) and by
 `tailscale status` (`BackendState = Running`). No credential is read out or sent.
 
-A Wake-on-LAN packet can only power the PC on; restarting it needs this agent,
-which is why the reboot button is only enabled while the agent reports in.
+A Wake-on-LAN packet can only power the PC on; restarting or shutting it down
+needs this agent, which is why those buttons are only enabled while the agent
+reports in. After a shutdown, Wake-on-LAN brings it back.
 
 ## Install / update
 

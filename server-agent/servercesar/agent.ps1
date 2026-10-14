@@ -1,7 +1,7 @@
 # ServerCesar agent: runs as SYSTEM from boot (scheduled task), with or without a user session.
 # Every 30 s it keeps the Parsec and Tailscale services running, makes sure the guardian runs in
 # SERVERCESAR's desktop, and posts the PC + app health to Mission Control over outbound HTTPS.
-# Mission Control can hand back one command only: "reboot", which restarts Windows.
+# Mission Control can hand back two commands only: "reboot" and "shutdown" of Windows.
 [CmdletBinding()]
 param(
     [string]$Root = 'C:\ProgramData\ServerCesar'
@@ -10,7 +10,7 @@ param(
 $ErrorActionPreference = 'Continue'
 Add-Type -AssemblyName System.Security
 
-$AgentVersion = '1.0.0'
+$AgentVersion = '1.1.0'
 $SiteBaseUrl = 'https://cesar-solla.pages.dev'
 $IntervalSeconds = 30
 $GuardianTask = 'ServerCesar Guardian'
@@ -119,11 +119,17 @@ function Get-Report([bool]$userSession) {
     $report
 }
 
-function Invoke-Reboot($command) {
-    Write-Log "reboot requested ($($command.id))"
-    & shutdown.exe /r /f /t 20 /d p:4:1 /c 'Reinicio solicitado desde Mission Control' 2>&1 | Out-Null
+function Invoke-Power($command) {
+    Write-Log "$($command.type) requested ($($command.id))"
+    if ($command.type -eq 'shutdown') {
+        & shutdown.exe /s /f /t 20 /d p:4:1 /c 'Apagado solicitado desde Mission Control' 2>&1 | Out-Null
+        $what = 'Apagado'
+    } else {
+        & shutdown.exe /r /f /t 20 /d p:4:1 /c 'Reinicio solicitado desde Mission Control' 2>&1 | Out-Null
+        $what = 'Reinicio'
+    }
     if ($LASTEXITCODE -eq 0) {
-        return @{ id = $command.id; ok = $true; detail = 'Reinicio de Windows programado en 20 s' }
+        return @{ id = $command.id; ok = $true; detail = "$what de Windows programado en 20 s" }
     }
     return @{ id = $command.id; ok = $false; detail = "shutdown.exe devolvio $LASTEXITCODE" }
 }
@@ -143,8 +149,8 @@ while ($true) {
         $response = Invoke-RestMethod -Method Post -Uri "$SiteBaseUrl/api/agent/servercesar" -Headers @{ Authorization = "Bearer $token" } `
             -ContentType 'application/json; charset=utf-8' -Body ([Text.Encoding]::UTF8.GetBytes($json)) -TimeoutSec 20
         $pendingDone = $null
-        if ($response.command -and $response.command.type -eq 'reboot') {
-            $pendingDone = Invoke-Reboot $response.command
+        if ($response.command -and $response.command.type -in @('reboot', 'shutdown')) {
+            $pendingDone = Invoke-Power $response.command
             # Report the result straight away: Windows goes down in 20 s.
             $body = @{ report = (Get-Report $userSession); done = $pendingDone }
             $json = $body | ConvertTo-Json -Depth 6 -Compress

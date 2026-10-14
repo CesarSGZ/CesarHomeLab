@@ -1,16 +1,16 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile, readdir} from 'node:fs/promises';
-import {checkConfig, sendMagicPacket, probe, powerStatus, sanitiseReport, appHealth, requireServerAgent, queueReboot, agentExchange} from '../functions/_lib/servercesar.js';
+import {checkConfig, sendMagicPacket, probe, powerStatus, sanitiseReport, appHealth, requireServerAgent, queuePowerCommand, agentExchange} from '../functions/_lib/servercesar.js';
 import {userCan, constantTimeEqual} from '../functions/_lib/auth.js';
 
-// Minimal D1 stand-in for the reboot queue: answers the handful of statements servercesar.js issues.
+// Minimal D1 stand-in for the power command queue: answers the handful of statements servercesar.js issues.
 function fakeDb({reportAt = null} = {}) {
   const commands = [];
   const run = (sql, args) => {
     if (sql.startsWith('SELECT report')) return reportAt == null ? null : {report: '{"apps":{}}', received_at: reportAt};
-    if (sql.startsWith('SELECT id, status')) return [...commands].sort((a, b) => b.requested_at - a.requested_at)[0] || null;
-    if (sql.startsWith('INSERT INTO servercesar_commands')) { commands.push({id: args[0], type: 'reboot', status: 'queued', requested_by: args[1], requested_at: args[2]}); return {meta: {changes: 1}}; }
+    if (sql.startsWith('SELECT id, type, status')) return [...commands].sort((a, b) => b.requested_at - a.requested_at)[0] || null;
+    if (sql.startsWith('INSERT INTO servercesar_commands')) { commands.push({id: args[0], type: args[1], status: 'queued', requested_by: args[2], requested_at: args[3]}); return {meta: {changes: 1}}; }
     if (sql.startsWith("UPDATE servercesar_commands SET status = 'expired'")) { commands.filter(c => c.status === 'queued' && c.requested_at < args[0]).forEach(c => { c.status = 'expired'; }); return {meta: {}}; }
     if (sql.startsWith('SELECT id, type')) return commands.filter(c => c.status === 'queued').sort((a, b) => a.requested_at - b.requested_at)[0] || null;
     if (sql.startsWith("UPDATE servercesar_commands SET status = 'claimed'")) { const c = commands.find(c => c.id === args[1] && c.status === 'queued'); if (c) { c.status = 'claimed'; c.claimed_at = args[0]; } return {meta: {changes: c ? 1 : 0}}; }
@@ -44,12 +44,12 @@ test('the ServerCesar agent token is separate and must be long', () => {
 
 test('reboot: needs a live agent, is handed out once, has a cooldown and records the result', async () => {
   const now = 1_000_000_000;
-  assert.equal((await queueReboot(fakeDb(), 'CesarVapor', now)).error, 'agent_offline');
-  assert.equal((await queueReboot(fakeDb({reportAt: now - 120_000}), 'CesarVapor', now)).error, 'agent_offline');
+  assert.equal((await queuePowerCommand(fakeDb(), 'reboot', 'CesarVapor', now)).error, 'agent_offline');
+  assert.equal((await queuePowerCommand(fakeDb({reportAt: now - 120_000}), 'reboot', 'CesarVapor', now)).error, 'agent_offline');
   const db = fakeDb({reportAt: now - 10_000});
-  const queued = await queueReboot(db, 'CesarVapor', now);
+  const queued = await queuePowerCommand(db, 'reboot', 'CesarVapor', now);
   assert.equal(queued.ok, true);
-  assert.equal((await queueReboot(db, 'CesarVapor', now + 1000)).error, 'cooldown');
+  assert.equal((await queuePowerCommand(db, 'shutdown', 'CesarVapor', now + 1000)).error, 'cooldown');
   const command = await agentExchange(db, null, now + 5000);
   assert.deepEqual(command, {id: queued.id, type: 'reboot'});
   assert.equal(await agentExchange(db, null, now + 6000), null);
@@ -57,10 +57,18 @@ test('reboot: needs a live agent, is handed out once, has a cooldown and records
   assert.equal(db.commands[0].status, 'succeeded');
 });
 
+test('shutdown is queued like a reboot and nothing else can be', async () => {
+  const now = 1_000_000_000;
+  const db = fakeDb({reportAt: now});
+  assert.equal((await queuePowerCommand(db, 'format-c', 'CesarVapor', now)).error, 'invalid_action');
+  const queued = await queuePowerCommand(db, 'shutdown', 'CesarVapor', now);
+  assert.deepEqual(await agentExchange(db, null, now + 1000), {id: queued.id, type: 'shutdown'});
+});
+
 test('a forgotten queued reboot expires instead of firing hours later', async () => {
   const now = 1_000_000_000;
   const db = fakeDb({reportAt: now});
-  await queueReboot(db, 'CesarVapor', now);
+  await queuePowerCommand(db, 'reboot', 'CesarVapor', now);
   assert.equal(await agentExchange(db, null, now + 16 * 60_000), null);
   assert.equal(db.commands[0].status, 'expired');
 });

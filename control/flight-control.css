@@ -111,6 +111,8 @@
 .sc-apps li[data-health=warn] i{background:#ffb38a;opacity:1}
 .sc-apps li[data-health=down] i{background:#ff6b6b;opacity:1}
 .sc-apps li[data-health=down] small,.sc-apps li[data-health=warn] small{color:#ffb38a}
-#sc-reboot-row{border-top:1px solid var(--line)}
+#sc-power-row{border-top:1px solid var(--line)}
+.sc-power-buttons{display:grid;gap:10px}
 .reboot-button{--acid:#ffb38a}
+.shutdown-button{--acid:#ff6b6b}
 @media(max-width:700px){.sc-config form{grid-template-columns:1fr}.wake-button{width:100%}.sc-apps{grid-template-columns:1fr}}
