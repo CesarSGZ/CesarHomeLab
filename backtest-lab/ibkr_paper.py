@@ -62,7 +62,7 @@ def contrato(ticker):
     simbolo = ticker[: -len(sufijo)] if sufijo else ticker
     if sufijo == ".HK":
         simbolo = simbolo.lstrip("0")                      # 0005.HK -> 5
-    simbolo = simbolo.replace("-", ".") if sufijo == "" else simbolo.replace("-", " ")
+    simbolo = simbolo.replace("-", " ")                    # clases de acciones: BRK-B (Yahoo) -> "BRK B" (IBKR)
     if sufijo == "":
         return Stock(simbolo, "SMART", "USD")
     if bolsa in DIRECTAS:
@@ -434,7 +434,7 @@ def main():
             if tk in contratos:
                 continue
             c = contrato(tk)
-            q = ib.qualifyContracts(c) if c is not None else []
+            q = [x for x in (ib.qualifyContracts(c) if c is not None else []) if x is not None]
             if q:
                 contratos[tk] = q[0]
             else:
