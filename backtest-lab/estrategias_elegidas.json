@@ -35,8 +35,8 @@
     "busqueda": {
       "variantes": 353,
       "sharpeDeflactado": 0.058,
-      "miradasValidacion": 5,
-      "nota": "Elige entre las acciones de EE. UU. más negociadas (no por tamaño). Su versión con stop del 25 % puntuó casi igual en 2008-2018 pero solo hizo un 19 % al año en 2019-hoy: el resultado es frágil. Octubre de 2026: se añade el semáforo de compra (no comprar si va por libre del mercado o tiene días de lotería), elegido entre 4 versiones solo con 2008-2018 y probado contra 20 filtros al azar con las empresas desaparecidas incluidas: Sharpe 0,83 -> 1,00 en 2008-2018 y 0,71 -> 1,03 en 2019-hoy, caída máxima -61 % -> -29 %, algo menos de rentabilidad en 2019-hoy (26,0 % -> 23,3 %)."
+      "miradasValidacion": 6,
+      "nota": "Elige entre las acciones de EE. UU. más negociadas (no por tamaño). Su versión con stop del 25 % puntuó casi igual en 2008-2018 pero solo hizo un 19 % al año en 2019-hoy: el resultado es frágil. Octubre de 2026: semáforo de compra. Las acciones que van por libre del mercado (R² < 0,095) o tienen días de lotería no cuentan en el ranking: entra la siguiente sin alerta. Elegido solo con 2008-2018 y con las empresas desaparecidas: 2008-2018 19,1 % -> 21,6 % (Sharpe 0,83 -> 1,00); 2019-hoy 26,0 % -> 28,7 % (Sharpe 0,71 -> 0,99, caída -61 % -> -38 %). Una primera versión que dejaba el hueco en liquidez se descartó: desde 2025 dejaba la estrategia casi sin invertir."
     }
   }
 ]

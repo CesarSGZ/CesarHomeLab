@@ -65,7 +65,7 @@ con el simulador `bt/gestion.py`. Límite conocido: faltan las empresas que deja
 y el robot (`ibkr_paper.py`):
 
 - 50 % estrategia 1 (copia 13F) y 50 % momentum (con el semáforo de compra: no compra acciones que van por libre del
-  mercado o con días de lotería). Nunca se vende para reequilibrar.
+  mercado o con días de lotería: entra la siguiente del ranking). Nunca se vende para reequilibrar.
 - 10 % en reserva de liquidez. Si el S&P 500 cae un 15 % desde su máximo de 1 año, la reserva se invierte entera; se
   vuelve a rellenar con el ahorro cuando la caída se recupera por encima del -5 %.
 - El ahorro de cada mes rellena primero la reserva y el resto va a la estrategia más por debajo de su peso. Dentro de

@@ -88,9 +88,11 @@ def megacaps(n=10, mom="mom_12_1", liquidez=100e6, filtro_mercado=True, semaforo
         return operable(t) & t["es_eeuu"].fillna(False).astype(bool) & (t["efectivo_60d"] >= liquidez) & (t["px"] > t["sma200"])
 
     def entrada(t):
-        e = t[mom].where(ok(t)).rank(ascending=False) <= n
-        # la alerta solo impide comprar: el hueco espera en liquidez a la semana siguiente (sin ventas extra)
-        return e & ~alerta_precio(t) if semaforo else e
+        if semaforo == "hueco":            # la alerta solo impide comprar: el hueco espera en liquidez
+            return (t[mom].where(ok(t)).rank(ascending=False) <= n) & ~alerta_precio(t)
+        if semaforo:                       # las que tienen alerta no cuentan: entra la siguiente sin alerta
+            return t[mom].where(ok(t) & ~alerta_precio(t)).rank(ascending=False) <= n
+        return t[mom].where(ok(t)).rank(ascending=False) <= n
 
     e = _base("Momentum en EE. UU. (las más negociadas)", "megacaps",
                  entrada,
