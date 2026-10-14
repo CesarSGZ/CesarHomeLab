@@ -156,7 +156,7 @@
         <div class="server-actions" id="sc-power-row" hidden>
           <div>
             <small>REINICIO Y APAGADO REMOTOS</small>
-            <p>Un paquete Wake-on-LAN solo sirve para encender. Para reiniciar o apagar, el agente de ServerCesar recoge la orden (en menos de 30 s) y se la da a Windows. Tras reiniciar, todo vuelve solo con la sesión iniciada; tras apagar, se vuelve a encender con el botón de arriba.</p>
+            <p>Un paquete Wake-on-LAN solo sirve para encender. Para reiniciar o apagar, el agente de ServerCesar recoge la orden (en menos de 30 s) y se la da a Windows. «Apagar» lo deja suspendido en bajo consumo, no apagado del todo: así la tarjeta de red sigue respondiendo al router y el paquete de encendido llega siempre (con un apagado completo, el router de Movistar lo pierde a los pocos minutos).</p>
           </div>
           <div class="sc-power-buttons">
             <button class="wake-button reboot-button" id="sc-reboot" type="button" disabled><span>↻</span> Reiniciar</button>
@@ -391,7 +391,7 @@
   <script type="module" src="backtest.js?v=20261012m"></script>
   <script src="github-galaxy.js?v=20260928atlas"></script>
   <script src="control.js?v=20261014servercesar"></script>
-  <script src="servercesar.js?v=20261014agent" defer></script>
+  <script src="servercesar.js?v=20261014sleep" defer></script>
   <script src="flight-control.js?v=20261014a" defer></script>
   <script src="thermal-viewer.bundle.js?v=20260805o"></script>
 </body>

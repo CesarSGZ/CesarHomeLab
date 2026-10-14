@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile, readdir} from 'node:fs/promises';
-import {checkConfig, sendMagicPacket, probe, powerStatus, sanitiseReport, appHealth, requireServerAgent, queuePowerCommand, agentExchange} from '../functions/_lib/servercesar.js';
+import {checkConfig, sendMagicPacket, probe, powerStatus, sanitiseReport, appHealth, requireServerAgent, queuePowerCommand, agentExchange, agentPublicIp, wakeTargets} from '../functions/_lib/servercesar.js';
 import {userCan, constantTimeEqual} from '../functions/_lib/auth.js';
 
 // Minimal D1 stand-in for the power command queue: answers the handful of statements servercesar.js issues.
@@ -32,6 +32,21 @@ test('agent report keeps only known apps and fields', () => {
   assert.equal(appHealth({running: false, signedIn: true}), 'down');
   assert.equal(appHealth({running: true, signedIn: true, service: 'stopped'}), 'down');
   assert.equal(appHealth(undefined), 'down');
+});
+
+test('Claude with Remote Control off is a warning, not a green light', () => {
+  assert.equal(appHealth({running: true, signedIn: true, remoteControl: false}), 'warn');
+  assert.equal(appHealth({running: true, signedIn: true, remoteControl: null}), 'ok');
+});
+
+test('Wake-on-LAN also targets the public IP the agent last reported from', () => {
+  const req = ip => new Request('https://x', {headers: ip ? {'cf-connecting-ip': ip} : {}});
+  assert.equal(agentPublicIp(req('83.35.44.250')), '83.35.44.250');
+  assert.equal(agentPublicIp(req('2a0c:5a80::1')), null);
+  assert.equal(agentPublicIp(req('')), null);
+  assert.deepEqual(wakeTargets({host: 'home.example.org'}, {publicIp: '83.35.44.250'}), ['home.example.org', '83.35.44.250']);
+  assert.deepEqual(wakeTargets({host: 'home.example.org'}, null), ['home.example.org']);
+  assert.deepEqual(wakeTargets({host: '83.35.44.250'}, {publicIp: '83.35.44.250'}), ['83.35.44.250']);
 });
 
 test('the ServerCesar agent token is separate and must be long', () => {

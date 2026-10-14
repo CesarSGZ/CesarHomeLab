@@ -64,6 +64,7 @@ export function sanitiseReport(raw = {}) {
   }
   return {
     bootTime: num(raw.bootTime, 0, 1e14),
+    resumeTime: num(raw.resumeTime, 0, 1e14),
     cpu: num(raw.cpu, 0, 100),
     ram: num(raw.ram, 0, 100),
     diskFreeGb: num(raw.diskFreeGb, 0, 1e6),
@@ -74,10 +75,27 @@ export function sanitiseReport(raw = {}) {
   };
 }
 
+const IPV4 = /^(25[0-5]|2[0-4]\d|1?\d?\d)(\.(25[0-5]|2[0-4]\d|1?\d?\d)){3}$/;
+
+/** Public IPv4 the agent's request came from (Cloudflare's CF-Connecting-IP), or null. */
+export function agentPublicIp(request) {
+  const ip = String(request.headers.get("cf-connecting-ip") || "").trim();
+  return IPV4.test(ip) ? ip : null;
+}
+
+/**
+ * Where to send the magic packet: the configured DDNS host and, when the agent has reported
+ * from a different public IP, that IP too. Nothing on the PC updates DuckDNS, so a changed
+ * home IP would otherwise leave Wake-on-LAN aiming at the old address.
+ */
+export function wakeTargets(config, report) {
+  return [...new Set([config?.host, report?.publicIp].filter(Boolean))];
+}
+
 /** "ok" | "warn" | "down" for one app, as the agent sees it. */
 export function appHealth(app) {
   if (!app || app.running === false || app.service === "stopped") return "down";
-  if (app.signedIn === false || app.responding === false || app.online === false) return "warn";
+  if (app.signedIn === false || app.responding === false || app.online === false || app.remoteControl === false) return "warn";
   return app.running === true && app.signedIn === true ? "ok" : "warn";
 }
 
