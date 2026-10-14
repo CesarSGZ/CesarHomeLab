@@ -68,6 +68,23 @@ function Get-SignedIn([string]$key) {
     return $null
 }
 
+# Live Remote Control state, written every 10 min by the Claude Desktop scheduled task
+# "remote-control-keeper" (it re-enables Remote Control on every session that had it and records
+# what the app reports). Only that task can ask the app, so a stale file means "not checked".
+function Get-RemoteControlState {
+    try {
+        $rc = Get-Content -Raw -LiteralPath (Join-Path $StateDir 'remote-control.json') -ErrorAction Stop | ConvertFrom-Json
+        $age = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds() - [double]$rc.at
+        if ($age -gt 25 * 60000) { return @{ On = $null; Detail = 'RC sin comprobar desde hace ' + [int]($age / 60000) + ' min' } }
+        $sessions = @($rc.sessions)
+        $on = @($sessions | Where-Object { $_.state -eq 'on' }).Count
+        if ($sessions.Count -eq 0) { return @{ On = $false; Detail = 'ninguna sesion con RC' } }
+        return @{ On = ($on -eq $sessions.Count); Detail = "RC $on/$($sessions.Count) sesiones" }
+    } catch {
+        return @{ On = $null; Detail = 'RC sin comprobar' }
+    }
+}
+
 function Get-TailscaleStatus {
     try {
         $raw = & "$env:ProgramFiles\Tailscale\tailscale.exe" status --json 2>$null | Out-String
@@ -130,7 +147,9 @@ while ($true) {
         switch ($key) {
             'claude' {
                 $entry.signedIn = Get-SignedIn 'claude'
-                $entry.remoteControl = Test-FileMatch "$env:APPDATA\Claude\claude_desktop_config.json" '"ccRemoteControlDefaultEnabled"\s*:\s*true'
+                $rc = Get-RemoteControlState
+                $entry.remoteControl = $rc.On
+                $entry.detail = $rc.Detail
                 if ($procs) { $entry.version = $procs[0].Path -replace '.*\\app-([^\\]+)\\.*', '$1' }
             }
             'chatgpt' {

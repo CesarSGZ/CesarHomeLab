@@ -1,7 +1,7 @@
 # ServerCesar agent: runs as SYSTEM from boot (scheduled task), with or without a user session.
 # Every 30 s it keeps the Parsec and Tailscale services running, makes sure the guardian runs in
 # SERVERCESAR's desktop, and posts the PC + app health to Mission Control over outbound HTTPS.
-# Mission Control can hand back two commands only: "reboot" and "shutdown" of Windows.
+# Mission Control can hand back two commands only: "reboot" and "shutdown" (= low-power sleep, see Invoke-Power).
 [CmdletBinding()]
 param(
     [string]$Root = 'C:\ProgramData\ServerCesar'
@@ -10,7 +10,7 @@ param(
 $ErrorActionPreference = 'Continue'
 Add-Type -AssemblyName System.Security
 
-$AgentVersion = '1.1.0'
+$AgentVersion = '1.2.0'
 $SiteBaseUrl = 'https://cesar-solla.pages.dev'
 $IntervalSeconds = 30
 $GuardianTask = 'ServerCesar Guardian'
@@ -81,6 +81,7 @@ function Get-Report([bool]$userSession) {
     $report = [ordered]@{
         agentVersion = $AgentVersion
         bootTime = [double]([DateTimeOffset]$os.LastBootUpTime).ToUnixTimeMilliseconds()
+        resumeTime = Get-ResumeTime
         cpu = [double]$cpu
         ram = [double][Math]::Round(100 * (1 - $os.FreePhysicalMemory / $os.TotalVisibleMemorySize), 1)
         diskFreeGb = [double][Math]::Round($disk.FreeSpace / 1GB, 1)
@@ -119,19 +120,54 @@ function Get-Report([bool]$userSession) {
     $report
 }
 
+# Last time Windows resumed from sleep (Power-Troubleshooter event 1), in Unix ms, or $null.
+function Get-ResumeTime {
+    $e = Get-WinEvent -FilterHashtable @{ LogName = 'System'; ProviderName = 'Microsoft-Windows-Power-Troubleshooter'; Id = 1 } -MaxEvents 1 -ErrorAction SilentlyContinue
+    if ($e) { return [double]([DateTimeOffset]$e.TimeCreated).ToUnixTimeMilliseconds() }
+    $null
+}
+
+# "shutdown" puts the PC to sleep (S3) instead of powering it off (S5). Asleep, the Intel I211
+# keeps answering ARP for its IP (ARP offload), so the Movistar router can still deliver the
+# Wake-on-LAN packet forwarded from the Internet. Fully off, the router forgets the PC's MAC
+# within minutes and the packet is dropped: that is why a real shutdown could not be woken.
 function Invoke-Power($command) {
     Write-Log "$($command.type) requested ($($command.id))"
     if ($command.type -eq 'shutdown') {
-        & shutdown.exe /s /f /t 20 /d p:4:1 /c 'Apagado solicitado desde Mission Control' 2>&1 | Out-Null
-        $what = 'Apagado'
-    } else {
-        & shutdown.exe /r /f /t 20 /d p:4:1 /c 'Reinicio solicitado desde Mission Control' 2>&1 | Out-Null
-        $what = 'Reinicio'
+        return @{ id = $command.id; ok = $true; detail = 'Suspension en bajo consumo en 10 s' }
     }
+    & shutdown.exe /r /f /t 20 /d p:4:1 /c 'Reinicio solicitado desde Mission Control' 2>&1 | Out-Null
     if ($LASTEXITCODE -eq 0) {
-        return @{ id = $command.id; ok = $true; detail = "$what de Windows programado en 20 s" }
+        return @{ id = $command.id; ok = $true; detail = 'Reinicio de Windows programado en 20 s' }
     }
     return @{ id = $command.id; ok = $false; detail = "shutdown.exe devolvio $LASTEXITCODE" }
+}
+
+# Test safety net: if $Root\safety-wake-minutes.txt exists (admin-only folder), the next sleep also
+# arms a wake timer N minutes later, so a failed Wake-on-LAN test never needs someone on site.
+# The file is consumed by that sleep; normal "Apagar" leaves the PC asleep until woken.
+function Register-SafetyWake {
+    $flag = Join-Path $Root 'safety-wake-minutes.txt'
+    if (-not (Test-Path $flag)) { return }
+    $minutes = [int](Get-Content -Raw $flag).Trim()
+    Remove-Item $flag -Force
+    if ($minutes -lt 2 -or $minutes -gt 240) { return }
+    $at = (Get-Date).AddMinutes($minutes)
+    $action = New-ScheduledTaskAction -Execute "$env:SystemRoot\System32\cmd.exe" -Argument '/c exit 0'
+    $settings = New-ScheduledTaskSettingsSet -WakeToRun -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable
+    Register-ScheduledTask -TaskName 'ServerCesar SafetyWake' -Action $action -Trigger (New-ScheduledTaskTrigger -Once -At $at) `
+        -Settings $settings -User 'SYSTEM' -RunLevel Highest -Force | Out-Null
+    Write-Log "safety wake timer armed for $($at.ToString('HH:mm:ss'))"
+}
+
+function Invoke-Sleep {
+    Start-Sleep -Seconds 10
+    Register-SafetyWake
+    Write-Log 'suspending (S3)'
+    Add-Type -AssemblyName System.Windows.Forms
+    # Returns once the PC wakes up again.
+    $ok = [System.Windows.Forms.Application]::SetSuspendState([System.Windows.Forms.PowerState]::Suspend, $false, $false)
+    Write-Log "resumed (suspend returned $ok)"
 }
 
 $token = Read-AgentToken
@@ -157,6 +193,7 @@ while ($true) {
             Invoke-RestMethod -Method Post -Uri "$SiteBaseUrl/api/agent/servercesar" -Headers @{ Authorization = "Bearer $token" } `
                 -ContentType 'application/json; charset=utf-8' -Body ([Text.Encoding]::UTF8.GetBytes($json)) -TimeoutSec 20 | Out-Null
             $pendingDone = $null
+            if ($response.command.type -eq 'shutdown') { Invoke-Sleep; continue }
         }
     } catch {
         Write-Log "cycle failed: $($_.Exception.Message)"

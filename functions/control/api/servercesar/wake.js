@@ -1,8 +1,9 @@
 import { userCan, validCsrf } from "../../../_lib/auth.js";
 import { json, methodNotAllowed } from "../../../_lib/http.js";
-import { ensureTables, lastWake, readConfig, recordEvent, sendMagicPacket, WAKE_COOLDOWN_MS } from "../../../_lib/servercesar.js";
+import { ensureTables, lastWake, readConfig, readReport, recordEvent, sendMagicPacket, wakeTargets, WAKE_COOLDOWN_MS } from "../../../_lib/servercesar.js";
 
-// POST: sends the Wake-on-LAN magic packet to ServerCesar (owner only, CSRF-protected, 60 s cooldown).
+// POST: sends the Wake-on-LAN magic packet to ServerCesar (owner only, CSRF-protected, 60 s cooldown),
+// to the DDNS host and to the last public IP its agent reported from.
 export async function onRequest(context) {
   if (context.request.method !== "POST") return methodNotAllowed(["POST"]);
   const session = context.data.session;
@@ -19,12 +20,15 @@ export async function onRequest(context) {
     return json({ ok: false, error: "cooldown", retryAt: previous.at + WAKE_COOLDOWN_MS }, { status: 429 });
   }
 
-  let result;
-  try {
-    result = await sendMagicPacket(config);
-  } catch (error) {
-    result = { ok: false, message: "No se pudo contactar con el servicio de Wake-on-LAN" };
+  const results = [];
+  for (const host of wakeTargets(config, await readReport(db))) {
+    try {
+      results.push(await sendMagicPacket({ ...config, host }));
+    } catch {
+      results.push({ ok: false, message: "No se pudo contactar con el servicio de Wake-on-LAN" });
+    }
   }
+  const result = { ok: results.some((r) => r.ok), message: results.map((r) => r.message).join(" · ").slice(0, 280) };
   await recordEvent(db, "wake", session.user.username, result.ok, result.message);
   return json({ ok: result.ok, message: result.message, sentAt: Date.now() }, { status: result.ok ? 200 : 502 });
 }

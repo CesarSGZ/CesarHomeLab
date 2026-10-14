@@ -18,7 +18,9 @@
     if (name === 'tailscale') parts.push(a.online === false ? 'Sin conexión a la red' : a.signedIn ? 'Conectado' : 'Sesión cerrada');
     else parts.push(a.signedIn === true ? 'Sesión iniciada' : a.signedIn === false ? 'SESIÓN CERRADA' : 'Abierta');
     if (a.responding === false) parts.push('no responde');
-    if (name === 'claude' && a.remoteControl != null) parts.push('control remoto ' + (a.remoteControl ? 'ON' : 'OFF'));
+    // remoteControl is the live state of the sessions, checked by the keeper task; null = not checked recently.
+    if (name === 'claude') parts.push(a.remoteControl === true ? 'control remoto ON' : a.remoteControl === false ? 'CONTROL REMOTO OFF' : 'control remoto sin comprobar');
+    if (name === 'claude' && a.detail) parts.push(a.detail);
     if (a.version) parts.push('v' + a.version);
     return parts.join(' · ');
   }
@@ -40,16 +42,17 @@
     });
   }
 
-  // Reboot/shutdown lifecycle: queued → claimed by the agent → PC back with a newer boot time (reboot)
-  // or the agent goes silent (shutdown) until a Wake-on-LAN brings it back.
+  // Reboot/"shutdown" lifecycle: queued → claimed by the agent → PC back with a newer boot time (reboot)
+  // or the agent goes silent (shutdown = low-power sleep) until a Wake-on-LAN wakes it (newer resume time).
   function powerPhase(data) {
     const r = data.lastPower; if (!r || r.status === 'expired') return null;
     const off = r.action === 'shutdown', recent = Date.now() - r.at < 15 * 60e3;
-    const back = data.agent?.fresh && data.agent.bootTime > r.at;
+    const upSince = Math.max(data.agent?.bootTime || 0, data.agent?.resumeTime || 0);
+    const back = data.agent?.fresh && upSince > r.at;
     if (r.status === 'queued') return {busy: true, label: off ? 'APAGANDO' : 'REINICIANDO', text: 'Orden de ' + (off ? 'apagado' : 'reinicio') + ' en cola. El agente la recoge en menos de 30 s…'};
     if (r.status === 'failed') return recent ? {text: (off ? 'El apagado' : 'El reinicio') + ' falló: ' + (r.result || 'sin detalle'), kind: 'error'} : null;
-    if (back) return recent ? {text: 'ServerCesar ' + (off ? 'se volvió a encender' : 'se reinició y ya está de vuelta') + ' (' + fmt(data.agent.bootTime) + ').', kind: 'success'} : null;
-    if (off) return data.agent?.fresh ? (Date.now() - r.at < 5 * 60e3 ? {busy: true, label: 'APAGANDO', text: 'Apagando ServerCesar…'} : null) : {label: 'APAGADO', text: 'ServerCesar se apagó desde Mission Control (' + fmt(r.at) + '). Usa «Encender ServerCesar» para volver a arrancarlo.'};
+    if (back) return recent ? {text: 'ServerCesar ' + (off ? 'se volvió a encender' : 'se reinició y ya está de vuelta') + ' (' + fmt(upSince) + ').', kind: 'success'} : null;
+    if (off) return data.agent?.fresh ? (Date.now() - r.at < 5 * 60e3 ? {busy: true, label: 'APAGANDO', text: 'Apagando ServerCesar…'} : null) : {label: 'APAGADO', text: 'ServerCesar está apagado en bajo consumo desde ' + fmt(r.at) + '. Usa «Encender ServerCesar» para volver a arrancarlo.'};
     return recent ? {busy: true, label: 'REINICIANDO', text: 'Reiniciando ServerCesar… vuelve en uno o dos minutos.'} : null;
   }
 
@@ -113,7 +116,7 @@
   async function power(action) {
     const off = action === 'shutdown';
     const question = off
-      ? '¿Apagar ServerCesar ahora? Se cerrará todo (Minecraft incluido) y se quedará apagado hasta que lo enciendas con «Encender ServerCesar».'
+      ? '¿Apagar ServerCesar ahora? Quedará suspendido en bajo consumo (Minecraft y las apps se congelan, no se cierran) hasta que lo enciendas con «Encender ServerCesar».'
       : '¿Reiniciar ServerCesar ahora? Se cerrará todo lo que esté abierto (Minecraft incluido) y volverá a arrancar solo.';
     if (!confirm(question)) return;
     $('#sc-reboot').disabled = true; $('#sc-shutdown').disabled = true;
