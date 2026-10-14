@@ -143,8 +143,26 @@ function Invoke-Power($command) {
     return @{ id = $command.id; ok = $false; detail = "shutdown.exe devolvio $LASTEXITCODE" }
 }
 
+# Test safety net: if $Root\safety-wake-minutes.txt exists (admin-only folder), the next sleep also
+# arms a wake timer N minutes later, so a failed Wake-on-LAN test never needs someone on site.
+# The file is consumed by that sleep; normal "Apagar" leaves the PC asleep until woken.
+function Register-SafetyWake {
+    $flag = Join-Path $Root 'safety-wake-minutes.txt'
+    if (-not (Test-Path $flag)) { return }
+    $minutes = [int](Get-Content -Raw $flag).Trim()
+    Remove-Item $flag -Force
+    if ($minutes -lt 2 -or $minutes -gt 240) { return }
+    $at = (Get-Date).AddMinutes($minutes)
+    $action = New-ScheduledTaskAction -Execute "$env:SystemRoot\System32\cmd.exe" -Argument '/c exit 0'
+    $settings = New-ScheduledTaskSettingsSet -WakeToRun -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable
+    Register-ScheduledTask -TaskName 'ServerCesar SafetyWake' -Action $action -Trigger (New-ScheduledTaskTrigger -Once -At $at) `
+        -Settings $settings -User 'SYSTEM' -RunLevel Highest -Force | Out-Null
+    Write-Log "safety wake timer armed for $($at.ToString('HH:mm:ss'))"
+}
+
 function Invoke-Sleep {
     Start-Sleep -Seconds 10
+    Register-SafetyWake
     Write-Log 'suspending (S3)'
     Add-Type -AssemblyName System.Windows.Forms
     # Returns once the PC wakes up again.
