@@ -259,6 +259,27 @@ function resumenSemaforo(pos, cerradas) {
     <div class="bt-res bt-paper-kpis">${celda('0 o 1 alertas', grupo(cerradas, false), grupo(pos, false))}${celda('2 o más alertas', grupo(cerradas, true), grupo(pos, true))}</div></section>`;
 }
 
+// plan del dinero (backtest-lab/plan_dinero.json): reserva, ahorro del mes y uso de la reserva en caídas
+function tarjetaPlan(u) {
+  const p = u.plan;
+  if (!p) return '';
+  const r = p.reglas || {}, ests = u.estrategias || {};
+  const disparo = (r.disparos || [])[0];
+  const enCaida = p.disparosUsados > 0;
+  const nombre = k => esc(ests[k]?.nombre || k);
+  const reparto = Object.entries(r.pesos || {}).map(([k, w]) => `${pct(w, 0)} ${nombre(k)}`).join(' · ');
+  const ultimos = (p.aportes || []).slice(-6).reverse();
+  return `<section class="bt-card"><h3 class="bt-h">Plan del dinero</h3>
+    <p class="bt-mini">${reparto}. Sin vender nunca para reequilibrar. ${pct(r.reserva, 0)} en reserva de liquidez${disparo ? `, que se invierte entera si el S&amp;P 500 cae un ${pct(-disparo.caidaSP, 0)} desde su máximo de 1 año (se vuelve a rellenar con el ahorro cuando se recupera)` : ''}. El ahorro de cada mes va a la estrategia que esté más por debajo de su peso.</p>
+    <div class="bt-res bt-paper-kpis">
+      <div><small>Reserva</small><b>${eur0(p.reserva)}</b><span>${pct(p.reserva / u.valor, 1)} de la cuenta${enCaida ? ' · usada en la caída' : ''}</span></div>
+      <div class="${(p.caidaSP ?? 0) <= (disparo?.caidaSP ?? -1) ? 'down' : ''}"><small>S&amp;P 500 desde su máximo</small><b>${p.caidaSP === null ? '–' : signed(p.caidaSP, 1) + ' %'}</b><span>${disparo ? `se usa la reserva al ${signed(disparo.caidaSP, 0)} %` : 'sin regla de caídas'}</span></div>
+      <div><small>Ahorro simulado</small><b>${eur0(p.aporteMensual)} al mes</b><span>quedan ${eur0(p.porAportar)} por aportar</span></div>
+    </div>
+    ${ultimos.length ? `<div class="bt-table"><table><thead><tr><th>Día</th><th>Ahorro</th><th>Dinero nuevo</th></tr></thead><tbody>${ultimos.map(a => `
+      <tr><td>${fecha(a.fecha)}</td><td>${eur0(a.aporte)}</td><td>${Object.keys(r.pesos || {}).filter(k => a[k]).map(k => `${eur0(a[k])} a ${nombre(k)}`).join(' · ') || 'a la reserva'}</td></tr>`).join('')}</tbody></table></div>` : ''}</section>`;
+}
+
 function renderPaper() {
   const u = paper.ultima, h = paper.historial, ini = h[0];
   const ests = u.estrategias || {};
@@ -282,7 +303,7 @@ function renderPaper() {
     <section class="bt-verdict ${rentSp === null ? '' : rent >= rentSp ? 'gana' : 'pierde'}"><b>${signed(rent, 2)} % desde ${fecha(ini.fecha)}</b>
       <span>${rentSp === null ? '' : `El S&P 500 (en euros) ha hecho ${signed(rentSp, 2)} % en el mismo tiempo. `}Cuenta ${esc(u.cuenta)} · última foto ${fechaHora(u.fecha)}${u.ordenesPendientes ? ` · ${u.ordenesPendientes} órdenes pendientes` : ''}</span></section>
     <section class="bt-res bt-paper-kpis">
-      <div><small>${e ? 'Valor de la estrategia' : 'Valor de la cuenta'}</small><b>${eur0(actual)}</b><span>empezó con ${eur0(inicial)}</span></div>
+      <div><small>${e ? 'Valor de la estrategia' : 'Valor de la cuenta'}</small><b>${eur0(actual)}</b><span>${e && e.indice !== undefined ? 'dinero puesto' : 'empezó con'} ${eur0(inicial)}</span></div>
       <div class="${rent >= 0 ? 'up' : 'down'}"><small>Ganancia</small><b>${eur0(actual - inicial)}</b><span>${signed(rent, 2)} %${e && e.realizada ? ` · ${eur0(e.realizada)} ya cerrados` : ''}</span></div>
       <div><small>Invertido</small><b>${pct(invertido, 0)}</b><span>${pos.length} posiciones · ${ganan} en positivo</span></div>
     </section>
@@ -296,11 +317,12 @@ function renderPaper() {
       <div class="bt-table"><table><thead><tr><th>Valor</th><th>Alertas</th><th>Estuvo en cartera</th><th>Resultado</th></tr></thead><tbody>${cerradas.map(x => `
         <tr><td><b>${esc(x.simbolo)}</b></td><td>${chipSemaforo(x.semaforo)}</td><td>${x.dias} días<small>${fecha(x.desde)} → ${fecha(x.hasta)}</small></td>
         <td class="${(x.gananciaEur ?? 0) >= 0 ? 'up' : 'down'}"><b>${eur0(x.gananciaEur)}</b></td></tr>`).join('')}</tbody></table></div></section>` : ''}
+    ${e ? '' : tarjetaPlan(u)}
     ${resumenSemaforo(pos, cerradas)}
     <section class="bt-card"><h3 class="bt-h">Últimas operaciones</h3>
       <div class="bt-table"><table><thead><tr><th>Día</th><th>Operación</th><th>Precio</th></tr></thead><tbody>${ops.map(e => `
         <tr><td>${fecha(e.fecha)}</td><td><span class="${e.lado === 'compra' ? 'up' : 'down'}">${e.lado === 'compra' ? '▲ Compra' : '▼ Venta'}</span> ${nf(0).format(e.acciones)} <b>${esc(e.simbolo)}</b></td><td>${num(e.precio)} ${esc(e.divisa)}</td></tr>`).join('')}</tbody></table></div></section>
-    <p class="bt-foot">Dinero ficticio en la cuenta paper de Interactive Brokers. Cada lunes Claude aplica la cartera objetivo de las dos estrategias (50 % cada una).</p>`;
+    <p class="bt-foot">Dinero ficticio en la cuenta paper de Interactive Brokers. Cada lunes el robot aplica la cartera objetivo de las dos estrategias con el plan del dinero.</p>`;
   app.querySelectorAll('[data-s]').forEach(b => b.onclick = () => { sid = b.dataset.s; render(); });
   app.querySelectorAll('[data-vp]').forEach(b => b.onclick = () => { vistaPaper = b.dataset.vp; renderPaper(); });
   graficoPaper(h, e ? vistaPaper : null, inicial);
@@ -311,8 +333,13 @@ const eur0 = x => x === null || x === undefined ? '–' : new Intl.NumberFormat(
 function graficoPaper(h, clave, inicial) {
   const box = app.querySelector('#bt-paper-chart');
   if (h.length < 2) { box.innerHTML = '<p class="bt-note">La gráfica aparecerá en cuanto haya dos fotos de la cuenta (se toman cada día de mercado).</p>'; return; }
-  const valorDe = x => clave ? (x.estrategias?.[clave] ?? null) : x.valor;
-  const v = h.map(x => valorDe(x) === null ? null : valorDe(x) / inicial), b = h.map(x => x.sp500eur && h[0].sp500eur ? x.sp500eur / h[0].sp500eur : null);
+  // por estrategia, con plan del dinero: valor por participación (el ahorro que entra no cuenta como ganancia)
+  const conIndice = clave && h.some(x => x.indices?.[clave] !== undefined);
+  if (conIndice) h = h.slice(h.findIndex(x => x.indices?.[clave] !== undefined));
+  if (h.length < 2) { box.innerHTML = '<p class="bt-note">La gráfica de la estrategia aparecerá con la segunda foto desde que empezó el plan del dinero.</p>'; return; }
+  const base = conIndice ? h[0].indices[clave] : inicial;
+  const valorDe = x => conIndice ? (x.indices?.[clave] ?? null) : clave ? (x.estrategias?.[clave] ?? null) : x.valor;
+  const v = h.map(x => valorDe(x) === null ? null : valorDe(x) / base), b = h.map(x => x.sp500eur && h[0].sp500eur ? x.sp500eur / h[0].sp500eur : null);
   const all = [...v.filter(x => x !== null), ...b.filter(Boolean), 1], lo = Math.min(...all), hi = Math.max(...all);
   const narrow = box.clientWidth < 600, W = narrow ? 600 : 1000, H = narrow ? 360 : 300, L = 60, R = 12, T = 12, B = 28, n = h.length;
   const x = i => L + i / (n - 1) * (W - L - R), y = val => T + (1 - (val - lo) / (hi - lo || 1)) * (H - T - B);

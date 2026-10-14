@@ -59,6 +59,20 @@ Gestión del dinero (mismas acciones, distinta forma de invertir): `estudio_gest
 con el simulador `bt/gestion.py`. Límite conocido: faltan las empresas que dejaron de cotizar
 (`resultados/supervivencia_sec.csv` mide cuántas).
 
+## Plan del dinero (el sistema completo)
+
+`plan_dinero.json` fija cómo se invierte el dinero y lo leen igual el backtest (`estudio_plan.py`, con `bt/plan.py`)
+y el robot (`ibkr_paper.py`):
+
+- 50 % estrategia 1 (copia 13F) y 50 % momentum (con el semáforo de compra: no compra acciones que van por libre del
+  mercado o con días de lotería). Nunca se vende para reequilibrar.
+- 10 % en reserva de liquidez. Si el S&P 500 cae un 15 % desde su máximo de 1 año, la reserva se invierte entera; se
+  vuelve a rellenar con el ahorro cuando la caída se recupera por encima del -5 %.
+- El ahorro de cada mes rellena primero la reserva y el resto va a la estrategia más por debajo de su peso. Dentro de
+  cada estrategia compra las acciones nuevas y completa las que estén por debajo de su parte.
+- En la cuenta paper el ahorro se simula (10.000 € al mes de una bolsa de 120.000 € apartada al arrancar). Con una
+  cuenta real, el ingreso del mes se indica con `--aporte`.
+
 ## Reglas de honestidad que aplica el motor
 
 - Señal con el cierre del viernes, ejecución en la apertura del lunes.

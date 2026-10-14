@@ -3,13 +3,16 @@ Robot para la cuenta PAPER de Interactive Brokers.
 
 Lleva la cuenta paper a la cartera objetivo que calcula cada semana GitHub Actions (backtest-lab.yml):
   - vende lo que ya no está en la cartera objetivo;
-  - compra lo nuevo con una parte igual del capital asignado a cada estrategia;
-  - no toca lo que sigue (igual que el backtest: sin rebalanceos innecesarios).
+  - compra lo nuevo con una parte igual del dinero de cada estrategia (patrimonio de la estrategia / n);
+  - no vende nada más (sin rebalanceos: cada venta con ganancia paga impuestos).
+El dinero se gestiona con el plan de plan_dinero.json (bt/plan.py, el mismo código que el backtest): reserva de
+liquidez, ahorro mensual a la estrategia más por debajo de su peso y uso de la reserva cuando el S&P 500 cae.
+En la cuenta paper el ahorro mensual se simula con una bolsa "por aportar" que se aparta al arrancar el plan.
 
 Uso (con IB Gateway abierto y conectado a la cuenta PAPER):
   python ibkr_paper.py                       simulación: enseña las órdenes, no envía nada
   python ibkr_paper.py --ejecutar            envía las órdenes a la cuenta paper
-  python ibkr_paper.py --pesos fundamental=0.5 precio=0.5
+  python ibkr_paper.py --aporte 1000         registra un ingreso real hecho este mes (cuenta sin bolsa simulada)
   python ibkr_paper.py --cartera ruta.json   usa un fichero de cartera local en vez de descargarlo
 
 Seguridad: solo se conecta al puerto paper (4002 por defecto) y se para si alguna cuenta no empieza
@@ -25,6 +28,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import pandas as pd
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from bt import plan as PL  # noqa: E402
 
 REPO = "CesarSGZ/CesarHomeLab"
 DIR = Path(__file__).resolve().parent / "ibkr"
@@ -120,6 +126,88 @@ def leer_libro():
 
 def guardar_libro(libro):
     LIBRO.write_text(json.dumps(libro, ensure_ascii=False, indent=1), encoding="utf-8")
+
+
+def caida_sp_hoy():
+    """Caída del S&P 500 (rentabilidad total en EUR) desde su máximo de 1 año, como en el backtest del plan."""
+    import yfinance as yf
+    x = yf.download(["^SP500TR", "EURUSD=X"], period="2y", progress=False)["Close"].ffill().dropna()
+    return float(PL.caida_sp(x["^SP500TR"] / x["EURUSD=X"]).iloc[-1])
+
+
+def cuadrar_plan(estado, efectivo, valores, aporte_real=0.0):
+    """La liquidez de la cuenta = reserva + bolsa por aportar + caja de cada estrategia. Lo que no cuadra desde la
+    última vez (dividendos, cambio de divisa, precio real de las órdenes, intereses) se reparte entre las estrategias
+    según su tamaño. Un ingreso real del mes (aporte_real) no se reparte aquí: lo reparte el plan."""
+    cajas = estado["cajas"]
+    dif = efectivo - aporte_real - (estado["reserva"] + estado["porAportar"] + sum(cajas.values()))
+    total = sum(max(0.0, valores.get(k, 0.0)) for k in cajas)
+    for k in cajas:
+        cajas[k] += dif * max(0.0, valores.get(k, 0.0)) / total if total > 0 else dif / len(cajas)
+    return dif
+
+
+def arrancar_plan(plan, papel, efectivo, valores, patrimonio):
+    """Primera vez: se aparta la bolsa por aportar (solo paper) y la reserva; el resto de la liquidez va a las
+    estrategias más por debajo de su peso. Nada se vende para ello."""
+    libre = max(0.0, efectivo)
+    bolsa = min(float(papel.get("bolsa", 0.0)), libre)
+    reserva = max(0.0, min(plan.reserva * (patrimonio - bolsa), libre - bolsa))
+    cajas = PL.repartir(libre - bolsa - reserva, valores, plan.pesos)
+    cajas = {k: cajas.get(k, 0.0) + min(0.0, efectivo) * plan.pesos[k] for k in plan.pesos}
+    aportado = {k: valores.get(k, 0.0) + cajas[k] for k in plan.pesos}
+    return {"inicio": datetime.now().date().isoformat(), "reserva": reserva, "porAportar": bolsa,
+            "aporteSimulado": float(papel.get("aporteMensual", 0.0)), "cajas": cajas, "aportado": aportado,
+            "unidades": dict(aportado), "ultimoMes": datetime.now().strftime("%Y-%m"), "usados": [], "aportes": []}
+
+
+def semana_plan(plan, estado, valores, caida, aporte_real=0.0):
+    """Aplica el plan de la semana (ahorro del mes y disparos por caída). Devuelve (dinero nuevo por estrategia, ahorro)."""
+    mes = datetime.now().strftime("%Y-%m")
+    aporte = 0.0
+    if mes != estado["ultimoMes"]:
+        simulado = min(estado.get("aporteSimulado", 0.0), estado["porAportar"])
+        estado["porAportar"] -= simulado
+        aporte = simulado
+        estado["ultimoMes"] = mes
+    aporte += aporte_real
+    totales = {k: valores.get(k, 0.0) + estado["cajas"][k] for k in plan.pesos}
+    nuevo, estado["reserva"], estado["usados"] = PL.paso(plan, totales, estado["reserva"], caida, estado["usados"], aporte)
+    for k, x in nuevo.items():
+        if x > 0:
+            u = estado["unidades"].get(k) or 0.0
+            precio_u = totales[k] / u if u > 0 and totales[k] > 0 else 1.0
+            estado["unidades"][k] = u + x / precio_u
+            estado["aportado"][k] = estado["aportado"].get(k, 0.0) + x
+            estado["cajas"][k] += x
+    if aporte or any(nuevo.values()):
+        estado["aportes"] = (estado.get("aportes", []) + [{"fecha": datetime.now().date().isoformat(), "aporte": round(aporte, 2),
+                             "caidaSP": round(caida, 4), **{k: round(v, 2) for k, v in nuevo.items()}}])[-120:]
+    return nuevo, aporte
+
+
+def compras_estrategia(n, mantenidas, nuevas, caja, minimo=500.0):
+    """Importes de compra de una estrategia: cada acción nueva recibe (patrimonio de la estrategia / n) mientras haya
+    caja; la caja que sobra, salvo la de los huecos vacíos, completa las que estén por debajo de su parte."""
+    patrimonio = sum(mantenidas.values()) + caja
+    parte = patrimonio / n if n else 0.0
+    compras = {}
+    for tk in nuevas:
+        x = min(parte, max(0.0, caja))
+        if x >= minimo:
+            compras[tk] = x
+            caja -= x
+    huecos = max(0, n - len(mantenidas) - len(compras))
+    sobra = caja - huecos * parte
+    for tk, v in sorted(mantenidas.items(), key=lambda kv: kv[1]):
+        falta = parte - v
+        if sobra < minimo:
+            break
+        if falta >= max(minimo, 0.1 * parte):
+            x = min(falta, sobra)
+            compras[tk] = x
+            sobra -= x
+    return compras
 
 
 def semaforo_corto(s):
@@ -246,10 +334,28 @@ def foto(puerto, enviar=True, salida=None):
         k = libro["asignacion"].get(r["simbolo"])
         if k in estrategias and r["eur"] == r["eur"]:
             estrategias[k]["realizada"] += r["eur"]
-    for e in estrategias.values():
-        e["valor"] = round(e["asignado"] + e["noRealizada"] + e["realizada"], 2)
+    plan = libro.get("plan")
+    for k, e in estrategias.items():
+        if plan and k in plan["cajas"]:
+            # con el plan del dinero: lo que vale = acciones + su caja; lo puesto = capital inicial + ahorro recibido
+            e["asignado"] = round(plan["aportado"].get(k, 0.0), 2)
+            e["caja"] = round(plan["cajas"][k], 2)
+            e["valor"] = round(e["invertido"] + plan["cajas"][k], 2)
+            u = plan["unidades"].get(k)
+            e["indice"] = round(e["valor"] / u, 6) if u else None
+        else:
+            e["valor"] = round(e["asignado"] + e["noRealizada"] + e["realizada"], 2)
         for c in ("invertido", "noRealizada", "realizada"):
             e[c] = round(e[c], 2)
+    resumen_plan = None
+    if plan:
+        try:
+            caida = round(caida_sp_hoy(), 4)
+        except Exception:  # noqa: BLE001
+            caida = None
+        resumen_plan = {"inicio": plan["inicio"], "reserva": round(plan["reserva"], 2), "porAportar": round(plan["porAportar"], 2),
+                        "aporteMensual": plan.get("aporteSimulado", 0.0), "caidaSP": caida, "disparosUsados": len(plan["usados"]),
+                        "reglas": PL.Plan.leer().como_dict(), "aportes": plan.get("aportes", [])[-24:]}
     for x in ejecuciones:
         x["estrategia"] = libro["asignacion"].get(x["simbolo"])
     guardar_libro(libro)
@@ -257,7 +363,7 @@ def foto(puerto, enviar=True, salida=None):
              "divisa": res["NetLiquidation"].currency, "valor": num("NetLiquidation"), "efectivo": num("TotalCashValue"),
              "gananciaNoRealizada": num("UnrealizedPnL"), "gananciaRealizada": num("RealizedPnL"),
              "sp500eur": round(sp_eur, 4), "ordenesPendientes": pendientes,
-             "capitalInicial": libro["capitalInicial"], "estrategias": estrategias,
+             "capitalInicial": libro["capitalInicial"], "estrategias": estrategias, "plan": resumen_plan,
              "cerradas": libro["cerradas"][-300:],
              "posiciones": sorted(posiciones, key=lambda x: -(x["valor"] or 0)),
              "ejecuciones": sorted(ejecuciones, key=lambda x: x["fecha"], reverse=True)[:60]}
@@ -280,7 +386,7 @@ def main():
     ap.add_argument("--ejecutar", action="store_true", help="enviar las órdenes (si no, solo simulación)")
     ap.add_argument("--puerto", type=int, default=4002)
     ap.add_argument("--cartera", help="fichero cartera_objetivo.json local")
-    ap.add_argument("--pesos", nargs="*", default=["fundamental=0.5", "precio=0.5"])
+    ap.add_argument("--aporte", type=float, default=0.0, help="ingreso real hecho este mes (EUR)")
     ap.add_argument("--max-dias", type=int, default=9, help="no operar con una cartera más antigua que esto")
     ap.add_argument("--foto", action="store_true", help="solo sacar la foto de la cuenta y mandarla a la web")
     ap.add_argument("--sin-enviar", action="store_true", help="con --foto: guardarla en local sin mandarla")
@@ -292,7 +398,9 @@ def main():
         return foto(args.puerto, enviar=not args.sin_enviar, salida=args.salida_foto)
     if args.puerto not in PUERTOS_PAPER:
         raise SystemExit(f"Puerto {args.puerto} no es de paper trading ({sorted(PUERTOS_PAPER)}). Me paro.")
-    pesos = {k: float(v) for k, v in (p.split("=") for p in args.pesos)}
+    plan = PL.Plan.leer()
+    papel = json.loads(PL.RUTA.read_text(encoding="utf-8")).get("papel", {})
+    pesos = plan.pesos
 
     cartera = json.loads(Path(args.cartera).read_text(encoding="utf-8")) if args.cartera else descargar_cartera()
     edad = (datetime.now(timezone.utc) - datetime.fromisoformat(cartera["generatedAt"])).days
@@ -309,52 +417,85 @@ def main():
     cuenta = cuentas[0]
     resumen = {v.tag: v for v in ib.accountSummary(cuenta)}
     liquidez = float(resumen["NetLiquidation"].value)
+    efectivo = float(resumen["TotalCashValue"].value)
     base = resumen["NetLiquidation"].currency
-    log(f"Cuenta paper {cuenta}: valor {liquidez:,.0f} {base}")
-
-    # objetivo: por estrategia, capital * peso / nº de posiciones, en EUR
-    objetivo = {}
-    for e in cartera["estrategias"]:
-        w = pesos.get(e["id"], 0.0)
-        if w <= 0:
-            continue
-        rebanada = liquidez * w / e["posiciones"]
-        for v in e["valores"]:
-            o = objetivo.setdefault(v["ticker"], {"eur": 0.0, "estrategias": []})
-            o["eur"] += rebanada
-            o["estrategias"].append(e["id"])
+    log(f"Cuenta paper {cuenta}: valor {liquidez:,.0f} {base}, liquidez {efectivo:,.0f}")
     if base != "EUR":
         log(f"Aviso: la divisa base de la cuenta es {base}; los importes se tratan como si fueran EUR.")
     libro = leer_libro()
     semaforos = semaforos_de_cartera(cartera)
-    if args.ejecutar:
-        libro["pesos"] = pesos
-        asignar_desde_cartera(libro, cartera)       # las que ya teníamos sin anotar
+    asignar_desde_cartera(libro, cartera)       # las que ya teníamos sin anotar
 
-    posiciones = {}
-    for p in ib.positions(cuenta):
-        posiciones[p.contract.conId] = p
+    estrategias = {e["id"]: e for e in cartera["estrategias"] if pesos.get(e["id"], 0) > 0}
     contratos = {}
-    for tk in objetivo:
-        c = contrato(tk)
-        q = ib.qualifyContracts(c) if c is not None else []
-        if q:
-            contratos[tk] = q[0]
-        else:
-            log(f"  {tk}: no encuentro el valor en IBKR, se omite")
+    for e in estrategias.values():
+        for v in e["valores"]:
+            tk = v["ticker"]
+            if tk in contratos:
+                continue
+            c = contrato(tk)
+            q = ib.qualifyContracts(c) if c is not None else []
+            if q:
+                contratos[tk] = q[0]
+            else:
+                log(f"  {tk}: no encuentro el valor en IBKR, se omite")
     precio, fx = precios_eur(list(contratos))
 
-    ordenes = []
+    # posiciones actuales en EUR, por estrategia
+    cartera_ib = {it.contract.conId: it for it in ib.portfolio(cuenta) if it.position}
     objetivo_ids = {c.conId for c in contratos.values()}
-    for p in posiciones.values():                                   # 1) ventas
-        if p.contract.conId not in objetivo_ids and p.position != 0:
-            ordenes.append(("VENDER", p.contract, abs(p.position), "ya no está en la cartera objetivo"))
-    for tk, c in contratos.items():                                 # 2) compras de lo nuevo
-        if c.conId in posiciones and posiciones[c.conId].position > 0:
-            continue                                                # ya la tenemos: no se toca
+    ventas, mantenidas = [], {k: {} for k in pesos}
+    valores_antes = {k: 0.0 for k in pesos}
+    for it in cartera_ib.values():
+        k = libro["asignacion"].get(it.contract.symbol)
+        v = it.marketValue * fx.get(it.contract.currency, math.nan)
+        if k in valores_antes and math.isfinite(v):
+            valores_antes[k] += v
+        if it.contract.conId not in objetivo_ids and it.position > 0:
+            ventas.append((it, k, v))
+        elif k in mantenidas and math.isfinite(v):
+            mantenidas[k][it.contract.conId] = v
+
+    # plan del dinero (bt/plan.py)
+    caida = caida_sp_hoy()
+    estado = libro.get("plan")
+    if estado is None:
+        estado = arrancar_plan(plan, papel, efectivo + sum(v for _, _, v in ventas if math.isfinite(v)),
+                               {k: sum(m.values()) for k, m in mantenidas.items()}, liquidez)
+        log(f"Plan del dinero arrancado: reserva {estado['reserva']:,.0f}, por aportar {estado['porAportar']:,.0f}, "
+            f"cajas {', '.join(f'{k} {x:,.0f}' for k, x in estado['cajas'].items())}")
+    else:
+        dif = cuadrar_plan(estado, efectivo, valores_antes, args.aporte)
+        log(f"Liquidez cuadrada con el plan (diferencia de {dif:,.0f} repartida entre las estrategias)")
+        for _, k, v in ventas:
+            if k in estado["cajas"] and math.isfinite(v):
+                estado["cajas"][k] += v
+    nuevo, aporte = semana_plan(plan, estado, {k: sum(m.values()) for k, m in mantenidas.items()}, caida, args.aporte)
+    log(f"S&P 500 a {caida:.1%} de su máximo de 1 año · ahorro de este mes {aporte:,.0f} · dinero nuevo "
+        f"{', '.join(f'{k} {x:,.0f}' for k, x in nuevo.items())} · reserva {estado['reserva']:,.0f} · "
+        f"por aportar {estado['porAportar']:,.0f}")
+
+    # compras por estrategia: las nuevas con su parte y, con la caja que sobre, completar las que van cortas
+    ya = {it.contract.conId for it in cartera_ib.values() if it.position > 0}
+    importes = {}
+    for k, e in estrategias.items():
+        tk_de_id = {contratos[v["ticker"]].conId: v["ticker"] for v in e["valores"] if v["ticker"] in contratos}
+        nuevas = [tk for i, tk in tk_de_id.items() if i not in ya]
+        mant = {tk_de_id[i]: v for i, v in mantenidas[k].items() if i in tk_de_id}
+        for tk, x in compras_estrategia(e["posiciones"], mant, nuevas, estado["cajas"][k]).items():
+            o = importes.setdefault(tk, {"eur": 0.0, "estrategias": [], "nueva": tk in nuevas})
+            o["eur"] += x
+            o["estrategias"].append(k)
+            estado["cajas"][k] -= x
+
+    ordenes = [("VENDER", it.contract, abs(it.position), "ya no está en la cartera objetivo") for it, _, _ in ventas]
+    for tk, o in importes.items():
+        c = contratos[tk]
         px, eur_por_unidad = precio.get(tk), fx.get(c.currency)
         if not (px and eur_por_unidad and math.isfinite(px) and math.isfinite(eur_por_unidad)):
             log(f"  {tk}: sin precio, se omite")
+            for k in o["estrategias"]:
+                estado["cajas"][k] += o["eur"] / len(o["estrategias"])
             continue
         if tk.endswith(".L"):
             px = px / 100                                           # Yahoo da Londres en peniques
@@ -362,12 +503,16 @@ def main():
         detalles = ib.reqContractDetails(c)
         if detalles and getattr(detalles[0], "sizeIncrement", None):
             lote = max(lote, int(float(detalles[0].sizeIncrement) or 1))
-        acciones = int(objetivo[tk]["eur"] / (px * eur_por_unidad) // lote * lote)
+        acciones = int(o["eur"] / (px * eur_por_unidad) // lote * lote)
+        gastado = acciones * px * eur_por_unidad
+        for k in o["estrategias"]:                                  # lo que no llega a un lote vuelve a la caja
+            estado["cajas"][k] += (o["eur"] - gastado) / len(o["estrategias"])
         if acciones <= 0:
             log(f"  {tk}: el importe no llega a un lote de {lote}, se omite")
             continue
-        ordenes.append(("COMPRAR", c, acciones, f"nueva en {', '.join(objetivo[tk]['estrategias'])} "
-                                               f"(~{objetivo[tk]['eur']:,.0f} EUR a {px:,.2f} {c.currency})"))
+        motivo = "nueva" if o["nueva"] else "completa su parte"
+        ordenes.append(("COMPRAR", c, acciones, f"{motivo} en {', '.join(o['estrategias'])} "
+                                               f"(~{gastado:,.0f} EUR a {px:,.2f} {c.currency})"))
 
     log(f"{len(ordenes)} órdenes ({'SE ENVÍAN' if args.ejecutar else 'SIMULACIÓN, no se envía nada'}):")
     filas = []
@@ -377,9 +522,9 @@ def main():
                 "simbolo": c.symbol, "bolsa": getattr(c, "primaryExchange", c.exchange), "divisa": c.currency,
                 "acciones": n, "motivo": porque, "enviada": args.ejecutar, "estado": ""}
         if args.ejecutar:
-            if accion == "COMPRAR":
+            if accion == "COMPRAR" and c.conId not in ya:
                 tk = next(t for t, k in contratos.items() if k.conId == c.conId)
-                libro["asignacion"][c.symbol] = objetivo[tk]["estrategias"][0]
+                libro["asignacion"][c.symbol] = importes[tk]["estrategias"][0]
                 libro["entradas"][c.symbol] = datetime.now().date().isoformat()
                 if semaforos.get(tk):
                     libro.setdefault("semaforo", {})[c.symbol] = semaforos[tk]
@@ -387,13 +532,16 @@ def main():
             ib.sleep(1)
             fila["estado"] = t.orderStatus.status
         filas.append(fila)
+    log("Cajas tras las órdenes: " + ", ".join(f"{k} {x:,.0f}" for k, x in estado["cajas"].items()))
     if args.ejecutar:
+        libro["pesos"] = pesos
+        libro["plan"] = estado
         # posiciones que ya estaban antes de anotar el semáforo: se les pone el de esta semana, marcado como aproximado
         tk_de = {k.conId: t for t, k in contratos.items()}
-        for p in posiciones.values():
-            t = tk_de.get(p.contract.conId)
-            if p.position > 0 and t and semaforos.get(t) and p.contract.symbol not in libro.setdefault("semaforo", {}):
-                libro["semaforo"][p.contract.symbol] = {**semaforos[t], "aprox": True}
+        for it in cartera_ib.values():
+            t = tk_de.get(it.contract.conId)
+            if it.position > 0 and t and semaforos.get(t) and it.contract.symbol not in libro.setdefault("semaforo", {}):
+                libro["semaforo"][it.contract.symbol] = {**semaforos[t], "aprox": True}
         guardar_libro(libro)
     if filas:
         reg = DIR / "registro_ordenes.csv"

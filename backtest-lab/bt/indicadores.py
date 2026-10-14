@@ -106,7 +106,34 @@ def calcular(d, anomalia_umbral=3.0) -> dict:
     anom = (r >= anomalia_umbral) | (r <= 1 / anomalia_umbral)
     ind["anomalia_reciente"] = anom.rolling(60, min_periods=1).max().astype(bool)
     ind["vivo"] = vivo
+    ind.update(semaforo_precio(d))
     return ind
+
+
+def semaforo_precio(d) -> dict:
+    """Alertas de precio del semáforo (análisis de perdedoras, octubre de 2026), con rentabilidad total en EUR:
+      r2_mercado  R² con el S&P 500 a 1 año (bajo = 'va por libre')
+      max5_21     media de los 5 mejores días del último mes ('días de lotería'); solo en el cierre de cada semana
+    """
+    from .motor_global import fechas_revision
+    r = np.log(d.tr_eur.astype("float64")).diff().where(d.close.notna())
+    sp_r = np.log(d.sp500_eur.ffill()).diff()
+    r2 = r.rolling(252, min_periods=150).corr(sp_r) ** 2
+    fechas = pd.DatetimeIndex(sorted(fechas_revision(d.close.index)))
+    pos = d.close.index.get_indexer(fechas)
+    R = r.values
+    max5 = np.full((len(fechas), R.shape[1]), np.nan)
+    for i, p in enumerate(pos):
+        if p < 21:
+            continue
+        w = R[p - 20:p + 1]
+        nn = np.isfinite(w).sum(axis=0)
+        top = -np.sort(-np.where(np.isfinite(w), w, -np.inf), axis=0)[:5]
+        with np.errstate(invalid="ignore"):
+            m = np.where(np.isfinite(top), top, np.nan).mean(axis=0)
+        max5[i] = np.where(nn >= 15, m, np.nan)
+    max5 = pd.DataFrame(max5, index=fechas, columns=d.close.columns).reindex(d.close.index).ffill()
+    return {"r2_mercado": _f32(r2), "max5_21": _f32(max5)}
 
 
 def beta_frente(ret_valores: pd.DataFrame, ret_ref: pd.Series, ventana=252) -> pd.DataFrame:
