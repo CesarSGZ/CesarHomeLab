@@ -19,7 +19,7 @@
   <link rel="stylesheet" href="doors.css?v=20261006a">
   <link rel="stylesheet" href="backtest.css?v=20261012n">
   <link rel="stylesheet" href="/theme.css?v=20261001contrast">
-  <link rel="stylesheet" href="flight-control.css?v=20261014a">
+  <link rel="stylesheet" href="flight-control.css?v=20261014agent">
 </head>
 <body class="access-pending" data-workspace>
   <canvas id="control-grid" aria-hidden="true"></canvas>
@@ -133,12 +133,32 @@
           <div><small>ÚLTIMO ENCENDIDO</small><strong data-sc-last>NUNCA</strong></div>
           <div><small>COMPROBADO</small><strong data-sc-checked>—</strong></div>
         </div>
+        <div class="sc-system" data-sc-system hidden>
+          <span><small>ENCENDIDO DESDE</small><b data-sc-boot>—</b></span>
+          <span><small>CPU</small><b data-sc-cpu>—</b></span>
+          <span><small>RAM</small><b data-sc-ram>—</b></span>
+          <span><small>DISCO C: LIBRE</small><b data-sc-disk>—</b></span>
+          <span><small>SESIÓN WINDOWS</small><b data-sc-session>—</b></span>
+        </div>
+        <ul class="sc-apps" data-sc-apps aria-label="Aplicaciones de ServerCesar">
+          <li data-app="claude"><i></i><div><strong>Claude</strong><small data-app-detail>—</small></div></li>
+          <li data-app="chatgpt"><i></i><div><strong>ChatGPT</strong><small data-app-detail>—</small></div></li>
+          <li data-app="parsec"><i></i><div><strong>Parsec</strong><small data-app-detail>—</small></div></li>
+          <li data-app="tailscale"><i></i><div><strong>Tailscale</strong><small data-app-detail>—</small></div></li>
+        </ul>
         <div class="server-actions">
           <div>
             <small>WAKE-ON-LAN</small>
             <p>Envía el paquete de encendido al PC a través de depicus.com, como hacías a mano. Tarda uno o dos minutos en arrancar; el estado se actualiza solo mientras tanto.</p>
           </div>
           <button class="wake-button" id="sc-wake" type="button" disabled><span>⏻</span> Encender ServerCesar</button>
+        </div>
+        <div class="server-actions" id="sc-reboot-row" hidden>
+          <div>
+            <small>REINICIO REMOTO</small>
+            <p>Un paquete Wake-on-LAN solo sirve para encender. Para reiniciar, el agente de ServerCesar recoge la orden (en menos de 30 s) y reinicia Windows; al volver, todo arranca solo con la sesión iniciada.</p>
+          </div>
+          <button class="wake-button reboot-button" id="sc-reboot" type="button" disabled><span>↻</span> Reiniciar ServerCesar</button>
         </div>
         <p class="command-feedback" id="sc-feedback" role="status" aria-live="polite">Comprobando estado…</p>
         <details class="sc-config" id="sc-config" hidden>
@@ -368,7 +388,7 @@
   <script type="module" src="backtest.js?v=20261012m"></script>
   <script src="github-galaxy.js?v=20260928atlas"></script>
   <script src="control.js?v=20261014servercesar"></script>
-  <script src="servercesar.js?v=20261014a" defer></script>
+  <script src="servercesar.js?v=20261014agent" defer></script>
   <script src="flight-control.js?v=20261014a" defer></script>
   <script src="thermal-viewer.bundle.js?v=20260805o"></script>
 </body>

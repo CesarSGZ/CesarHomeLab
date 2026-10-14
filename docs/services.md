@@ -7,6 +7,7 @@
 | DB-01 | Control database | Cloudflare D1 | Pages binding only | `migrations/` | Users, sessions and operational data |
 | MC-01 | Minecraft | ServerCesar | Game port + restricted portal controls | Server filesystem | Shared game server |
 | AGT-01 | Minecraft recovery agent | ServerCesar | Outbound HTTPS only | `server-agent/` | Status and crash recovery |
+| AGT-02 | ServerCesar agent + guardian | ServerCesar | Outbound HTTPS only; `SERVERCESAR_AGENT_TOKEN` | `server-agent/servercesar/` | Keeps Claude, ChatGPT, Parsec and Tailscale running, reports their health, remote reboot |
 | LAB-01 | Terra Powerplant Lab | Cloudflare Pages | Owner portal | `control/data/` | Engineering experiment |
 | GIT-01 | GitHub Galaxy | GitHub API + Cloudflare Pages | Owner portal | `control/galaxy-model.js` and authenticated read-only endpoint | Current architecture and source explorer |
 | TRD-01 | Agent Office | Cloudflare Worker + Pages + D1 | Owner portal; token-authenticated IBKR bridge | `trading-worker/` and `control/trading.js` | Small-cap research and local simulated trading |

@@ -13,6 +13,10 @@
 
 export const WAKE_COOLDOWN_MS = 60_000;
 export const AGENT_FRESH_MS = 60_000;
+export const REPORT_FRESH_MS = 90_000;
+export const REBOOT_COOLDOWN_MS = 180_000;
+export const REBOOT_STALE_MS = 15 * 60_000;
+export const APPS = ["claude", "chatgpt", "parsec", "tailscale"];
 const DEPICUS_URL = "https://www.depicus.com/wake-on-lan/woli-ajax.php";
 
 const MAC = /^([0-9A-F]{2}[:-]){5}[0-9A-F]{2}$/i;
@@ -22,7 +26,98 @@ export async function ensureTables(db) {
   await db.batch([
     db.prepare("CREATE TABLE IF NOT EXISTS servercesar_config (id INTEGER PRIMARY KEY CHECK (id = 1), mac TEXT NOT NULL, host TEXT NOT NULL, wol_port INTEGER NOT NULL, probe_ports TEXT NOT NULL DEFAULT '', updated_by TEXT, updated_at INTEGER)"),
     db.prepare("CREATE TABLE IF NOT EXISTS servercesar_events (id TEXT PRIMARY KEY, kind TEXT NOT NULL, by_user TEXT, at INTEGER NOT NULL, ok INTEGER NOT NULL, detail TEXT)"),
+    db.prepare("CREATE TABLE IF NOT EXISTS servercesar_report (id INTEGER PRIMARY KEY CHECK (id = 1), report TEXT NOT NULL, received_at INTEGER NOT NULL)"),
+    db.prepare("CREATE TABLE IF NOT EXISTS servercesar_commands (id TEXT PRIMARY KEY, type TEXT NOT NULL, status TEXT NOT NULL, requested_by TEXT, requested_at INTEGER NOT NULL, claimed_at INTEGER, completed_at INTEGER, result TEXT)"),
   ]);
+}
+
+// ---- ServerCesar agent (server-agent/servercesar/): app health report and reboot queue ----
+
+/** Bearer token of the ServerCesar agent (SERVERCESAR_AGENT_TOKEN), separate from the Minecraft agent's. */
+export function requireServerAgent(request, env, constantTimeEqual) {
+  const configured = String(env.SERVERCESAR_AGENT_TOKEN || "");
+  const supplied = String(request.headers.get("authorization") || "").replace(/^Bearer\s+/i, "");
+  return configured.length >= 32 && constantTimeEqual(configured, supplied);
+}
+
+const bool = (v) => (typeof v === "boolean" ? v : null);
+const num = (v, min, max) => (typeof v === "number" && Number.isFinite(v) && v >= min && v <= max ? Math.round(v * 10) / 10 : null);
+const str = (v, max = 60) => (typeof v === "string" && v.trim() ? v.trim().slice(0, max) : null);
+
+/** Keeps only the known fields of the agent report: it ends up rendered in the portal. */
+export function sanitiseReport(raw = {}) {
+  const apps = {};
+  for (const name of APPS) {
+    const a = raw.apps?.[name];
+    if (!a || typeof a !== "object") continue;
+    apps[name] = {
+      running: bool(a.running),
+      signedIn: bool(a.signedIn),
+      responding: bool(a.responding),
+      service: str(a.service, 20),
+      online: bool(a.online),
+      remoteControl: bool(a.remoteControl),
+      version: str(a.version, 40),
+      restarts: num(a.restarts, 0, 100000),
+      detail: str(a.detail, 120),
+    };
+  }
+  return {
+    bootTime: num(raw.bootTime, 0, 1e14),
+    cpu: num(raw.cpu, 0, 100),
+    ram: num(raw.ram, 0, 100),
+    diskFreeGb: num(raw.diskFreeGb, 0, 1e6),
+    userSession: bool(raw.userSession),
+    guardianAt: num(raw.guardianAt, 0, 1e14),
+    agentVersion: str(raw.agentVersion, 20),
+    apps,
+  };
+}
+
+/** "ok" | "warn" | "down" for one app, as the agent sees it. */
+export function appHealth(app) {
+  if (!app || app.running === false || app.service === "stopped") return "down";
+  if (app.signedIn === false || app.responding === false || app.online === false) return "warn";
+  return app.running === true && app.signedIn === true ? "ok" : "warn";
+}
+
+export async function saveReport(db, report, now = Date.now()) {
+  await db.prepare("INSERT INTO servercesar_report (id, report, received_at) VALUES (1, ?, ?) ON CONFLICT(id) DO UPDATE SET report = excluded.report, received_at = excluded.received_at")
+    .bind(JSON.stringify(report), now).run();
+}
+
+export async function readReport(db) {
+  const row = await db.prepare("SELECT report, received_at FROM servercesar_report WHERE id = 1").first().catch(() => null);
+  if (!row) return null;
+  try { return { ...JSON.parse(row.report), receivedAt: row.received_at }; } catch { return null; }
+}
+
+export async function lastReboot(db) {
+  return db.prepare("SELECT id, status, requested_by, requested_at, claimed_at, completed_at, result FROM servercesar_commands WHERE type = 'reboot' ORDER BY requested_at DESC LIMIT 1").first();
+}
+
+/** Queues a reboot for the agent. Returns {ok, id} or {ok: false, error}. */
+export async function queueReboot(db, username, now = Date.now()) {
+  const report = await readReport(db);
+  if (!report || now - report.receivedAt > REPORT_FRESH_MS) return { ok: false, error: "agent_offline" };
+  const previous = await lastReboot(db);
+  if (previous && now - previous.requested_at < REBOOT_COOLDOWN_MS) return { ok: false, error: "cooldown", retryAt: previous.requested_at + REBOOT_COOLDOWN_MS };
+  const id = crypto.randomUUID();
+  await db.prepare("INSERT INTO servercesar_commands (id, type, status, requested_by, requested_at) VALUES (?, 'reboot', 'queued', ?, ?)").bind(id, username, now).run();
+  return { ok: true, id };
+}
+
+/** Records the result the agent sends back, expires forgotten commands and hands over the oldest queued one. */
+export async function agentExchange(db, done, now = Date.now()) {
+  if (done?.id) {
+    await db.prepare("UPDATE servercesar_commands SET status = ?, completed_at = ?, result = ? WHERE id = ? AND status = 'claimed'")
+      .bind(done.ok === true ? "succeeded" : "failed", now, String(done.detail || "").slice(0, 300), String(done.id)).run();
+  }
+  await db.prepare("UPDATE servercesar_commands SET status = 'expired' WHERE status = 'queued' AND requested_at < ?").bind(now - REBOOT_STALE_MS).run();
+  const command = await db.prepare("SELECT id, type FROM servercesar_commands WHERE status = 'queued' ORDER BY requested_at ASC LIMIT 1").first();
+  if (!command) return null;
+  const claim = await db.prepare("UPDATE servercesar_commands SET status = 'claimed', claimed_at = ? WHERE id = ? AND status = 'queued'").bind(now, command.id).run();
+  return claim.meta?.changes ? { id: command.id, type: command.type } : null;
 }
 
 /** Validates and normalises a configuration coming from the owner. */
@@ -101,16 +196,16 @@ export async function loadConnect() {
   try { return (await import("cloudflare:sockets")).connect; } catch { return null; }
 }
 
-/** Power status from the agent heartbeat and the TCP probe. */
-export async function powerStatus(db, config, connectImpl, now = Date.now()) {
+/** Power status from the agent heartbeats (Minecraft agent or ServerCesar agent) and the TCP probe. */
+export async function powerStatus(db, config, connectImpl, now = Date.now(), reportAt = null) {
   const agent = await db.prepare("SELECT last_seen FROM agent_state WHERE id = 1").first().catch(() => null);
-  const agentFresh = Boolean(agent?.last_seen && now - agent.last_seen < AGENT_FRESH_MS);
-  const openPort = config ? await probe(config.host, config.probePorts, connectImpl) : null;
+  const agentFresh = Boolean(agent?.last_seen && now - agent.last_seen < AGENT_FRESH_MS) || Boolean(reportAt && now - reportAt < REPORT_FRESH_MS);
+  const openPort = config && !agentFresh ? await probe(config.host, config.probePorts, connectImpl) : null;
   const online = agentFresh || openPort != null;
   return {
-    state: !config ? "unconfigured" : online ? "online" : "no-response",
+    state: online ? "online" : !config ? "unconfigured" : "no-response",
     via: agentFresh ? "agent" : openPort != null ? `port ${openPort}` : null,
-    agentLastSeen: agent?.last_seen || null,
+    agentLastSeen: Math.max(agent?.last_seen || 0, reportAt || 0) || null,
     probed: config?.probePorts || [],
   };
 }

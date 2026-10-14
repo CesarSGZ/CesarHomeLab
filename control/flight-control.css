@@ -97,4 +97,20 @@
 .sc-config input:focus{outline:2px solid var(--acid);outline-offset:1px}
 .sc-config button{justify-self:start;align-self:end}
 .sc-help{grid-column:1/-1;margin:0;color:var(--muted);font-size:12px;line-height:1.6}
-@media(max-width:700px){.sc-config form{grid-template-columns:1fr}.wake-button{width:100%}}
+.sc-system{display:flex;flex-wrap:wrap;gap:10px 26px;padding:14px 28px;border-top:1px solid var(--line)}
+.sc-system span{display:grid;gap:4px}
+.sc-system small,.sc-apps small{color:var(--muted);font:500 8px "DM Mono",monospace;letter-spacing:.12em;text-transform:uppercase}
+.sc-system b{font:500 12px "DM Mono",monospace;color:var(--ink)}
+.sc-apps{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:0;padding:6px 28px 18px;list-style:none}
+.sc-apps li{display:flex;align-items:center;gap:12px;padding:12px 14px;border:1px solid var(--line);border-radius:10px;background:rgba(0,0,0,.12)}
+.sc-apps li div{display:grid;gap:4px;min-width:0}
+.sc-apps strong{font:500 13px "DM Mono",monospace}
+.sc-apps small{letter-spacing:.06em;font-size:9px;overflow-wrap:anywhere}
+.sc-apps i{flex:none;width:10px;height:10px;border-radius:50%;background:var(--muted);opacity:.5}
+.sc-apps li[data-health=ok] i{background:var(--acid);opacity:1;box-shadow:0 0 10px color-mix(in srgb,var(--acid) 60%,transparent)}
+.sc-apps li[data-health=warn] i{background:#ffb38a;opacity:1}
+.sc-apps li[data-health=down] i{background:#ff6b6b;opacity:1}
+.sc-apps li[data-health=down] small,.sc-apps li[data-health=warn] small{color:#ffb38a}
+#sc-reboot-row{border-top:1px solid var(--line)}
+.reboot-button{--acid:#ffb38a}
+@media(max-width:700px){.sc-config form{grid-template-columns:1fr}.wake-button{width:100%}.sc-apps{grid-template-columns:1fr}}

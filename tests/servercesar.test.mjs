@@ -1,8 +1,76 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile, readdir} from 'node:fs/promises';
-import {checkConfig, sendMagicPacket, probe, powerStatus} from '../functions/_lib/servercesar.js';
-import {userCan} from '../functions/_lib/auth.js';
+import {checkConfig, sendMagicPacket, probe, powerStatus, sanitiseReport, appHealth, requireServerAgent, queueReboot, agentExchange} from '../functions/_lib/servercesar.js';
+import {userCan, constantTimeEqual} from '../functions/_lib/auth.js';
+
+// Minimal D1 stand-in for the reboot queue: answers the handful of statements servercesar.js issues.
+function fakeDb({reportAt = null} = {}) {
+  const commands = [];
+  const run = (sql, args) => {
+    if (sql.startsWith('SELECT report')) return reportAt == null ? null : {report: '{"apps":{}}', received_at: reportAt};
+    if (sql.startsWith('SELECT id, status')) return [...commands].sort((a, b) => b.requested_at - a.requested_at)[0] || null;
+    if (sql.startsWith('INSERT INTO servercesar_commands')) { commands.push({id: args[0], type: 'reboot', status: 'queued', requested_by: args[1], requested_at: args[2]}); return {meta: {changes: 1}}; }
+    if (sql.startsWith("UPDATE servercesar_commands SET status = 'expired'")) { commands.filter(c => c.status === 'queued' && c.requested_at < args[0]).forEach(c => { c.status = 'expired'; }); return {meta: {}}; }
+    if (sql.startsWith('SELECT id, type')) return commands.filter(c => c.status === 'queued').sort((a, b) => a.requested_at - b.requested_at)[0] || null;
+    if (sql.startsWith("UPDATE servercesar_commands SET status = 'claimed'")) { const c = commands.find(c => c.id === args[1] && c.status === 'queued'); if (c) { c.status = 'claimed'; c.claimed_at = args[0]; } return {meta: {changes: c ? 1 : 0}}; }
+    if (sql.startsWith('UPDATE servercesar_commands SET status = ?')) { const c = commands.find(c => c.id === args[3] && c.status === 'claimed'); if (c) { c.status = args[0]; c.result = args[2]; } return {meta: {changes: c ? 1 : 0}}; }
+    throw new Error('unexpected SQL ' + sql);
+  };
+  const prepare = sql => { let args = []; const s = {bind: (...a) => { args = a; return s; }, first: async () => run(sql, args), run: async () => run(sql, args)}; return s; };
+  return {prepare, commands};
+}
+
+test('agent report keeps only known apps and fields', () => {
+  const r = sanitiseReport({cpu: 12.345, ram: 140, bootTime: 1, apps: {claude: {running: true, signedIn: true, remoteControl: true, version: '2.1', evil: '<script>'}, minecraft: {running: true}}});
+  assert.deepEqual(Object.keys(r.apps), ['claude']);
+  assert.equal(r.apps.claude.evil, undefined);
+  assert.equal(r.cpu, 12.3);
+  assert.equal(r.ram, null);
+  assert.equal(appHealth(r.apps.claude), 'ok');
+  assert.equal(appHealth({running: true, signedIn: false}), 'warn');
+  assert.equal(appHealth({running: false, signedIn: true}), 'down');
+  assert.equal(appHealth({running: true, signedIn: true, service: 'stopped'}), 'down');
+  assert.equal(appHealth(undefined), 'down');
+});
+
+test('the ServerCesar agent token is separate and must be long', () => {
+  const req = token => new Request('https://x/api/agent/servercesar', {headers: {authorization: 'Bearer ' + token}});
+  const token = 'a'.repeat(40);
+  assert.equal(requireServerAgent(req(token), {SERVERCESAR_AGENT_TOKEN: token}, constantTimeEqual), true);
+  assert.equal(requireServerAgent(req(token), {MINECRAFT_AGENT_TOKEN: token}, constantTimeEqual), false);
+  assert.equal(requireServerAgent(req('short'), {SERVERCESAR_AGENT_TOKEN: 'short'}, constantTimeEqual), false);
+});
+
+test('reboot: needs a live agent, is handed out once, has a cooldown and records the result', async () => {
+  const now = 1_000_000_000;
+  assert.equal((await queueReboot(fakeDb(), 'CesarVapor', now)).error, 'agent_offline');
+  assert.equal((await queueReboot(fakeDb({reportAt: now - 120_000}), 'CesarVapor', now)).error, 'agent_offline');
+  const db = fakeDb({reportAt: now - 10_000});
+  const queued = await queueReboot(db, 'CesarVapor', now);
+  assert.equal(queued.ok, true);
+  assert.equal((await queueReboot(db, 'CesarVapor', now + 1000)).error, 'cooldown');
+  const command = await agentExchange(db, null, now + 5000);
+  assert.deepEqual(command, {id: queued.id, type: 'reboot'});
+  assert.equal(await agentExchange(db, null, now + 6000), null);
+  await agentExchange(db, {id: queued.id, ok: true, detail: 'shutdown /r programado'}, now + 7000);
+  assert.equal(db.commands[0].status, 'succeeded');
+});
+
+test('a forgotten queued reboot expires instead of firing hours later', async () => {
+  const now = 1_000_000_000;
+  const db = fakeDb({reportAt: now});
+  await queueReboot(db, 'CesarVapor', now);
+  assert.equal(await agentExchange(db, null, now + 16 * 60_000), null);
+  assert.equal(db.commands[0].status, 'expired');
+});
+
+test('a fresh agent report alone marks ServerCesar as online, even without a Wake-on-LAN config', async () => {
+  const db = {prepare: () => ({first: async () => null})};
+  const now = Date.now();
+  assert.deepEqual(await powerStatus(db, null, null, now, now - 5000), {state: 'online', via: 'agent', agentLastSeen: now - 5000, probed: []});
+  assert.equal((await powerStatus(db, null, null, now, now - 200_000)).state, 'unconfigured');
+});
 
 test('configuration is validated and normalised', () => {
   const ok = checkConfig({mac: 'aa:bb:cc:dd:ee:ff', host: 'Example.DuckDNS.org', wolPort: '9', probePorts: '3389, 25565 3389'});
