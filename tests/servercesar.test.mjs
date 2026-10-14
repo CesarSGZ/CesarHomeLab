@@ -52,3 +52,14 @@ test('mission control sidebar scrolls when the module list is long', async () =>
   const css = await readFile(new URL('../control/flight-control.css', import.meta.url), 'utf8');
   assert.match(css, /\.sidebar nav\{flex:1 1 auto;min-height:0;overflow-y:auto/);
 });
+
+test('defaults come from encrypted deployment secrets and a saved override wins', async () => {
+  const {readConfig, envConfig} = await import('../functions/_lib/servercesar.js');
+  const env = {SERVERCESAR_MAC: 'aa:bb:cc:dd:ee:ff', SERVERCESAR_HOST: 'home.example.org', SERVERCESAR_WOL_PORT: '9', SERVERCESAR_PROBE_PORTS: '3389'};
+  assert.deepEqual(envConfig(env), {mac: 'AA-BB-CC-DD-EE-FF', host: 'home.example.org', wolPort: 9, probePorts: [3389], source: 'secrets'});
+  assert.equal(envConfig({}), null);
+  const db = row => ({prepare: () => ({first: async () => row})});
+  assert.equal((await readConfig(db(null), env)).source, 'secrets');
+  const saved = await readConfig(db({mac: 'AA-AA-AA-AA-AA-AA', host: 'other.example.org', wol_port: 7, probe_ports: '', updated_at: 1}), env);
+  assert.equal(saved.host, 'other.example.org'); assert.equal(saved.source, 'mission-control');
+});

@@ -149,7 +149,7 @@
             <label><span>Puerto Wake-on-LAN</span><input name="wolPort" required inputmode="numeric" placeholder="40010" maxlength="5"></label>
             <label><span>Puertos para comprobar el estado</span><input name="probePorts" placeholder="p. ej. 3389, 25565" maxlength="40"></label>
             <button type="submit" class="module-action">Guardar configuración</button>
-            <p class="sc-help">Se guarda solo en la base de datos privada de Mission Control, no en el repositorio público. El estado se considera encendido si responde alguno de esos puertos TCP o si el agente de Mission Control de ese PC ha dado señal en el último minuto.</p>
+            <p class="sc-help">Viene precargada desde los secretos cifrados del despliegue; si la cambias aquí se guarda solo en la base de datos privada de Mission Control. Nunca está en el repositorio público. El estado se considera encendido si responde alguno de esos puertos TCP o si el agente de Mission Control de ese PC ha dado señal en el último minuto.</p>
           </form>
         </details>
       </article>

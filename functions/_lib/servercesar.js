@@ -5,8 +5,11 @@
 // signals: a recent heartbeat from the Mission Control agent (if it runs on that
 // PC) and a TCP probe to the ports César chooses to expose.
 //
-// The MAC address, the DDNS host and the ports live only in D1: the repository is
-// public and must not reveal the home address.
+// The MAC address, the DDNS host and the ports never live in the repository (it is
+// public). Defaults come from encrypted Cloudflare Pages secrets (SERVERCESAR_MAC,
+// SERVERCESAR_HOST, SERVERCESAR_WOL_PORT, SERVERCESAR_PROBE_PORTS), copied from
+// GitHub secrets by .github/workflows/servercesar-secrets.yml; the owner can
+// override them from Mission Control, which stores the override in D1.
 
 export const WAKE_COOLDOWN_MS = 60_000;
 export const AGENT_FRESH_MS = 60_000;
@@ -35,10 +38,16 @@ export function checkConfig(raw = {}) {
   return { ok: true, config: { mac, host, wolPort, probePorts } };
 }
 
-export async function readConfig(db) {
+export function envConfig(env = {}) {
+  if (!env.SERVERCESAR_MAC || !env.SERVERCESAR_HOST) return null;
+  const check = checkConfig({ mac: env.SERVERCESAR_MAC, host: env.SERVERCESAR_HOST, wolPort: Number(env.SERVERCESAR_WOL_PORT || 9), probePorts: env.SERVERCESAR_PROBE_PORTS || "" });
+  return check.ok ? { ...check.config, source: "secrets" } : null;
+}
+
+export async function readConfig(db, env) {
   const row = await db.prepare("SELECT mac, host, wol_port, probe_ports, updated_at FROM servercesar_config WHERE id = 1").first();
-  if (!row) return null;
-  return { mac: row.mac, host: row.host, wolPort: row.wol_port, probePorts: String(row.probe_ports || "").split(",").filter(Boolean).map(Number), updatedAt: row.updated_at };
+  if (!row) return envConfig(env);
+  return { mac: row.mac, host: row.host, wolPort: row.wol_port, probePorts: String(row.probe_ports || "").split(",").filter(Boolean).map(Number), updatedAt: row.updated_at, source: "mission-control" };
 }
 
 export async function saveConfig(db, config, username) {

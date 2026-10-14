@@ -11,7 +11,7 @@ export async function onRequest(context) {
 
   const db = context.env.CONTROL_DB;
   await ensureTables(db);
-  const config = await readConfig(db);
+  const config = await readConfig(db, context.env);
   const power = await powerStatus(db, config, await loadConnect());
   const wake = await lastWake(db);
   return json({

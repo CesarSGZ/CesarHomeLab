@@ -12,7 +12,7 @@ export async function onRequest(context) {
 
   const db = context.env.CONTROL_DB;
   await ensureTables(db);
-  const config = await readConfig(db);
+  const config = await readConfig(db, context.env);
   if (!config) return json({ ok: false, error: "not_configured" }, { status: 409 });
   const previous = await lastWake(db);
   if (previous && Date.now() - previous.at < WAKE_COOLDOWN_MS) {
