@@ -1,8 +1,8 @@
 import { userCan } from "../../../_lib/auth.js";
 import { json, methodNotAllowed } from "../../../_lib/http.js";
-import { ensureTables, lastWake, loadConnect, powerStatus, readConfig, WAKE_COOLDOWN_MS } from "../../../_lib/servercesar.js";
+import { appHealth, ensureTables, lastPowerCommand, lastWake, loadConnect, powerStatus, readConfig, readReport, REBOOT_COOLDOWN_MS, REPORT_FRESH_MS, WAKE_COOLDOWN_MS } from "../../../_lib/servercesar.js";
 
-// GET: ServerCesar power status, last wake and (for the owner) its configuration.
+// GET: ServerCesar power status, app health from its agent, last wake and reboot/shutdown, and (for the owner) its configuration.
 export async function onRequest(context) {
   if (context.request.method !== "GET") return methodNotAllowed(["GET"]);
   const session = context.data.session;
@@ -11,14 +11,22 @@ export async function onRequest(context) {
 
   const db = context.env.CONTROL_DB;
   await ensureTables(db);
+  const now = Date.now();
   const config = await readConfig(db, context.env);
-  const power = await powerStatus(db, config, await loadConnect());
+  const report = await readReport(db);
+  const power = await powerStatus(db, config, await loadConnect(), now, report?.receivedAt);
   const wake = await lastWake(db);
+  const command = await lastPowerCommand(db);
+  const apps = report ? Object.fromEntries(Object.entries(report.apps || {}).map(([name, app]) => [name, { ...app, health: appHealth(app) }])) : {};
   return json({
     ok: true,
     power,
+    agent: report ? { fresh: now - report.receivedAt < REPORT_FRESH_MS, receivedAt: report.receivedAt, bootTime: report.bootTime, cpu: report.cpu, ram: report.ram, diskFreeGb: report.diskFreeGb, userSession: report.userSession, guardianAt: report.guardianAt, version: report.agentVersion } : null,
+    apps,
     lastWake: wake ? { by: wake.by_user, at: wake.at, ok: Boolean(wake.ok), detail: wake.detail } : null,
+    lastPower: command ? { action: command.type, by: command.requested_by, at: command.requested_at, claimedAt: command.claimed_at, status: command.status, result: command.result } : null,
     cooldownUntil: wake ? wake.at + WAKE_COOLDOWN_MS : 0,
+    powerCooldownUntil: command ? command.requested_at + REBOOT_COOLDOWN_MS : 0,
     canWake: userCan(session.user, "servercesar:wake"),
     config: config && userCan(session.user, "servercesar:wake") ? config : null,
   });
