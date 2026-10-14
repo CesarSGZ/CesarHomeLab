@@ -140,7 +140,7 @@ def main():
                                                            lector=FS.leer_todo, max_edad=460)[0]
                 if fuente == "sec13f":                   # + carteras 13F de los grandes inversores de valor
                     from bt import clon13f
-                    extras[fuente] = clon13f.anadir_a_extra(extras[fuente], d.close.columns)
+                    extras[fuente] = clon13f.anadir_a_extra(extras[fuente], d.close.columns, gestores=clon13f.ORIGINALES)
             else:
                 extras[fuente] = IV.preparar_fundamentales(d, ind)[0]
         return extras[fuente]

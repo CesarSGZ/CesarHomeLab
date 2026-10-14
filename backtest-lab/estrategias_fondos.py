@@ -220,3 +220,47 @@ def rejilla_4():
         if nota == "consenso" and mg == 1:
             continue
         yield "clon", clon(n, nota, mg, banda, tend)
+
+
+# --------------------------------------------------------------------------------------------
+# Ronda 5: más gestores (13F ampliado + fondos españoles de la CNMV) y nota por convicción y antigüedad
+# --------------------------------------------------------------------------------------------
+PREFIJOS = {"13f": "c13", "ambos": "cam", "cnmv": "ces"}
+
+
+def clon2(n=10, fuentes="13f", nota="consenso", min_gestores=2, banda=3.0):
+    p = PREFIJOS[fuentes]
+    zona = "eeuu" if fuentes == "13f" else "global"
+
+    def ok(t):
+        return (t[f"{p}_n"] >= min_gestores) & _zona(t, zona)
+
+    def puntos(t):
+        if nota == "consenso":
+            v = t[f"{p}_n"] + t[f"{p}_peso"] * 1e-3
+        elif nota == "peso":
+            v = t[f"{p}_peso"]
+        elif nota == "conviccion":
+            v = t[f"{p}_conv"] + t[f"{p}_peso"] * 1e-3
+        else:                                            # antigüedad: peso x trimestres seguidos en cartera
+            v = t[f"{p}_antig"]
+        return v.where(ok(t))
+    origen = {"13f": "~50 gestores de valor de EE. UU. (13F)", "cnmv": "gestores de valor españoles (Cobas, Azvalor, Magallanes...)",
+              "ambos": "~50 gestores de EE. UU. (13F) + gestores españoles (Cobas, Azvalor, Magallanes...)"}[fuentes]
+    criterio = {"consenso": "más gestores que la tienen", "peso": "más peso total en sus carteras",
+                "conviccion": "más gestores que la tienen con convicción (≥ 4 % de su cartera)",
+                "antig": "más peso mantenido durante más tiempo"}[nota]
+    return _mk("Copiar a los grandes de valor", "clon2", ok, puntos, n, banda, False,
+               dict(n=n, fuentes=fuentes, nota=nota, min_gestores=min_gestores, banda=banda),
+               [f"Carteras ya publicadas de {origen}", f"las {n} con {criterio}"
+                + (f" (al menos {min_gestores} gestores)" if min_gestores > 1 else "")])
+
+
+FAMILIAS["clon2"] = clon2
+
+
+def rejilla_5():
+    for fuentes, nota, n, mg in itertools.product(["13f", "ambos", "cnmv"], ["consenso", "peso", "conviccion", "antig"], [10, 20], [1, 2]):
+        if nota == "consenso" and mg == 1:
+            continue
+        yield "clon2", clon2(n, fuentes, nota, mg, 3.0)

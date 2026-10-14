@@ -253,8 +253,16 @@ def sp500_despues_de_impuestos(sp: pd.Series):
     return out
 
 
-RONDAS = {"fondos": "rejilla", "tendencia": "rejilla_3", "clon": "rejilla_4"}
-INICIO_RONDA = {"clon": "2014-03-03"}       # los 13F estructurados empiezan a mediados de 2013
+def _extra_clon2(extra, d):
+    """Rasgos de copia con las tres fuentes (13F, CNMV y ambas), cada una con su prefijo."""
+    from bt import clon13f
+    for fuentes, p in (("13f", "c13"), ("cnmv", "ces"), ("ambos", "cam")):
+        extra = clon13f.anadir_a_extra(extra, d.close.columns, ("13f", "cnmv") if fuentes == "ambos" else (fuentes,), p)
+    return extra
+
+
+RONDAS = {"fondos": "rejilla", "tendencia": "rejilla_3", "clon": "rejilla_4", "clon2": "rejilla_5"}
+INICIO_RONDA = {"clon": "2014-03-03", "clon2": "2014-03-03"}       # los 13F estructurados empiezan a mediados de 2013
 
 
 def rejilla_fondos(ronda="fondos"):
@@ -268,7 +276,9 @@ def rejilla_fondos(ronda="fondos"):
     extra = FL.anadir_a_extra(extra, fotos, d, ind)
     if ronda == "clon":
         from bt import clon13f
-        extra = clon13f.anadir_a_extra(extra, d.close.columns)
+        extra = clon13f.anadir_a_extra(extra, d.close.columns, gestores=clon13f.ORIGINALES)
+    if ronda == "clon2":
+        extra = _extra_clon2(extra, d)
     inicio = INICIO_RONDA.get(ronda, INICIO)
     IV.log(f"Rasgos largos listos ({time.time() - t0:.0f}s)")
     ew = benchmark_equiponderado(ind, inicio, FIN_ENTRENO, 2e6)
@@ -302,7 +312,9 @@ def finalistas_fondos(k=5, ronda="fondos"):
     extra = FL.anadir_a_extra(extra, FS.leer_todo()[0], d, ind)
     if ronda == "clon":
         from bt import clon13f
-        extra = clon13f.anadir_a_extra(extra, d.close.columns)
+        extra = clon13f.anadir_a_extra(extra, d.close.columns, gestores=clon13f.ORIGINALES)
+    if ronda == "clon2":
+        extra = _extra_clon2(extra, d)
     inicio = INICIO_RONDA.get(ronda, INICIO)
     sp = d.sp500_eur
     out = []
