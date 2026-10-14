@@ -19,7 +19,7 @@
   <link rel="stylesheet" href="doors.css?v=20261006a">
   <link rel="stylesheet" href="backtest.css?v=20261012n">
   <link rel="stylesheet" href="/theme.css?v=20261001contrast">
-  <link rel="stylesheet" href="flight-control.css?v=20261007b">
+  <link rel="stylesheet" href="flight-control.css?v=20261014a">
 </head>
 <body class="access-pending" data-workspace>
   <canvas id="control-grid" aria-hidden="true"></canvas>
@@ -122,6 +122,37 @@
 
     <section class="view" id="infrastructure" data-title="Servers" data-code="02">
       <div class="simple-heading"><p class="eyebrow"><span></span> <b id="infrastructure-eyebrow">HomeLab infrastructure</b></p><h2 id="infrastructure-title">Servers & services.</h2><p id="infrastructure-intro">Operational controls for the workloads hosted by ServerCesar.</p></div>
+      <article class="server-card servercesar-card" id="servercesar" data-requires="servercesar:read" hidden>
+        <header>
+          <div><small>NODE / PC-01 · CASA DE MIS PADRES</small><h3>ServerCesar</h3></div>
+          <span class="connection-pill" data-sc-pill>COMPROBANDO…</span>
+        </header>
+        <div class="server-readout">
+          <div><small>ESTADO</small><strong data-sc-state>—</strong></div>
+          <div><small>SEÑAL</small><strong data-sc-via>—</strong></div>
+          <div><small>ÚLTIMO ENCENDIDO</small><strong data-sc-last>NUNCA</strong></div>
+          <div><small>COMPROBADO</small><strong data-sc-checked>—</strong></div>
+        </div>
+        <div class="server-actions">
+          <div>
+            <small>WAKE-ON-LAN</small>
+            <p>Envía el paquete de encendido al PC a través de depicus.com, como hacías a mano. Tarda uno o dos minutos en arrancar; el estado se actualiza solo mientras tanto.</p>
+          </div>
+          <button class="wake-button" id="sc-wake" type="button" disabled><span>⏻</span> Encender ServerCesar</button>
+        </div>
+        <p class="command-feedback" id="sc-feedback" role="status" aria-live="polite">Comprobando estado…</p>
+        <details class="sc-config" id="sc-config" hidden>
+          <summary>Configuración</summary>
+          <form id="sc-config-form" autocomplete="off">
+            <label><span>MAC</span><input name="mac" required placeholder="AA-BB-CC-DD-EE-FF" maxlength="17"></label>
+            <label><span>Host o IP pública</span><input name="host" required placeholder="tu-dominio.duckdns.org" maxlength="253"></label>
+            <label><span>Puerto Wake-on-LAN</span><input name="wolPort" required inputmode="numeric" placeholder="40010" maxlength="5"></label>
+            <label><span>Puertos para comprobar el estado</span><input name="probePorts" placeholder="p. ej. 3389, 25565" maxlength="40"></label>
+            <button type="submit" class="module-action">Guardar configuración</button>
+            <p class="sc-help">Se guarda solo en la base de datos privada de Mission Control, no en el repositorio público. El estado se considera encendido si responde alguno de esos puertos TCP o si el agente de Mission Control de ese PC ha dado señal en el último minuto.</p>
+          </form>
+        </details>
+      </article>
       <div class="server-console">
         <article class="server-card">
           <header>
@@ -336,8 +367,9 @@
   <script src="training.js?v=20261001strength"></script>
   <script type="module" src="backtest.js?v=20261012m"></script>
   <script src="github-galaxy.js?v=20260928atlas"></script>
-  <script src="control.js?v=20261011backtest"></script>
-  <script src="flight-control.js?v=20261007a" defer></script>
+  <script src="control.js?v=20261014servercesar"></script>
+  <script src="servercesar.js?v=20261014a" defer></script>
+  <script src="flight-control.js?v=20261014a" defer></script>
   <script src="thermal-viewer.bundle.js?v=20260805o"></script>
 </body>
 </html>

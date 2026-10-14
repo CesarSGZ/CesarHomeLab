@@ -71,3 +71,30 @@
   [data-workspace] .view :is(h1,h2) em{background-position:0 0}
   #overview .module,#overview .module:hover,.sidebar .nav-item:hover{transform:none}
 }
+
+/* ---- Sidebar: the module list scrolls when it does not fit ---- */
+.sidebar nav{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:color-mix(in srgb,var(--acid) 45%,transparent) transparent;margin-right:-10px;padding-right:10px;
+  -webkit-mask:linear-gradient(#000 calc(100% - 28px),transparent);mask:linear-gradient(#000 calc(100% - 28px),transparent)}
+.sidebar nav::-webkit-scrollbar{width:5px}
+.sidebar nav::-webkit-scrollbar-thumb{background:color-mix(in srgb,var(--acid) 45%,transparent);border-radius:3px}
+.sidebar-foot{flex:none;padding-top:14px}
+
+/* ---- ServerCesar: Wake-on-LAN panel ---- */
+.servercesar-card{margin-top:12px;border-radius:14px}
+.servercesar-card[data-state=online] .server-readout strong[data-sc-state]{color:var(--acid)}
+.servercesar-card[data-state=no-response] .server-readout strong[data-sc-state]{color:#ffb38a}
+.wake-button{min-width:220px;padding:16px 20px;border:1px solid color-mix(in srgb,var(--acid) 55%,transparent);border-radius:10px;background:color-mix(in srgb,var(--acid) 10%,transparent);color:var(--acid);font:500 11px "DM Mono",monospace;letter-spacing:.08em;cursor:pointer;transition:background .25s,transform .3s var(--fc-spring),box-shadow .3s}
+.wake-button span{display:inline-block;margin-right:8px;font-size:17px;vertical-align:-1px}
+.wake-button:not(:disabled):hover{background:color-mix(in srgb,var(--acid) 18%,transparent);transform:translateY(-2px);box-shadow:0 10px 30px color-mix(in srgb,var(--acid) 18%,transparent)}
+.wake-button:disabled{cursor:not-allowed;filter:grayscale(.6);opacity:.45}
+.sc-config{border-top:1px solid var(--line)}
+.sc-config summary{padding:14px 28px;cursor:pointer;color:var(--muted);font:500 9px "DM Mono",monospace;letter-spacing:.12em;text-transform:uppercase}
+.sc-config summary:hover{color:var(--ink)}
+.sc-config form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 18px;padding:4px 28px 26px}
+.sc-config label{display:grid;gap:7px}
+.sc-config label span{color:var(--muted);font:500 8px "DM Mono",monospace;letter-spacing:.12em;text-transform:uppercase}
+.sc-config input{padding:12px 14px;border:1px solid var(--line);border-radius:8px;background:rgba(0,0,0,.18);color:var(--ink);font:500 13px "DM Mono",monospace}
+.sc-config input:focus{outline:2px solid var(--acid);outline-offset:1px}
+.sc-config button{justify-self:start;align-self:end}
+.sc-help{grid-column:1/-1;margin:0;color:var(--muted);font-size:12px;line-height:1.6}
+@media(max-width:700px){.sc-config form{grid-template-columns:1fr}.wake-button{width:100%}}

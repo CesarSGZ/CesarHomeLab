@@ -446,6 +446,7 @@ async function initialiseControl(){
   }
   if(hasCapability('github:read'))window.GitHubGalaxy?.initialise();
   if(hasCapability('training:read'))window.TrainingLab?.initialise(csrfToken);
+  if(hasCapability('servercesar:read')){window.ServerCesarPending={csrf:csrfToken,canWake:hasCapability('servercesar:wake')};window.ServerCesar?.initialise(csrfToken,hasCapability('servercesar:wake'))}
   if(hasCapability('trading:manage')){
     window.TradingLabPending=csrfToken;
     window.dispatchEvent(new CustomEvent('homelab:trading-init',{detail:csrfToken}));
