@@ -29,6 +29,15 @@ GESTORES = {   # patrón del nombre del gestor en la portada del 13F -> nombre c
     r"HARRIS ASSOCIATES": "Oakmark (Harris)", r"GARDNER RUSSO": "Gardner Russo", r"WEDGEWOOD PARTNERS": "Wedgewood",
     r"GIVERNY CAPITAL": "Giverny", r"PATIENT CAPITAL": "Patient Capital (Miller)", r"CHOU ASSOCIATES": "Chou",
     r"MAR VISTA": "Mar Vista", r"GOTHAM ASSET": "Gotham (Greenblatt)",
+    # ampliación (octubre de 2026)
+    r"^DAILY JOURNAL": "Daily Journal (Munger)", r"H&H INTERNATIONAL": "H&H (Duan Yongping)", r"PZENA INVESTMENT": "Pzena",
+    r"HOTCHKIS": "Hotchkis & Wiley", r"DONALD SMITH": "Donald Smith & Co", r"DAVIS SELECTED": "Davis Selected",
+    r"^DODGE & COX": "Dodge & Cox", r"FIRST EAGLE INVESTMENT": "First Eagle", r"FIRST PACIFIC ADVISORS": "FPA (Romick)",
+    r"LINDSELL TRAIN": "Lindsell Train", r"^FUNDSMITH": "Fundsmith (Terry Smith)", r"WEITZ INVESTMENT": "Weitz",
+    r"BRAVE WARRIOR": "Brave Warrior (Greenberg)", r"PUNCH CARD": "Punch Card (Lou)", r"ARLINGTON VALUE": "Arlington Value (Mecham)",
+    r"YACKTMAN": "Yacktman", r"KAHN BROTHERS": "Kahn Brothers", r"ARIEL INVESTMENTS": "Ariel", r"GREENHAVEN ASSOCIATES": "Greenhaven",
+    r"TRIPLE FROND": "Triple Frond", r"BARES CAPITAL": "Bares", r"CANTILLON": "Cantillon", r"DIAMOND HILL CAPITAL": "Diamond Hill",
+    r"MUHLENKAMP": "Muhlenkamp",
 }
 
 
