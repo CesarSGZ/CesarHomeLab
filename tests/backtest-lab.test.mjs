@@ -145,6 +145,16 @@ test('IBKR paper snapshots: only paper accounts, one history point per day, stor
   assert.equal(dos.historial.length, 1, 'same day replaces');
   const tres = combinar(dos, {...limpia, fecha: '2026-10-13T20:00:00+00:00', valor: 1001000});
   assert.equal(tres.historial.length, 2); assert.equal(tres.inicio.slice(0, 10), '2026-10-12');
+  const conPlan = limpiarFoto({...base, estrategias: {precio: {nombre: 'Momentum', asignado: 5e5, valor: 51e4, caja: 1200.5, indice: 1.02, raro: 3}},
+    plan: {inicio: '2026-10-19', reserva: 86500, porAportar: 110000, aporteMensual: 10000, caidaSP: -0.031, disparosUsados: 0,
+      reglas: {pesos: {precio: 0.5, 'MAL CLAVE': 0.5}, reserva: 0.1, rearme: -0.05, disparos: [{caidaSP: -0.15, fraccion: 1}]},
+      aportes: [{fecha: '2026-11-02', aporte: 10000, caidaSP: -0.02, precio: 10000, otra: 5}], secreto: 'x'}});
+  assert.equal(conPlan.estrategias.precio.indice, 1.02); assert.equal(conPlan.estrategias.precio.caja, 1200.5);
+  assert.deepEqual(Object.keys(conPlan.plan.reglas.pesos), ['precio'], 'money plan: only well-formed strategy keys');
+  assert.deepEqual(conPlan.plan.aportes[0], {fecha: '2026-11-02', aporte: 10000, caidaSP: -0.02, precio: 10000});
+  assert.equal(conPlan.plan.secreto, undefined); assert.equal(limpia.plan, null);
+  assert.equal(combinar(null, conPlan).historial[0].indices.precio, 1.02, 'per-unit value kept so savings do not look like gains');
+  assert.equal(combinar(null, limpia).historial[0].indices, undefined);
   const {db, sqlite} = d1();
   await guardar(bridge({CONTROL_DB: db}), limpia);
   const fila = JSON.parse(sqlite.prepare("SELECT payload FROM personal_datasets WHERE name='ibkr-paper'").get().payload);

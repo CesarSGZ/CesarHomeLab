@@ -29,13 +29,14 @@
       "n": 15,
       "mom": "mom_6m",
       "liquidez": 50000000.0,
-      "filtro_mercado": true
+      "filtro_mercado": true,
+      "semaforo": true
     },
     "busqueda": {
       "variantes": 353,
       "sharpeDeflactado": 0.058,
-      "miradasValidacion": 3,
-      "nota": "Elige entre las acciones de EE. UU. más negociadas (no por tamaño). Su versión con stop del 25 % puntuó casi igual en 2008-2018 pero solo hizo un 19 % al año en 2019-hoy: el resultado es frágil."
+      "miradasValidacion": 5,
+      "nota": "Elige entre las acciones de EE. UU. más negociadas (no por tamaño). Su versión con stop del 25 % puntuó casi igual en 2008-2018 pero solo hizo un 19 % al año en 2019-hoy: el resultado es frágil. Octubre de 2026: se añade el semáforo de compra (no comprar si va por libre del mercado o tiene días de lotería), elegido entre 4 versiones solo con 2008-2018 y probado contra 20 filtros al azar con las empresas desaparecidas incluidas: Sharpe 0,83 -> 1,00 en 2008-2018 y 0,71 -> 1,03 en 2019-hoy, caída máxima -61 % -> -29 %, algo menos de rentabilidad en 2019-hoy (26,0 % -> 23,3 %)."
     }
   }
 ]

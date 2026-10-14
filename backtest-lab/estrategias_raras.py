@@ -8,7 +8,7 @@ from estrategias_global import COLUMNAS_PRECIO, PRECIO_FIN_ENTRENO, PRECIO_INICI
 
 COLUMNAS_PRECIO_4 = COLUMNAS_PRECIO + ["discrecion", "max_dia_21", "rent_div", "salto_vol_5d", "salto_vol_63d",
                                        "contraccion", "mom_1s", "es_eeuu", "es_europa", "es_asia", "zona_lider",
-                                       "cambio_mes"]
+                                       "cambio_mes", "r2_mercado", "max5_21"]
 ZONAS = {"global": None, "eeuu": "es_eeuu", "europa": "es_europa", "asia": "es_asia"}
 NOMBRE_ZONA = {"global": "todo el mundo", "eeuu": "EE. UU.", "europa": "Europa", "asia": "Asia-Pacífico"}
 
@@ -75,17 +75,32 @@ def momentum_sin_loteria(n=30, max_dia=0.08, zona="global", filtro_mercado=True)
                   "venta": ["Pierde la media de 200 o deja de estar entre las que más suben"]}, filtro_mercado)
 
 
-def megacaps(n=10, mom="mom_12_1", liquidez=100e6, filtro_mercado=True):
+# semáforo (fase 3/8): no se compra si 'va por libre' (R² con el S&P < 0,0952) o tiene 'días de lotería' (> 4,04 %)
+SEMAFORO_R2, SEMAFORO_MAX5 = 0.0952, 0.0404
+
+
+def alerta_precio(t):
+    return (t["r2_mercado"] < SEMAFORO_R2) | (t["max5_21"] > SEMAFORO_MAX5)
+
+
+def megacaps(n=10, mom="mom_12_1", liquidez=100e6, filtro_mercado=True, semaforo=False):
     def ok(t):
         return operable(t) & t["es_eeuu"].fillna(False).astype(bool) & (t["efectivo_60d"] >= liquidez) & (t["px"] > t["sma200"])
 
+    def entrada(t):
+        e = t[mom].where(ok(t)).rank(ascending=False) <= n
+        # la alerta solo impide comprar: el hueco espera en liquidez a la semana siguiente (sin ventas extra)
+        return e & ~alerta_precio(t) if semaforo else e
+
     e = _base("Momentum en EE. UU. (las más negociadas)", "megacaps",
-                 lambda t: t[mom].where(ok(t)).rank(ascending=False) <= n,
+                 entrada,
                  lambda t: (t["px"] > t["sma200"]) & (t[mom].where(ok(t)).rank(ascending=False) <= n * 2.5),
-                 lambda t: t[mom], n, dict(n=n, mom=mom, liquidez=liquidez, filtro_mercado=filtro_mercado),
+                 lambda t: t[mom], n, dict(n=n, mom=mom, liquidez=liquidez, filtro_mercado=filtro_mercado, semaforo=semaforo),
                  {"compra": [f"Entre las acciones de EE. UU. con más de {liquidez / 1e6:g} M€ negociados al día",
                              f"compra las {n} que más han subido en " + {"mom_6m": "6 meses", "mom_12_1": "12 meses", "mom_3m": "3 meses"}.get(mom, mom),
-                             "si están por encima de su media de 200 sesiones"],
+                             "si están por encima de su media de 200 sesiones"]
+                            + (["salvo si va por libre del mercado (R² < 0,095) o ha tenido días de lotería (5 mejores días del mes > 4 %)"]
+                               if semaforo else []),
                   "venta": ["Cae por debajo de su media de 200", f"o deja de estar entre las {int(n * 2.5)} que más suben"]},
                  filtro_mercado, liquidez)
     e.elegibles = ok

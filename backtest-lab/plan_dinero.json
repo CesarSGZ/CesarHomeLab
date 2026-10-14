@@ -1,0 +1,10 @@
+{
+  "nombre": "Plan del dinero · octubre de 2026",
+  "pesos": {"fundamental": 0.5, "precio": 0.5},
+  "reserva": 0.10,
+  "disparos": [{"caidaSP": -0.15, "fraccion": 1.0}],
+  "rearme": -0.05,
+  "aporteMensual": 0.0,
+  "papel": {"aporteMensual": 10000.0, "bolsa": 120000.0},
+  "nota": "Elegido con 2008-2018 (estudio_plan.py, 84 combinaciones, la estrategia 1 sustituida por el S&P 500 antes de 2014). Nunca se vende para reequilibrar. 10 % en reserva de liquidez (monetario) porque se quiere tener liquidez para caídas; cuesta ~0,7 puntos al año frente a estar todo invertido (18,1 % frente a 18,8 % en 2008-2018). De las 5 reglas para usar la reserva, 'invertirla entera cuando el S&P cae un 15 % desde su máximo de 1 año' fue la mejor en 2008-2018 con cualquier tamaño de reserva y recupera más de la mitad de ese coste. 50/50 entre estrategias: 40/60 daba un Sharpe 0,02 mejor (ruido) y cargaría más en momentum, la más frágil. 'papel': en la cuenta paper el ahorro mensual (1 % del capital inicial) se simula con una bolsa de 12 meses apartada al arrancar el plan."
+}
