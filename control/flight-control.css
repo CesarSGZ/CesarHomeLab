@@ -101,6 +101,8 @@
 .sc-system span{display:grid;gap:4px}
 .sc-system small,.sc-apps small{color:var(--muted);font:500 8px "DM Mono",monospace;letter-spacing:.12em;text-transform:uppercase}
 .sc-system b{font:500 12px "DM Mono",monospace;color:var(--ink)}
+.sc-system b[data-sc-wolpath][data-ok=true]{color:var(--acid)}
+.sc-system b[data-sc-wolpath][data-ok=false]{color:#ff6b6b}
 .sc-apps{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:0;padding:6px 28px 18px;list-style:none}
 .sc-apps li{display:flex;align-items:center;gap:12px;padding:12px 14px;border:1px solid var(--line);border-radius:10px;background:rgba(0,0,0,.12)}
 .sc-apps li div{display:grid;gap:4px;min-width:0}

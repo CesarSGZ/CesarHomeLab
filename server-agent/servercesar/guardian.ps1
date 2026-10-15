@@ -73,8 +73,10 @@ function Get-SignedIn([string]$key) {
 # what the app reports). Only that task can ask the app, so a stale file means "not checked".
 function Get-RemoteControlState {
     try {
-        $rc = Get-Content -Raw -LiteralPath (Join-Path $StateDir 'remote-control.json') -ErrorAction Stop | ConvertFrom-Json
-        $age = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds() - [double]$rc.at
+        $file = Get-Item -LiteralPath (Join-Path $StateDir 'remote-control.json') -ErrorAction Stop
+        $rc = Get-Content -Raw -LiteralPath $file.FullName | ConvertFrom-Json
+        # The task rewrites the file on every run, so its modification time is the "last checked" time.
+        $age = ((Get-Date) - $file.LastWriteTime).TotalMilliseconds
         if ($age -gt 25 * 60000) { return @{ On = $null; Detail = 'RC sin comprobar desde hace ' + [int]($age / 60000) + ' min' } }
         $sessions = @($rc.sessions)
         $on = @($sessions | Where-Object { $_.state -eq 'on' }).Count

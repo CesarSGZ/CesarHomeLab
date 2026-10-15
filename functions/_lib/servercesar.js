@@ -65,6 +65,9 @@ export function sanitiseReport(raw = {}) {
   return {
     bootTime: num(raw.bootTime, 0, 1e14),
     resumeTime: num(raw.resumeTime, 0, 1e14),
+    wolPath: raw.wolPath && typeof raw.wolPath === "object"
+      ? { ok: bool(raw.wolPath.ok), at: num(raw.wolPath.at, 0, 1e14), detail: str(raw.wolPath.detail, 120) }
+      : null,
     cpu: num(raw.cpu, 0, 100),
     ram: num(raw.ram, 0, 100),
     diskFreeGb: num(raw.diskFreeGb, 0, 1e6),
@@ -121,6 +124,11 @@ export async function queuePowerCommand(db, action, username, now = Date.now()) 
   if (!POWER_ACTIONS.includes(action)) return { ok: false, error: "invalid_action" };
   const report = await readReport(db);
   if (!report || now - report.receivedAt > REPORT_FRESH_MS) return { ok: false, error: "agent_offline" };
+  // A sleeping PC can only come back through Wake-on-LAN: refuse unless the agent's last
+  // end-to-end check (within 12 h) saw a magic packet from the Internet arrive.
+  if (action === "shutdown" && !(report.wolPath?.ok === true && now - (report.wolPath.at || 0) < 12 * 3600_000)) {
+    return { ok: false, error: "wol_route_unverified" };
+  }
   const previous = await lastPowerCommand(db);
   if (previous && now - previous.requested_at < REBOOT_COOLDOWN_MS) return { ok: false, error: "cooldown", retryAt: previous.requested_at + REBOOT_COOLDOWN_MS };
   const id = crypto.randomUUID();

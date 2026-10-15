@@ -5,10 +5,10 @@ import {checkConfig, sendMagicPacket, probe, powerStatus, sanitiseReport, appHea
 import {userCan, constantTimeEqual} from '../functions/_lib/auth.js';
 
 // Minimal D1 stand-in for the power command queue: answers the handful of statements servercesar.js issues.
-function fakeDb({reportAt = null} = {}) {
+function fakeDb({reportAt = null, wolPath = {ok: true, at: reportAt}} = {}) {
   const commands = [];
   const run = (sql, args) => {
-    if (sql.startsWith('SELECT report')) return reportAt == null ? null : {report: '{"apps":{}}', received_at: reportAt};
+    if (sql.startsWith('SELECT report')) return reportAt == null ? null : {report: JSON.stringify({apps: {}, wolPath}), received_at: reportAt};
     if (sql.startsWith('SELECT id, type, status')) return [...commands].sort((a, b) => b.requested_at - a.requested_at)[0] || null;
     if (sql.startsWith('INSERT INTO servercesar_commands')) { commands.push({id: args[0], type: args[1], status: 'queued', requested_by: args[2], requested_at: args[3]}); return {meta: {changes: 1}}; }
     if (sql.startsWith("UPDATE servercesar_commands SET status = 'expired'")) { commands.filter(c => c.status === 'queued' && c.requested_at < args[0]).forEach(c => { c.status = 'expired'; }); return {meta: {}}; }
@@ -78,6 +78,16 @@ test('shutdown is queued like a reboot and nothing else can be', async () => {
   assert.equal((await queuePowerCommand(db, 'format-c', 'CesarVapor', now)).error, 'invalid_action');
   const queued = await queuePowerCommand(db, 'shutdown', 'CesarVapor', now);
   assert.deepEqual(await agentExchange(db, null, now + 1000), {id: queued.id, type: 'shutdown'});
+});
+
+test('"Apagar" is refused unless the Internet power-on route was verified in the last 12 hours', async () => {
+  const now = 1_000_000_000;
+  assert.equal((await queuePowerCommand(fakeDb({reportAt: now, wolPath: null}), 'shutdown', 'CesarVapor', now)).error, 'wol_route_unverified');
+  assert.equal((await queuePowerCommand(fakeDb({reportAt: now, wolPath: {ok: false, at: now}}), 'shutdown', 'CesarVapor', now)).error, 'wol_route_unverified');
+  assert.equal((await queuePowerCommand(fakeDb({reportAt: now, wolPath: {ok: true, at: now - 13 * 3600_000}}), 'shutdown', 'CesarVapor', now)).error, 'wol_route_unverified');
+  assert.equal((await queuePowerCommand(fakeDb({reportAt: now, wolPath: {ok: true, at: now - 3600_000}}), 'shutdown', 'CesarVapor', now)).ok, true);
+  // a reboot comes back on its own, so it does not need the route
+  assert.equal((await queuePowerCommand(fakeDb({reportAt: now, wolPath: null}), 'reboot', 'CesarVapor', now)).ok, true);
 });
 
 test('a forgotten queued reboot expires instead of firing hours later', async () => {

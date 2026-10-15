@@ -21,7 +21,7 @@ export async function onRequest(context) {
   return json({
     ok: true,
     power,
-    agent: report ? { fresh: now - report.receivedAt < REPORT_FRESH_MS, receivedAt: report.receivedAt, bootTime: report.bootTime, resumeTime: report.resumeTime, cpu: report.cpu, ram: report.ram, diskFreeGb: report.diskFreeGb, userSession: report.userSession, guardianAt: report.guardianAt, version: report.agentVersion } : null,
+    agent: report ? { fresh: now - report.receivedAt < REPORT_FRESH_MS, receivedAt: report.receivedAt, bootTime: report.bootTime, resumeTime: report.resumeTime, wolPath: report.wolPath || null, cpu: report.cpu, ram: report.ram, diskFreeGb: report.diskFreeGb, userSession: report.userSession, guardianAt: report.guardianAt, version: report.agentVersion } : null,
     apps,
     lastWake: wake ? { by: wake.by_user, at: wake.at, ok: Boolean(wake.ok), detail: wake.detail } : null,
     lastPower: command ? { action: command.type, by: command.requested_by, at: command.requested_at, claimedAt: command.claimed_at, status: command.status, result: command.result } : null,
