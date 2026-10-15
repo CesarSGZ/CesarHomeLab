@@ -10,7 +10,7 @@ param(
 $ErrorActionPreference = 'Continue'
 Add-Type -AssemblyName System.Security
 
-$AgentVersion = '1.2.0'
+$AgentVersion = '1.3.0'
 $SiteBaseUrl = 'https://cesar-solla.pages.dev'
 $IntervalSeconds = 30
 $GuardianTask = 'ServerCesar Guardian'
@@ -82,6 +82,7 @@ function Get-Report([bool]$userSession) {
         agentVersion = $AgentVersion
         bootTime = [double]([DateTimeOffset]$os.LastBootUpTime).ToUnixTimeMilliseconds()
         resumeTime = Get-ResumeTime
+        wolPath = $script:WolPath
         cpu = [double]$cpu
         ram = [double][Math]::Round(100 * (1 - $os.FreePhysicalMemory / $os.TotalVisibleMemorySize), 1)
         diskFreeGb = [double][Math]::Round($disk.FreeSpace / 1GB, 1)
@@ -127,10 +128,10 @@ function Get-ResumeTime {
     $null
 }
 
-# "shutdown" puts the PC to sleep (S3) instead of powering it off (S5). Asleep, the Intel I211
-# keeps answering ARP for its IP (ARP offload), so the Movistar router can still deliver the
-# Wake-on-LAN packet forwarded from the Internet. Fully off, the router forgets the PC's MAC
-# within minutes and the packet is dropped: that is why a real shutdown could not be woken.
+# "shutdown" puts the PC to sleep (S3) instead of powering it off (S5): apps, Minecraft and the
+# Remote Control sessions are frozen instead of closed, and resume in seconds. Wake-on-LAN reaches
+# it the same way in both states: the Movistar router forwards UDP 40010 from the Internet to the
+# LAN broadcast 192.168.1.255:9 (Test-WolPath checks that route every few hours).
 function Invoke-Power($command) {
     Write-Log "$($command.type) requested ($($command.id))"
     if ($command.type -eq 'shutdown') {
@@ -168,10 +169,62 @@ function Invoke-Sleep {
     # Returns once the PC wakes up again.
     $ok = [System.Windows.Forms.Application]::SetSuspendState([System.Windows.Forms.PowerState]::Suspend, $false, $false)
     Write-Log "resumed (suspend returned $ok)"
+    Enable-KeepAwake
+}
+
+# A PC woken without anyone at the keyboard (Wake-on-LAN, wake timer) falls back to sleep after
+# Windows' 2-minute "unattended" idle timeout. Holding ES_SYSTEM_REQUIRED from this always-running
+# SYSTEM process keeps it awake; an explicit sleep (Invoke-Sleep) still works.
+Add-Type -Namespace ServerCesar -Name Power -MemberDefinition '[DllImport("kernel32.dll")] public static extern uint SetThreadExecutionState(uint esFlags);'
+function Enable-KeepAwake {
+    $ES_CONTINUOUS = [uint32]'0x80000000'; $ES_SYSTEM_REQUIRED = [uint32]1
+    [void][ServerCesar.Power]::SetThreadExecutionState($ES_CONTINUOUS -bor $ES_SYSTEM_REQUIRED)
+}
+
+# End-to-end check of the Internet power-on route: ask depicus (the same relay Mission Control
+# uses) to send a magic packet to the public address, and listen for it as the LAN broadcast on
+# UDP 9. Target comes from $Root\wol-target.json ({"host","port","mac"}), which is never in the
+# public repository. Runs at start and every 6 hours; the result is shown in Mission Control.
+$script:WolPath = $null
+$script:WolPathNext = (Get-Date).AddMinutes(2)
+function Test-WolPath {
+    if ((Get-Date) -lt $script:WolPathNext) { return }
+    $script:WolPathNext = (Get-Date).AddHours(6)
+    $rule = 'ServerCesar WoL route check'
+    $result = @{ ok = $false; at = [double][DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds(); detail = '' }
+    $listener = $null
+    try {
+        $target = Get-Content -Raw (Join-Path $Root 'wol-target.json') | ConvertFrom-Json
+        New-NetFirewallRule -DisplayName $rule -Direction Inbound -Protocol UDP -LocalPort 9 -Action Allow -Profile Any | Out-Null
+        $listener = [Net.Sockets.UdpClient]::new()
+        $listener.Client.SetSocketOption([Net.Sockets.SocketOptionLevel]::Socket, [Net.Sockets.SocketOptionName]::ReuseAddress, $true)
+        $listener.Client.Bind([Net.IPEndPoint]::new([Net.IPAddress]::Any, 9))
+        $listener.Client.ReceiveTimeout = 20000
+        $body = "macaddress=$($target.mac)&ip=$($target.host)&subnet=255.255.255.255&port=$($target.port)&secureon="
+        Invoke-WebRequest -UseBasicParsing -Method Post -Uri 'https://www.depicus.com/wake-on-lan/woli-ajax.php' -Body $body `
+            -ContentType 'application/x-www-form-urlencoded; charset=UTF-8' -TimeoutSec 15 `
+            -Headers @{ 'x-requested-with' = 'XMLHttpRequest'; referer = 'https://www.depicus.com/wake-on-lan/woli' } | Out-Null
+        $remote = [Net.IPEndPoint]::new([Net.IPAddress]::Any, 0)
+        try {
+            [void]$listener.Receive([ref]$remote)
+            $result.ok = $true; $result.detail = 'El paquete llega desde Internet'
+        } catch {
+            $result.detail = 'El paquete no llega: revisa el reenvio UDP del router'
+        }
+    } catch {
+        $result.detail = 'No se pudo comprobar: ' + $_.Exception.Message
+    } finally {
+        if ($listener) { $listener.Close() }
+        Remove-NetFirewallRule -DisplayName $rule -ErrorAction SilentlyContinue
+    }
+    if (-not $result.ok) { $script:WolPathNext = (Get-Date).AddMinutes(30) }
+    Write-Log "wol route check: $($result.ok) ($($result.detail))"
+    $script:WolPath = $result
 }
 
 $token = Read-AgentToken
 Write-Log "agent $AgentVersion started"
+Enable-KeepAwake
 
 while ($true) {
     try {
@@ -179,6 +232,7 @@ while ($true) {
         $userSession = Test-UserSession
         Repair-Guardian $userSession
         Invoke-StoreScan
+        Test-WolPath
         $body = @{ report = (Get-Report $userSession) }
         if ($pendingDone) { $body.done = $pendingDone }
         $json = $body | ConvertTo-Json -Depth 6 -Compress
