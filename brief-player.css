@@ -1,6 +1,8 @@
 /* Hero mission-brief player: the one-minute video takes the portrait's place, front and centre. */
 .hero{grid-template-columns:minmax(0,1.05fr) minmax(360px,1fr);gap:5%;overflow:clip}
-.hero h1{font-size:clamp(46px,4.7vw,84px)}
+/* Size the headline to its own column ("complex systems" is ~8.8em wide and never wraps) */
+.hero-copy{container-type:inline-size}
+.hero h1{font-size:clamp(34px,10.4cqi,84px)}
 .identity{width:100%;max-width:660px}
 .brief-stage{position:relative}
 .brief-player{position:relative;aspect-ratio:16/9;border-radius:18px;overflow:hidden;background:#07060b;isolation:isolate;
