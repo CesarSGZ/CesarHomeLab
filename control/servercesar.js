@@ -93,8 +93,10 @@
     const powerBlocked = !data.canWake || !data.agent?.fresh || Boolean(phase?.busy) || Date.now() < (data.powerCooldownUntil || 0);
     // Never offer "Apagar" unless the agent has just proved a magic packet from the Internet reaches the PC.
     const routeOk = data.agent?.wolPath?.ok === true;
-    $('#sc-reboot').disabled = powerBlocked; $('#sc-shutdown').disabled = powerBlocked || !routeOk;
-    $('#sc-shutdown').title = routeOk ? '' : 'Bloqueado: la ruta de encendido desde Internet no está comprobada como OK';
+    $('#sc-reboot').disabled = powerBlocked;
+    // "Apagar" is switched off server-side until a real wake from sleep is proven (see SHUTDOWN_ENABLED).
+    $('#sc-shutdown').disabled = true;
+    $('#sc-shutdown').title = 'Desactivado: el paquete de encendido aún no ha despertado el PC desde apagado';
     if (phase && !(online && phase.label === 'APAGADO')) { feedback(phase.text, phase.kind); if (phase.busy) fastUntil = Math.max(fastUntil, Date.now() + 60e3); }
     else if (p.state === 'unconfigured' && !online) feedback(data.canWake ? 'Abre «Configuración» y guarda la MAC, el host y el puerto para poder encenderlo.' : 'El propietario aún no ha configurado ServerCesar.');
     else if (online) {
@@ -149,6 +151,7 @@
       if (response.ok && data.ok) { fastUntil = Date.now() + 4 * 60e3; feedback('Orden enviada. El agente la recoge en menos de 30 s…', 'success'); }
       else if (data.error === 'cooldown') feedback('Ya se pidió un reinicio o apagado hace menos de 3 minutos. Espera un momento.', 'error');
       else if (data.error === 'agent_offline') feedback('El agente de ServerCesar no da señal, así que no puede recibir la orden.', 'error');
+      else if (data.error === 'shutdown_disabled') feedback('«Apagar» está desactivado hasta que el encendido remoto esté comprobado.', 'error');
       else if (data.error === 'wol_route_unverified') feedback('No se apaga: el paquete de encendido no está comprobado desde Internet y luego no podrías encenderlo.', 'error');
       else feedback('No se pudo enviar la orden: ' + (data.error || response.status), 'error');
     } catch { feedback('No se pudo enviar la orden. Inténtalo de nuevo.', 'error'); }

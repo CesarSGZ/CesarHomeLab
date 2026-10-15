@@ -64,7 +64,7 @@ test('reboot: needs a live agent, is handed out once, has a cooldown and records
   const db = fakeDb({reportAt: now - 10_000});
   const queued = await queuePowerCommand(db, 'reboot', 'CesarVapor', now);
   assert.equal(queued.ok, true);
-  assert.equal((await queuePowerCommand(db, 'shutdown', 'CesarVapor', now + 1000)).error, 'cooldown');
+  assert.equal((await queuePowerCommand(db, 'reboot', 'CesarVapor', now + 1000)).error, 'cooldown');
   const command = await agentExchange(db, null, now + 5000);
   assert.deepEqual(command, {id: queued.id, type: 'reboot'});
   assert.equal(await agentExchange(db, null, now + 6000), null);
@@ -72,12 +72,12 @@ test('reboot: needs a live agent, is handed out once, has a cooldown and records
   assert.equal(db.commands[0].status, 'succeeded');
 });
 
-test('shutdown is queued like a reboot and nothing else can be', async () => {
+test('only reboot and shutdown exist, and shutdown stays disabled until a real remote wake is proven', async () => {
   const now = 1_000_000_000;
   const db = fakeDb({reportAt: now});
   assert.equal((await queuePowerCommand(db, 'format-c', 'CesarVapor', now)).error, 'invalid_action');
-  const queued = await queuePowerCommand(db, 'shutdown', 'CesarVapor', now);
-  assert.deepEqual(await agentExchange(db, null, now + 1000), {id: queued.id, type: 'shutdown'});
+  assert.equal((await queuePowerCommand(db, 'shutdown', 'CesarVapor', now)).error, 'shutdown_disabled');
+  assert.equal(db.commands.length, 0);
 });
 
 test('"Apagar" is refused unless the Internet power-on route was verified in the last 12 hours', async () => {
@@ -85,7 +85,7 @@ test('"Apagar" is refused unless the Internet power-on route was verified in the
   assert.equal((await queuePowerCommand(fakeDb({reportAt: now, wolPath: null}), 'shutdown', 'CesarVapor', now)).error, 'wol_route_unverified');
   assert.equal((await queuePowerCommand(fakeDb({reportAt: now, wolPath: {ok: false, at: now}}), 'shutdown', 'CesarVapor', now)).error, 'wol_route_unverified');
   assert.equal((await queuePowerCommand(fakeDb({reportAt: now, wolPath: {ok: true, at: now - 13 * 3600_000}}), 'shutdown', 'CesarVapor', now)).error, 'wol_route_unverified');
-  assert.equal((await queuePowerCommand(fakeDb({reportAt: now, wolPath: {ok: true, at: now - 3600_000}}), 'shutdown', 'CesarVapor', now)).ok, true);
+  assert.equal((await queuePowerCommand(fakeDb({reportAt: now, wolPath: {ok: true, at: now - 3600_000}}), 'shutdown', 'CesarVapor', now)).error, 'shutdown_disabled');
   // a reboot comes back on its own, so it does not need the route
   assert.equal((await queuePowerCommand(fakeDb({reportAt: now, wolPath: null}), 'reboot', 'CesarVapor', now)).ok, true);
 });

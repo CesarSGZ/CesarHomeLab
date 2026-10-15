@@ -114,6 +114,7 @@ export async function readReport(db) {
 }
 
 export const POWER_ACTIONS = ["reboot", "shutdown"];
+export const SHUTDOWN_ENABLED = false;
 
 export async function lastPowerCommand(db) {
   return db.prepare("SELECT id, type, status, requested_by, requested_at, claimed_at, completed_at, result FROM servercesar_commands WHERE type IN ('reboot', 'shutdown') ORDER BY requested_at DESC LIMIT 1").first();
@@ -129,6 +130,9 @@ export async function queuePowerCommand(db, action, username, now = Date.now()) 
   if (action === "shutdown" && !(report.wolPath?.ok === true && now - (report.wolPath.at || 0) < 12 * 3600_000)) {
     return { ok: false, error: "wol_route_unverified" };
   }
+  // A packet that reaches the PC while it is on did not wake it from sleep or hibernation
+  // (tests on 15/10/2026): until a real wake is proven, "Apagar" stays off so the PC is never stranded.
+  if (action === "shutdown" && !SHUTDOWN_ENABLED) return { ok: false, error: "shutdown_disabled" };
   const previous = await lastPowerCommand(db);
   if (previous && now - previous.requested_at < REBOOT_COOLDOWN_MS) return { ok: false, error: "cooldown", retryAt: previous.requested_at + REBOOT_COOLDOWN_MS };
   const id = crypto.randomUUID();
