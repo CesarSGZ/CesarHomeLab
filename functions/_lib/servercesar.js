@@ -75,6 +75,11 @@ export function sanitiseReport(raw = {}) {
   return {
     bootTime: num(raw.bootTime, 0, 1e14),
     resumeTime: num(raw.resumeTime, 0, 1e14),
+    lastResume: raw.lastResume && typeof raw.lastResume === "object" ? {
+      at: num(raw.lastResume.at, 0, 1e14),
+      kind: ["network", "timer", "other", "unknown"].includes(raw.lastResume.kind) ? raw.lastResume.kind : "unknown",
+      from: ["S3", "S4"].includes(raw.lastResume.from) ? raw.lastResume.from : null,
+    } : null,
     wolPath: raw.wolPath && typeof raw.wolPath === "object"
       ? { ok: bool(raw.wolPath.ok), at: num(raw.wolPath.at, 0, 1e14), detail: str(raw.wolPath.detail, 120) }
       : null,
@@ -125,6 +130,23 @@ export async function readReport(db) {
 
 export const POWER_ACTIONS = ["reboot", "shutdown"];
 export const SHUTDOWN_ENABLED = false;
+
+// A later boot/resume alone does not prove the magic packet woke the PC.
+// In particular a safety wake timer must never be counted as a successful WoL test.
+export function wakeResult(report, wake, now = Date.now()) {
+  if (!wake) return null;
+  if (!wake.ok) return "send_failed";
+  const up = Math.max(report?.bootTime || 0, report?.resumeTime || 0);
+  if (up > wake.at && up - wake.at < 10 * 60_000) {
+    const resume = report?.lastResume;
+    if (resume?.at === up) {
+      if (resume.kind === "timer") return "timer";
+      if (resume.kind === "network") return "network";
+    }
+    return "returned_unconfirmed";
+  }
+  return now - wake.at > 5 * 60_000 ? "no_confirmation" : "pending";
+}
 
 export async function lastPowerCommand(db) {
   return db.prepare("SELECT id, type, status, requested_by, requested_at, claimed_at, completed_at, result FROM servercesar_commands WHERE type IN ('reboot', 'shutdown') ORDER BY requested_at DESC LIMIT 1").first();

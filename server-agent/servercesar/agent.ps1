@@ -1,5 +1,5 @@
-# ServerCesar agent: runs as SYSTEM from boot (scheduled task), with or without a user session.
-# Every 30 s it keeps the Parsec and Tailscale services running, makes sure the guardian runs in
+﻿# ServerCesar agent: runs as SYSTEM from boot (scheduled task), with or without a user session.
+# Every 120 s it keeps the Parsec and Tailscale services running, makes sure the guardian runs in
 # SERVERCESAR's desktop, and posts the PC + app health to Mission Control over outbound HTTPS.
 # Mission Control can hand back two commands only: "reboot" and "shutdown" (= low-power sleep, see Invoke-Power).
 [CmdletBinding()]
@@ -10,7 +10,7 @@ param(
 $ErrorActionPreference = 'Continue'
 Add-Type -AssemblyName System.Security
 
-$AgentVersion = '1.4.0'
+$AgentVersion = '1.5.0'
 $SiteBaseUrl = 'https://cesar-solla.pages.dev'
 # 120 s keeps the panel fresh enough for a homelab while keeping D1 operations well under the free tier.
 $IntervalSeconds = 120
@@ -79,10 +79,12 @@ function Get-Report([bool]$userSession) {
     $os = Get-CimInstance Win32_OperatingSystem
     $disk = Get-CimInstance Win32_LogicalDisk -Filter "DeviceID='C:'"
     $cpu = (Get-CimInstance Win32_Processor | Measure-Object -Property LoadPercentage -Average).Average
+    $resume = Get-ResumeInfo
     $report = [ordered]@{
         agentVersion = $AgentVersion
         bootTime = [double]([DateTimeOffset]$os.LastBootUpTime).ToUnixTimeMilliseconds()
-        resumeTime = Get-ResumeTime
+        resumeTime = $(if ($resume) { $resume.at } else { $null })
+        lastResume = $resume
         wolPath = $script:WolPath
         cpu = [double]$cpu
         ram = [double][Math]::Round(100 * (1 - $os.FreePhysicalMemory / $os.TotalVisibleMemorySize), 1)
@@ -122,17 +124,28 @@ function Get-Report([bool]$userSession) {
     $report
 }
 
-# Last time Windows resumed from sleep (Power-Troubleshooter event 1), in Unix ms, or $null.
-function Get-ResumeTime {
-    $e = Get-WinEvent -FilterHashtable @{ LogName = 'System'; ProviderName = 'Microsoft-Windows-Power-Troubleshooter'; Id = 1 } -MaxEvents 1 -ErrorAction SilentlyContinue
-    if ($e) { return [double]([DateTimeOffset]$e.TimeCreated).ToUnixTimeMilliseconds() }
-    $null
+# Last resume cause from Windows, not inferred from a nearby wake request.
+function Get-ResumeInfo {
+    try {
+        $e = Get-WinEvent -FilterHashtable @{ LogName = 'System'; ProviderName = 'Microsoft-Windows-Power-Troubleshooter'; Id = 1 } -MaxEvents 1 -ErrorAction Stop
+        [xml]$xml = $e.ToXml()
+        $data = @{}
+        foreach ($item in $xml.Event.EventData.Data) { $data[[string]$item.Name] = [string]$item.'#text' }
+        $kind = 'unknown'
+        if ($data.WakeTimerOwner) { $kind = 'timer' }
+        elseif ($data.WakeSourceText) {
+            $kind = 'other'
+            $names = @(Get-NetAdapter -Physical -ErrorAction Stop | Select-Object -ExpandProperty InterfaceDescription)
+            if ($names -contains $data.WakeSourceText) { $kind = 'network' }
+        }
+        $from = switch ($data.EffectiveState) { '4' { 'S3' } '5' { 'S4' } default { $null } }
+        return @{ at = [double]([DateTimeOffset]::Parse($data.WakeTime)).ToUnixTimeMilliseconds(); kind = $kind; from = $from }
+    } catch { return $null }
 }
 
 # "shutdown" puts the PC to sleep (S3) instead of powering it off (S5): apps, Minecraft and the
-# Remote Control sessions are frozen instead of closed, and resume in seconds. Wake-on-LAN reaches
-# it the same way in both states: the Movistar router forwards UDP 40010 from the Internet to the
-# LAN broadcast 192.168.1.255:9 (Test-WolPath checks that route every few hours).
+# Remote Control sessions are frozen instead of closed, and resume in seconds. Remote wake from these states is NOT verified.
+# The web keeps shutdown disabled until real wake tests pass; UDP receipt while awake is insufficient.
 function Invoke-Power($command) {
     Write-Log "$($command.type) requested ($($command.id))"
     if ($command.type -eq 'shutdown') {
@@ -182,8 +195,8 @@ function Enable-KeepAwake {
     [void][ServerCesar.Power]::SetThreadExecutionState($ES_CONTINUOUS -bor $ES_SYSTEM_REQUIRED)
 }
 
-# End-to-end check of the Internet power-on route: ask depicus (the same relay Mission Control
-# uses) to send a magic packet to the public address, and listen for it as the LAN broadcast on
+# Packet-delivery check while the PC is awake (NOT proof of remote wake): ask depicus (the same relay Mission Control
+# uses) to send a magic packet to the public address, and listen for it on
 # UDP 9. Target comes from $Root\wol-target.json ({"host","port","mac"}), which is never in the
 # public repository. Runs at start and every 6 hours; the result is shown in Mission Control.
 $script:WolPath = $null

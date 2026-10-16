@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile, readdir} from 'node:fs/promises';
-import {checkConfig, sendMagicPacket, probe, powerStatus, sanitiseReport, appHealth, requireServerAgent, queuePowerCommand, agentExchange, agentPublicIp, wakeTargets} from '../functions/_lib/servercesar.js';
+import {checkConfig, sendMagicPacket, probe, powerStatus, sanitiseReport, appHealth, requireServerAgent, queuePowerCommand, agentExchange, agentPublicIp, wakeTargets, wakeResult} from '../functions/_lib/servercesar.js';
 import {userCan, constantTimeEqual} from '../functions/_lib/auth.js';
 
 // Minimal D1 stand-in for the power command queue: answers the handful of statements servercesar.js issues.
@@ -37,6 +37,29 @@ test('agent report keeps only known apps and fields', () => {
 test('Claude with Remote Control off is a warning, not a green light', () => {
   assert.equal(appHealth({running: true, signedIn: true, remoteControl: false}), 'warn');
   assert.equal(appHealth({running: true, signedIn: true, remoteControl: null}), 'ok');
+});
+
+test('wake outcomes distinguish network, backup timer and unconfirmed boots', () => {
+  const at = 1_000_000_000;
+  const wake = {at, ok: 1};
+  const report = {bootTime: at - 100_000, resumeTime: at + 30_000,
+    lastResume: {at: at + 30_000, kind: 'network', from: 'S3'}};
+  assert.equal(wakeResult(report, wake, at + 60_000), 'network');
+  assert.equal(wakeResult({...report, lastResume: {...report.lastResume, kind: 'timer'}}, wake), 'timer');
+  assert.equal(wakeResult({...report, lastResume: null}, wake), 'returned_unconfirmed');
+  assert.equal(wakeResult({...report, bootTime: at + 50_000}, wake), 'returned_unconfirmed');
+  assert.equal(wakeResult({...report, lastResume: {...report.lastResume, at: at - 100}}, wake), 'returned_unconfirmed');
+  assert.equal(wakeResult({bootTime: at - 100_000}, wake, at + 60_000), 'pending');
+  assert.equal(wakeResult(null, wake, at + 600_000), 'no_confirmation');
+  assert.equal(wakeResult(report, {...wake, ok: 0}), 'send_failed');
+});
+
+test('resume evidence is bounded and rejects arbitrary source kinds', () => {
+  const valid = {at: 1_000_000, kind: 'timer', from: 'S4'};
+  assert.deepEqual(sanitiseReport({lastResume: {...valid, secret: 'not sent'}}).lastResume, valid);
+  assert.deepEqual(sanitiseReport({lastResume: {at: -1, kind: 'success', from: 'S5'}}).lastResume,
+    {at: null, kind: 'unknown', from: null});
+  assert.equal(sanitiseReport({}).lastResume, null);
 });
 
 test('Wake-on-LAN also targets the public IP the agent last reported from', () => {

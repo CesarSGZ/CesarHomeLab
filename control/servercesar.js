@@ -32,9 +32,12 @@
       // On since the later of the last boot and the last wake from sleep; nothing while it is off.
       const upSince = Math.max(agent.bootTime || 0, agent.resumeTime || 0);
       set('[data-sc-boot]', fresh && upSince ? fmt(upSince) : '—');
+      const resume = data.lastResume;
+      const causes = {network: 'RED', timer: 'TEMPORIZADOR', other: 'OTRO DISPOSITIVO', unknown: 'SIN IDENTIFICAR'};
+      set('[data-sc-resume]', resume?.at ? fmt(resume.at) + ' · ' + (causes[resume.kind] || 'SIN IDENTIFICAR') + (resume.from ? ' · desde ' + resume.from : '') : 'SIN DATOS');
       const w = agent.wolPath, wEl = $('[data-sc-wolpath]', card());
-      wEl.textContent = !w ? 'SIN COMPROBAR' : (w.ok ? 'OK' : 'ROTA') + ' · ' + ago(w.at);
-      wEl.title = w?.detail || '';
+      wEl.textContent = !w ? 'SIN COMPROBAR' : (w.ok ? 'PAQUETE RECIBIDO · DESPERTAR SIN VERIFICAR' : 'PAQUETE NO RECIBIDO') + ' · ' + ago(w.at);
+      wEl.title = (w?.detail || '') + ' Recibir un paquete con el PC encendido no demuestra que pueda despertarlo.';
       wEl.dataset.ok = w ? String(Boolean(w.ok)) : '';
       set('[data-sc-cpu]', fresh ? pct(agent.cpu) : '—');
       set('[data-sc-ram]', fresh ? pct(agent.ram) : '—');
@@ -55,23 +58,25 @@
     const off = r.action === 'shutdown', recent = Date.now() - r.at < 15 * 60e3;
     const upSince = Math.max(data.agent?.bootTime || 0, data.agent?.resumeTime || 0);
     const back = data.agent?.fresh && upSince > r.at;
-    if (r.status === 'queued') return {busy: true, label: off ? 'APAGANDO' : 'REINICIANDO', text: 'Orden de ' + (off ? 'apagado' : 'reinicio') + ' en cola. El agente la recoge en menos de 30 s…'};
+    if (r.status === 'queued') return {busy: true, label: off ? 'APAGANDO' : 'REINICIANDO', text: 'Orden de ' + (off ? 'apagado' : 'reinicio') + ' en cola. El agente la recoge en unos 2 minutos…'};
     if (r.status === 'failed') return recent ? {text: (off ? 'El apagado' : 'El reinicio') + ' falló: ' + (r.result || 'sin detalle'), kind: 'error'} : null;
     if (back) return recent ? {text: 'ServerCesar ' + (off ? 'se volvió a encender' : 'se reinició y ya está de vuelta') + ' (' + fmt(upSince) + ').', kind: 'success'} : null;
-    if (off) return data.agent?.fresh ? (Date.now() - r.at < 5 * 60e3 ? {busy: true, label: 'APAGANDO', text: 'Apagando ServerCesar…'} : null) : {label: 'APAGADO', text: 'ServerCesar está apagado en bajo consumo desde ' + fmt(r.at) + '. Usa «Encender ServerCesar» para volver a arrancarlo.'};
+    if (off) return data.agent?.fresh ? (Date.now() - r.at < 5 * 60e3 ? {busy: true, label: 'APAGANDO', text: 'Apagando ServerCesar…'} : null) : {label: 'SIN RESPUESTA', text: 'Orden de suspensión enviada el ' + fmt(r.at) + '. El agente no responde; no se puede confirmar si está suspendido, apagado o desconectado.'};
     return recent ? {busy: true, label: 'REINICIANDO', text: 'Reiniciando ServerCesar… vuelve en uno o dos minutos.'} : null;
   }
 
   // The last magic packet and what it achieved: sending it is not the same as the PC turning on.
   function wakeOutcome(data) {
     const w = data.lastWake; if (!w) return 'NUNCA';
-    const up = Math.max(data.agent?.bootTime || 0, data.agent?.resumeTime || 0);
-    let result = '';
-    if (!w.ok) result = ' · NO SE PUDO ENVIAR';
-    else if (up > w.at && up - w.at < 10 * 60e3) result = ' · ENCENDIÓ';
-    else if (Date.now() - w.at > 5 * 60e3 && !(up > w.at)) result = ' · NO ENCENDIÓ';
-    else if (!(up > w.at)) result = ' · ESPERANDO…';
-    return fmt(w.at) + result;
+    const labels = {
+      send_failed: 'NO SE PUDO ENVIAR',
+      timer: 'DESPERTÓ POR TEMPORIZADOR',
+      network: 'REACTIVACIÓN POR RED',
+      returned_unconfirmed: 'VOLVIÓ · CAUSA NO CONFIRMADA',
+      no_confirmation: 'SIN CONFIRMACIÓN DE ENCENDIDO',
+      pending: 'ESPERANDO…',
+    };
+    return fmt(w.at) + ' · ' + (labels[w.outcome] || 'RESULTADO SIN VERIFICAR');
   }
 
   function render(data) {
@@ -92,7 +97,6 @@
     $('#sc-power-row').hidden = !data.canWake;
     const powerBlocked = !data.canWake || !data.agent?.fresh || Boolean(phase?.busy) || Date.now() < (data.powerCooldownUntil || 0);
     // Never offer "Apagar" unless the agent has just proved a magic packet from the Internet reaches the PC.
-    const routeOk = data.agent?.wolPath?.ok === true;
     $('#sc-reboot').disabled = powerBlocked;
     // "Apagar" is switched off server-side until a real wake from sleep is proven (see SHUTDOWN_ENABLED).
     $('#sc-shutdown').disabled = true;
@@ -104,11 +108,11 @@
       if (!data.agent?.fresh) feedback('ServerCesar está encendido, pero su agente no da señal: no se puede ver el estado de las aplicaciones ni reiniciarlo.', 'error');
       else if (data.agent.wolPath && !data.agent.wolPath.ok) feedback('ServerCesar está encendido, pero el paquete de encendido no llega desde Internet: «Apagar» está bloqueado hasta que se arregle el reenvío del router.', 'error');
       else if (bad.length) feedback('ServerCesar está encendido. Revisa: ' + bad.join(', ') + '.', 'error');
-      else feedback('ServerCesar está encendido y todas sus aplicaciones funcionan con la sesión iniciada.', 'success');
+      else feedback('ServerCesar está encendido. Aplicaciones abiertas; las sesiones guardadas no garantizan que su acceso siga siendo válido.', 'success');
     }
     else if (Date.now() < fastUntil) feedback('Paquete enviado. Esperando a que arranque…');
     else if (!p.probed?.length && p.via == null && !data.agent) feedback('No se puede saber si está encendido: añade un puerto para comprobar el estado en la configuración, o instala el agente de ServerCesar en ese PC.');
-    else feedback('Listo para encender.');
+    else feedback('Puedes enviar el paquete de encendido; el despertar remoto aún no está verificado.');
     const cfg = $('#sc-config'); cfg.hidden = !data.canWake;
     if (data.config && !cfg.dataset.filled) { const f = $('#sc-config-form'); f.mac.value = data.config.mac; f.host.value = data.config.host; f.wolPort.value = data.config.wolPort; f.probePorts.value = data.config.probePorts.join(', '); cfg.dataset.filled = '1'; }
     if (p.state === 'unconfigured' && data.canWake && !online) cfg.open = true;
@@ -149,7 +153,7 @@
     try {
       const response = await fetch('/control/api/servercesar/power', {method: 'POST', credentials: 'same-origin', headers: {'content-type': 'application/json', 'x-csrf-token': csrf}, body: JSON.stringify({action})});
       const data = await response.json().catch(() => ({}));
-      if (response.ok && data.ok) { fastUntil = Date.now() + 4 * 60e3; feedback('Orden enviada. El agente la recoge en menos de 30 s…', 'success'); }
+      if (response.ok && data.ok) { fastUntil = Date.now() + 4 * 60e3; feedback('Orden enviada. El agente la recoge en unos 2 minutos…', 'success'); }
       else if (data.error === 'cooldown') feedback('Ya se pidió un reinicio o apagado hace menos de 3 minutos. Espera un momento.', 'error');
       else if (data.error === 'agent_offline') feedback('El agente de ServerCesar no da señal, así que no puede recibir la orden.', 'error');
       else if (data.error === 'shutdown_disabled') feedback('«Apagar» está desactivado hasta que el encendido remoto esté comprobado.', 'error');
