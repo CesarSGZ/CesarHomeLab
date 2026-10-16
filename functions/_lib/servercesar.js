@@ -13,7 +13,7 @@
 
 export const WAKE_COOLDOWN_MS = 60_000;
 export const AGENT_FRESH_MS = 60_000;
-export const REPORT_FRESH_MS = 90_000;
+export const REPORT_FRESH_MS = 300_000;
 export const REBOOT_COOLDOWN_MS = 180_000;
 export const REBOOT_STALE_MS = 15 * 60_000;
 export const APPS = ["claude", "chatgpt", "parsec", "tailscale"];
@@ -22,13 +22,23 @@ const DEPICUS_URL = "https://www.depicus.com/wake-on-lan/woli-ajax.php";
 const MAC = /^([0-9A-F]{2}[:-]){5}[0-9A-F]{2}$/i;
 const HOST = /^(?=.{3,253}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$|^(\d{1,3}\.){3}\d{1,3}$/i;
 
+// Each CREATE TABLE IF NOT EXISTS scans the whole D1 schema, so running this on every heartbeat and
+// status poll burned millions of D1 rows_read a day. A Pages Functions isolate is reused across many
+// requests, so this module-level flag makes the schema setup run about once per warm isolate instead.
+let schemaReady = false;
+
 export async function ensureTables(db) {
+  if (schemaReady) return;
   await db.batch([
     db.prepare("CREATE TABLE IF NOT EXISTS servercesar_config (id INTEGER PRIMARY KEY CHECK (id = 1), mac TEXT NOT NULL, host TEXT NOT NULL, wol_port INTEGER NOT NULL, probe_ports TEXT NOT NULL DEFAULT '', updated_by TEXT, updated_at INTEGER)"),
     db.prepare("CREATE TABLE IF NOT EXISTS servercesar_events (id TEXT PRIMARY KEY, kind TEXT NOT NULL, by_user TEXT, at INTEGER NOT NULL, ok INTEGER NOT NULL, detail TEXT)"),
     db.prepare("CREATE TABLE IF NOT EXISTS servercesar_report (id INTEGER PRIMARY KEY CHECK (id = 1), report TEXT NOT NULL, received_at INTEGER NOT NULL)"),
     db.prepare("CREATE TABLE IF NOT EXISTS servercesar_commands (id TEXT PRIMARY KEY, type TEXT NOT NULL, status TEXT NOT NULL, requested_by TEXT, requested_at INTEGER NOT NULL, claimed_at INTEGER, completed_at INTEGER, result TEXT)"),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_servercesar_commands ON servercesar_commands(type, requested_at)"),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_servercesar_commands_status ON servercesar_commands(status, requested_at)"),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_servercesar_events ON servercesar_events(kind, at)"),
   ]);
+  schemaReady = true;
 }
 
 // ---- ServerCesar agent (server-agent/servercesar/): app health report and reboot queue ----

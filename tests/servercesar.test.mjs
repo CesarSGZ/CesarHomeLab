@@ -60,7 +60,7 @@ test('the ServerCesar agent token is separate and must be long', () => {
 test('reboot: needs a live agent, is handed out once, has a cooldown and records the result', async () => {
   const now = 1_000_000_000;
   assert.equal((await queuePowerCommand(fakeDb(), 'reboot', 'CesarVapor', now)).error, 'agent_offline');
-  assert.equal((await queuePowerCommand(fakeDb({reportAt: now - 120_000}), 'reboot', 'CesarVapor', now)).error, 'agent_offline');
+  assert.equal((await queuePowerCommand(fakeDb({reportAt: now - 400_000}), 'reboot', 'CesarVapor', now)).error, 'agent_offline');
   const db = fakeDb({reportAt: now - 10_000});
   const queued = await queuePowerCommand(db, 'reboot', 'CesarVapor', now);
   assert.equal(queued.ok, true);
@@ -102,7 +102,7 @@ test('a fresh agent report alone marks ServerCesar as online, even without a Wak
   const db = {prepare: () => ({first: async () => null})};
   const now = Date.now();
   assert.deepEqual(await powerStatus(db, null, null, now, now - 5000), {state: 'online', via: 'agent', agentLastSeen: now - 5000, probed: []});
-  assert.equal((await powerStatus(db, null, null, now, now - 200_000)).state, 'unconfigured');
+  assert.equal((await powerStatus(db, null, null, now, now - 400_000)).state, 'unconfigured');
 });
 
 test('configuration is validated and normalised', () => {
