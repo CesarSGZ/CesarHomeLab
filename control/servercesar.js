@@ -122,7 +122,8 @@
       render(await response.json());
     } catch { feedback('No se pudo consultar el estado ahora mismo.', 'error'); }
     const visible = document.getElementById('infrastructure')?.classList.contains('active') && !document.hidden;
-    timer = setTimeout(refresh, Date.now() < fastUntil ? 8000 : visible ? 30000 : 120000);
+    // Poll gently: the agent only reports every 120 s, and a tab left open must not drain the D1 free tier.
+    timer = setTimeout(refresh, Date.now() < fastUntil ? 8000 : visible ? 60000 : 300000);
   }
 
   async function wake() {

@@ -10,9 +10,10 @@ param(
 $ErrorActionPreference = 'Continue'
 Add-Type -AssemblyName System.Security
 
-$AgentVersion = '1.3.0'
+$AgentVersion = '1.4.0'
 $SiteBaseUrl = 'https://cesar-solla.pages.dev'
-$IntervalSeconds = 30
+# 120 s keeps the panel fresh enough for a homelab while keeping D1 operations well under the free tier.
+$IntervalSeconds = 120
 $GuardianTask = 'ServerCesar Guardian'
 $statePath = Join-Path $Root 'state\apps.json'
 $logPath = Join-Path $Root 'logs\agent.log'
