@@ -1,7 +1,7 @@
-﻿# ServerCesar agent: runs as SYSTEM from boot (scheduled task), with or without a user session.
+# ServerCesar agent: runs as SYSTEM from boot (scheduled task), with or without a user session.
 # Every 120 s it keeps the Parsec and Tailscale services running, makes sure the guardian runs in
 # SERVERCESAR's desktop, and posts the PC + app health to Mission Control over outbound HTTPS.
-# Mission Control can hand back two commands only: "reboot" and "shutdown" (= low-power sleep, see Invoke-Power).
+# Mission Control can hand back two commands only: "reboot" and "shutdown" (full shutdown, disabled until S5 recovery is verified).
 [CmdletBinding()]
 param(
     [string]$Root = 'C:\ProgramData\ServerCesar'
@@ -10,7 +10,7 @@ param(
 $ErrorActionPreference = 'Continue'
 Add-Type -AssemblyName System.Security
 
-$AgentVersion = '1.5.0'
+$AgentVersion = '1.5.1'
 $SiteBaseUrl = 'https://cesar-solla.pages.dev'
 # 120 s keeps the panel fresh enough for a homelab while keeping D1 operations well under the free tier.
 $IntervalSeconds = 120
@@ -143,52 +143,31 @@ function Get-ResumeInfo {
     } catch { return $null }
 }
 
-# "shutdown" puts the PC to sleep (S3) instead of powering it off (S5): apps, Minecraft and the
-# Remote Control sessions are frozen instead of closed, and resume in seconds. Remote wake from these states is NOT verified.
-# The web keeps shutdown disabled until real wake tests pass; UDP receipt while awake is insufficient.
+# Full shutdown is gated locally as well as by the web until S5 recovery is verified.
 function Invoke-Power($command) {
     Write-Log "$($command.type) requested ($($command.id))"
     if ($command.type -eq 'shutdown') {
-        return @{ id = $command.id; ok = $true; detail = 'Suspension en bajo consumo en 10 s' }
+        if (-not (Test-Path (Join-Path $Root 's5-wake-verified.txt'))) {
+            return @{ id = $command.id; ok = $false; detail = 'Apagado bloqueado: recuperacion S5 pendiente de verificar' }
+        }
+        & "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -NonInteractive -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'prepare-wake.ps1') 2>&1 | Out-Null
+        if ($LASTEXITCODE -ne 0) {
+            return @{ id = $command.id; ok = $false; detail = 'No se pudo preparar el router; apagado cancelado' }
+        }
+        & shutdown.exe /s /t 20 /d p:4:1 /c 'Apagado solicitado desde Mission Control' 2>&1 | Out-Null
+        $detail = 'Apagado completo de Windows programado en 20 s'
+    } elseif ($command.type -eq 'reboot') {
+        & shutdown.exe /r /f /t 20 /d p:4:1 /c 'Reinicio solicitado desde Mission Control' 2>&1 | Out-Null
+        $detail = 'Reinicio de Windows programado en 20 s'
+    } else {
+        return @{ id = $command.id; ok = $false; detail = 'Comando no reconocido' }
     }
-    & shutdown.exe /r /f /t 20 /d p:4:1 /c 'Reinicio solicitado desde Mission Control' 2>&1 | Out-Null
-    if ($LASTEXITCODE -eq 0) {
-        return @{ id = $command.id; ok = $true; detail = 'Reinicio de Windows programado en 20 s' }
-    }
+    if ($LASTEXITCODE -eq 0) { return @{ id = $command.id; ok = $true; detail = $detail } }
     return @{ id = $command.id; ok = $false; detail = "shutdown.exe devolvio $LASTEXITCODE" }
 }
-
-# Test safety net: if $Root\safety-wake-minutes.txt exists (admin-only folder), the next sleep also
-# arms a wake timer N minutes later, so a failed Wake-on-LAN test never needs someone on site.
-# The file is consumed by that sleep; normal "Apagar" leaves the PC asleep until woken.
-function Register-SafetyWake {
-    $flag = Join-Path $Root 'safety-wake-minutes.txt'
-    if (-not (Test-Path $flag)) { return }
-    $minutes = [int](Get-Content -Raw $flag).Trim()
-    Remove-Item $flag -Force
-    if ($minutes -lt 2 -or $minutes -gt 240) { return }
-    $at = (Get-Date).AddMinutes($minutes)
-    $action = New-ScheduledTaskAction -Execute "$env:SystemRoot\System32\cmd.exe" -Argument '/c exit 0'
-    $settings = New-ScheduledTaskSettingsSet -WakeToRun -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable
-    Register-ScheduledTask -TaskName 'ServerCesar SafetyWake' -Action $action -Trigger (New-ScheduledTaskTrigger -Once -At $at) `
-        -Settings $settings -User 'SYSTEM' -RunLevel Highest -Force | Out-Null
-    Write-Log "safety wake timer armed for $($at.ToString('HH:mm:ss'))"
-}
-
-function Invoke-Sleep {
-    Start-Sleep -Seconds 10
-    Register-SafetyWake
-    Write-Log 'suspending (S3)'
-    Add-Type -AssemblyName System.Windows.Forms
-    # Returns once the PC wakes up again.
-    $ok = [System.Windows.Forms.Application]::SetSuspendState([System.Windows.Forms.PowerState]::Suspend, $false, $false)
-    Write-Log "resumed (suspend returned $ok)"
-    Enable-KeepAwake
-}
-
 # A PC woken without anyone at the keyboard (Wake-on-LAN, wake timer) falls back to sleep after
 # Windows' 2-minute "unattended" idle timeout. Holding ES_SYSTEM_REQUIRED from this always-running
-# SYSTEM process keeps it awake; an explicit sleep (Invoke-Sleep) still works.
+# SYSTEM process keeps it awake; explicit power transitions still work.
 Add-Type -Namespace ServerCesar -Name Power -MemberDefinition '[DllImport("kernel32.dll")] public static extern uint SetThreadExecutionState(uint esFlags);'
 function Enable-KeepAwake {
     $ES_CONTINUOUS = [uint32]'0x80000000'; $ES_SYSTEM_REQUIRED = [uint32]1
@@ -261,7 +240,6 @@ while ($true) {
             Invoke-RestMethod -Method Post -Uri "$SiteBaseUrl/api/agent/servercesar" -Headers @{ Authorization = "Bearer $token" } `
                 -ContentType 'application/json; charset=utf-8' -Body ([Text.Encoding]::UTF8.GetBytes($json)) -TimeoutSec 20 | Out-Null
             $pendingDone = $null
-            if ($response.command.type -eq 'shutdown') { Invoke-Sleep; continue }
         }
     } catch {
         Write-Log "cycle failed: $($_.Exception.Message)"

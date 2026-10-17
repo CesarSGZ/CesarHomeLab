@@ -4,7 +4,7 @@ Two scheduled tasks on ServerCesar, both outbound-only (no open port):
 
 | Task | Runs as | Job |
 | --- | --- | --- |
-| `ServerCesar Agent` | SYSTEM, at boot (+ revived every 5 min) | Keeps the Parsec and Tailscale services running, starts the guardian if it is missing, posts the PC + app health to `POST /api/agent/servercesar` every 120 s, and executes the only commands Mission Control can send: `reboot` (`shutdown /r /f /t 20`) and `shutdown` (S3 suspend; currently disabled by the web). |
+| `ServerCesar Agent` | SYSTEM, at boot (+ revived every 5 min) | Keeps the Parsec and Tailscale services running, starts the guardian if it is missing, posts the PC + app health to `POST /api/agent/servercesar` every 120 s, and executes the only commands Mission Control can send: `reboot` (`shutdown /r /f /t 20`) and `shutdown` (full S5 shutdown; disabled pending verified recovery). |
 | `ServerCesar Guardian` | SERVERCESAR, at logon, unelevated (+ revived every 5 min) | Keeps Claude, ChatGPT, Parsec and Tailscale open in the desktop session, relaunches them when they close or hang, restarts Claude/ChatGPT at 05:00 when an update is staged, and writes their state to `state\apps.json`. |
 
 The session-cache indicator reports the presence of each app's own session file (Claude
@@ -13,7 +13,7 @@ The session-cache indicator reports the presence of each app's own session file 
 
 A Wake-on-LAN packet can only power the PC on; restarting or shutting it down
 needs this agent, which is why those buttons are only enabled while the agent
-reports in. Wake-on-LAN recovery must be verified separately for S3, S4 and S5. The shutdown button remains disabled until recovery is verified; the current agent command suspends to S3 rather than shutting down to S5.
+reports in. Wake-on-LAN recovery must be verified separately for S3, S4 and S5. The shutdown button remains disabled until recovery is verified; agent 1.5.1 implements full S5 shutdown and additionally requires the administrator-managed `s5-wake-verified.txt` marker in its protected root. Create that marker only after an actual S5 recovery test.
 
 ## Install / update
 
@@ -31,6 +31,10 @@ encrypted with machine-scoped DPAPI in `C:\ProgramData\ServerCesar\agent-token.e
 Logs: `C:\ProgramData\ServerCesar\logs\agent.log` and `state\guardian.log`.
 
 ## Power-state evidence
+
+Agent 1.5.1 runs `prepare-wake.ps1` before accepting a low-power command. It starts the separately configured `ServerCesar Router ARP` task and requires a new successful completion within 90 seconds; a missing task, failure or timeout cancels the transition. Router credentials and helper configuration stay outside the repository. This is necessary because the router can relearn a dynamic ARP entry after resume; a five-minute refresh is insufficient immediately before another transition.
+
+On 18 October, two S4 tests with a freshly restored permanent ARP entry returned about 63–64 seconds after hibernation, well before the seven-minute rescue timer. Windows recorded S4 but no wake-source identity. A repeat without restoring ARP returned only by the rescue timer. These results support the preparation step, but do not establish S5 recovery or recovery after the router restarts while the PC is off. Full shutdown remains disabled.
 
 A received UDP packet while Windows is awake confirms delivery only. It does not prove wake support. Agent 1.5 reports the most recent Windows Power-Troubleshooter event as `lastResume` (time, S3/S4, network/timer/other/unknown). The dashboard distinguishes a timer wake from network wake and does not count a later boot alone as proof of WOL. A missing heartbeat means no response, not a confirmed shutdown. Cached authentication files likewise do not prove that the service still accepts the session.
 
