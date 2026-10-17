@@ -18,17 +18,17 @@ jobs:
         run: test -n "$WOL_MAC" && test -n "$WOL_HOST" && test -n "$WOL_PORT"
       - name: Allow the local safety timer to be armed and the PC to hibernate
         run: sleep 120
-      - name: Send three external magic packets directly through the existing relay
+      - name: Send three UDP magic packets directly to the configured router
+        shell: python
         run: |
-          for attempt in 1 2 3; do
-            curl --fail --silent --show-error --max-time 20 \
-              -H 'X-Requested-With: XMLHttpRequest' \
-              -H 'Referer: https://www.depicus.com/wake-on-lan/woli' \
-              --data-urlencode "macaddress=$WOL_MAC" \
-              --data-urlencode "ip=$WOL_HOST" \
-              --data-urlencode "port=$WOL_PORT" \
-              --data-urlencode 'subnet=255.255.255.255' \
-              --data-urlencode 'secureon=' \
-              https://www.depicus.com/wake-on-lan/woli-ajax.php
-            sleep 10
-          done
+          import os, socket, time
+          mac = bytes.fromhex(os.environ['WOL_MAC'].replace(':', '').replace('-', ''))
+          assert len(mac) == 6
+          packet = b'\xff' * 6 + mac * 16
+          host = os.environ['WOL_HOST'].strip()
+          port = int(os.environ['WOL_PORT'])
+          with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
+              for attempt in range(3):
+                  assert sock.sendto(packet, (host, port)) == 102
+                  print('Magic packet submitted', attempt + 1, flush=True)
+                  time.sleep(10)
