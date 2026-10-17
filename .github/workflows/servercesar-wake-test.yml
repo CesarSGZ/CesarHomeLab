@@ -9,16 +9,26 @@ jobs:
   wake:
     runs-on: ubuntu-latest
     timeout-minutes: 6
+    env:
+      WOL_MAC: ${{ secrets.SERVERCESAR_MAC }}
+      WOL_HOST: ${{ secrets.SERVERCESAR_HOST }}
+      WOL_PORT: ${{ secrets.SERVERCESAR_WOL_PORT }}
     steps:
+      - name: Validate existing target secrets
+        run: test -n "$WOL_MAC" && test -n "$WOL_HOST" && test -n "$WOL_PORT"
       - name: Allow the local safety timer to be armed and the PC to hibernate
         run: sleep 120
-      - name: Request wake through the existing web endpoint
-        env:
-          AGENT_TOKEN: ${{ secrets.SERVERCESAR_AGENT_TOKEN }}
+      - name: Send three external magic packets directly through the existing relay
         run: |
-          test -n "$AGENT_TOKEN"
-          curl --fail --silent --show-error --max-time 20 \
-            -H "Authorization: Bearer $AGENT_TOKEN" \
-            -H 'Content-Type: application/json' \
-            --data '{"delaySeconds":5}' \
-            https://cesar-solla.pages.dev/api/agent/servercesar-wake-test
+          for attempt in 1 2 3; do
+            curl --fail --silent --show-error --max-time 20 \
+              -H 'X-Requested-With: XMLHttpRequest' \
+              -H 'Referer: https://www.depicus.com/wake-on-lan/woli' \
+              --data-urlencode "macaddress=$WOL_MAC" \
+              --data-urlencode "ip=$WOL_HOST" \
+              --data-urlencode "port=$WOL_PORT" \
+              --data-urlencode 'subnet=255.255.255.255' \
+              --data-urlencode 'secureon=' \
+              https://www.depicus.com/wake-on-lan/woli-ajax.php
+            sleep 10
+          done
