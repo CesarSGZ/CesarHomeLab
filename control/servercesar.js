@@ -36,7 +36,7 @@
       const causes = {network: 'RED', timer: 'TEMPORIZADOR', other: 'OTRO DISPOSITIVO', unknown: 'SIN IDENTIFICAR'};
       set('[data-sc-resume]', resume?.at ? fmt(resume.at) + ' · ' + (causes[resume.kind] || 'SIN IDENTIFICAR') + (resume.from ? ' · desde ' + resume.from : '') : 'SIN DATOS');
       const w = agent.wolPath, wEl = $('[data-sc-wolpath]', card());
-      wEl.textContent = !w ? 'SIN COMPROBAR' : (w.ok ? 'PAQUETE RECIBIDO · DESPERTAR SIN VERIFICAR' : 'PAQUETE NO RECIBIDO') + ' · ' + ago(w.at);
+      wEl.textContent = !w ? 'SIN COMPROBAR' : (w.ok ? 'PAQUETE RECIBIDO' : 'PAQUETE NO RECIBIDO') + ' · ' + ago(w.at);
       wEl.title = (w?.detail || '') + ' Recibir un paquete con el PC encendido no demuestra que pueda despertarlo.';
       wEl.dataset.ok = w ? String(Boolean(w.ok)) : '';
       set('[data-sc-cpu]', fresh ? pct(agent.cpu) : '—');
@@ -52,7 +52,7 @@
   }
 
   // Reboot/"shutdown" lifecycle: queued → claimed by the agent → PC back with a newer boot time (reboot)
-  // or the agent goes silent (shutdown = low-power sleep) until a Wake-on-LAN wakes it (newer resume time).
+  // or the agent goes silent (shutdown = full power-off) until a Wake-on-LAN wakes it (newer resume time).
   function powerPhase(data) {
     const r = data.lastPower; if (!r || r.status === 'expired') return null;
     const off = r.action === 'shutdown', recent = Date.now() - r.at < 15 * 60e3;
@@ -61,7 +61,7 @@
     if (r.status === 'queued') return {busy: true, label: off ? 'APAGANDO' : 'REINICIANDO', text: 'Orden de ' + (off ? 'apagado' : 'reinicio') + ' en cola. El agente la recoge en unos 2 minutos…'};
     if (r.status === 'failed') return recent ? {text: (off ? 'El apagado' : 'El reinicio') + ' falló: ' + (r.result || 'sin detalle'), kind: 'error'} : null;
     if (back) return recent ? {text: 'ServerCesar ' + (off ? 'se volvió a encender' : 'se reinició y ya está de vuelta') + ' (' + fmt(upSince) + ').', kind: 'success'} : null;
-    if (off) return data.agent?.fresh ? (Date.now() - r.at < 5 * 60e3 ? {busy: true, label: 'APAGANDO', text: 'Apagando ServerCesar…'} : null) : {label: 'SIN RESPUESTA', text: 'Orden de suspensión enviada el ' + fmt(r.at) + '. El agente no responde; no se puede confirmar si está suspendido, apagado o desconectado.'};
+    if (off) return data.agent?.fresh ? (Date.now() - r.at < 5 * 60e3 ? {busy: true, label: 'APAGANDO', text: 'Apagando ServerCesar…'} : null) : {label: 'SIN RESPUESTA', text: 'Orden de apagado enviada el ' + fmt(r.at) + '. El agente no responde; no se puede confirmar si está suspendido, apagado o desconectado.'};
     return recent ? {busy: true, label: 'REINICIANDO', text: 'Reiniciando ServerCesar… vuelve en uno o dos minutos.'} : null;
   }
 
@@ -98,9 +98,9 @@
     const powerBlocked = !data.canWake || !data.agent?.fresh || Boolean(phase?.busy) || Date.now() < (data.powerCooldownUntil || 0);
     // Never offer "Apagar" unless the agent has just proved a magic packet from the Internet reaches the PC.
     $('#sc-reboot').disabled = powerBlocked;
-    // "Apagar" is switched off server-side until a real wake from sleep is proven (see SHUTDOWN_ENABLED).
-    $('#sc-shutdown').disabled = true;
-    $('#sc-shutdown').title = 'Desactivado: el paquete de encendido aún no ha despertado el PC desde apagado';
+    // S5 recovery verified; still require a fresh agent and recent packet-delivery check.
+    $('#sc-shutdown').disabled = powerBlocked || !data.shutdownEnabled || !data.agent?.wolPath?.ok || Date.now() - (data.agent.wolPath.at || 0) >= 12 * 3600e3;
+    $('#sc-shutdown').title = 'Apagado completo; requiere agente conectado y comprobación reciente de la ruta WOL';
     if (phase && !(online && phase.label === 'APAGADO')) { feedback(phase.text, phase.kind); if (phase.busy) fastUntil = Math.max(fastUntil, Date.now() + 60e3); }
     else if (p.state === 'unconfigured' && !online) feedback(data.canWake ? 'Abre «Configuración» y guarda la MAC, el host y el puerto para poder encenderlo.' : 'El propietario aún no ha configurado ServerCesar.');
     else if (online) {
@@ -112,7 +112,7 @@
     }
     else if (Date.now() < fastUntil) feedback('Paquete enviado. Esperando a que arranque…');
     else if (!p.probed?.length && p.via == null && !data.agent) feedback('No se puede saber si está encendido: añade un puerto para comprobar el estado en la configuración, o instala el agente de ServerCesar en ese PC.');
-    else feedback('Puedes enviar el paquete de encendido; el despertar remoto aún no está verificado.');
+    else feedback('Puedes enviar el paquete de encendido. La web confirmará cuando el agente vuelva a responder.');
     const cfg = $('#sc-config'); cfg.hidden = !data.canWake;
     if (data.config && !cfg.dataset.filled) { const f = $('#sc-config-form'); f.mac.value = data.config.mac; f.host.value = data.config.host; f.wolPort.value = data.config.wolPort; f.probePorts.value = data.config.probePorts.join(', '); cfg.dataset.filled = '1'; }
     if (p.state === 'unconfigured' && data.canWake && !online) cfg.open = true;
@@ -145,7 +145,7 @@
   async function power(action) {
     const off = action === 'shutdown';
     const question = off
-      ? '¿Apagar ServerCesar ahora? Quedará suspendido en bajo consumo (Minecraft y las apps se congelan, no se cierran) hasta que lo enciendas con «Encender ServerCesar».'
+      ? '¿Apagar ServerCesar por completo? Se cerrarán Minecraft y las aplicaciones. Podrás volver a encenderlo con «Encender ServerCesar». Guarda antes cualquier trabajo pendiente.'
       : '¿Reiniciar ServerCesar ahora? Se cerrará todo lo que esté abierto (Minecraft incluido) y volverá a arrancar solo.';
     if (!confirm(question)) return;
     $('#sc-reboot').disabled = true; $('#sc-shutdown').disabled = true;
