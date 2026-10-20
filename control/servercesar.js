@@ -58,10 +58,16 @@
     const off = r.action === 'shutdown', recent = Date.now() - r.at < 15 * 60e3;
     const upSince = Math.max(data.agent?.bootTime || 0, data.agent?.resumeTime || 0);
     const back = data.agent?.fresh && upSince > r.at;
-    if (r.status === 'queued') return {busy: true, label: off ? 'APAGANDO' : 'REINICIANDO', text: 'Orden de ' + (off ? 'apagado' : 'reinicio') + ' en cola. El agente la recoge en unos 2 minutos…'};
+    if (r.status === 'queued') return recent ? {busy: true, label: 'ORDEN EN COLA', text: 'Orden de ' + (off ? 'apagado' : 'reinicio') + ' en cola. El agente la recoge en unos 2 minutos…'} : {text: 'La orden no se ha confirmado. Puedes enviar el paquete de encendido.'};
     if (r.status === 'failed') return recent ? {text: (off ? 'El apagado' : 'El reinicio') + ' falló: ' + (r.result || 'sin detalle'), kind: 'error'} : null;
     if (back) return recent ? {text: 'ServerCesar ' + (off ? 'se volvió a encender' : 'se reinició y ya está de vuelta') + ' (' + fmt(upSince) + ').', kind: 'success'} : null;
-    if (off) return data.agent?.fresh ? (Date.now() - r.at < 5 * 60e3 ? {busy: true, label: 'APAGANDO', text: 'Apagando ServerCesar…'} : null) : {label: 'SIN RESPUESTA', text: 'Orden de apagado enviada el ' + fmt(r.at) + '. El agente no responde; no se puede confirmar si está suspendido, apagado o desconectado.'};
+    if (off) {
+      const acceptedAt = r.completedAt || r.claimedAt || r.at;
+      if (r.status === 'claimed' && Date.now() - acceptedAt < 120e3) return {busy: true, label: 'PREPARANDO APAGADO', text: 'El agente está preparando el router antes de apagar. «Encender» sigue disponible.'};
+      if (r.status === 'succeeded' && Date.now() - acceptedAt < 45e3) return {busy: true, label: 'APAGANDO', text: 'Windows aceptó la orden y tiene programado el apagado. «Encender» sigue disponible.'};
+      if (data.agent?.fresh && data.agent.receivedAt > acceptedAt + 45e3) return {text: 'El agente sigue respondiendo después de la orden de apagado.', kind: 'error'};
+      return {powerUnavailable: true, label: 'APAGADO SIN CONFIRMAR', text: 'La orden de apagado fue enviada. El último informe guardado no confirma el estado actual. Puedes usar «Encender ServerCesar».'};
+    }
     return recent ? {busy: true, label: 'REINICIANDO', text: 'Reiniciando ServerCesar… vuelve en uno o dos minutos.'} : null;
   }
 
@@ -81,7 +87,7 @@
 
   function render(data) {
     const p = data.power || {}, online = p.state === 'online', pill = $('[data-sc-pill]', card());
-    const phase = powerPhase(data), label = phase?.label && (phase.busy || !online) ? phase.label : null;
+    const phase = powerPhase(data), label = phase?.label || null;
     pill.textContent = label || (online ? 'ENCENDIDO' : p.state === 'unconfigured' ? 'SIN CONFIGURAR' : 'SIN RESPUESTA');
     pill.classList.toggle('online', online && !label);
     card().dataset.state = p.state || 'unknown';
@@ -93,9 +99,10 @@
     cooldownUntil = data.cooldownUntil || 0;
     const button = $('#sc-wake');
     button.hidden = !data.canWake;
-    button.disabled = !data.canWake || p.state === 'unconfigured' || online || Date.now() < cooldownUntil;
+    // WOL is harmless while awake. A cached heartbeat must never prevent recovery after shutdown.
+    button.disabled = !data.canWake || p.state === 'unconfigured' || Date.now() < cooldownUntil;
     $('#sc-power-row').hidden = !data.canWake;
-    const powerBlocked = !data.canWake || !data.agent?.fresh || Boolean(phase?.busy) || Date.now() < (data.powerCooldownUntil || 0);
+    const powerBlocked = !data.canWake || !data.agent?.fresh || Boolean(phase?.busy || phase?.powerUnavailable) || Date.now() < (data.powerCooldownUntil || 0);
     // Never offer "Apagar" unless the agent has just proved a magic packet from the Internet reaches the PC.
     $('#sc-reboot').disabled = powerBlocked;
     // S5 recovery verified; still require a fresh agent and recent packet-delivery check.
@@ -179,6 +186,8 @@
     initialise(token, wakeAllowed) {
       csrf = token || ''; canWake = Boolean(wakeAllowed);
       if (started || !card()) return; started = true;
+      $('#sc-wake').hidden = !canWake;
+      $('#sc-wake').disabled = !canWake;
       $('#sc-wake').addEventListener('click', wake);
       $('#sc-reboot').addEventListener('click', () => power('reboot'));
       $('#sc-shutdown').addEventListener('click', () => power('shutdown'));

@@ -158,7 +158,7 @@
         <div class="server-actions" id="sc-power-row" hidden>
           <div>
             <small>REINICIO Y APAGADO REMOTOS</small>
-            <p>Un paquete Wake-on-LAN solo sirve para encender. Para reiniciar o apagar, el agente de ServerCesar recoge la orden (en menos de 30 s) y se la da a Windows. «Apagar» lo deja suspendido en bajo consumo: las apps, Minecraft y las sesiones de control remoto se congelan en vez de cerrarse y vuelven en segundos. Antes de apagarlo, comprueba que «Ruta de encendido desde Internet» está en OK.</p>
+            <p>El agente recoge la orden en unos 2 minutos. «Apagar» cierra las aplicaciones y apaga Windows por completo, después de preparar la ruta de encendido. «Encender ServerCesar» sigue disponible aunque el último informe todavía indique que está encendido.</p>
           </div>
           <div class="sc-power-buttons">
             <button class="wake-button reboot-button" id="sc-reboot" type="button" disabled><span>↻</span> Reiniciar</button>
@@ -393,7 +393,7 @@
   <script type="module" src="backtest.js?v=20261012m"></script>
   <script src="github-galaxy.js?v=20260928atlas"></script>
   <script src="control.js?v=20261014servercesar"></script>
-  <script src="servercesar.js?v=20261015route" defer></script>
+  <script src="servercesar.js?v=20261020wake" defer></script>
   <script src="flight-control.js?v=20261014a" defer></script>
   <script src="thermal-viewer.bundle.js?v=20260805o"></script>
 </body>

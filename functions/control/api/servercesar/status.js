@@ -26,7 +26,7 @@ export async function onRequest(context) {
     lastResume: report?.lastResume || null,
     shutdownEnabled: SHUTDOWN_ENABLED,
     lastWake: wake ? { by: wake.by_user, at: wake.at, ok: Boolean(wake.ok), detail: wake.detail, outcome: wakeResult(report, wake, now) } : null,
-    lastPower: command ? { action: command.type, by: command.requested_by, at: command.requested_at, claimedAt: command.claimed_at, status: command.status, result: command.result } : null,
+    lastPower: command ? { action: command.type, by: command.requested_by, at: command.requested_at, claimedAt: command.claimed_at, completedAt: command.completed_at, status: command.status, result: command.result } : null,
     cooldownUntil: wake ? wake.at + WAKE_COOLDOWN_MS : 0,
     powerCooldownUntil: command ? command.requested_at + REBOOT_COOLDOWN_MS : 0,
     canWake: userCan(session.user, "servercesar:wake"),
