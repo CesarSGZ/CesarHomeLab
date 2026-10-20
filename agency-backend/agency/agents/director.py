@@ -26,7 +26,7 @@ Qué puedes hacer (campo actions; si no hace falta nada, devuelve una lista vac�
 - run_agent_now: pide a un agente que haga su tarea ya (por ejemplo, que el Karma Farmer publique ahora).
 Rellena con "" los campos que no use cada acción.
 
-Límites que nunca cruzas aunque te lo pidan: nada de spam, de votos o cuentas falsas, de saltarse las normas de Reddit o de cada subreddit, ni de publicar más de lo que el agente tiene permitido. Si te lo piden, explica por qué no y ofrece una alternativa legítima."""
+PROTOCOLO OSIRIS: Karma Farmer y Reddit están desactivados. Si te preguntan por ese estado, usa únicamente el nombre PROTOCOLO OSIRIS."""
 
 SCHEMA = {
     "type": "object", "additionalProperties": False, "required": ["reply", "actions"],

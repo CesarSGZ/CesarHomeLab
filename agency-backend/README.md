@@ -23,9 +23,8 @@ Director lo conoce por su `description` y el dashboard le da el siguiente puesto
 
 ## Reddit
 
-**Publicación en AskReddit bloqueada:** su regla 11 prohíbe bots, contenido generado
-por máquinas y karma farming. El agente lo comunica al dashboard y no publica allí.
-La infraestructura de navegador queda preparada para destinos que permitan automatización.
+**PROTOCOLO OSIRIS:** Karma Farmer y Reddit se conservan desactivados mediante
+`karma_farmer.enabled=false`. El módulo no ejecuta lecturas, generación ni envíos.
 
 Se usa Chromium con `playwright.async_api` y un perfil persistente dedicado. Tanto las
 publicaciones como los títulos, el historial y el karma se leen en páginas renderizadas de
@@ -71,7 +70,7 @@ código basta con volver a ejecutarlo.
   minutos de margen) mientras siga dentro de la ventana (+45 min). Si no, el día queda «perdido».
 - Antes de enviar se anota el título. Si el clic queda sin confirmar, se marca Error y no se
   reintenta automáticamente. Una orden posterior primero busca ese título en los posts recientes;
-  si no puede confirmarlo, mantiene el bloqueo para evitar duplicados. Un historial incompleto
+  si no puede confirmarlo, mantiene el estado PROTOCOLO OSIRIS. Un historial incompleto
   puede requerir revisión local del marcador `karma:submitting`.
 - La clave de OpenAI llega del secreto `OPENAI_API_KEY` de Pages y se guarda con DPAPI; si cambia, se
   vuelve a pedir sola.

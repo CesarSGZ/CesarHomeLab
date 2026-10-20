@@ -25,7 +25,7 @@ const LAMP = { working: PAL.green, thinking: PAL.green, resting: PAL.amber, paus
 function look(a, c) {
   const night = c.hour < 8 || c.hour >= 23.5, st = c.online ? a.status : 'offline';
   if (st === 'working') return { pose: 'type', m: ['reddit', 'typing'], say: /^Publicando/.test(a.detail) ? 'PUBLICANDO' : /^Pensando/.test(a.detail) ? 'PENSANDO...' : 'LEYENDO REDDIT' };
-  if (st === 'blocked') return { pose: 'sit', m: ['alert', 'off'], say: /regla 11/.test(a.detail || '') ? 'NORMAS REDDIT' : 'FALTA REDDIT' };
+  if (st === 'blocked') return { pose: 'sit', m: ['alert', 'off'], say: a.id === 'karma-farmer' ? 'PROTOCOLO OSIRIS' : 'NO DISPONIBLE' };
   if (st === 'error') return { pose: 'sit', m: ['alert', 'reddit'], say: 'ERROR' };
   if (st === 'completed') return { pose: 'sit', m: ['reddit', 'saver'], say: 'COMPLETADO' };
   if (st === 'paused') return { pose: 'sit', m: ['off', 'off'], sign: 'PAUSA' };
@@ -127,7 +127,7 @@ export const agency = {
     for (const [px, py] of [[1, 13], [16, 13], [16, 4], [1, 8]]) D.push({ y: py * T + 14, f: () => plant(g, px * T + 8, py * T + 14, now, true) });
     // etiquetas y bocadillos encima de todo
     D.push({ y: 999, f: () => {
-      staff.forEach((a, i) => { const [sx, sy] = SEATS[i], L = look(a, c); nameTag(g, sx * T + 8, sy * T + 17, a.name.toUpperCase(), a.color); if (L.say) bubble(g, sx * T + 8, sy * T - 30, L.say, L.say === 'ERROR' || L.say === 'FALTA REDDIT' ? PAL.red : INK); });
+      staff.forEach((a, i) => { const [sx, sy] = SEATS[i], L = look(a, c); nameTag(g, sx * T + 8, sy * T + 17, a.name.toUpperCase(), a.color); if (L.say) bubble(g, sx * T + 8, sy * T - 30, L.say, L.say === 'ERROR' ? PAL.red : INK); });
       if (dl === 'thinking') bubble(g, dcx, dfy - 36, 'PENSANDO' + '...'.slice(0, (now * 3 | 0) % 4), INK);
       else if (dl === 'offline') bubble(g, dcx, dfy - 36, 'SIN CONEXION', PAL.red);
     } });

@@ -94,3 +94,13 @@ test('completed browser job survives sync and is shown as Completado', async () 
   assert.match(teamCard(live, 'karma-farmer'), /Completado/);
   assert.equal(live.events[0].text, 'Publicado con navegador');
 });
+
+test('inactive Karma Farmer exposes only PROTOCOLO OSIRIS', async () => {
+  const { teamCard, karmaCard } = await import('../control/agency/panel.js');
+  const state = sanitiseState({agents: [{id: 'karma-farmer', name: 'Karma Farmer', status: 'blocked', detail: 'PROTOCOLO OSIRIS', commands: []}],
+    reddit: {configured: false, protocol: 'PROTOCOLO OSIRIS', browserError: 'PROTOCOLO OSIRIS'}});
+  const live = {state, backend: {online: true}};
+  assert.match(teamCard(live, ''), /PROTOCOLO OSIRIS/);
+  assert.doesNotMatch(teamCard(live, ''), /Bloqueado|data-cmd/);
+  assert.equal(karmaCard(live), '<h3>Reddit</h3><p class="ag-muted">PROTOCOLO OSIRIS</p>');
+});
