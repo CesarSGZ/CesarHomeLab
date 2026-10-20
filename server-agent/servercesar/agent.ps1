@@ -10,7 +10,7 @@ param(
 $ErrorActionPreference = 'Continue'
 Add-Type -AssemblyName System.Security
 
-$AgentVersion = '1.5.1'
+$AgentVersion = '1.5.2'
 $SiteBaseUrl = 'https://cesar-solla.pages.dev'
 # 120 s keeps the panel fresh enough for a homelab while keeping D1 operations well under the free tier.
 $IntervalSeconds = 120
@@ -149,6 +149,18 @@ function Invoke-Power($command) {
     if ($command.type -eq 'shutdown') {
         if (-not (Test-Path (Join-Path $Root 's5-wake-verified.txt'))) {
             return @{ id = $command.id; ok = $false; detail = 'Apagado bloqueado: recuperacion S5 pendiente de verificar' }
+        }
+        # The machine can stay online over Wi-Fi even when the wired WOL path is unplugged.
+        try {
+            $wakeTarget = Get-Content -Raw (Join-Path $Root 'wol-target.json') -ErrorAction Stop | ConvertFrom-Json
+            $wakeMac = ($wakeTarget.mac -replace '[^0-9a-fA-F]', '').ToUpperInvariant()
+            if ($wakeMac.Length -ne 12) { throw 'Invalid wake adapter' }
+            $wired = @(Get-NetAdapter -Physical -ErrorAction Stop | Where-Object {
+                ($_.MacAddress -replace '[^0-9a-fA-F]', '').ToUpperInvariant() -eq $wakeMac -and $_.Status -eq 'Up'
+            })
+            if ($wired.Count -ne 1) { throw 'Wake adapter has no link' }
+        } catch {
+            return @{ id = $command.id; ok = $false; detail = 'Apagado cancelado: la tarjeta de encendido remoto no tiene enlace de red comprobado' }
         }
         & "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -NonInteractive -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'prepare-wake.ps1') 2>&1 | Out-Null
         if ($LASTEXITCODE -ne 0) {

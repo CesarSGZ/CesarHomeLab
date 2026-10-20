@@ -129,7 +129,7 @@ export async function readReport(db) {
 }
 
 export const POWER_ACTIONS = ["reboot", "shutdown"];
-export const SHUTDOWN_ENABLED = false;
+export const SHUTDOWN_ENABLED = true;
 
 // A later boot/resume alone does not prove the magic packet woke the PC.
 // In particular a safety wake timer must never be counted as a successful WoL test.
