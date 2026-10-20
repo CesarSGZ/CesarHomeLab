@@ -104,7 +104,7 @@ export function pickAgents(s, phase, now) {
 // Cuántos turnos de IA caben en este ciclo según lo que queda de presupuesto para hoy.
 export function planTurns(s, {phase, leftToday, now, manual}) {
   const v2 = s.v2, pace = v2.policy.pace, per = Math.max(0.0003, v2.stats.turnCostEur * 1.25);
-  let base = phase === 'session' ? {ahorro: 2, normal: 3, intensivo: 4}[pace] : phase === 'day' ? {ahorro: 1, normal: 1, intensivo: 2}[pace] : 1;
+  let base = phase === 'session' ? {ahorro: 2, normal: 3, intensivo: 6}[pace] : phase === 'day' ? {ahorro: 1, normal: 1, intensivo: 3}[pace] : 1;
   const m = madrid(now), minutesLeft = Math.max(30, (30 * 60 - m.minutes) % 1440 || 1440); // hasta las 06:00 de Madrid, cuando cambia el día de Nueva York
   const affordable = leftToday / per, cycles = minutesLeft / 5, perCycle = affordable / cycles;
   if (affordable < 1) return 0;

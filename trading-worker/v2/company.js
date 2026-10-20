@@ -33,21 +33,27 @@ export const OFFICE_CATALOG = {
 
 export const POLICY_DEFAULT = {
   strategy: 'Intradía', focus: 'Valores líquidos que se mueven hoy con volumen: entrar a favor del movimiento y cerrar en la misma sesión.',
-  rules: 'Stop corto, objetivo al menos el doble que el stop y nada abierto de un día para otro salvo decisión expresa.',
-  lotPct: 10, leverage: 1, stopPct: 1.5, targetPct: 3, holdDays: 0.25, trailPct: 0,
-  riskGate: 'on', pace: 'normal', meetingsPerDay: 3, minDollarVolume: 1e6, pipeline: 6
+  rules: 'Operar todos los días de sesión con varias posiciones a la vez, stop corto, objetivo al menos el doble que el stop, y corregir la estrategia con cada cierre.',
+  lotPct: 15, leverage: 1, stopPct: 1.5, targetPct: 3, holdDays: 0.25, trailPct: 0,
+  riskGate: 'on', pace: 'intensivo', meetingsPerDay: 3, minDollarVolume: 1e6, pipeline: 10
 };
-const NUM = {lotPct: [1, 100], leverage: [1, 5], stopPct: [0.3, 40], targetPct: [0.5, 300], holdDays: [0.04, 30], trailPct: [0, 30], meetingsPerDay: [1, 6], pipeline: [1, 12], minDollarVolume: [3e5, 5e7]};
-const ENUM = {riskGate: ['on', 'off'], pace: ['ahorro', 'normal', 'intensivo']};
+const NUM = {lotPct: [5, 100], leverage: [1, 5], stopPct: [0.3, 40], targetPct: [0.5, 300], holdDays: [0.04, 30], trailPct: [0, 30], meetingsPerDay: [1, 6], pipeline: [1, 12], minDollarVolume: [3e5, 5e7]};
+const ENUM = {riskGate: ['on', 'off'], pace: ['normal', 'intensivo']}; // sin «ahorro»: César prefiere gastar tokens a tener la oficina parada
 const TEXT = {strategy: 28, focus: 220, rules: 220};
 export const POLICY_PARAMS = [...Object.keys(TEXT), ...Object.keys(NUM), ...Object.keys(ENUM)];
-export const POLICY_HELP = 'strategy (nombre corto), focus (qué buscamos), rules (reglas de la casa), lotPct 1-100 (tamaño por defecto, % del capital por posición; cada plan puede fijar su propio importe y no hay máximo de posiciones), leverage 1-5 (con palanca, si el capital cae por debajo del 30 % de lo invertido se liquida todo), stopPct 0.3-40, targetPct 0.5-300, holdDays 0.04-30 (plazo en días; admite fracciones para operar por horas: 0.1 ≈ 2 h 24 min), trailPct 0-30 (stop que persigue al precio; 0 = apagado), riskGate on|off (si María debe aprobar), pace ahorro|normal|intensivo, meetingsPerDay 1-6, pipeline 1-12 (cuántas candidatas vivas debe mantener Santi), minDollarVolume 300000-50000000';
+export const POLICY_HELP = 'strategy (nombre corto), focus (qué buscamos), rules (reglas de la casa), lotPct 5-100 (tamaño por defecto, % del capital por posición; cada plan puede fijar su propio importe y no hay máximo de posiciones), leverage 1-5 (con palanca, si el capital cae por debajo del 30 % de lo invertido se liquida todo), stopPct 0.3-40, targetPct 0.5-300, holdDays 0.04-30 (plazo en días; admite fracciones para operar por horas: 0.1 ≈ 2 h 24 min), trailPct 0-30 (stop que persigue al precio; 0 = apagado), riskGate on|off (si María debe aprobar), pace normal|intensivo, meetingsPerDay 1-6, pipeline 1-12 (cuántas candidatas vivas debe mantener Santi), minDollarVolume 300000-50000000';
 const LABEL = {strategy: 'estrategia', focus: 'foco', rules: 'reglas', lotPct: 'tamaño por defecto (%)', leverage: 'apalancamiento', stopPct: 'stop (%)', targetPct: 'objetivo (%)', holdDays: 'plazo (días)', trailPct: 'stop dinámico (%)', riskGate: 'filtro de riesgo', pace: 'ritmo de trabajo', meetingsPerDay: 'reuniones al día', pipeline: 'candidatas vivas', minDollarVolume: 'liquidez mínima ($)'};
 export const policyLabel = p => LABEL[p] || p;
 
+// La empresa no puede pararse a sí misma: las reglas dicen CÓMO se opera, no si se opera.
+// (Del 12 al 20/10/2026 Augusto encadenó una «pausa estricta» que nada podía levantar.)
+export const HALT = /paus|no (abrir|operar|reabrir|comprar)|sin (nuevas )?(entradas|operaciones|compras)|bloque|congel|suspend|deten|parar? de operar|auditor[ií]a/i;
 // Valida y normaliza un cambio de política. Devuelve {ok, value} o {ok:false, reason}.
 export function checkPolicy(param, raw) {
-  if (TEXT[param]) { const value = String(raw ?? '').replace(/\s+/g, ' ').trim().slice(0, TEXT[param]); return value.length >= 3 ? {ok: true, value} : {ok: false, reason: 'Texto demasiado corto'}; }
+  if (TEXT[param]) {
+    const value = String(raw ?? '').replace(/\s+/g, ' ').trim().slice(0, TEXT[param]); if (value.length < 3) return {ok: false, reason: 'Texto demasiado corto'};
+    return HALT.test(value) ? {ok: false, reason: 'César no permite parar la empresa: las reglas cambian cómo se opera, no si se opera'} : {ok: true, value};
+  }
   if (ENUM[param]) { const value = String(raw ?? '').trim().toLowerCase(); return ENUM[param].includes(value) ? {ok: true, value} : {ok: false, reason: 'Valores válidos: ' + ENUM[param].join(', ')}; }
   if (NUM[param]) {
     const n = Number(String(raw ?? '').replace(',', '.').replace(/[^0-9.\-]/g, '')), [lo, hi] = NUM[param];
@@ -73,11 +79,19 @@ export function initCompany(s, now = Date.now()) {
 }
 // Cambios de reglas decididos por César para la empresa en marcha: se aplican una sola vez,
 // quedan en el registro de cambios y a partir de ahí el equipo los ajusta como quiera.
-const POLICY_REV = 2;
+const POLICY_REV = 3;
 function migratePolicy(v2, now) {
-  if ((v2.policyRev || 1) >= POLICY_REV) return;
-  delete v2.policy.maxPositions;
-  for (const param of ['strategy', 'focus', 'rules', 'lotPct', 'stopPct', 'targetPct', 'holdDays']) setPolicy(v2, param, POLICY_DEFAULT[param], 'auditor', 'Indicación de César: empezar por intradía e ir ajustando con los datos', now);
+  const rev = v2.policyRev || 1; if (rev >= POLICY_REV) return;
+  if (rev < 2) {
+    delete v2.policy.maxPositions;
+    for (const param of ['strategy', 'focus', 'rules', 'lotPct', 'stopPct', 'targetPct', 'holdDays']) setPolicy(v2, param, POLICY_DEFAULT[param], 'auditor', 'Indicación de César: empezar por intradía e ir ajustando con los datos', now);
+  }
+  if (rev < 3) {
+    // Fin de la «pausa estricta»: se opera a diario y se aprende de cada cierre.
+    for (const param of ['rules', 'lotPct', 'pace', 'pipeline']) setPolicy(v2, param, POLICY_DEFAULT[param], 'auditor', 'Indicación de César: se acabó la pausa; operar a diario sin parar y corregir la estrategia con cada cierre', now);
+    v2.shares = {}; v2.lessons = v2.lessons.filter(l => !HALT.test(l));
+    for (const a of Object.values(v2.agents)) { a.waitUntil = 0; a.notes = a.notes.filter(n => !HALT.test(n)); }
+  }
   v2.policyRev = POLICY_REV;
 }
 function newAgent() { return {mood: 'tenso', task: 'Incorporándose', thought: '', say: '', lastAt: 0, waitUntil: 0, notes: [], inbox: [], calls: 0, eur: 0, today: {day: '', calls: 0, eur: 0}, paused: false, stats: {}, seenSeq: 0}; }
@@ -187,7 +201,7 @@ export const bookNamed = (v2, name) => v2.books.find(b => b.name.toLowerCase() =
 // Plazo de una operación: días enteros o, por debajo de un día, fracciones (trading por horas).
 export const horizon = d => d >= 1 ? Math.round(d) : Math.max(0.04, Math.round(d * 100) / 100);
 // Mensaje permanente de César; se entrega una vez por versión como si lo hubiera escrito en el dashboard.
-const OWNER_NOTE = {id: 'n3', text: 'De parte de César: cambio de rumbo. Empezad con trading intradía (los catalizadores eran demasiado a corto plazo) y que Augusto vaya cambiando la estrategia según lo que digan los datos de las operaciones. Ya no hay máximo de posiciones ni límites de compra: decidís vosotros cuántas y de cuánto. María no veta: trabaja con Pedro para que cada operación tenga una ganancia potencial, una pérdida potencial y una probabilidad que compensen, y vigila el riesgo de la cartera entera. Si ganáis los 10.000 € antes, mejor: lo que sobre cuenta para el mes siguiente.'};
+const OWNER_NOTE = {id: 'n4', text: 'De parte de César: se acabó la pausa. No hay ninguna auditoría que esperar: la única forma de mejorar es operar y aprender de cada cierre. Quiero trading intradía y por horas todos los días de sesión, varias posiciones a la vez, y que Augusto cambie la estrategia con los resultados (probad estrategias paralelas de muy corto plazo). Gastad los tokens que haga falta. Ojo: casi todos los cierres perdieron por los costes; con 100 € por posición la comisión se come un 2 %, así que operad con tamaños de verdad (1.000-2.000 €).'};
 function ownerNote(v2, now) {
   if (v2.ownerNote === OWNER_NOTE.id) return; v2.ownerNote = OWNER_NOTE.id;
   v2.owner.push({text: OWNER_NOTE.text, at: now}); v2.owner = v2.owner.slice(-10); tell(v2, 'auditor', 'cesar', OWNER_NOTE.text, now); v2.agents.auditor.waitUntil = 0; emit(v2, 'owner', {text: OWNER_NOTE.text}, now);

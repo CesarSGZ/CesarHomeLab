@@ -51,10 +51,26 @@ Por indicación de César, la empresa en marcha pasó una sola vez (`policyRev` 
 cercanos» a «Intradía»: valores líquidos que se mueven hoy, stop 1,5 %, objetivo 3 %, plazo 6 h y
 tamaño por defecto del 10 %. A partir de ahí Augusto la ajusta según los datos.
 
+### La empresa no se para (`policyRev` 3, 20/10/2026)
+
+Del 12 al 20 de octubre Augusto encadenó una «pausa estricta hasta una auditoría verificable» que
+nada en el sistema podía cumplir: 8 días sin operar. Además, 110 de 121 cierres perdieron casi siempre
+por los costes, porque el lote estaba en el 1 % (~100 €) y la comisión fija más el deslizamiento se
+comían un ~2,2 % por operación. Por indicación de César:
+
+- Las reglas (`rules`, `focus`, `strategy`) y las lecciones no pueden pausar la empresa (`HALT` en
+  `company.js`): cambian cómo se opera, no si se opera.
+- Migración única: reglas de operar a diario, lote del 15 % (mínimo 5 %), ritmo intensivo (ya no
+  existe «ahorro»), 10 candidatas vivas, reparto de tokens a 1 y fuera las lecciones y notas de pausa.
+- Cada plan muestra `costesIdaYVueltaPct` y `esperanzaNetaEur`; ningún plan baja de 500 €.
+- En sesión, si Santi lleva dos turnos sin traer candidatas cuando faltan, la casa trae la mejor del
+  radar o el valor español que más se mueve.
+- En intensivo caben 6 turnos por ciclo en sesión y 3 de día.
+
 ### Libertad del equipo
 
 Pueden cambiar, por acción directa de Augusto o por acuerdo de reunión: nombre y foco de la
-estrategia, reglas de la casa, tamaño por defecto (1–100 % del capital; cada plan fija su importe y no
+estrategia, reglas de la casa, tamaño por defecto (5–100 % del capital; cada plan fija su importe y no
 hay máximo de posiciones), apalancamiento (×1–×5), stop, objetivo y plazo por defecto, si María debe aprobar (`riskGate`),
 ritmo de trabajo y número de reuniones. Una propuesta rechazada por mayoría no puede aplicarse en
 esa reunión. No modifican código: la autoprogramación de la versión anterior está retirada.
@@ -66,7 +82,7 @@ Con apalancamiento, si el capital cae por debajo del 30 % de lo invertido se liq
 
 ### Cantera, España y estrategias paralelas
 
-- `pipeline` (1–12, por defecto 6): candidatas vivas que debe mantener Santi. Mientras falten, es
+- `pipeline` (1–12, por defecto 10): candidatas vivas que debe mantener Santi. Mientras falten, es
   trabajo pendiente suyo y puede traer hasta tres por turno.
 - Bolsa española (`spain.js`): 45 valores líquidos con sufijo `.MC`, en euros y sin conversión de
   divisa; sesión de 9:00 a 17:30 de Madrid. No hay radar de noticias: se siguen sus precios por
@@ -76,8 +92,8 @@ Con apalancamiento, si el capital cae por debajo del 30 % de lo invertido se liq
 
 ### Presupuesto de IA
 
-Asignación diaria = saldo restante / días restantes × ritmo (ahorro 0,6 · normal 1 · intensivo 1,5).
-Turnos por ciclo: hasta 3 en sesión y 1 fuera (2/1 en ahorro, 4/2 en intensivo); de noche solo si
+Asignación diaria = saldo restante / días restantes × ritmo (normal 1 · intensivo 1,5).
+Turnos por ciclo: hasta 3 en sesión y 1 fuera (6/3 en intensivo); de noche solo si
 alguien tiene trabajo pendiente. Si el saldo de hoy no alcanza, los turnos se espacian; agotado,
 solo quedan las rutinas por código. Un turno usa `gpt-6-luna` (~0,0003 €); la búsqueda web de Santi
 es la única llamada cara (límite diario 1/3/6 según ritmo, y se desactiva tras dos fallos).
