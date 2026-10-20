@@ -187,3 +187,29 @@ test('defaults come from encrypted deployment secrets and a saved override wins'
   const saved = await readConfig(db({mac: 'AA-AA-AA-AA-AA-AA', host: 'other.example.org', wol_port: 7, probe_ports: '', updated_at: 1}), env);
   assert.equal(saved.host, 'other.example.org'); assert.equal(saved.source, 'mission-control');
 });
+
+test('a bare heartbeat only refreshes the report timestamp and asks for a full report when none is stored', async () => {
+  const {onRequest} = await import('../functions/api/agent/servercesar.js');
+  const token = 'h'.repeat(40);
+  const run = async (stored) => {
+    const writes = [];
+    const db = {
+      prepare: (sql) => {
+        let args = [];
+        const s = {bind: (...a) => { args = a; return s; },
+          run: async () => { writes.push(sql); return {meta: {changes: sql.startsWith('UPDATE servercesar_report') ? (stored ? 1 : 0) : 0}}; },
+          first: async () => null};
+        return s;
+      },
+      batch: async () => [],
+    };
+    const request = new Request('https://x/api/agent/servercesar', {method: 'POST', headers: {authorization: 'Bearer ' + token, 'content-type': 'application/json'}, body: JSON.stringify({heartbeat: true})});
+    const response = await onRequest({request, env: {SERVERCESAR_AGENT_TOKEN: token, CONTROL_DB: db}});
+    return {body: await response.json(), writes};
+  };
+  const withRow = await run(true);
+  assert.equal(withRow.body.needReport, false);
+  assert.ok(withRow.writes.some((s) => s.startsWith('UPDATE servercesar_report SET received_at')));
+  assert.ok(!withRow.writes.some((s) => s.startsWith('INSERT INTO servercesar_report')), 'a heartbeat never rewrites the report');
+  assert.equal((await run(false)).body.needReport, true);
+});

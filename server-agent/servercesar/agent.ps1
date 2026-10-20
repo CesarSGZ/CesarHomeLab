@@ -10,7 +10,7 @@ param(
 $ErrorActionPreference = 'Continue'
 Add-Type -AssemblyName System.Security
 
-$AgentVersion = '1.5.2'
+$AgentVersion = '1.6.0'
 $SiteBaseUrl = 'https://cesar-solla.pages.dev'
 # 120 s keeps the panel fresh enough for a homelab while keeping D1 operations well under the free tier.
 $IntervalSeconds = 120
@@ -227,6 +227,17 @@ function Test-WolPath {
     $script:WolPath = $result
 }
 
+# What the website shows, minus the values that move every minute (CPU, RAM, disk, guardian clock).
+# A change here means the full report is worth sending now.
+function Get-ReportSignature($report) {
+    $copy = [ordered]@{}
+    foreach ($key in $report.Keys) { if ($key -notin 'cpu', 'ram', 'diskFreeGb', 'guardianAt') { $copy[$key] = $report[$key] } }
+    $copy | ConvertTo-Json -Depth 6 -Compress
+}
+$script:LastSignature = $null
+$script:LastFullAt = $null
+$script:NeedReport = $true
+
 $token = Read-AgentToken
 Write-Log "agent $AgentVersion started"
 Enable-KeepAwake
@@ -238,11 +249,19 @@ while ($true) {
         Repair-Guardian $userSession
         Invoke-StoreScan
         Test-WolPath
-        $body = @{ report = (Get-Report $userSession) }
+        $report = Get-Report $userSession
+        $signature = Get-ReportSignature $report
+        # Full report only when something meaningful changed, every 30 min (CPU/RAM/disk), or on request;
+        # otherwise a bare heartbeat, which costs the website a single D1 row.
+        $fullDue = $script:NeedReport -or $pendingDone -or $signature -ne $script:LastSignature -or
+            -not $script:LastFullAt -or ((Get-Date) - $script:LastFullAt).TotalMinutes -ge 30
+        $body = $(if ($fullDue) { @{ report = $report } } else { @{ heartbeat = $true } })
         if ($pendingDone) { $body.done = $pendingDone }
         $json = $body | ConvertTo-Json -Depth 6 -Compress
         $response = Invoke-RestMethod -Method Post -Uri "$SiteBaseUrl/api/agent/servercesar" -Headers @{ Authorization = "Bearer $token" } `
             -ContentType 'application/json; charset=utf-8' -Body ([Text.Encoding]::UTF8.GetBytes($json)) -TimeoutSec 20
+        if ($fullDue) { $script:LastSignature = $signature; $script:LastFullAt = Get-Date }
+        $script:NeedReport = [bool]$response.needReport
         $pendingDone = $null
         if ($response.command -and $response.command.type -in @('reboot', 'shutdown')) {
             $pendingDone = Invoke-Power $response.command
