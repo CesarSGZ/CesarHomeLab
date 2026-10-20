@@ -3,14 +3,11 @@
 Implementación sobre `CesarSGZ/CesarHomeLab`, base
 `098c76a14adbc774f45a46a3190a1241b4edb76e`.
 
-## Destino bloqueado: r/AskReddit
+## PROTOCOLO OSIRIS
 
-La [regla 11 de r/AskReddit](https://www.reddit.com/r/AskReddit/wiki/rules/)
-prohíbe bots, contenido generado por máquinas y karma farming. El agente muestra
-ese motivo como `blocked`, no programa publicaciones allí y rechaza `run-now`.
-El adaptador bloquea también el envío directo antes de abrir el navegador.
-El módulo genérico sigue disponible para destinos donde se permita automatizar.
-No se incorporan plugins stealth ni técnicas para eludir restricciones.
+Karma Farmer y Reddit se conservan desactivados (`karma_farmer.enabled=false`).
+No se ejecutan lecturas, generación de texto, preparación de sesión ni envíos.
+El estado, la tarjeta, el personaje y el panel de Reddit muestran PROTOCOLO OSIRIS.
 
 ## Qué cambia
 
@@ -119,6 +116,7 @@ Los ajustes nuevos se combinan con los ya existentes en
 ```json
 {
   "karma_farmer": {
+    "enabled": false,
     "username": "TU_USUARIO",
     "browser": {
       "profile_dir": "reddit-browser-profile",

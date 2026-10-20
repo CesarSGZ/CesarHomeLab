@@ -23,7 +23,7 @@ from .agents import TEAM
 from .cloud import CloudError, MissionControl
 from .config import DATA_DIR, DB_PATH, LOG_DIR, load_settings
 from .llm import LLM
-from .platforms.reddit import Reddit, RedditError
+from .platforms.reddit import PROTOCOL, Reddit, RedditError
 from .store import Store, now_ms
 
 STATE_EVERY_S = 300
@@ -183,6 +183,9 @@ def single_instance():
 
 
 def setup_reddit():
+    if not load_settings()['karma_farmer'].get('enabled', False):
+        print(PROTOCOL)
+        return
     import asyncio
     import re
     from .config import SETTINGS_PATH
@@ -225,6 +228,9 @@ def main(argv):
     elif cmd == "has-token":
         sys.exit(0 if vault.load("agent_token") else 1)
     elif cmd == "dry-run":
+        if not load_settings()['karma_farmer'].get('enabled', False):
+            print(PROTOCOL)
+            return
         rt = Runtime()
         kf = rt.agents["karma-farmer"]
         hot = kf.reddit.hot_titles(kf.cfg["subreddit"], 40) if kf.reddit.configured else []

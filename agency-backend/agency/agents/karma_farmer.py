@@ -11,7 +11,7 @@ import random
 import re
 
 from ..llm import LLMError
-from ..platforms.reddit import RedditError
+from ..platforms.reddit import PROTOCOL, RedditError
 from ..store import now_ms
 from .base import Agent
 
@@ -118,7 +118,7 @@ class KarmaFarmer(Agent):
         self.rt.store.put("karma:plan", plan)
 
     def next_run_at(self):
-        if self.reddit.posting_block_reason:
+        if self.reddit.protocol_reason:
             return None
         plan = self.rt.store.get("karma:plan") or {}
         return plan.get("at") if plan.get("state") == "pending" else None
@@ -130,14 +130,14 @@ class KarmaFarmer(Agent):
     def tick(self):
         if self.busy:
             return
-        if self.reddit.posting_block_reason:
-            self.status, self.detail = 'blocked', self.reddit.posting_block_reason
-            if self.reddit.configured and now_ms() >= self.stats_due and self.rt.online():
+        if self.reddit.protocol_reason:
+            self.status, self.detail = 'blocked', self.reddit.protocol_reason
+            if self.cfg.get('enabled', False) and self.reddit.configured and now_ms() >= self.stats_due and self.rt.online():
                 self.start(self.refresh_stats)
             return
         plan, now = self.plan(), now_ms()
         if not self.reddit.configured:
-            self.status, self.detail = "blocked", "Falta conectar la cuenta de Reddit en el PC (python -m agency setup-reddit)"
+            self.status, self.detail = "blocked", PROTOCOL
         elif plan.get("state") == "done":
             self.status, self.detail = "completed", "Completado. La publicación de hoy está confirmada"
         elif plan.get("state") == "failed":
@@ -177,12 +177,12 @@ class KarmaFarmer(Agent):
     def handle_command(self, kind):
         if kind != "run-now":
             return super().handle_command(kind)
-        if self.reddit.posting_block_reason:
-            return False, self.reddit.posting_block_reason
+        if self.reddit.protocol_reason:
+            return False, self.reddit.protocol_reason
         if self.busy:
             return False, "Ya está trabajando"
         if not self.reddit.configured:
-            return False, "Falta conectar la cuenta de Reddit"
+            return False, PROTOCOL
         if not self.start(self.run, True):
             return False, "Ya está trabajando"
         return True, "Publicación manual en marcha"
@@ -205,11 +205,14 @@ class KarmaFarmer(Agent):
             (p["id"], self.id, p["subreddit"], p["title"], p["url"], p["score"], p["comments"], int(p["removed"]), p["created_at"], p["checked_at"]))
 
     def run(self, manual):
+        if not self.cfg.get('enabled', False):
+            self.status, self.detail = 'blocked', PROTOCOL
+            return
         plan = self.plan()
         self.status, self.detail = "working", "Conectando con Reddit"
         try:
-            if self.reddit.posting_block_reason:
-                raise RedditError(self.reddit.posting_block_reason)
+            if self.reddit.protocol_reason:
+                raise RedditError(self.reddit.protocol_reason)
             if self.recover_interrupted():
                 plan.update(state="done")
                 self.save_plan(plan)
@@ -301,9 +304,11 @@ class KarmaFarmer(Agent):
         return latest, karma7d, week_posts, list(reversed(rows))
 
     def snapshot_extra(self):
+        if not self.cfg.get('enabled', False):
+            return [{'label': 'Estado', 'value': PROTOCOL}]
         latest, karma7d, week_posts, _ = self.karma_numbers()
         plan = self.rt.store.get("karma:plan") or {}
-        today = 'Bloqueado por normas' if self.reddit.posting_block_reason else {"pending": "Toca a las " + self.rt.hm(plan.get("at")), "done": "Publicado", "missed": "Perdido", "failed": "Falló", "skipped": "No toca"}.get(plan.get("state"), "—")
+        today = PROTOCOL if self.reddit.protocol_reason else {"pending": "Toca a las " + self.rt.hm(plan.get("at")), "done": "Publicado", "missed": "Perdido", "failed": "Falló", "skipped": "No toca"}.get(plan.get("state"), "—")
         return [
             {"label": "Karma 7 días", "value": ("+" if (karma7d or 0) >= 0 else "") + str(karma7d) if karma7d is not None else "midiendo"},
             {"label": "Karma total", "value": str(latest["total"]) if latest else "—"},
@@ -311,12 +316,20 @@ class KarmaFarmer(Agent):
             {"label": "Hoy", "value": today},
         ]
 
+    def snapshot(self):
+        state = super().snapshot()
+        if not self.cfg.get('enabled', False):
+            state.update(status='blocked', detail=PROTOCOL, lastResult=PROTOCOL,
+                         nextRunAt=None, commands=[])
+        return state
+
     def reddit_state(self):
         latest, karma7d, week_posts, history = self.karma_numbers()
         posts = self.rt.store.q("SELECT * FROM posts ORDER BY created_at DESC LIMIT 30")
         return {
             "configured": self.reddit.configured, "username": self.reddit.username,
-            "browserError": self.reddit.browser.get('session_error', ''),
+            "protocol": PROTOCOL if not self.cfg.get('enabled', False) else '',
+            "browserError": PROTOCOL if not self.cfg.get('enabled', False) else self.reddit.browser.get('session_error', ''),
             "karma": {"total": latest["total"], "post": latest["post"], "comment": latest["comment"]} if latest else {},
             "karma7d": karma7d,
             "postScore7d": sum(p["score"] or 0 for p in week_posts) if any(p["score"] is not None for p in week_posts) else None,

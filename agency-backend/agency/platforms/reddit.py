@@ -15,6 +15,8 @@ from ..config import DATA_DIR
 from ..playwright_worker import PlaywrightWorker
 from ..store import now_ms
 
+PROTOCOL = 'PROTOCOLO OSIRIS'
+
 
 class RedditError(Exception):
     pass
@@ -33,19 +35,24 @@ class Reddit:
 
     @property
     def configured(self):
-        return bool(re.fullmatch(r'[A-Za-z0-9_-]{3,20}', self.username)
+        return bool(self.cfg.get('enabled', False)
+                    and re.fullmatch(r'[A-Za-z0-9_-]{3,20}', self.username)
                     and self.profile.is_dir() and self.browser.get('session_ready'))
 
     @property
-    def posting_block_reason(self):
+    def protocol_reason(self):
+        if not self.cfg.get('enabled', False):
+            return PROTOCOL
         if self.cfg['subreddit'].casefold() == 'askreddit':
-            return 'r/AskReddit prohíbe bots, contenido generado por máquinas y karma farming (regla 11)'
+            return PROTOCOL
         return ''
 
     @asynccontextmanager
     async def page(self):
+        if not self.cfg.get('enabled', False):
+            raise RedditError(PROTOCOL)
         if not self.configured:
-            raise RedditError('Falta preparar el perfil de Reddit (python -m agency setup-reddit)')
+            raise RedditError(PROTOCOL)
         async with async_playwright() as p:
             context = await p.chromium.launch_persistent_context(
                 str(self.profile), headless=self.browser['headless'], timeout=60_000,
@@ -147,9 +154,11 @@ class Reddit:
             raise RedditError('Subreddit no válido')
 
     async def submit_async(self, subreddit, title):
+        if not self.cfg.get('enabled', False):
+            raise RedditError(PROTOCOL)
         self._validate_subreddit(subreddit)
         if subreddit.casefold() == 'askreddit':
-            raise RedditError(self.posting_block_reason or 'r/AskReddit no permite bots (regla 11)')
+            raise RedditError(PROTOCOL)
         worker = PlaywrightWorker(
             self.profile, headless=self.browser['headless'],
             timeout_ms=self.browser['timeout_ms'], typing_delay_ms=self.browser['typing_delay_ms'],

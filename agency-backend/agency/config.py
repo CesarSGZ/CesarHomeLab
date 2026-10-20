@@ -15,6 +15,7 @@ DEFAULTS = {
     "client_name": "Scarlett Storm",
     "llm": {"light": "gpt-6-luna", "deep": "gpt-6.1-sol", "daily_usd_cap": 1.0},
     "karma_farmer": {
+        "enabled": False,
         "subreddit": "AskReddit",
         # Ventana diaria (hora local) dentro de la que se elige una hora al azar.
         "window_start": "10:00",

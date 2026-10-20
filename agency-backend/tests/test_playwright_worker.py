@@ -24,6 +24,7 @@ class BrowserIntegration(unittest.TestCase):
         self.addCleanup(self.temp.cleanup)
         self.settings = deepcopy(DEFAULTS)
         cfg = self.settings['karma_farmer']
+        cfg['enabled'] = True
         cfg['username'] = 'testuser'
         cfg['subreddit'] = 'TestCommunity'
         cfg['browser'].update(profile_dir=self.temp.name, headless=True, timeout_ms=1000, typing_delay_ms=1, session_ready=True)
@@ -128,10 +129,27 @@ class BrowserIntegration(unittest.TestCase):
         self.assertIsNone(agent.next_run_at())
         ok, reason = agent.handle_command('run-now')
         self.assertFalse(ok)
-        self.assertIn('regla 11', reason)
-        with self.assertRaisesRegex(RedditError, 'regla 11'):
+        self.assertEqual(reason, 'PROTOCOLO OSIRIS')
+        with self.assertRaisesRegex(RedditError, 'PROTOCOLO OSIRIS'):
             self.reddit.submit('AskReddit', 'Which meal reminds you of summer holidays?')
         self.assertEqual(self.sent, [])
+
+    def test_disabled_protocol_skips_all_work(self):
+        self.settings['karma_farmer']['enabled'] = False
+        rt = self.runtime()
+        agent = KarmaFarmer(rt)
+        with patch.object(BrowserType, 'launch_persistent_context', side_effect=AssertionError('Unexpected browser')) as browser:
+            agent.tick()
+            agent.run(manual=True)
+            self.assertEqual(agent.handle_command('run-now'), (False, 'PROTOCOLO OSIRIS'))
+            with self.assertRaisesRegex(RedditError, 'PROTOCOLO OSIRIS'):
+                self.reddit.me()
+            browser.assert_not_called()
+        state = agent.snapshot()
+        self.assertEqual(state['detail'], 'PROTOCOLO OSIRIS')
+        self.assertEqual(state['commands'], [])
+        self.assertIsNone(state['nextRunAt'])
+        self.assertEqual(rt.store.q('SELECT * FROM posts'), [])
 
 
 if __name__ == '__main__':
