@@ -119,7 +119,7 @@ jobs:
         run: python -u ibkr_paper.py ${{ steps.modo.outputs.modo == 'ejecutar' && '--ejecutar' || '' }}
 
       - name: Take the snapshot
-        if: steps.cred.outputs.ok == 'true'
+        if: always() && steps.cred.outputs.ok == 'true'
         working-directory: backtest-lab
         env:
           GH_TOKEN: ${{ github.token }}
@@ -127,14 +127,19 @@ jobs:
           PYTHONIOENCODING: utf-8
         run: python -u ibkr_paper.py --foto --salida-foto "$RUNNER_TEMP/foto.json"
 
-      - name: Store snapshot and ledger in Mission Control
-        if: steps.cred.outputs.ok == 'true'
+      # la libreta primero y aunque algo haya fallado: sin ella el plan del dinero perdería las órdenes ya enviadas
+      - name: Store the robot's ledger in Mission Control
+        if: always() && steps.cred.outputs.ok == 'true'
+        env:
+          OFFICE_DEV_TOKEN: ${{ secrets.OFFICE_DEV_TOKEN }}
+        run: node scripts/ibkr-paper-libro.mjs guardar "$RUNNER_TEMP/libro.json"
+
+      - name: Store the snapshot in Mission Control
+        if: always() && steps.cred.outputs.ok == 'true'
         env:
           OFFICE_DEV_TOKEN: ${{ secrets.OFFICE_DEV_TOKEN }}
           FOTO_FILE: ${{ runner.temp }}/foto.json
-        run: |
-          node scripts/ibkr-paper-foto.mjs
-          node scripts/ibkr-paper-libro.mjs guardar "$RUNNER_TEMP/libro.json"
+        run: node scripts/ibkr-paper-foto.mjs
 
       - name: Stop IB Gateway
         if: steps.cred.outputs.ok == 'true' && (always())
