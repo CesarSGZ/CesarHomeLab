@@ -29,7 +29,7 @@ export async function callModel(env, s, {agent, instructions, input, schema, max
   await db.prepare('INSERT OR IGNORE INTO trading_budget(day) VALUES (?)').bind(today).run();
   const daily = await db.prepare('UPDATE trading_budget SET spent=spent+?,calls=calls+1 WHERE day=? AND spent+?<=? RETURNING spent').bind(reserve, today, reserve, dailyCap).first();
   if (!daily) throw new OfficeError('sin_presupuesto', 'Presupuesto diario de IA alcanzado');
-  await db.prepare('INSERT OR IGNORE INTO trading_operating_budget(month,spent_eur,updated_at) SELECT ?,COALESCE(SUM(COALESCE(actual,reserved)),0)/?,? FROM trading_calls WHERE day LIKE ?').bind(month, fx, Date.now(), month + '%').run();
+  await db.prepare('INSERT OR IGNORE INTO trading_operating_budget(month,spent_eur,updated_at) SELECT ?,COALESCE(SUM(COALESCE(actual,reserved)),0)/?,? FROM trading_calls WHERE day BETWEEN ? AND ?').bind(month, fx, Date.now(), month + '-01', month + '-31').run();
   const monthly = await db.prepare('UPDATE trading_operating_budget SET spent_eur=spent_eur+?,updated_at=? WHERE month=? AND spent_eur+?<=allowance_eur RETURNING spent_eur').bind(eurReserve, Date.now(), month, eurReserve).first();
   const refundDaily = () => db.prepare('UPDATE trading_budget SET spent=MAX(0,spent-?),calls=MAX(0,calls-1) WHERE day=?').bind(reserve, today).run();
   if (!monthly) { await refundDaily(); throw new OfficeError('sin_presupuesto', 'Alquiler de tokens agotado: la IA se queda en pausa hasta el mes que viene'); }
