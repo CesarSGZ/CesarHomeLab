@@ -134,6 +134,8 @@ test('IBKR paper snapshots: only paper accounts, one history point per day, stor
   assert.deepEqual(Object.keys(limpia.estrategias), ['fundamental'], 'only well-formed strategy keys');
   const conDias = limpiarFoto({...base, posiciones: [{simbolo: 'TEAM', desde: '2026-10-12', dias: 3}],
     cerradas: [{simbolo: 'MU', estrategia: 'precio', desde: '2026-10-12', hasta: '2026-11-02', dias: 21, gananciaEur: 1234.5, raro: 1}]});
+  assert.equal(limpiarFoto({...base, posiciones: [{simbolo: 'ACCO', pendienteVenta: true}]}).posiciones[0].pendienteVenta, true);
+  assert.equal(conDias.posiciones[0].pendienteVenta, undefined);
   assert.equal(conDias.posiciones[0].dias, 3); assert.equal(conDias.cerradas[0].dias, 21); assert.equal(conDias.cerradas[0].raro, undefined);
   const conSemaforo = limpiarFoto({...base, posiciones: [{simbolo: 'HIMS', semaforo: {alertas: ['va_por_libre', 'loteria', 'inventada'], sinDato: ['diluye'], fecha: '2026-10-09', aprox: true, datos: {r2: 0.09}}}],
     cerradas: [{simbolo: 'MU', semaforo: 'roto'}]});

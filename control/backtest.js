@@ -288,7 +288,9 @@ function renderPaper() {
   const inicial = e ? e.asignado : (u.capitalInicial || ini.valor);
   const actual = e ? e.valor : u.valor;
   const rent = actual / inicial - 1;
-  const rentSp = u.sp500eur && ini.sp500eur ? u.sp500eur / ini.sp500eur - 1 : null;
+  // una estrategia con plan del dinero se mide desde que empezó el plan: el S&P, desde el mismo día
+  const desde = e && e.indice !== undefined ? (h.find(x => x.indices?.[vistaPaper] !== undefined) || ini) : ini;
+  const rentSp = u.sp500eur && desde.sp500eur ? u.sp500eur / desde.sp500eur - 1 : null;
   const invertido = e ? e.invertido / e.valor : (u.efectivo !== null ? (u.valor - u.efectivo) / u.valor : null);
   const pos = (u.posiciones || []).filter(x => !e || x.estrategia === vistaPaper).sort((a, b) => (b.gananciaPct ?? 0) - (a.gananciaPct ?? 0));
   const ganan = pos.filter(x => (x.gananciaPct ?? 0) > 0).length;
@@ -300,7 +302,7 @@ function renderPaper() {
   const selector = Object.keys(ests).length ? `<div class="bt-pills bt-paper-sel" role="group" aria-label="Qué cartera ver">${[['global', 'Global'], ...Object.entries(ests).map(([k, x]) => [k, x.nombre])].map(([k, l]) =>
     `<button type="button" aria-pressed="${vistaPaper === k}" data-vp="${esc(k)}">${esc(l)}</button>`).join('')}</div>` : '';
   app.innerHTML = `${cabecera()}${selector}
-    <section class="bt-verdict ${rentSp === null ? '' : rent >= rentSp ? 'gana' : 'pierde'}"><b>${signed(rent, 2)} % desde ${fecha(ini.fecha)}</b>
+    <section class="bt-verdict ${rentSp === null ? '' : rent >= rentSp ? 'gana' : 'pierde'}"><b>${signed(rent, 2)} % desde ${fecha(desde.fecha)}</b>
       <span>${rentSp === null ? '' : `El S&P 500 (en euros) ha hecho ${signed(rentSp, 2)} % en el mismo tiempo. `}Cuenta ${esc(u.cuenta)} · última foto ${fechaHora(u.fecha)}${u.ordenesPendientes ? ` · ${u.ordenesPendientes} órdenes pendientes` : ''}</span></section>
     <section class="bt-res bt-paper-kpis">
       <div><small>${e ? 'Valor de la estrategia' : 'Valor de la cuenta'}</small><b>${eur0(actual)}</b><span>${e && e.indice !== undefined ? 'dinero puesto' : 'empezó con'} ${eur0(inicial)}</span></div>
@@ -311,7 +313,7 @@ function renderPaper() {
       <div class="bt-chart" id="bt-paper-chart"></div></section>
     <section class="bt-card"><h3 class="bt-h">Posiciones abiertas${mediaDias !== null ? ` · ${nf(0).format(mediaDias)} días de media en cartera` : ''}</h3>
       <div class="bt-table"><table><thead><tr><th>Valor</th><th>Alertas</th><th>En cartera</th><th>Compra → ahora</th><th>Resultado</th></tr></thead><tbody>${pos.map(x => `
-        <tr><td><b>${esc(x.simbolo)}</b><small>${nf(0).format(x.acciones)} acc. · ${esc(x.bolsa)}</small></td><td>${chipSemaforo(x.semaforo)}</td><td>${x.dias ?? '–'} días<small>desde ${fecha(x.desde)}</small></td>
+        <tr><td><b>${esc(x.simbolo)}</b><small>${nf(0).format(x.acciones)} acc. · ${esc(x.bolsa)}${x.pendienteVenta ? ' · venta en curso' : ''}</small></td><td>${chipSemaforo(x.semaforo)}</td><td>${x.dias ?? '–'} días<small>desde ${fecha(x.desde)}</small></td>
         <td>${num(x.precioMedio)} → ${num(x.precio)}</td><td class="${(x.gananciaPct ?? 0) >= 0 ? 'up' : 'down'}"><b>${signed(x.gananciaPct)} %</b><small>${nf(0).format(x.ganancia ?? 0)} ${esc(x.divisa)}</small></td></tr>`).join('')}</tbody></table></div></section>
     ${cerradas.length ? `<section class="bt-card"><h3 class="bt-h">Posiciones cerradas · ${cerradas.length}${mediaCerr !== null ? ` · ${nf(0).format(mediaCerr)} días de media` : ''}</h3>
       <div class="bt-table"><table><thead><tr><th>Valor</th><th>Alertas</th><th>Estuvo en cartera</th><th>Resultado</th></tr></thead><tbody>${cerradas.map(x => `

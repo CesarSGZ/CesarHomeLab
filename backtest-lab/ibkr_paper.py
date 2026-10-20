@@ -316,6 +316,7 @@ def foto(puerto, enviar=True, salida=None):
                                   "hasta": hoy.isoformat(), "dias": (hoy - datetime.fromisoformat(desde).date()).days,
                                   "gananciaEur": round(ganancia, 2),
                                   **({"semaforo": semaforo_corto(sem)} if sem else {})})
+    pendientes = set((libro.get("plan") or {}).get("ventasPendientes", []))
     for p in posiciones:
         p["desde"] = libro["entradas"].get(p["simbolo"])
         p["dias"] = (hoy - datetime.fromisoformat(p["desde"]).date()).days if p["desde"] else None
@@ -325,7 +326,9 @@ def foto(puerto, enviar=True, salida=None):
         p["estrategia"] = libro["asignacion"].get(p["simbolo"])
         if libro.get("semaforo", {}).get(p["simbolo"]):
             p["semaforo"] = semaforo_corto(libro["semaforo"][p["simbolo"]])
-        if p["estrategia"] in estrategias:
+        if p["simbolo"] in pendientes:
+            p["pendienteVenta"] = True     # su venta ya está apuntada en la caja de la estrategia: no se cuenta dos veces
+        elif p["estrategia"] in estrategias:
             e = estrategias[p["estrategia"]]
             e["invertido"] += p["valorEur"]
             e["noRealizada"] += p["gananciaEur"]
