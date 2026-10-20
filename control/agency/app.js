@@ -29,7 +29,7 @@ function shell() {
     </div>
     <aside class="ag-side"><section class="ag-card" id="ag-team"></section><section class="ag-card" id="ag-karma"></section></aside>
   </div>
-  <p class="ag-foot">El equipo trabaja en ServerCesar y habla con esta página por HTTPS saliente: si el PC se apaga o pierde la red, la oficina se queda «sin señal» y retoma el trabajo al volver. Reddit se usa por su API oficial, con un post al día como máximo salvo orden tuya.</p>`;
+  <p class="ag-foot">El equipo trabaja en ServerCesar y habla con esta página por HTTPS saliente: si el PC se apaga o pierde la red, la oficina se queda «sin señal». Karma Farmer usa un perfil local de navegador para leer Reddit y publicar. Los envíos sin confirmar requieren revisión.</p>`;
   const cv = root.querySelector('canvas'), g = cv.getContext('2d'), toastEl = root.querySelector('.ag-toast');
   const base = document.createElement('canvas'); base.width = VW; base.height = VH; agency.paintStatic(base.getContext('2d'));
   let toastTimer = 0;

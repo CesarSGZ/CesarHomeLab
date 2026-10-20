@@ -21,6 +21,23 @@ DEFAULTS = {
         "window_end": "23:15",
         "max_posts_24h": 2,
         "stats_every_minutes": 180,
+        "username": "",
+        "browser": {
+            "profile_dir": "reddit-browser-profile",
+            "headless": False,
+            "session_ready": False,
+            "session_error": "",
+            "timeout_ms": 30000,
+            "typing_delay_ms": 55,
+            "input_selector": '#title-field textarea[name="title"]',
+            "submit_selector": '#newlink button[type="submit"]',
+            "account_selector": '.user a',
+            "posts_selector": '.thing[data-fullname^="t3_"]',
+            "title_selector": 'a.title',
+            "comments_selector": 'a.comments',
+            "post_karma_selector": '.side .karma:not(.comment-karma)',
+            "comment_karma_selector": '.side .comment-karma',
+        },
     },
 }
 

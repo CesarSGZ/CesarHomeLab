@@ -8,7 +8,7 @@ Dashboard (/control/#agency) ── GET status · POST chat / command ──► 
                                                                           ▲
 ServerCesar · tarea «Scarlett Agency» ── POST /api/agent/agency cada 3–15 s ┘  (token AGENCY_AGENT_TOKEN)
       ├─ Director       chat con César, directrices, órdenes al equipo (OpenAI)
-      └─ Karma Farmer   1 pregunta/día en r/AskReddit a hora aleatoria + karma (OpenAI + API de Reddit)
+      └─ Karma Farmer   1 pregunta/día en r/AskReddit a hora aleatoria + karma (OpenAI + Playwright)
 ```
 
 ## Agentes
@@ -23,23 +23,30 @@ Director lo conoce por su `description` y el dashboard le da el siguiente puesto
 
 ## Reddit
 
-Se usa la **API oficial** de Reddit con PRAW (app de tipo *script*), con un User-Agent que
-identifica al cliente y los límites de ritmo de PRAW. No hay navegador automatizado ni ocultación
-de huellas: es la vía que Reddit admite para automatizar una cuenta propia. Para que la cuenta no
-acabe filtrada, el Karma Farmer publica poco (1 al día), solo preguntas que cumplen las normas de
-r/AskReddit, y nunca enlaces ni promoción.
+**Publicación en AskReddit bloqueada:** su regla 11 prohíbe bots, contenido generado
+por máquinas y karma farming. El agente lo comunica al dashboard y no publica allí.
+La infraestructura de navegador queda preparada para destinos que permitan automatización.
+
+Se usa Chromium con `playwright.async_api` y un perfil persistente dedicado. Tanto las
+publicaciones como los títulos, el historial y el karma se leen en páginas renderizadas de
+`old.reddit.com`; no se utiliza PRAW ni la API de Reddit. Se mantienen el plan diario, las
+directrices del Director y los límites de publicación existentes. La conexión a OpenAI y la
+sincronización con Mission Control siguen usando sus clientes actuales.
 
 Conectar la cuenta (una vez, en ServerCesar):
 
-1. Con la sesión de la cuenta abierta en el navegador, ir a <https://www.reddit.com/prefs/apps> y
-   crear una app de tipo **script** (redirect uri: `http://localhost:8080`).
+1. Detener la tarea `Scarlett Agency` antes de preparar el perfil.
 2. En PowerShell:
    ```powershell
    cd $env:LOCALAPPDATA\ScarlettAgency\app
    ..\venv\Scripts\python.exe -m agency setup-reddit
    ```
-   Pide el *client id*, el *secret*, el usuario y la contraseña, comprueba que entra y lo guarda
-   cifrado con DPAPI. El servicio lo detecta solo, sin reiniciar.
+   Pide el nombre de usuario y abre Chromium para iniciar sesión. Pulsa Enter en la consola
+   después de entrar para guardar y cerrar el perfil. No pide credenciales de API.
+3. Reiniciar la tarea `Scarlett Agency` para cargar los ajustes.
+
+Instalación, selectores, ruta del perfil y conexión exacta al dashboard:
+[`docs/karma-playwright.md`](../docs/karma-playwright.md).
 
 ## Instalación y actualización
 
@@ -62,8 +69,10 @@ código basta con volver a ejecutarlo.
   Director se acumulan y se suben al volver; el dashboard marca la oficina «sin señal».
 - Si a la hora prevista el PC estaba apagado o sin red, el Karma Farmer publica al volver (tras 3–15
   minutos de margen) mientras siga dentro de la ventana (+45 min). Si no, el día queda «perdido».
-- Un corte en mitad de una publicación no la duplica: el título se anota antes de enviarlo y, al
-  volver, se busca en los posts recientes de la cuenta.
+- Antes de enviar se anota el título. Si el clic queda sin confirmar, se marca Error y no se
+  reintenta automáticamente. Una orden posterior primero busca ese título en los posts recientes;
+  si no puede confirmarlo, mantiene el bloqueo para evitar duplicados. Un historial incompleto
+  puede requerir revisión local del marcador `karma:submitting`.
 - La clave de OpenAI llega del secreto `OPENAI_API_KEY` de Pages y se guarda con DPAPI; si cambia, se
   vuelve a pedir sola.
 

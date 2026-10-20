@@ -4,7 +4,7 @@ const tz = { timeZone: 'Europe/Madrid' };
 export const hm = t => t ? new Intl.DateTimeFormat('es-ES', { ...tz, hour: '2-digit', minute: '2-digit' }).format(new Date(t)) : '—';
 export const dm = t => t ? new Intl.DateTimeFormat('es-ES', { ...tz, day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }).format(new Date(t)) : '—';
 export const ago = t => { if (!t) return 'nunca'; const s = Math.max(0, (Date.now() - t) / 1000 | 0); return s < 90 ? 'hace ' + s + ' s' : s < 5400 ? 'hace ' + Math.round(s / 60) + ' min' : s < 172800 ? 'hace ' + Math.round(s / 3600) + ' h' : 'hace ' + Math.round(s / 86400) + ' días'; };
-const STATUS = { working: ['Trabajando', 'ok'], thinking: ['Pensando', 'ok'], resting: ['Descansando', 'rest'], paused: ['En pausa', 'off'], blocked: ['Bloqueado', 'bad'], error: ['Con error', 'bad'] };
+const STATUS = { working: ['Trabajando', 'ok'], thinking: ['Pensando', 'ok'], resting: ['Descansando', 'rest'], paused: ['En pausa', 'off'], blocked: ['Bloqueado', 'bad'], error: ['Error', 'bad'], completed: ['Completado', 'ok'] };
 const CMD = { pause: 'Pausar', resume: 'Reanudar', 'run-now': 'Publicar ahora' };
 const NAMES = { system: 'Sistema', director: 'Director' };
 const who = (id, agents) => NAMES[id] || agents.find(a => a.id === id)?.name || id;
@@ -47,13 +47,13 @@ function bars(history) {
 export function karmaCard(live) {
   const r = live.state?.reddit;
   if (!r) return '<h3>Reddit</h3><p class="ag-muted">Sin datos todavía.</p>';
-  if (!r.configured) return `<h3>Reddit <small>sin conectar</small></h3><p>El Karma Farmer está listo, pero falta conectar la cuenta en el PC de la agencia.</p><p class="ag-muted">En ServerCesar: <code>%LOCALAPPDATA%\\ScarlettAgency\\venv\\Scripts\\python.exe -m agency setup-reddit</code> (desde la carpeta app).</p>`;
+  if (!r.configured) return `<h3>Reddit <small>sin conectar</small></h3><p>${esc(r.browserError || 'Falta preparar y verificar la sesión del navegador en el PC de la agencia.')}</p><p class="ag-muted">En ServerCesar: <code>%LOCALAPPDATA%\\ScarlettAgency\\venv\\Scripts\\python.exe -m agency setup-reddit</code> (desde la carpeta app).</p>`;
   const k7 = r.karma7d, week = (r.posts || []).filter(p => p.createdAt > Date.now() - 7 * 864e5);
   const tile = (label, value, tone = '') => `<div class="ag-tile"><span>${esc(label)}</span><b data-tone="${tone}">${esc(value)}</b></div>`;
   return `<h3>Reddit <small>u/${esc(r.username)} · medido ${esc(ago(r.checkedAt))}</small></h3>
-  <div class="ag-tiles">${tile('Karma 7 días', k7 == null ? 'midiendo' : (k7 >= 0 ? '+' : '') + k7, k7 > 0 ? 'up' : k7 < 0 ? 'down' : '')}${tile('Karma total', r.karma?.total ?? '—')}${tile('Posts 7 días', week.length)}${tile('Votos de esos posts', r.postScore7d ?? 0)}</div>
+  <div class="ag-tiles">${tile('Karma 7 días', k7 == null ? 'midiendo' : (k7 >= 0 ? '+' : '') + k7, k7 > 0 ? 'up' : k7 < 0 ? 'down' : '')}${tile('Karma total', r.karma?.total ?? '—')}${tile('Posts 7 días', week.length)}${tile('Votos de esos posts', r.postScore7d ?? '—')}</div>
   ${bars(r.history || [])}
-  <h4>Publicaciones</h4>${r.posts?.length ? `<ul class="ag-list ag-posts">${r.posts.slice(0, 12).map(p => `<li><a href="${esc(p.url)}" target="_blank" rel="noopener noreferrer">${esc(p.title)}</a><small>r/${esc(p.subreddit)} · ${esc(dm(p.createdAt))} · ${p.score ?? 0} votos · ${p.comments ?? 0} comentarios${p.removed ? ' · <em>retirado por moderación</em>' : ''}</small></li>`).join('')}</ul>` : '<p class="ag-muted">Todavía no ha publicado nada.</p>'}`;
+  <h4>Publicaciones</h4>${r.posts?.length ? `<ul class="ag-list ag-posts">${r.posts.slice(0, 12).map(p => `<li><a href="${esc(p.url)}" target="_blank" rel="noopener noreferrer">${esc(p.title)}</a><small>r/${esc(p.subreddit)} · ${esc(dm(p.createdAt))} · ${p.score ?? '—'} votos · ${p.comments ?? '—'} comentarios${p.removed ? ' · <em>retirado por moderación</em>' : ''}</small></li>`).join('')}</ul>` : '<p class="ag-muted">Todavía no ha publicado nada.</p>'}`;
 }
 
 export function logCard(live) {

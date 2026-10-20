@@ -7,7 +7,6 @@
   python -m agency status         resumen local
 """
 import datetime as dt
-import getpass
 import hashlib
 import json
 import logging
@@ -46,7 +45,7 @@ class Runtime:
         self.store = Store(DB_PATH)
         self.cloud = MissionControl(self.settings["cloud_url"], vault.load("agent_token"))
         self.llm = LLM(self)
-        self.reddit = Reddit()
+        self.reddit = Reddit(self.settings["karma_farmer"])
         self.started_at = now_ms()
         self._wake = threading.Event()
         self._online = (0, False)
@@ -184,23 +183,20 @@ def single_instance():
 
 
 def setup_reddit():
-    print("Conectar la cuenta de Reddit de la agencia (app de tipo «script» en https://www.reddit.com/prefs/apps).")
-    creds = {
-        "client_id": input("client id (debajo del nombre de la app): ").strip(),
-        "client_secret": getpass.getpass("secret: ").strip(),
-        "username": input("usuario de Reddit (sin u/): ").strip().removeprefix("u/"),
-        "password": getpass.getpass("contraseña de Reddit: "),
-    }
-    vault.save("reddit", creds)
-    r = Reddit()
-    try:
-        me = r.me()
-    except RedditError as e:
-        vault.delete("reddit")
-        print("No se pudo entrar en Reddit:", e)
-        print("Revisa los datos (si la cuenta tiene verificación en dos pasos, la contraseña es «contraseña:código»).")
-        sys.exit(1)
-    print(f"Conectado como u/{creds['username']} · karma {me['total']}. Guardado cifrado en este PC.")
+    import asyncio
+    import re
+    from .config import SETTINGS_PATH
+    from .playwright_worker import login_profile
+    print("Detén Scarlett Agency antes de preparar el perfil persistente de Reddit.")
+    profile_lock = single_instance()  # keeps scheduled service instances out during login
+    settings = load_settings()
+    username = input("Usuario de Reddit (sin u/): ").strip().removeprefix("u/")
+    if not re.fullmatch(r"[A-Za-z0-9_-]{3,20}", username):
+        sys.exit("Usuario no válido")
+    settings["karma_farmer"]["username"] = username
+    SETTINGS_PATH.write_text(json.dumps(settings, indent=2, ensure_ascii=False), encoding="utf-8")
+    asyncio.run(login_profile("https://old.reddit.com/login/"))
+    print("Perfil guardado. Reinicia Scarlett Agency para cargar el usuario y los ajustes.")
 
 
 def main(argv):
