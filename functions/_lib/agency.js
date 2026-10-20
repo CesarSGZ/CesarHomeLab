@@ -47,7 +47,7 @@ export function sanitiseState(raw = {}) {
     id: a.id,
     name: str(a.name, 40) || a.id,
     role: str(a.role, 80),
-    status: ["working", "resting", "paused", "blocked", "error", "thinking"].includes(a.status) ? a.status : "resting",
+    status: ["working", "resting", "paused", "blocked", "error", "thinking", "completed"].includes(a.status) ? a.status : "resting",
     detail: str(a.detail, 200),
     lastRunAt: time(a.lastRunAt),
     nextRunAt: time(a.nextRunAt),
@@ -58,6 +58,7 @@ export function sanitiseState(raw = {}) {
   const r = raw.reddit && typeof raw.reddit === "object" ? raw.reddit : null;
   const reddit = r ? {
     configured: r.configured === true,
+    browserError: str(r.browserError, 200),
     username: str(r.username, 40),
     karma: { total: num(r.karma?.total), post: num(r.karma?.post), comment: num(r.karma?.comment) },
     karma7d: num(r.karma7d),

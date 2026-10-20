@@ -118,6 +118,8 @@ class KarmaFarmer(Agent):
         self.rt.store.put("karma:plan", plan)
 
     def next_run_at(self):
+        if self.reddit.posting_block_reason:
+            return None
         plan = self.rt.store.get("karma:plan") or {}
         return plan.get("at") if plan.get("state") == "pending" else None
 
@@ -128,10 +130,19 @@ class KarmaFarmer(Agent):
     def tick(self):
         if self.busy:
             return
+        if self.reddit.posting_block_reason:
+            self.status, self.detail = 'blocked', self.reddit.posting_block_reason
+            if self.reddit.configured and now_ms() >= self.stats_due and self.rt.online():
+                self.start(self.refresh_stats)
+            return
         plan, now = self.plan(), now_ms()
         if not self.reddit.configured:
             self.status, self.detail = "blocked", "Falta conectar la cuenta de Reddit en el PC (python -m agency setup-reddit)"
-        elif self.status in ("working", "error", "blocked", "resting"):
+        elif plan.get("state") == "done":
+            self.status, self.detail = "completed", "Completado. La publicación de hoy está confirmada"
+        elif plan.get("state") == "failed":
+            self.status, self.detail = "error", plan.get("reason", "Falló la publicación")
+        elif self.status in ("working", "blocked", "resting", "completed"):
             self.status, self.detail = "resting", self.rest_detail(plan)
         if self.reddit.configured and now >= self.stats_due and self.rt.online():
             self.start(self.refresh_stats)
@@ -166,6 +177,8 @@ class KarmaFarmer(Agent):
     def handle_command(self, kind):
         if kind != "run-now":
             return super().handle_command(kind)
+        if self.reddit.posting_block_reason:
+            return False, self.reddit.posting_block_reason
         if self.busy:
             return False, "Ya está trabajando"
         if not self.reddit.configured:
@@ -181,13 +194,10 @@ class KarmaFarmer(Agent):
             return None
         for p in self.reddit.my_recent(10):
             if p["title"].strip() == pending["title"].strip() and p["created_at"] >= pending["at"] - 600_000:
-                self.rt.store.put("karma:submitting", None)
                 self.record(p)
                 self.log("Recuperada una publicación que quedó a medias por un corte: «" + p["title"] + "»", "ok")
                 return p
-        if now_ms() - pending["at"] > 2 * 3600_000:
-            self.rt.store.put("karma:submitting", None)  # no llegó a publicarse
-        return None
+        raise RedditError("Envío anterior sin confirmar: revisa Reddit antes de volver a publicar")
 
     def record(self, p):
         self.rt.store.x(
@@ -198,10 +208,12 @@ class KarmaFarmer(Agent):
         plan = self.plan()
         self.status, self.detail = "working", "Conectando con Reddit"
         try:
+            if self.reddit.posting_block_reason:
+                raise RedditError(self.reddit.posting_block_reason)
             if self.recover_interrupted():
-                if not manual:
-                    plan.update(state="done")
-                    self.save_plan(plan)
+                plan.update(state="done")
+                self.save_plan(plan)
+                self.rt.store.put("karma:submitting", None)
                 return self.done("Publicación recuperada tras un corte")
             recent = self.posts_since(now_ms() - 24 * 3600_000)
             if len(recent) >= int(self.cfg["max_posts_24h"]):
@@ -214,31 +226,30 @@ class KarmaFarmer(Agent):
             self.detail = "Publicando: " + title
             self.rt.store.put("karma:submitting", {"title": title, "at": now_ms()})
             post = self.reddit.submit(sub, title)
-            self.rt.store.put("karma:submitting", None)
+            self.rt.store.put("karma:last_ui_result", post.pop("_ui_result", {"status": "Completado"}))
             self.record(post)
             plan.update(state="done", reason="")
             self.save_plan(plan)
+            self.rt.store.put("karma:submitting", None)
             self.stats_due = now_ms() + 30 * 60_000
             self.log(f"Publicado en r/{sub}: «{title}»", "ok")
             self.done("Publicado: " + title)
         except (RedditError, LLMError) as e:
             self.status, self.detail = "error", str(e)[:200]
-            if manual:
-                self.log(f"La publicación manual falló: {e}", "error")
-                return self.finish(f"Falló: {e}")
-            plan["attempts"] = plan.get("attempts", 0) + 1
-            if plan["attempts"] < 3:
-                plan["at"] = now_ms() + random.randint(20, 50) * 60_000
-                self.log(f"No ha podido publicar ({e}). Reintento a las {self.rt.hm(plan['at'])}", "warn")
-            else:
-                plan.update(state="failed", reason=str(e)[:160])
-                self.log(f"Hoy no publicará: tres intentos fallidos ({e})", "error")
+            outcome = getattr(e, "worker_result", None)
+            if outcome:
+                self.rt.store.put("karma:last_ui_result", outcome.to_dict())
+                if not outcome.submitted and not outcome.submission_uncertain:
+                    self.rt.store.put("karma:submitting", None)
+            # Do not automatically retry a UI submission, including after a restart.
+            plan.update(state="failed", reason=str(e)[:160])
             self.save_plan(plan)
-            self.finish(f"Falló: {e}")
+            self.log(f"Error de publicación: {e}", "error")
+            return self.finish(f"Error: {e}")
 
     def done(self, result):
-        self.status = "resting"
-        self.detail = self.rest_detail(self.plan())
+        self.status = "completed"
+        self.detail = "Completado. " + self.rest_detail(self.plan())
         self.finish(result)
 
     def write_question(self, hot, ours):
@@ -292,7 +303,7 @@ class KarmaFarmer(Agent):
     def snapshot_extra(self):
         latest, karma7d, week_posts, _ = self.karma_numbers()
         plan = self.rt.store.get("karma:plan") or {}
-        today = {"pending": "Toca a las " + self.rt.hm(plan.get("at")), "done": "Publicado", "missed": "Perdido", "failed": "Falló", "skipped": "No toca"}.get(plan.get("state"), "—")
+        today = 'Bloqueado por normas' if self.reddit.posting_block_reason else {"pending": "Toca a las " + self.rt.hm(plan.get("at")), "done": "Publicado", "missed": "Perdido", "failed": "Falló", "skipped": "No toca"}.get(plan.get("state"), "—")
         return [
             {"label": "Karma 7 días", "value": ("+" if (karma7d or 0) >= 0 else "") + str(karma7d) if karma7d is not None else "midiendo"},
             {"label": "Karma total", "value": str(latest["total"]) if latest else "—"},
@@ -305,8 +316,10 @@ class KarmaFarmer(Agent):
         posts = self.rt.store.q("SELECT * FROM posts ORDER BY created_at DESC LIMIT 30")
         return {
             "configured": self.reddit.configured, "username": self.reddit.username,
+            "browserError": self.reddit.browser.get('session_error', ''),
             "karma": {"total": latest["total"], "post": latest["post"], "comment": latest["comment"]} if latest else {},
-            "karma7d": karma7d, "postScore7d": sum(p["score"] or 0 for p in week_posts),
+            "karma7d": karma7d,
+            "postScore7d": sum(p["score"] or 0 for p in week_posts) if any(p["score"] is not None for p in week_posts) else None,
             "history": [{"day": h["day"], "total": h["total"]} for h in history],
             "posts": [{"id": p["id"], "title": p["title"], "subreddit": p["subreddit"], "url": p["url"], "score": p["score"],
                        "comments": p["comments"], "createdAt": p["created_at"], "removed": bool(p["removed"])} for p in posts],

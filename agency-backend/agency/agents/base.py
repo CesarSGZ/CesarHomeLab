@@ -26,6 +26,7 @@ class Agent:
         self.last_result = self.rt.store.get(f"agent:{self.id}:last_result", "")
         self.last_run_at = self.rt.store.get(f"agent:{self.id}:last_run_at")
         self._thread = None
+        self._start_lock = threading.Lock()
 
     # ---- estado ----
     @property
@@ -50,6 +51,10 @@ class Agent:
 
     def start(self, fn, *args):
         """Ejecuta fn en segundo plano; el bucle principal sigue sincronizando mientras tanto."""
+        with self._start_lock:
+            return self._start_unlocked(fn, *args)
+
+    def _start_unlocked(self, fn, *args):
         if self.busy:
             return False
 

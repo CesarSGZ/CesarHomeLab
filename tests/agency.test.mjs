@@ -81,3 +81,16 @@ test('commands are validated, deduplicated and closed by the backend', async () 
   res = await agentSync(db, {done: [{id: a.id, ok: true, result: 'Publicación manual en marcha'}]});
   assert.equal(res.commands.length, 0);
 });
+
+test('completed browser job survives sync and is shown as Completado', async () => {
+  const { teamCard } = await import('../control/agency/panel.js');
+  const db = fakeDb();
+  await agentSync(db, {
+    state: {agents: [{id: 'karma-farmer', name: 'Karma Farmer', status: 'completed', detail: 'Publicación confirmada'}]},
+    events: [{id: 'browserdone001', agent: 'karma-farmer', level: 'ok', text: 'Publicado con navegador'}],
+  });
+  const live = await readStatus(db);
+  assert.equal(live.state.agents[0].status, 'completed');
+  assert.match(teamCard(live, 'karma-farmer'), /Completado/);
+  assert.equal(live.events[0].text, 'Publicado con navegador');
+});

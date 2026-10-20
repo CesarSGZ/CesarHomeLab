@@ -19,14 +19,15 @@ function bubble(g, cx, y, str, c) {
   R(g, Math.round(cx) - 1, y + 9, 3, 2, '#f6f4ec'); R(g, Math.round(cx), y + 11, 1, 1, '#f6f4ec'); text(g, str, x + 3, y + 2, c);
 }
 function nameTag(g, cx, y, name, c) { const w = textW(name) + 4, x = Math.round(cx - w / 2); R(g, x, y, w, 7, 'rgba(12,18,26,.82)'); R(g, x, y + 6, w, 1, c); text(g, name, x + 2, y + 1, '#f3f6fa'); }
-const LAMP = { working: PAL.green, thinking: PAL.green, resting: PAL.amber, paused: '#8f98a3', blocked: PAL.red, error: PAL.red };
+const LAMP = { working: PAL.green, thinking: PAL.green, resting: PAL.amber, paused: '#8f98a3', blocked: PAL.red, error: PAL.red, completed: PAL.green };
 
 // Qué hace cada uno en pantalla según su estado real.
 function look(a, c) {
   const night = c.hour < 8 || c.hour >= 23.5, st = c.online ? a.status : 'offline';
   if (st === 'working') return { pose: 'type', m: ['reddit', 'typing'], say: /^Publicando/.test(a.detail) ? 'PUBLICANDO' : /^Pensando/.test(a.detail) ? 'PENSANDO...' : 'LEYENDO REDDIT' };
-  if (st === 'blocked') return { pose: 'sit', m: ['alert', 'off'], say: 'FALTA REDDIT' };
+  if (st === 'blocked') return { pose: 'sit', m: ['alert', 'off'], say: /regla 11/.test(a.detail || '') ? 'NORMAS REDDIT' : 'FALTA REDDIT' };
   if (st === 'error') return { pose: 'sit', m: ['alert', 'reddit'], say: 'ERROR' };
+  if (st === 'completed') return { pose: 'sit', m: ['reddit', 'saver'], say: 'COMPLETADO' };
   if (st === 'paused') return { pose: 'sit', m: ['off', 'off'], sign: 'PAUSA' };
   if (st === 'offline') return { pose: 'sleep', m: ['off', 'off'] };
   if (night) return { pose: 'sleep', m: ['saver', 'off'] };
