@@ -12,3 +12,6 @@ video/*/renders/
 video/*/snapshots/
 video/*/.hyperframes/
 video/*/audio/*.wav
+
+# Agency backend: Python caches
+agency-backend/**/__pycache__/

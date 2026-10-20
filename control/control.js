@@ -447,7 +447,7 @@ async function initialiseControl(){
   if(hasCapability('github:read'))window.GitHubGalaxy?.initialise();
   if(hasCapability('training:read'))window.TrainingLab?.initialise(csrfToken);
   if(hasCapability('servercesar:read')){window.ServerCesarPending={csrf:csrfToken,canWake:hasCapability('servercesar:wake')};window.ServerCesar?.initialise(csrfToken,hasCapability('servercesar:wake'))}
-  if(hasCapability('agency:manage')){window.AgencyPending=true;window.Agency?.initialise()}
+  if(hasCapability('agency:manage')){window.AgencyPending={csrf:csrfToken};window.Agency?.initialise(csrfToken)}
   if(hasCapability('backtest:read')){window.BacktestLabPending=csrfToken;window.BacktestLab?.initialise(csrfToken)}
   if(hasCapability('thermal:read'))await loadThermalLab();
 }

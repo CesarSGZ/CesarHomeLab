@@ -41,7 +41,15 @@ export const textW = s => plain(s).length * 4 - 1;
 
 // ---------- Personajes ----------
 export const LOOKS = {
-  cesar:    { skin: '#e2ad82', hair: '#3a2718', style: 'short', shirt: '#f3ead9', shirt2: '#d5cab5', pants: '#1f1f24', shoes: '#f1f1ee', beard: true, shades: true }
+  cesar:    { skin: '#e2ad82', hair: '#3a2718', style: 'short', shirt: '#f3ead9', shirt2: '#d5cab5', pants: '#1f1f24', shoes: '#f1f1ee', beard: true, shades: true },
+  // Agencia: el Director (traje y corbata) y el Karma Farmer (sudadera naranja, como Reddit)
+  director:       { skin: '#e9b98f', hair: '#8d8a86', style: 'short', shirt: '#2b3a55', shirt2: '#1f2b40', pants: '#1f2b40', shoes: '#2b2622', detail: 'tie', glasses: true, beard: true },
+  'karma-farmer': { skin: '#e7b58a', hair: '#2a1d16', style: 'curly', shirt: '#ff6a2b', shirt2: '#d9541c', pants: '#2f4668', shoes: '#f1f1ee', detail: 'hoodie' },
+  // Para agentes futuros que aún no tengan aspecto propio
+  spare1: { skin: '#d9a273', hair: '#17110f', style: 'long', shirt: '#7d5fc7', shirt2: '#5f469c', pants: '#26262a', shoes: '#2b2622', earrings: true },
+  spare2: { skin: '#e2ad82', hair: '#6b4226', style: 'bun', shirt: '#2f9e8f', shirt2: '#237a6e', pants: '#3d3d44', shoes: '#f1f1ee', earrings: true },
+  spare3: { skin: '#dba87c', hair: '#3a2718', style: 'wavy', shirt: '#c9cdd3', shirt2: '#a9aeb6', pants: '#2c2c30', shoes: '#2b2622' },
+  spare4: { skin: '#e9b98f', hair: '#b5823c', style: 'short', shirt: '#b3262c', shirt2: '#8e1c22', pants: '#efe6d6', shoes: '#2b2622', detail: 'vneck' }
 };
 const dark = (hex, k = .72) => { const n = parseInt(hex.slice(1), 16); const f = v => Math.max(0, Math.min(255, v * k | 0)); return `rgb(${f(n >> 16)},${f(n >> 8 & 255)},${f(n & 255)})`; };
 
@@ -104,6 +112,7 @@ function body(g, cx, fy, L, o) {
       R(g, X - 1, by, 2, 1, dark(L.skin, .86));
       if (L.detail === 'hoodie') { R(g, X - 1, by + 1, 1, 4, '#7b5a3c'); R(g, X + 1, by + 1, 1, 4, '#7b5a3c'); R(g, X - 2, by + 5, 4, 2, s2); }
       if (L.detail === 'dots') for (let i = 0; i < 8; i++) R(g, X - 3 + (i * 3) % 7, by + 1 + (i * 2) % 7, 1, 1, '#8a6f52');
+      if (L.detail === 'tie') { R(g, X - 2, by, 4, 2, '#f3f1ea'); R(g, X - 1, by + 1, 2, 6, '#b3262c'); R(g, X - 1, by + 7, 2, 1, '#8e1c22'); }
       if (L.detail === 'vneck') { R(g, X - 1, by + 1, 2, 2, L.skin); R(g, X - 2, by, 1, 1, L.skin); R(g, X + 1, by, 1, 1, L.skin); }
       if (L.shades) { R(g, X - 1, by + 1, 2, 3, '#fff'); R(g, X - 3, by + 3, 1, 1, '#d33'); }
       if (L.glasses) R(g, X - 1, by + 3, 2, 2, '#3b5f85');
@@ -186,6 +195,14 @@ export function monitor(g, x, y, mode, t, seed = 0) {
     R(g, x + 1, y + 1, 12, 8, '#1d5b3a'); for (let i = 0; i < 4; i++) { R(g, x + 2 + i * 3, y + 2 + ((i + (t | 0)) % 2), 2, 3, '#f6f4ec'); R(g, x + 2 + i * 3, y + 2 + ((i + (t | 0)) % 2), 1, 1, i % 2 ? PAL.red : PAL.ink); } R(g, x + 3 + ((t * 3 | 0) % 7), y + 7, 2, 1, '#f6f4ec');
   } else if (mode === 'cat') {
     for (let r = 0; r < 4; r++) R(g, x + 2, y + 2 + r * 2, 2 + ((seed + r * 5 + (t * 8 | 0)) % 9), 1, r % 2 ? PAL.lilac : PAL.amber);
+  } else if (mode === 'reddit') {
+    // feed de Reddit: cabecera naranja, posts con flechita y una barra que se mueve al publicar
+    R(g, x + 1, y + 1, 12, 2, '#ff4500'); R(g, x + 2, y + 1, 1, 1, '#fff');
+    const o = (t * 2 | 0) % 3; for (let r = 0; r < 3; r++) { R(g, x + 2, y + 4 + r * 2, 1, 1, r === o ? '#ff4500' : '#6f8aa6'); R(g, x + 4, y + 4 + r * 2, 3 + ((seed + r * 3) % 6), 1, '#d7dde4'); }
+  } else if (mode === 'typing') {
+    R(g, x + 1, y + 1, 12, 2, '#ff4500'); const n = (t * 6 | 0) % 10; R(g, x + 2, y + 5, Math.min(9, n), 1, '#f6f4ec'); if ((t * 3 | 0) % 2) R(g, x + 2 + Math.min(9, n), y + 4, 1, 3, '#f6f4ec');
+  } else if (mode === 'saver') {
+    const k = (t * .7) % 1, px = x + 2 + Math.round(Math.abs(Math.sin(t * .9)) * 8), py = y + 2 + Math.round(Math.abs(Math.cos(t * 1.3)) * 4); R(g, px, py, 2, 2, k < .5 ? PAL.lilac : PAL.blue);
   } else if (mode === 'bars') {
     for (let i = 0; i < 5; i++) { const h = 2 + ((seed * 5 + i * 3 + (t | 0)) % 5); R(g, x + 2 + i * 2, y + 9 - h, 1, h, i % 2 ? PAL.blue : PAL.lilac); }
   }
