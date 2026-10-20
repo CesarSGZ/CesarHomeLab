@@ -55,7 +55,8 @@ export function limpiarFoto(bruta) {
       simbolo: txt(p.simbolo, 16), divisa: txt(p.divisa, 4), bolsa: txt(p.bolsa, 12), acciones: num(p.acciones),
       precioMedio: num(p.precioMedio), precio: num(p.precio), valor: num(p.valor), ganancia: num(p.ganancia),
       gananciaPct: num(p.gananciaPct), valorEur: num(p.valorEur), gananciaEur: num(p.gananciaEur),
-      estrategia: txt(p.estrategia, 24) || null, desde: fecha(p.desde), dias: num(p.dias), semaforo: limpiarSemaforo(p.semaforo)})),
+      estrategia: txt(p.estrategia, 24) || null, desde: fecha(p.desde), dias: num(p.dias), semaforo: limpiarSemaforo(p.semaforo),
+      ...(p.pendienteVenta === true ? {pendienteVenta: true} : {})})),
     cerradas: lista(f.cerradas, 300).map(c => ({
       simbolo: txt(c.simbolo, 16), estrategia: txt(c.estrategia, 24) || null, desde: fecha(c.desde), hasta: fecha(c.hasta),
       dias: num(c.dias), gananciaEur: num(c.gananciaEur), semaforo: limpiarSemaforo(c.semaforo)})),
