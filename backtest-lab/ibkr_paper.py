@@ -465,11 +465,19 @@ def main():
         log(f"Plan del dinero arrancado: reserva {estado['reserva']:,.0f}, por aportar {estado['porAportar']:,.0f}, "
             f"cajas {', '.join(f'{k} {x:,.0f}' for k, x in estado['cajas'].items())}")
     else:
+        # ventas de la vez anterior que no se ejecutaron: se deshace su abono a la caja antes de cuadrar
+        # (sin registro, de antes del 20-oct-2026: todas las que siguen pendientes se abonaron el lunes anterior)
+        previas = set(estado.get("ventasPendientes", [it.contract.symbol for it, _, _ in ventas]))
+        for it, k, v in ventas:
+            if it.contract.symbol in previas and k in estado["cajas"] and math.isfinite(v):
+                estado["cajas"][k] -= v
+                log(f"  {it.contract.symbol}: la venta anterior no se ejecutó, se vuelve a intentar")
         dif = cuadrar_plan(estado, efectivo, valores_antes, args.aporte)
         log(f"Liquidez cuadrada con el plan (diferencia de {dif:,.0f} repartida entre las estrategias)")
         for _, k, v in ventas:
             if k in estado["cajas"] and math.isfinite(v):
                 estado["cajas"][k] += v
+    estado["ventasPendientes"] = [it.contract.symbol for it, _, _ in ventas]
     nuevo, aporte = semana_plan(plan, estado, {k: sum(m.values()) for k, m in mantenidas.items()}, caida, args.aporte)
     log(f"S&P 500 a {caida:.1%} de su máximo de 1 año · ahorro de este mes {aporte:,.0f} · dinero nuevo "
         f"{', '.join(f'{k} {x:,.0f}' for k, x in nuevo.items())} · reserva {estado['reserva']:,.0f} · "
@@ -488,7 +496,12 @@ def main():
             o["estrategias"].append(k)
             estado["cajas"][k] -= x
 
-    ordenes = [("VENDER", it.contract, abs(it.position), "ya no está en la cartera objetivo") for it, _, _ in ventas]
+    def para_vender(c):
+        # el contrato que devuelve la cartera de IBKR no trae bolsa de envío: sin ella la orden se rechaza (error 321)
+        c.exchange = c.primaryExchange if c.primaryExchange in DIRECTAS else "SMART"
+        return c
+
+    ordenes = [("VENDER", para_vender(it.contract), abs(it.position), "ya no está en la cartera objetivo") for it, _, _ in ventas]
     for tk, o in importes.items():
         c = contratos[tk]
         px, eur_por_unidad = precio.get(tk), fx.get(c.currency)
@@ -515,7 +528,7 @@ def main():
                                                f"(~{gastado:,.0f} EUR a {px:,.2f} {c.currency})"))
 
     log(f"{len(ordenes)} órdenes ({'SE ENVÍAN' if args.ejecutar else 'SIMULACIÓN, no se envía nada'}):")
-    filas = []
+    filas, rechazadas = [], []
     for accion, c, n, porque in ordenes:
         log(f"  {accion:8s} {n:>8,} {c.symbol:<8s} {c.currency}  · {porque}")
         fila = {"fecha": datetime.now().isoformat(timespec="seconds"), "cuenta": cuenta, "accion": accion,
@@ -531,6 +544,8 @@ def main():
             t = ib.placeOrder(c, MarketOrder("SELL" if accion == "VENDER" else "BUY", n, tif="DAY"))
             ib.sleep(1)
             fila["estado"] = t.orderStatus.status
+            if t.orderStatus.status in ("ValidationError", "Cancelled", "Inactive"):
+                rechazadas.append(f"{accion} {c.symbol}")
         filas.append(fila)
     log("Cajas tras las órdenes: " + ", ".join(f"{k} {x:,.0f}" for k, x in estado["cajas"].items()))
     if args.ejecutar:
@@ -548,6 +563,9 @@ def main():
         pd.DataFrame(filas).to_csv(reg, mode="a", header=not reg.exists(), index=False)
         log(f"Registro: {reg}")
     ib.disconnect()
+    if rechazadas:
+        # que el fallo se vea en GitHub (correo de ejecución fallida) en vez de pasar como un lunes normal
+        raise SystemExit(f"IBKR rechazó {len(rechazadas)} órdenes: {', '.join(rechazadas[:10])}")
 
 
 if __name__ == "__main__":
