@@ -5,7 +5,7 @@ import {readFileSync} from 'node:fs';
 import {accessForUser} from '../functions/_lib/auth.js';
 import {onRequest} from '../functions/control/api/backtest/status.js';
 import {validateBacktestParams, requestIsActive, STALE_RUN_MS} from '../control/backtest-model.js';
-import {runtimeDatabase} from '../trading-worker/runtime-db.js';
+import {runtimeDatabase} from '../functions/_lib/runtime-db.js';
 import {publicRootFiles, PUBLIC_DIRECTORIES} from '../scripts/build-pages-dist.mjs';
 import {claim, publish, fail, readRequest} from '../scripts/backtest-lab.mjs';
 

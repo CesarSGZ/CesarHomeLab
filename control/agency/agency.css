@@ -1,0 +1,20 @@
+/* ---- Agencia (Agent Office) ---- */
+.agency-view{--ag-bg:#0f171e;--ag-panel:#18232d;--ag-text:#eef0e9;--ag-muted:#a3b2ba;--ag-line:#ffffff1c;--ag-accent:#ff8fb1;color:var(--ag-text);padding-top:28px}
+:root:not([data-theme=night]) .agency-view{--ag-bg:#eef1ec;--ag-panel:#fafbf8;--ag-text:#22323b;--ag-muted:#55666f;--ag-line:#263f5026;--ag-accent:#b0306a}
+#agency-app{max-width:1560px;font:14px/1.5 Manrope,system-ui,sans-serif}
+#agency-app h2{margin:2px 0 0;font-size:clamp(26px,3vw,38px);letter-spacing:-.03em;line-height:1.1}
+#agency-app h3{margin:0 0 10px;font-size:15px;font-weight:700}#agency-app h3 small{font-weight:500;color:var(--ag-muted);margin-left:6px}
+.ag-eyebrow{margin:0;font:500 10px/1.2 "DM Mono",ui-monospace,monospace;letter-spacing:.11em;text-transform:uppercase;color:var(--ag-muted)}
+.ag-head{margin-bottom:14px}
+.ag-main{display:grid;grid-template-columns:minmax(0,1fr) 350px;gap:12px;align-items:start}.ag-left{min-width:0}.ag-side{display:flex;flex-direction:column;gap:12px;min-width:0}
+.ag-card{background:var(--ag-panel);border:1px solid var(--ag-line);border-radius:12px;padding:13px 15px;min-width:0}.ag-card p{margin:0 0 6px;max-width:95ch}
+.ag-muted{color:var(--ag-muted);font-size:13px}
+.ag-list{list-style:none;margin:0;padding:0}.ag-list li{padding:8px 0;border-bottom:1px solid var(--ag-line);font-size:13px}.ag-list li:last-child{border-bottom:0}.ag-list small{display:block;color:var(--ag-muted)}
+.ag-stage{position:relative;line-height:0;border-radius:10px;overflow:hidden;background:#0c1219;border:1px solid #263545}
+.ag-canvas{width:100%;height:auto;display:block;image-rendering:pixelated;image-rendering:crisp-edges;cursor:pointer}
+.ag-toast{position:absolute;left:50%;bottom:10px;transform:translateX(-50%);max-width:86%;background:#101820ee;color:#eef4fa;border:1px solid #ff8fb1;border-radius:6px;padding:7px 12px;font:600 12px/1.35 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;pointer-events:none}
+.ag-things{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 14px}
+#agency-app .ag-things button{font:600 12px/1 Manrope,system-ui,sans-serif;color:var(--ag-text);background:var(--ag-panel);border:1px solid var(--ag-line);border-radius:8px;padding:8px 11px;cursor:pointer}
+#agency-app .ag-things button:hover{border-color:var(--ag-accent)}#agency-app .ag-things button:focus-visible{outline:2px solid var(--ag-accent);outline-offset:2px}
+@media(max-width:1180px){.ag-main{grid-template-columns:1fr}}
+@media(max-width:640px){.ag-toast{font-size:10px}}

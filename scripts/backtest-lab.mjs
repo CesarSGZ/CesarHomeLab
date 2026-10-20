@@ -3,7 +3,7 @@
 //   node scripts/backtest-lab.mjs publish <web.json>             -> guarda resultados y cierra la petición
 //   node scripts/backtest-lab.mjs fail "<motivo>"                -> marca la petición como fallida
 import {appendFileSync, readFileSync, writeFileSync} from 'node:fs';
-import {cloudDatabase} from './office-cloud-db.mjs';
+import {cloudDatabase} from './cloud-db.mjs';
 
 const nowIso = () => new Date().toISOString();
 

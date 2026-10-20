@@ -1,6 +1,6 @@
 // Cartera paper de IBKR · guarda en D1 la foto que manda backtest-lab/ibkr_paper.py --foto (vía workflow_dispatch).
 // Solo acepta campos conocidos y con el tipo esperado; añade un punto al histórico (uno por día).
-import {cloudDatabase} from './office-cloud-db.mjs';
+import {cloudDatabase} from './cloud-db.mjs';
 
 const num = x => (typeof x === 'number' && Number.isFinite(x) ? x : null);
 const txt = (x, max = 40) => (typeof x === 'string' ? x.slice(0, max) : '');

@@ -1,4 +1,4 @@
-// Agent Office · pixel art dibujado por código. Sin imágenes externas.
+// Agencia · pixel art dibujado por código. Sin imágenes externas.
 // Todas las coordenadas son píxeles lógicos (tile = 16 px).
 export const T = 16, COLS = 26, ROWS = 15, VW = COLS * T, VH = ROWS * T;
 export const R = (g, x, y, w, h, c) => { g.fillStyle = c; g.fillRect(x | 0, y | 0, w | 0, h | 0); };
@@ -41,12 +41,6 @@ export const textW = s => plain(s).length * 4 - 1;
 
 // ---------- Personajes ----------
 export const LOOKS = {
-  scout:    { skin: '#e9b98f', hair: '#6b4226', style: 'curly', shirt: '#c9cdd3', shirt2: '#a9aeb6', pants: '#3d5f8f', shoes: '#f1f1ee', detail: 'hoodie' },
-  analyst:  { skin: '#e7b58a', hair: '#2a1d16', style: 'curly', shirt: '#dfa22a', shirt2: '#bb8420', pants: '#2c2c30', shoes: '#f1f1ee', glasses: true },
-  risk:     { skin: '#d9a273', hair: '#17110f', style: 'long', shirt: '#b3262c', shirt2: '#8e1c22', pants: '#efe6d6', shoes: '#2b2622', flower: true, detail: 'vneck', earrings: true },
-  operator: { skin: '#e2ad82', hair: '#17110f', style: 'bun', shirt: '#eadfcd', shirt2: '#c9bca6', pants: '#26262a', shoes: '#2b2622', detail: 'dots', earrings: true },
-  auditor:  { skin: '#e9b98f', hair: '#8a5a34', style: 'wavy', shirt: '#e58a78', shirt2: '#c46f5f', pants: '#3d5f8f', shoes: '#f1f1ee' },
-  designer: { skin: '#dba87c', hair: '#2a1d16', style: 'short', shirt: '#8f98a3', shirt2: '#737c87', pants: '#2f4668', shoes: '#f1f1ee', beard: true },
   cesar:    { skin: '#e2ad82', hair: '#3a2718', style: 'short', shirt: '#f3ead9', shirt2: '#d5cab5', pants: '#1f1f24', shoes: '#f1f1ee', beard: true, shades: true }
 };
 const dark = (hex, k = .72) => { const n = parseInt(hex.slice(1), 16); const f = v => Math.max(0, Math.min(255, v * k | 0)); return `rgb(${f(n >> 16)},${f(n >> 8 & 255)},${f(n & 255)})`; };

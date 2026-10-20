@@ -45,10 +45,10 @@ The public website source lives at the repository root, but Pages does not
 serve the repository as-is: `scripts/build-pages-dist.mjs` copies an allowlist
 (root `*.html`/`*.css`/`*.js`, `_headers`, `_routes.json`, `assets/` and
 `control/`) into `dist/`, and only `dist/` is uploaded as static assets.
-Everything else (`trading-worker/`, `migrations/`, `server-agent/`,
+Everything else (`migrations/`, `server-agent/`,
 `backtest-lab/`, `video/`, docs, tests, config) stays out of the website.
 Pages Functions are still bundled from `functions/` at the project root, so
-their imports from `trading-worker/` and `control/` resolve at build time.
+their imports from `control/` resolve at build time.
 Runtime services and private data are not stored in GitHub.
 
 ## Deployment

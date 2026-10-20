@@ -2,7 +2,7 @@
 // Allowlist on purpose: anything not listed here (workers, migrations, Python
 // engines, video sources, docs, tests, config) stays in the repository only.
 // Pages Functions are still bundled from ./functions at the project root, so
-// their imports from trading-worker/ and control/ keep working at build time.
+// their imports from control/ keep working at build time.
 import {cpSync,existsSync,mkdirSync,readdirSync,rmSync,statSync} from 'node:fs';
 import {dirname,extname,join} from 'node:path';
 import {fileURLToPath} from 'node:url';

@@ -4,7 +4,7 @@
 //   node scripts/ibkr-paper-libro.mjs guardar <fichero>   guarda la libreta del fichero
 //   LIBRO='{...}' node scripts/ibkr-paper-libro.mjs importar   guarda la libreta recibida (alta inicial)
 import {readFileSync, writeFileSync} from 'node:fs';
-import {cloudDatabase} from './office-cloud-db.mjs';
+import {cloudDatabase} from './cloud-db.mjs';
 
 export function validarLibro(texto) {
   const l = JSON.parse(texto);

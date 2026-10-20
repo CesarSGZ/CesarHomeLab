@@ -1,13 +1,13 @@
 import {readFileSync} from 'node:fs';
 import {homedir} from 'node:os';
-export function cloudDatabase({config,officeToken=process.env.OFFICE_DEV_TOKEN,apiToken=process.env.CLOUDFLARE_API_TOKEN,fetcher=fetch,sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms))}={}){
+export function cloudDatabase({config,runnerToken=process.env.OFFICE_DEV_TOKEN,apiToken=process.env.CLOUDFLARE_API_TOKEN,fetcher=fetch,sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms))}={}){
  // Prefer an explicitly configured API token. An authorization rejection must
  // never switch silently to an unrelated or stale OAuth credential.
- const bridge=typeof officeToken==='string'&&!!officeToken.trim();
- let token=bridge?officeToken.trim():typeof apiToken==='string'?apiToken.trim():'';
+ const bridge=typeof runnerToken==='string'&&!!runnerToken.trim();
+ let token=bridge?runnerToken.trim():typeof apiToken==='string'?apiToken.trim():'';
  if(!token){config??=readFileSync(homedir()+'/.config/.wrangler/config/default.toml','utf8');token=config.match(/oauth_token\s*=\s*"([^"]+)"/)?.[1];}
  if(!token)throw Error('Falta autenticación del controlador');
- const endpoint=bridge?'https://cesar-solla.pages.dev/api/trading/runtime':'https://api.cloudflare.com/client/v4/accounts/dc66931243377cb773c0a9aa355cad15/d1/database/799a8dfb-7cea-47a9-9e47-79b767013be4/query';
+ const endpoint=bridge?'https://cesar-solla.pages.dev/api/runtime':'https://api.cloudflare.com/client/v4/accounts/dc66931243377cb773c0a9aa355cad15/d1/database/799a8dfb-7cea-47a9-9e47-79b767013be4/query';
  const query=async body=>{const statements=body.batch||[body],readOnly=statements.every(({sql})=>/^\s*SELECT\b/i.test(sql)&&!sql.trim().replace(/;$/,'').includes(';'));
  for(let attempt=0;attempt<4;attempt++){let r,j;
   try{r=await fetcher(endpoint,{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify(bridge?{action:'runtime-db',...body}:body),signal:AbortSignal.timeout(45000)});j=await r.json();}

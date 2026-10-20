@@ -10,7 +10,7 @@
 | AGT-02 | ServerCesar agent + guardian | ServerCesar | Outbound HTTPS only; `SERVERCESAR_AGENT_TOKEN` | `server-agent/servercesar/` | Keeps Claude, ChatGPT, Parsec and Tailscale running, reports their health, remote reboot |
 | LAB-01 | Terra Powerplant Lab | Cloudflare Pages | Owner portal | `control/data/` | Engineering experiment |
 | GIT-01 | GitHub Galaxy | GitHub API + Cloudflare Pages | Owner portal | `control/galaxy-model.js` and authenticated read-only endpoint | Current architecture and source explorer |
-| TRD-01 | Agent Office | Cloudflare Worker + Pages + D1 | Owner portal; token-authenticated IBKR bridge | `trading-worker/` and `control/trading.js` | Small-cap research and local simulated trading |
+| AGN-01 | Agencia (Agent Office) | Cloudflare Pages | Owner portal (`agency:manage`) | `control/agency/` | OnlyFans agency office; agents not defined yet, no AI calls. OpenAI key kept as the Pages secret `OPENAI_API_KEY` |
 | BTL-01 | Backtest Lab | GitHub Actions (Python) + Pages + D1 | Owner portal; runner token via the scoped D1 bridge | `backtest-lab/` and `control/backtest.js` | Weekly strategy backtests on the Spanish continuous market |
 
 ## Naming rule

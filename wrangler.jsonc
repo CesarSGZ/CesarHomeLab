@@ -3,7 +3,6 @@
   "name": "cesar-solla",
   "pages_build_output_dir": "./dist",
   "compatibility_date": "2026-07-28",
-  "services": [{"binding":"TRADING_SERVICE","service":"cesar-trading-lab"}],
   "d1_databases": [
     {
       "binding": "CONTROL_DB",
