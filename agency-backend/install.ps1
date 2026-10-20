@@ -41,16 +41,8 @@ Push-Location "$root\app"
 try {
   & $venvPy -m agency has-token
   if ($LASTEXITCODE -ne 0 -or $NewToken) {
-    $bytes = New-Object byte[] 48; [Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($bytes)
-    $token = ([Convert]::ToBase64String($bytes)).TrimEnd('=').Replace('+', '-').Replace('/', '_')
-    $token | & $venvPy -m agency set-token | Out-Null
-    if ($LASTEXITCODE) { throw 'set-token' }
-    $token | gh secret set AGENCY_AGENT_TOKEN --repo $repo
-    if ($LASTEXITCODE) { throw 'gh secret set' }
-    gh workflow run agency-secrets.yml --repo $repo --ref main
-    if ($LASTEXITCODE) { throw 'gh workflow run' }
-    Remove-Variable token
-    Write-Host 'Token nuevo creado; Cloudflare lo tendrá en unos minutos (workflow agency-secrets).'
+    & $venvPy -m agency new-token $repo
+    if ($LASTEXITCODE) { throw 'new-token' }
   }
 } finally { Pop-Location }
 
