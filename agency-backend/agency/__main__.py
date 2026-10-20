@@ -2,7 +2,7 @@
 
   python -m agency run            servicio (lo arranca la tarea programada «Scarlett Agency»)
   python -m agency setup-reddit   conecta la cuenta de Reddit (pide los datos por teclado)
-  python -m agency set-token      guarda el token del backend (por stdin; lo usa install.ps1)
+  python -m agency new-token      crea y registra el token del backend (lo usa install.ps1)
   python -m agency dry-run        genera una pregunta para r/AskReddit sin publicarla
   python -m agency status         resumen local
 """
@@ -215,12 +215,17 @@ def main(argv):
                 time.sleep(30)
     elif cmd == "setup-reddit":
         setup_reddit()
-    elif cmd == "set-token":
-        token = sys.stdin.read().strip()
-        if len(token) < 32:
-            sys.exit("Token demasiado corto")
+    elif cmd == "new-token":
+        # Token nuevo: se guarda con DPAPI, se sube como secreto de GitHub y se lanza el workflow que
+        # lo copia a Cloudflare Pages. Se hace aquí (no en PowerShell) para que no lleve BOM ni saltos.
+        import secrets as pysecrets
+        import subprocess
+        repo = argv[2] if len(argv) > 2 else "CesarSGZ/CesarHomeLab"
+        token = pysecrets.token_urlsafe(48)
+        subprocess.run(["gh", "secret", "set", "AGENCY_AGENT_TOKEN", "--repo", repo], input=token.encode(), check=True)
         vault.save("agent_token", token)
-        print("Token guardado.")
+        subprocess.run(["gh", "workflow", "run", "agency-secrets.yml", "--repo", repo, "--ref", "main"], check=True)
+        print("Token nuevo creado; Cloudflare lo tendrá en unos minutos (workflow agency-secrets).")
     elif cmd == "has-token":
         sys.exit(0 if vault.load("agent_token") else 1)
     elif cmd == "dry-run":

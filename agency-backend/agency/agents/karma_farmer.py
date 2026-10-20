@@ -33,7 +33,7 @@ AskReddit rules you must respect:
 - No politics, religion, current news, tragedies, sexual or NSFW topics, named celebrities, brands, links, self-promotion.
 - Avoid the evergreen reposts (best advice you ever got, smells that bring back memories, most useless talent, etc.) and anything close to the titles you are shown.
 
-Write in natural American English. Vary how the candidates start. Return the candidates ordered from best to worst."""
+Write in natural American English. Vary how the candidates start, and avoid stock openers such as "What tiny", "What is something" or "What's a small". Return the candidates ordered from best to worst."""
 
 SCHEMA = {
     "type": "object", "additionalProperties": False, "required": ["candidates"],
