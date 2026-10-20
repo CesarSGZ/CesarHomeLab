@@ -2,8 +2,8 @@
 // agencia (que corre en ServerCesar), el chat con el Director, las fichas del equipo, el karma
 // de Reddit y el registro. Lee /control/api/agency/status y deja mensajes y órdenes en cola.
 import { VW, VH } from './art.js';
-import { agency } from './room.js';
-import { chatCard, teamCard, karmaCard, logCard, headChip, esc } from './panel.js';
+import { agency } from './room.js?v=20261021a';
+import { chatCard, teamCard, karmaCard, logCard, headChip, esc } from './panel.js?v=20261021a';
 
 const PX = 4, root = document.getElementById('agency-app');
 const reduced = matchMedia('(prefers-reduced-motion: reduce)');
@@ -29,7 +29,7 @@ function shell() {
     </div>
     <aside class="ag-side"><section class="ag-card" id="ag-team"></section><section class="ag-card" id="ag-karma"></section></aside>
   </div>
-  <p class="ag-foot">El equipo trabaja en ServerCesar y sincroniza su estado con esta página. Karma Farmer: PROTOCOLO OSIRIS.</p>`;
+  <p class="ag-foot">El equipo trabaja en ServerCesar y sincroniza su estado con esta página. Karma Farmer usa una sesión persistente de Reddit; los envíos sin confirmar requieren revisión.</p>`;
   const cv = root.querySelector('canvas'), g = cv.getContext('2d'), toastEl = root.querySelector('.ag-toast');
   const base = document.createElement('canvas'); base.width = VW; base.height = VH; agency.paintStatic(base.getContext('2d'));
   let toastTimer = 0;
@@ -44,7 +44,6 @@ function shell() {
     if (c.hour < 7.5 || c.hour >= 22) { g.fillStyle = 'rgba(10,16,40,.32)'; g.fillRect(0, 0, VW, VH); }
   }
   function go(id) {
-    if (id === 'kpis' && live?.state?.reddit?.protocol === 'PROTOCOLO OSIRIS') { toast('PROTOCOLO OSIRIS'); return; }
     if (id === 'kpis') { const r = live?.state?.reddit; toast(r?.configured ? `Karma total ${r.karma?.total ?? '—'} · últimos 7 días ${r.karma7d == null ? 'midiendo' : (r.karma7d >= 0 ? '+' : '') + r.karma7d} · ${r.posts?.length || 0} publicaciones registradas.` : 'El panel espera a que se conecte la cuenta de Reddit.'); return; }
     selected = id; paintTeam();
     if (id === 'director') { const input = root.querySelector('#ag-chat-input'); input?.scrollIntoView({ behavior: reduced.matches ? 'auto' : 'smooth', block: 'center' }); input?.focus({ preventScroll: true }); toast('El Director te escucha: escríbele en el chat.'); }

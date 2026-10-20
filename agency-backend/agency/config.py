@@ -13,9 +13,8 @@ DEFAULTS = {
     "cloud_url": "https://cesar-solla.pages.dev",
     "timezone": "Europe/Madrid",
     "client_name": "Scarlett Storm",
-    "llm": {"light": "gpt-6-luna", "deep": "gpt-6.1-sol", "daily_usd_cap": 1.0},
+    "llm": {"light": "gpt-6-luna", "deep": "gpt-6.1-sol", "daily_usd_cap": 1.0, "daily_request_cap": 20},
     "karma_farmer": {
-        "enabled": False,
         "subreddit": "AskReddit",
         # Ventana diaria (hora local) dentro de la que se elige una hora al azar.
         "window_start": "10:00",
@@ -55,9 +54,13 @@ def load_settings():
     user = {}
     if SETTINGS_PATH.exists():
         try:
-            user = json.loads(SETTINGS_PATH.read_text(encoding="utf-8"))
-        except ValueError:
-            user = {}
+            user = json.loads(SETTINGS_PATH.read_text(encoding="utf-8-sig"))
+        except ValueError as exc:
+            raise ValueError('settings.json no es válido; corrígelo antes de arrancar la agencia') from exc
     else:
         SETTINGS_PATH.write_text(json.dumps(DEFAULTS, indent=2, ensure_ascii=False), encoding="utf-8")
-    return _merge(DEFAULTS, user)
+    settings = _merge(DEFAULTS, user)
+    legacy = settings["karma_farmer"].pop("enabled", None)
+    if legacy is not None:
+        settings["karma_farmer"]["browser"]["session_error"] = ""
+    return settings

@@ -174,8 +174,6 @@ async def login_profile(url: str) -> None:
     import json
     from .config import DATA_DIR, SETTINGS_PATH, load_settings
     settings = load_settings()
-    if not settings['karma_farmer'].get('enabled', False):
-        raise RuntimeError('PROTOCOLO OSIRIS')
     cfg = settings["karma_farmer"]["browser"]
     profile = Path(cfg["profile_dir"])
     if not profile.is_absolute():
@@ -186,12 +184,12 @@ async def login_profile(url: str) -> None:
             page = await context.new_page()
             response = await page.goto(url, wait_until="domcontentloaded")
             if response is not None and response.status >= 400:
-                raise RuntimeError('PROTOCOLO OSIRIS')
+                raise RuntimeError(f'Reddit devolvió HTTP {response.status}; revisa la sesión')
             await asyncio.to_thread(input, "Inicia sesión y pulsa Enter para guardar y cerrar: ")
             username = settings['karma_farmer']['username']
             response = await page.goto(f'https://old.reddit.com/user/{username}/', wait_until='domcontentloaded')
             if response is not None and response.status >= 400:
-                raise RuntimeError('PROTOCOLO OSIRIS')
+                raise RuntimeError(f'Reddit devolvió HTTP {response.status}; revisa la sesión')
             await page.locator(cfg['account_selector']).filter(
                 has_text=re.compile('^' + re.escape(username) + '$', re.I)).first.wait_for(state='visible')
             cfg['session_ready'], cfg['session_error'] = True, ''

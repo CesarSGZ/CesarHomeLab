@@ -5,6 +5,8 @@
   python -m agency new-token      crea y registra el token del backend (lo usa install.ps1)
   python -m agency dry-run        genera una pregunta para r/AskReddit sin publicarla
   python -m agency status         resumen local
+  python -m agency check          comprueba nube, modelos y sesión sin generar texto
+  python -m agency check --generate  añade una generación mínima con presupuesto
 """
 import datetime as dt
 import hashlib
@@ -23,7 +25,7 @@ from .agents import TEAM
 from .cloud import CloudError, MissionControl
 from .config import DATA_DIR, DB_PATH, LOG_DIR, load_settings
 from .llm import LLM
-from .platforms.reddit import PROTOCOL, Reddit, RedditError
+from .platforms.reddit import Reddit, RedditError
 from .store import Store, now_ms
 
 STATE_EVERY_S = 300
@@ -183,9 +185,6 @@ def single_instance():
 
 
 def setup_reddit():
-    if not load_settings()['karma_farmer'].get('enabled', False):
-        print(PROTOCOL)
-        return
     import asyncio
     import re
     from .config import SETTINGS_PATH
@@ -202,6 +201,37 @@ def setup_reddit():
     print("Perfil guardado. Reinicia Scarlett Agency para cargar el usuario y los ajustes.")
 
 
+def check(generate=False):
+    """Explicit operator probe, never part of the recurring service loop."""
+    import requests
+    rt = Runtime()
+    # Authenticate without fetching or executing queued work.
+    key = rt.llm.key()
+    for model in {rt.settings['llm']['light'], rt.settings['llm']['deep']}:
+        from .llm import RATES
+        if model not in RATES:
+            raise RuntimeError('Modelo sin tarifa de presupuesto: revisa llm.py')
+        response = requests.get(f'https://api.openai.com/v1/models/{model}',
+                                headers={'Authorization': 'Bearer ' + key}, timeout=(10, 20))
+        if response.status_code != 200:
+            raise RuntimeError(f'No se pudo verificar el modelo {model}: HTTP {response.status_code}')
+    if not rt.reddit.configured:
+        raise RuntimeError('Falta preparar la sesión de Reddit: python -m agency setup-reddit')
+    me = rt.reddit.me()
+    if generate:
+        schema = {'type': 'object', 'additionalProperties': False,
+                  'required': ['ok'], 'properties': {'ok': {'type': 'boolean'}}}
+        result = rt.llm.call('director', 'Return ok=true for this connectivity test.',
+                             'Connectivity check', schema, deep=True, max_out=256, name='health')
+        if result.get('ok') is not True:
+            raise RuntimeError('La generación de prueba no devolvió la confirmación esperada')
+    # A state-only sync leaves commands/messages queued and does not generate replies.
+    rt.cloud.sync(state=rt.state())
+    print(json.dumps({'cloud': 'authenticated', 'openai_models': 'accessible',
+                      'reddit_session': 'verified', 'karma_total': me['total'],
+                      'generation': 'verified' if generate else 'not_requested'}))
+
+
 def main(argv):
     cmd = argv[1] if len(argv) > 1 else "run"
     if cmd == "run":
@@ -214,6 +244,15 @@ def main(argv):
                 time.sleep(30)
     elif cmd == "setup-reddit":
         setup_reddit()
+    elif cmd == "check":
+        check('--generate' in argv)
+    elif cmd == "migrate-settings":
+        from .config import SETTINGS_PATH
+        settings = load_settings()
+        temporary = SETTINGS_PATH.with_suffix('.json.tmp')
+        temporary.write_text(json.dumps(settings, indent=2, ensure_ascii=False), encoding='utf-8')
+        temporary.replace(SETTINGS_PATH)
+        print('Ajustes actualizados; sesión y límites de gasto conservados.')
     elif cmd == "new-token":
         # Token nuevo: se guarda con DPAPI, se sube como secreto de GitHub y se lanza el workflow que
         # lo copia a Cloudflare Pages. Se hace aquí (no en PowerShell) para que no lleve BOM ni saltos.
@@ -228,9 +267,6 @@ def main(argv):
     elif cmd == "has-token":
         sys.exit(0 if vault.load("agent_token") else 1)
     elif cmd == "dry-run":
-        if not load_settings()['karma_farmer'].get('enabled', False):
-            print(PROTOCOL)
-            return
         rt = Runtime()
         kf = rt.agents["karma-farmer"]
         hot = kf.reddit.hot_titles(kf.cfg["subreddit"], 40) if kf.reddit.configured else []

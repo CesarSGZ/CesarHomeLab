@@ -25,7 +25,7 @@ const LAMP = { working: PAL.green, thinking: PAL.green, resting: PAL.amber, paus
 function look(a, c) {
   const night = c.hour < 8 || c.hour >= 23.5, st = c.online ? a.status : 'offline';
   if (st === 'working') return { pose: 'type', m: ['reddit', 'typing'], say: /^Publicando/.test(a.detail) ? 'PUBLICANDO' : /^Pensando/.test(a.detail) ? 'PENSANDO...' : 'LEYENDO REDDIT' };
-  if (st === 'blocked') return { pose: 'sit', m: ['alert', 'off'], say: a.id === 'karma-farmer' ? 'PROTOCOLO OSIRIS' : 'NO DISPONIBLE' };
+  if (st === 'blocked') return { pose: 'sit', m: ['alert', 'off'], say: 'REVISAR SESIÓN' };
   if (st === 'error') return { pose: 'sit', m: ['alert', 'reddit'], say: 'ERROR' };
   if (st === 'completed') return { pose: 'sit', m: ['reddit', 'saver'], say: 'COMPLETADO' };
   if (st === 'paused') return { pose: 'sit', m: ['off', 'off'], sign: 'PAUSA' };

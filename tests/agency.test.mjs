@@ -95,12 +95,12 @@ test('completed browser job survives sync and is shown as Completado', async () 
   assert.equal(live.events[0].text, 'Publicado con navegador');
 });
 
-test('inactive Karma Farmer exposes only PROTOCOLO OSIRIS', async () => {
+test('missing Reddit session shows the real error and normal controls', async () => {
   const { teamCard, karmaCard } = await import('../control/agency/panel.js');
-  const state = sanitiseState({agents: [{id: 'karma-farmer', name: 'Karma Farmer', status: 'blocked', detail: 'PROTOCOLO OSIRIS', commands: []}],
-    reddit: {configured: false, protocol: 'PROTOCOLO OSIRIS', browserError: 'PROTOCOLO OSIRIS'}});
+  const state = sanitiseState({agents: [{id: 'karma-farmer', name: 'Karma Farmer', status: 'blocked', detail: 'Falta preparar la sesión de Reddit', commands: ['pause', 'run-now']}],
+    reddit: {configured: false, browserError: 'Reddit devolvió HTTP 403 <test>'}});
   const live = {state, backend: {online: true}};
-  assert.match(teamCard(live, ''), /PROTOCOLO OSIRIS/);
-  assert.doesNotMatch(teamCard(live, ''), /Bloqueado|data-cmd/);
-  assert.equal(karmaCard(live), '<h3>Reddit</h3><p class="ag-muted">PROTOCOLO OSIRIS</p>');
+  assert.match(teamCard(live, ''), /Requiere atención/);
+  assert.match(teamCard(live, ''), /data-cmd="run-now"/);
+  assert.match(karmaCard(live), /HTTP 403 &lt;test&gt;/);
 });

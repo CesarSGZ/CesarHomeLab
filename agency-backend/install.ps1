@@ -25,6 +25,12 @@ if (-not $python) {
 }
 
 New-Item -ItemType Directory -Force $root, "$root\app", "$root\logs" | Out-Null
+# Keep the service stopped throughout the update; failures leave it disabled.
+$existingTask = Get-ScheduledTask -TaskName 'Scarlett Agency' -ErrorAction SilentlyContinue
+if ($existingTask) {
+  Disable-ScheduledTask -TaskName 'Scarlett Agency' | Out-Null
+  Stop-ScheduledTask -TaskName 'Scarlett Agency'
+}
 $venvPy = "$root\venv\Scripts\python.exe"
 if (-not (Test-Path $venvPy)) { & $python -m venv "$root\venv"; if ($LASTEXITCODE) { throw 'venv' } }
 & $venvPy -m pip install --disable-pip-version-check -q --upgrade pip
@@ -36,16 +42,33 @@ if ($LASTEXITCODE) { throw 'playwright install chromium' }
 # Para la versión anterior antes de copiar el código nuevo.
 Get-ScheduledTask -TaskName 'Scarlett Agency' -ErrorAction SilentlyContinue | Stop-ScheduledTask -ErrorAction SilentlyContinue
 Get-CimInstance Win32_Process -Filter "Name='pythonw.exe'" | Where-Object { $_.CommandLine -like '*-m agency run*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }
+$backup = Join-Path $root ('backups\' + (Get-Date -Format 'yyyyMMdd-HHmmss-fff'))
+New-Item -ItemType Directory -Path $backup -Force | Out-Null
+if (Test-Path -LiteralPath "$root\settings.json") { Copy-Item -LiteralPath "$root\settings.json" -Destination $backup }
+if (Test-Path -LiteralPath "$root\agency.db") {
+  & $venvPy -c 'import sqlite3,sys; a=sqlite3.connect(sys.argv[1]); b=sqlite3.connect(sys.argv[2]); a.backup(b); b.close(); a.close()' "$root\agency.db" "$backup\agency.db"
+  if ($LASTEXITCODE) { throw 'No se pudo guardar una copia consistente de SQLite' }
+}
+if (Test-Path -LiteralPath "$root\app\agency") {
+  Copy-Item -LiteralPath "$root\app\agency" -Destination "$backup\agency" -Recurse
+}
+$appTarget = [IO.Path]::GetFullPath((Join-Path $root 'app\agency'))
+$appParent = [IO.Path]::GetFullPath((Join-Path $root 'app')) + [IO.Path]::DirectorySeparatorChar
+if (-not $appTarget.StartsWith($appParent, [StringComparison]::OrdinalIgnoreCase)) { throw 'Destino de instalación no válido' }
 robocopy "$here\agency" "$root\app\agency" /MIR /NFL /NDL /NJH /NJS /NP /XD __pycache__ | Out-Null
 if ($LASTEXITCODE -ge 8) { throw "robocopy $LASTEXITCODE" }
 
 Push-Location "$root\app"
 try {
+  & $venvPy -m agency migrate-settings
+  if ($LASTEXITCODE) { throw 'No se pudo migrar settings.json' }
   & $venvPy -m agency has-token
   if ($LASTEXITCODE -ne 0 -or $NewToken) {
     & $venvPy -m agency new-token $repo
     if ($LASTEXITCODE) { throw 'new-token' }
   }
+  & $venvPy -m agency check
+  if ($LASTEXITCODE) { throw 'Comprobación fallida. La tarea queda detenida; restaura la sesión y vuelve a instalar.' }
 } finally { Pop-Location }
 
 $userId = [Security.Principal.WindowsIdentity]::GetCurrent().Name
@@ -57,5 +80,6 @@ $settings = New-ScheduledTaskSettingsSet -RestartCount 999 -RestartInterval (New
   -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -ExecutionTimeLimit ([TimeSpan]::Zero) -MultipleInstances IgnoreNew
 Register-ScheduledTask -TaskName 'Scarlett Agency' -Description 'Backend de la Agencia (Director + Karma Farmer). Habla con Mission Control por HTTPS saliente.' `
   -Action $action -Trigger $triggers -Principal $principal -Settings $settings -Force | Out-Null
+Enable-ScheduledTask -TaskName 'Scarlett Agency' | Out-Null
 Start-ScheduledTask -TaskName 'Scarlett Agency'
 Write-Host "Agencia instalada en $root. Registro: $root\logs\agency.log"

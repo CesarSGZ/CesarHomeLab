@@ -1,12 +1,13 @@
-"""Única puerta a OpenAI (Responses API con salida JSON estricta), con tope de gasto diario."""
+"""Responses API with durable budget reservations and no ambiguous retries."""
 import json
-import time
+import math
 
 import requests
 
 from . import vault
 
-# USD por millón de tokens (entrada, salida). Mismas tarifas que usaba la oficina de inversión.
+# Standard USD / million tokens, checked 2026-10-21.
+# https://developers.openai.com/api/docs/pricing
 RATES = {"gpt-6-luna": (0.1, 0.5), "gpt-6.1-sol": (2.0, 10.0)}
 
 
@@ -26,7 +27,7 @@ class LLM:
         if stored:
             self._key = stored
             return stored
-        key = self.rt.cloud.openai_key()  # secreto OPENAI_API_KEY del proyecto Pages
+        key = self.rt.cloud.openai_key()
         if not key:
             raise LLMError("Mission Control no tiene clave de OpenAI")
         vault.save("openai", key)
@@ -46,44 +47,62 @@ class LLM:
     def call(self, agent, instructions, data, schema, deep=False, max_out=900, name="output"):
         cfg = self.rt.settings["llm"]
         model = cfg["deep"] if deep else cfg["light"]
-        today = self.rt.today()
-        if self.rt.store.llm_spent(today) >= float(cfg["daily_usd_cap"]):
-            raise LLMError(f"Tope diario de IA alcanzado ({cfg['daily_usd_cap']} USD)")
+        cap = float(cfg["daily_usd_cap"])
+        request_cap = int(cfg.get("daily_request_cap", 20))
+        if model not in RATES or not math.isfinite(cap) or cap <= 0 or request_cap <= 0:
+            raise LLMError("Revisa el modelo y los límites de IA antes de generar")
+        if not isinstance(max_out, int) or not 1 <= max_out <= 2000:
+            raise LLMError("Salida de IA fuera del límite permitido")
         body = {
             "model": model, "instructions": instructions, "store": False,
+            "service_tier": "default",
             "input": data if isinstance(data, str) else json.dumps(data, ensure_ascii=False),
             "reasoning": {"effort": "low" if deep else "none"}, "max_output_tokens": max_out,
             "text": {"format": {"type": "json_schema", "name": name, "strict": True, "schema": schema}},
         }
-        last = None
-        for attempt in range(4):
+        size = len(json.dumps(body, ensure_ascii=False).encode("utf-8"))
+        if size > 60_000:
+            raise LLMError("Contexto demasiado grande; reduce las directrices o el historial")
+        ri, ro = RATES[model]
+        reserve = ((size + 4096) * ri + max_out * ro) / 1e6
+        for attempt in range(2):
             try:
-                r = requests.post("https://api.openai.com/v1/responses", json=body, timeout=120,
-                                  headers={"Authorization": "Bearer " + self.key(), "Content-Type": "application/json"})
-            except requests.RequestException as e:
-                last = LLMError(f"OpenAI no responde ({e.__class__.__name__})")
-                time.sleep(5 * 2 ** attempt)
-                continue
+                key = self.key()
+            except Exception as exc:
+                raise LLMError(f'No se pudo cargar la clave de IA ({type(exc).__name__})') from exc
+            today = self.rt.today()
+            try:
+                usage_id = self.rt.store.reserve_llm(today, agent, model, reserve, cap, request_cap)
+            except ValueError as exc:
+                raise LLMError(str(exc)) from exc
+            try:
+                r = requests.post("https://api.openai.com/v1/responses", json=body, timeout=(10, 90),
+                                  headers={"Authorization": "Bearer " + key, "Content-Type": "application/json"})
+            except requests.RequestException as exc:
+                raise LLMError(f"OpenAI no responde ({type(exc).__name__}); sin reintento automático") from exc
             if r.status_code == 401 and attempt == 0:
-                self._forget_key()  # la clave cambió en Pages: se vuelve a pedir
-                continue
-            if r.status_code == 429 or r.status_code >= 500:
-                last = LLMError(f"OpenAI HTTP {r.status_code}")
-                time.sleep(8 * 2 ** attempt)
+                self._forget_key()
                 continue
             if not r.ok:
-                raise LLMError(f"OpenAI HTTP {r.status_code}: {r.text[:160]}")
-            j = r.json()
-            usage = j.get("usage") or {}
-            ri, ro = RATES.get(model, (2.0, 10.0))
-            tin, tout = int(usage.get("input_tokens", 0)), int(usage.get("output_tokens", 0))
-            self.rt.store.x("INSERT INTO llm_usage (day, agent, model, input_tokens, output_tokens, usd, at) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                            (today, agent, model, tin, tout, (tin * ri + tout * ro) / 1e6, int(time.time() * 1000)))
-            text = next((c.get("text") for o in j.get("output", []) for c in (o.get("content") or []) if c.get("type") == "output_text"), None)
-            if not text:
-                raise LLMError("OpenAI no devolvió texto (¿max_output_tokens corto?)")
+                raise LLMError(f"OpenAI HTTP {r.status_code}; sin reintento automático")
             try:
-                return json.loads(text)
-            except ValueError as e:
-                raise LLMError("OpenAI devolvió JSON no válido") from e
-        raise last or LLMError("OpenAI no disponible")
+                result = r.json()
+                usage = result.get("usage")
+                if usage and all(isinstance(usage.get(k), int) and usage[k] >= 0
+                                 for k in ("input_tokens", "output_tokens")):
+                    tin, tout = usage["input_tokens"], usage["output_tokens"]
+                    self.rt.store.x("UPDATE llm_usage SET input_tokens = ?, output_tokens = ?, usd = ? WHERE id = ?",
+                                    (tin, tout, (tin * ri + tout * ro) / 1e6, usage_id))
+                if result.get("status") != "completed":
+                    raise LLMError("Respuesta de IA incompleta; sin reintento automático")
+                text = next((c.get("text") for o in result.get("output", [])
+                             for c in (o.get("content") or []) if c.get("type") == "output_text"), None)
+                if not text:
+                    raise LLMError("OpenAI no devolvió texto")
+                parsed = json.loads(text)
+                if not isinstance(parsed, dict):
+                    raise LLMError("OpenAI no devolvió un objeto JSON")
+                return parsed
+            except (ValueError, TypeError, AttributeError) as exc:
+                raise LLMError("OpenAI devolvió una respuesta no válida; sin reintento automático") from exc
+        raise LLMError("OpenAI no disponible")

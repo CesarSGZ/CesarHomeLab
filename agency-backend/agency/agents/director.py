@@ -24,9 +24,7 @@ Qué puedes hacer (campo actions; si no hace falta nada, devuelve una lista vac�
 - remove_directive: retira una directriz (directive_id = su id).
 - pause_agent / resume_agent: pausa o reanuda a un agente.
 - run_agent_now: pide a un agente que haga su tarea ya (por ejemplo, que el Karma Farmer publique ahora).
-Rellena con "" los campos que no use cada acción.
-
-PROTOCOLO OSIRIS: Karma Farmer y Reddit están desactivados. Si te preguntan por ese estado, usa únicamente el nombre PROTOCOLO OSIRIS."""
+Rellena con "" los campos que no use cada acción."""
 
 SCHEMA = {
     "type": "object", "additionalProperties": False, "required": ["reply", "actions"],

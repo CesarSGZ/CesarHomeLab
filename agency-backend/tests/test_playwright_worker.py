@@ -6,7 +6,7 @@ from pathlib import Path
 import tempfile
 from types import SimpleNamespace
 import unittest
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 from zoneinfo import ZoneInfo
 
 from playwright.async_api import BrowserType
@@ -24,7 +24,6 @@ class BrowserIntegration(unittest.TestCase):
         self.addCleanup(self.temp.cleanup)
         self.settings = deepcopy(DEFAULTS)
         cfg = self.settings['karma_farmer']
-        cfg['enabled'] = True
         cfg['username'] = 'testuser'
         cfg['subreddit'] = 'TestCommunity'
         cfg['browser'].update(profile_dir=self.temp.name, headless=True, timeout_ms=1000, typing_delay_ms=1, session_ready=True)
@@ -121,34 +120,46 @@ class BrowserIntegration(unittest.TestCase):
         self.assertFalse(result.submission_uncertain)
         self.assertEqual(self.sent, [])
 
-    def test_askreddit_is_blocked_before_browser_or_llm(self):
-        self.settings['karma_farmer']['subreddit'] = 'AskReddit'
-        agent = KarmaFarmer(self.runtime())
-        agent.tick()
-        self.assertEqual(agent.status, 'blocked')
-        self.assertIsNone(agent.next_run_at())
-        ok, reason = agent.handle_command('run-now')
-        self.assertFalse(ok)
-        self.assertEqual(reason, 'PROTOCOLO OSIRIS')
-        with self.assertRaisesRegex(RedditError, 'PROTOCOLO OSIRIS'):
-            self.reddit.submit('AskReddit', 'Which meal reminds you of summer holidays?')
-        self.assertEqual(self.sent, [])
-
-    def test_disabled_protocol_skips_all_work(self):
-        self.settings['karma_farmer']['enabled'] = False
+    def test_unexpected_failure_is_not_retried_on_ticks(self):
         rt = self.runtime()
         agent = KarmaFarmer(rt)
-        with patch.object(BrowserType, 'launch_persistent_context', side_effect=AssertionError('Unexpected browser')) as browser:
+        with patch.object(self.reddit, 'hot_titles', return_value=[]), \
+                patch.object(agent, 'write_question', side_effect=TypeError('Malformed candidates')) as generate:
+            agent.run(manual=True)
+            self.assertEqual(rt.store.get('karma:plan')['state'], 'failed')
+            for _ in range(100):
+                agent.tick()
+            self.assertEqual(generate.call_count, 1)
+
+    def test_askreddit_reaches_worker(self):
+        self.settings['karma_farmer']['subreddit'] = 'AskReddit'
+        from agency.playwright_worker import WorkerResult
+        result = WorkerResult('Completado', 'confirmation', 'ok', 'Confirmed', True,
+                              final_url='https://old.reddit.com/r/AskReddit/comments/abc123/example/')
+        with patch.object(PlaywrightWorker, 'execute', new_callable=AsyncMock, return_value=result) as worker:
+            post = self.reddit.submit('AskReddit', 'Which meal reminds you of summer holidays?')
+            self.assertEqual(post['id'], 'abc123')
+            self.assertIn('/r/AskReddit/submit?', worker.call_args.args[0])
+        self.assertEqual(self.sent, [])
+
+    def test_missing_session_does_not_launch_browser_or_generate(self):
+        # A legacy switch is ignored; a real missing session remains actionable.
+        self.settings['karma_farmer']['enabled'] = False
+        self.settings['karma_farmer']['browser']['session_ready'] = False
+        rt = self.runtime()
+        agent = KarmaFarmer(rt)
+        with patch.object(BrowserType, 'launch_persistent_context', side_effect=AssertionError('Unexpected browser')) as browser, \
+                patch.object(rt.llm, 'call') as llm:
             agent.tick()
             agent.run(manual=True)
-            self.assertEqual(agent.handle_command('run-now'), (False, 'PROTOCOLO OSIRIS'))
-            with self.assertRaisesRegex(RedditError, 'PROTOCOLO OSIRIS'):
+            self.assertFalse(agent.handle_command('run-now')[0])
+            with self.assertRaisesRegex(RedditError, 'sesión de Reddit'):
                 self.reddit.me()
             browser.assert_not_called()
+            llm.assert_not_called()
         state = agent.snapshot()
-        self.assertEqual(state['detail'], 'PROTOCOLO OSIRIS')
-        self.assertEqual(state['commands'], [])
-        self.assertIsNone(state['nextRunAt'])
+        self.assertIn('sesión de Reddit', state['detail'])
+        self.assertIn('run-now', state['commands'])
         self.assertEqual(rt.store.q('SELECT * FROM posts'), [])
 
 

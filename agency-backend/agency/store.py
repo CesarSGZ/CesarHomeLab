@@ -81,6 +81,24 @@ class Store:
             self.x(f"UPDATE {table} SET synced = 1 WHERE id IN ({','.join('?' * len(ids))})", tuple(ids))
 
     # ---- uso de IA ----
+    def reserve_llm(self, day, agent, model, usd, cap, request_cap):
+        """Persist before sending; interrupted requests keep their reservation."""
+        with self._lock:
+            try:
+                self.db.execute("BEGIN IMMEDIATE")
+                spent, count = self.db.execute(
+                    "SELECT COALESCE(SUM(usd), 0), COUNT(*) FROM llm_usage WHERE day = ?", (day,)).fetchone()
+                if spent + usd > cap or count >= request_cap:
+                    raise ValueError("Tope diario de IA alcanzado (presupuesto o número de peticiones)")
+                cur = self.db.execute(
+                    "INSERT INTO llm_usage (day, agent, model, input_tokens, output_tokens, usd, at) VALUES (?, ?, ?, 0, 0, ?, ?)",
+                    (day, agent, model, usd, now_ms()))
+                self.db.commit()
+                return cur.lastrowid
+            except Exception:
+                self.db.rollback()
+                raise
+
     def llm_spent(self, day):
         return self.one("SELECT COALESCE(SUM(usd), 0) AS usd FROM llm_usage WHERE day = ?", (day,))["usd"]
 

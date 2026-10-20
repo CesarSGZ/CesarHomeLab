@@ -4,7 +4,7 @@ const tz = { timeZone: 'Europe/Madrid' };
 export const hm = t => t ? new Intl.DateTimeFormat('es-ES', { ...tz, hour: '2-digit', minute: '2-digit' }).format(new Date(t)) : '—';
 export const dm = t => t ? new Intl.DateTimeFormat('es-ES', { ...tz, day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }).format(new Date(t)) : '—';
 export const ago = t => { if (!t) return 'nunca'; const s = Math.max(0, (Date.now() - t) / 1000 | 0); return s < 90 ? 'hace ' + s + ' s' : s < 5400 ? 'hace ' + Math.round(s / 60) + ' min' : s < 172800 ? 'hace ' + Math.round(s / 3600) + ' h' : 'hace ' + Math.round(s / 86400) + ' días'; };
-const STATUS = { working: ['Trabajando', 'ok'], thinking: ['Pensando', 'ok'], resting: ['Descansando', 'rest'], paused: ['En pausa', 'off'], blocked: ['PROTOCOLO OSIRIS', 'off'], error: ['Error', 'bad'], completed: ['Completado', 'ok'] };
+const STATUS = { working: ['Trabajando', 'ok'], thinking: ['Pensando', 'ok'], resting: ['Descansando', 'rest'], paused: ['En pausa', 'off'], blocked: ['Requiere atención', 'off'], error: ['Error', 'bad'], completed: ['Completado', 'ok'] };
 const CMD = { pause: 'Pausar', resume: 'Reanudar', 'run-now': 'Publicar ahora' };
 const NAMES = { system: 'Sistema', director: 'Director' };
 const who = (id, agents) => NAMES[id] || agents.find(a => a.id === id)?.name || id;
@@ -28,7 +28,7 @@ export function teamCard(live, selected) {
   const agents = live.state?.agents || [], on = live.backend.online;
   if (!agents.length) return `<h3>Equipo</h3><p class="ag-muted">${on ? 'El backend todavía no ha publicado su equipo.' : 'El backend de la agencia no ha conectado todavía con Mission Control.'}</p>`;
   return `<h3>Equipo <small>${agents.length} en plantilla</small></h3>${agents.map(a => {
-    const [label, tone] = on ? (a.id === 'karma-farmer' && a.status === 'blocked' ? ['PROTOCOLO OSIRIS', 'off'] : STATUS[a.status] || [a.status, 'rest']) : ['Sin conexión', 'off'];
+    const [label, tone] = on ? (STATUS[a.status] || [a.status, 'rest']) : ['Sin conexión', 'off'];
     const cmds = (a.commands || []).filter(c => c === 'run-now' || (c === 'pause') !== (a.status === 'paused'));
     return `<article class="ag-agent" id="ag-agent-${esc(a.id)}" data-selected="${a.id === selected}"><header><b>${esc(a.name)}</b><span class="ag-pill" data-tone="${tone}">${esc(label)}</span></header>
       <p class="ag-muted">${esc(a.role)}</p>${a.detail ? `<p>${esc(a.detail)}</p>` : ''}
@@ -46,9 +46,8 @@ function bars(history) {
 }
 export function karmaCard(live) {
   const r = live.state?.reddit;
-  if (r?.protocol === 'PROTOCOLO OSIRIS') return '<h3>Reddit</h3><p class="ag-muted">PROTOCOLO OSIRIS</p>';
   if (!r) return '<h3>Reddit</h3><p class="ag-muted">Sin datos todavía.</p>';
-  if (!r.configured) return '<h3>Reddit</h3><p class="ag-muted">PROTOCOLO OSIRIS</p>';
+  if (!r.configured) return `<h3>Reddit</h3><p class="ag-muted">${esc(r.browserError || 'Falta conectar la sesión de Reddit en el PC.')}</p>`;
   const k7 = r.karma7d, week = (r.posts || []).filter(p => p.createdAt > Date.now() - 7 * 864e5);
   const tile = (label, value, tone = '') => `<div class="ag-tile"><span>${esc(label)}</span><b data-tone="${tone}">${esc(value)}</b></div>`;
   return `<h3>Reddit <small>u/${esc(r.username)} · medido ${esc(ago(r.checkedAt))}</small></h3>
