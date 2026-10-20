@@ -29,10 +29,10 @@ const specs=new Map([
  spec('SELECT * FROM trading_budget WHERE day=?',[day]),
  spec('SELECT COALESCE(SUM(actual),0) AS confirmed, COALESCE(SUM(CASE WHEN actual IS NULL THEN reserved ELSE 0 END),0) AS reserved FROM trading_calls WHERE day=?',[day]),
  spec('SELECT * FROM trading_operating_budget WHERE month=?',[month]),
- spec('SELECT COALESCE(SUM(COALESCE(actual,reserved)),0) AS usd, COALESCE(SUM(CASE WHEN day=? THEN COALESCE(actual,reserved) ELSE 0 END),0) AS todayUsd FROM trading_calls WHERE day LIKE ?',[day,monthLike],p=>p[0].startsWith(p[1].slice(0,-1))),
+ spec('SELECT COALESCE(SUM(COALESCE(actual,reserved)),0) AS usd, COALESCE(SUM(CASE WHEN day=? THEN COALESCE(actual,reserved) ELSE 0 END),0) AS todayUsd FROM trading_calls WHERE day BETWEEN ? AND ?',[day,day,day],p=>p[1]===p[0].slice(0,7)+'-01'&&p[2]===p[0].slice(0,7)+'-31'),
  spec('INSERT OR IGNORE INTO trading_budget(day) VALUES (?)',[day]),
  spec('UPDATE trading_budget SET spent=spent+?,calls=calls+1 WHERE day=? AND spent+?<=? RETURNING spent',[reserve,day,reserve,reserve],p=>p[0]===p[2]),
- spec('INSERT OR IGNORE INTO trading_operating_budget(month,spent_eur,updated_at) SELECT ?,COALESCE(SUM(COALESCE(actual,reserved)),0)/?,? FROM trading_calls WHERE day LIKE ?',[month,fx,integer,monthLike],(p,n)=>p[3]===p[0]+'%'&&nowish(p[2],n)),
+ spec('INSERT OR IGNORE INTO trading_operating_budget(month,spent_eur,updated_at) SELECT ?,COALESCE(SUM(COALESCE(actual,reserved)),0)/?,? FROM trading_calls WHERE day BETWEEN ? AND ?',[month,fx,integer,day,day],(p,n)=>p[3]===p[0]+'-01'&&p[4]===p[0]+'-31'&&nowish(p[2],n)),
  spec('UPDATE trading_operating_budget SET spent_eur=spent_eur+?,updated_at=? WHERE month=? AND spent_eur+?<=allowance_eur RETURNING spent_eur',[reserve,integer,month,reserve],(p,n)=>p[0]===p[3]&&nowish(p[1],n)),
  spec('UPDATE trading_budget SET spent=MAX(0,spent-?),calls=MAX(0,calls-1) WHERE day=?',[reserve,day]),
  spec('INSERT INTO trading_calls(id,day,model,reserved,status,created_at,eur_reserved,fx_rate,agent) VALUES (?,?,?,?,?,?,?,?,?)',[identity,day,model,reserve,oneOf('reserved'),integer,reserve,fx,agent],(p,n)=>nowish(p[5],n)),
@@ -73,8 +73,13 @@ export function validateRuntimeDbRequest(body,now=Date.now()){
   return {sql:row.sql,params};
  });
 }
+// trading_calls grows with every AI call; without this index each budget check read the whole table
+// (most of the account's D1 rows_read). Created once per warm isolate, outside the request whitelist.
+let tradingIndexesReady=false;
+export async function ensureTradingIndexes(db){if(tradingIndexesReady)return;try{await db.batch([db.prepare('CREATE INDEX IF NOT EXISTS trading_calls_day ON trading_calls(day)').bind()]);tradingIndexesReady=true;}catch{/* best effort: never block the bridge */}}
 export async function runtimeDatabase(env,body,{now=Date.now()}={}){
  const rows=validateRuntimeDbRequest(body,now); // Validate the whole batch before executing anything.
+ await ensureTradingIndexes(env.CONTROL_DB);
  const statements=rows.map(({sql,params})=>env.CONTROL_DB.prepare(sql).bind(...params));
  const result=await env.CONTROL_DB.batch(statements);
  return {ok:true,success:true,result};
