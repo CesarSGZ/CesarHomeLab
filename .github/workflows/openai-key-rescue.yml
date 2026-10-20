@@ -1,0 +1,32 @@
+name: Rescue OpenAI key to Cloudflare Pages
+
+# Un solo uso (20/10/2026): antes de retirar la oficina de inversión, copia la clave de OpenAI
+# que guardaba cifrada su Worker al secreto OPENAI_API_KEY del proyecto Pages cesar-solla.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  rescue:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Copy the key without printing it
+        env:
+          OFFICE_DEV_TOKEN: ${{ secrets.OFFICE_DEV_TOKEN }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          key=$(node --input-type=module -e '
+            const r = await fetch("https://cesar-solla.pages.dev/api/trading/runtime", {method: "POST", headers: {Authorization: "Bearer " + process.env.OFFICE_DEV_TOKEN, "Content-Type": "application/json"}, body: JSON.stringify({action: "runtime-key"})});
+            if (!r.ok) { console.error("HTTP " + r.status); process.exit(1); }
+            const {key} = await r.json(); if (!key || key.length < 20) { console.error("sin clave"); process.exit(1); }
+            process.stdout.write(key);')
+          echo "::add-mask::$key"
+          printf '%s' "$key" | npx --yes wrangler@4.124.0 pages secret put OPENAI_API_KEY --project-name=cesar-solla
