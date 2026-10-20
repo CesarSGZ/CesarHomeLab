@@ -41,3 +41,7 @@ A received UDP packet while Windows is awake confirms delivery only. It does not
 For sleep/hibernate testing, register and verify a WakeToRun safety task 6–10 minutes ahead before requesting the delayed external packet. Record the sleep entry and Windows wake cause afterward. WakeToRun is not a recovery mechanism for S5: test full shutdown only with an independent recovery path or someone available at the PC. Keep private network targets and credentials outside this repository.
 
 On the Gigabyte X470 AORUS Gaming 7 WIFI, the board manual lists Power > Wake on LAN and ErP. Check Wake on LAN = Enabled and ErP = Disabled in person if network wake still fails. AC BACK = Always On is an optional recovery setting when using a managed power outlet; it does not itself provide remote power control.
+
+## Recovery regression — 20 October 2026
+The user could not wake the PC after the production shutdown on 18 October and required a physical power-on. Shutdown is disabled again and the local S5 verification marker revoked. On return, the Intel Ethernet adapter reports no physical link (Wi-Fi is connected), and router maintenance rejects a changed SSH host key. These observations do not establish when the link or router identity changed. Do not re-enable shutdown based only on the earlier short test; validate the current wired path, router identity, and delayed recovery first.
+
