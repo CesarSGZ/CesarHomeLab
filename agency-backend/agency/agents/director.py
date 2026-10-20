@@ -52,6 +52,16 @@ class Director(Agent):
     def __init__(self, rt):
         super().__init__(rt)
         self.inbox = queue.Queue()
+        # receive() persists before queueing. Rebuild in-flight work after a crash;
+        # redeliveries from Cloudflare are deduplicated by the existing chat id.
+        for message in self.rt.store.q("""
+            SELECT owner.id, owner.text, owner.at FROM chat AS owner
+            WHERE owner.role = 'owner'
+              AND NOT EXISTS (SELECT 1 FROM chat AS reply
+                              WHERE reply.role = 'director' AND reply.reply_to = owner.id)
+            ORDER BY owner.at
+        """):
+            self.inbox.put(message)
         self.detail = "En su mesa, atento al chat"
 
     def receive(self, messages):
