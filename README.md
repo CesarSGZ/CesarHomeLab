@@ -20,6 +20,7 @@ small agents that connect cloud controls to services running on ServerCesar.
 | GitHub Galaxy | `/control/` | GitHub Actions + browser canvas |
 | Thermal experiment | `/control/data/` and `/control/assets/thermal/` | Versioned static evidence |
 | Backtest Lab (strategy backtests) | `/backtest-lab/` and `/control/backtest.js` | GitHub Actions (Python) + D1 |
+| Agencia (Scarlett Storm agents) | `/control/agency/`, `/agency-backend/` | Cloudflare Pages + ServerCesar (Python) |
 
 The detailed boundaries and request flows are documented in
 [`docs/architecture.md`](docs/architecture.md). The service inventory lives in
