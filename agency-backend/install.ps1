@@ -36,8 +36,6 @@ if (-not (Test-Path $venvPy)) { & $python -m venv "$root\venv"; if ($LASTEXITCOD
 & $venvPy -m pip install --disable-pip-version-check -q --upgrade pip
 & $venvPy -m pip install --disable-pip-version-check -q -r "$here\requirements.txt"
 if ($LASTEXITCODE) { throw 'pip install' }
-& $venvPy -m playwright install chromium
-if ($LASTEXITCODE) { throw 'playwright install chromium' }
 
 # Para la versión anterior antes de copiar el código nuevo.
 Get-ScheduledTask -TaskName 'Scarlett Agency' -ErrorAction SilentlyContinue | Stop-ScheduledTask -ErrorAction SilentlyContinue
@@ -68,7 +66,7 @@ try {
     if ($LASTEXITCODE) { throw 'new-token' }
   }
   & $venvPy -m agency check
-  if ($LASTEXITCODE) { throw 'Comprobación fallida. La tarea queda detenida; restaura la sesión y vuelve a instalar.' }
+  if ($LASTEXITCODE) { throw 'Comprobación fallida. La tarea queda detenida; revisa la conexión y vuelve a instalar.' }
 } finally { Pop-Location }
 
 $userId = [Security.Principal.WindowsIdentity]::GetCurrent().Name

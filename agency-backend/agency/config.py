@@ -14,30 +14,11 @@ DEFAULTS = {
     "timezone": "Europe/Madrid",
     "client_name": "Scarlett Storm",
     "llm": {"light": "gpt-6-luna", "deep": "gpt-6.1-sol", "daily_usd_cap": 1.0, "daily_request_cap": 20},
-    "karma_farmer": {
+    "planning": {
         "subreddit": "AskReddit",
-        # Ventana diaria (hora local) dentro de la que se elige una hora al azar.
-        "window_start": "10:00",
-        "window_end": "23:15",
-        "max_posts_24h": 2,
-        "stats_every_minutes": 180,
-        "username": "",
-        "browser": {
-            "profile_dir": "reddit-browser-profile",
-            "headless": False,
-            "session_ready": False,
-            "session_error": "",
-            "timeout_ms": 30000,
-            "typing_delay_ms": 55,
-            "input_selector": '#title-field textarea[name="title"]',
-            "submit_selector": '#newlink button[type="submit"]',
-            "account_selector": '.user a',
-            "posts_selector": '.thing[data-fullname^="t3_"]',
-            "title_selector": 'a.title',
-            "comments_selector": 'a.comments',
-            "post_karma_selector": '.side .karma:not(.comment-karma)',
-            "comment_karma_selector": '.side .comment-karma',
-        },
+        "daily_at": "09:00",
+        "sheet_url": "",
+        "sheet_sync": "unconfigured",
     },
 }
 
@@ -59,8 +40,7 @@ def load_settings():
             raise ValueError('settings.json no es válido; corrígelo antes de arrancar la agencia') from exc
     else:
         SETTINGS_PATH.write_text(json.dumps(DEFAULTS, indent=2, ensure_ascii=False), encoding="utf-8")
-    settings = _merge(DEFAULTS, user)
-    legacy = settings["karma_farmer"].pop("enabled", None)
-    if legacy is not None:
-        settings["karma_farmer"]["browser"]["session_error"] = ""
-    return settings
+    legacy = user.pop("karma_farmer", None)
+    if legacy and "planning" not in user:
+        user["planning"] = {"subreddit": legacy.get("subreddit", "AskReddit")}
+    return _merge(DEFAULTS, user)

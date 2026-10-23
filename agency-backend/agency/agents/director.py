@@ -26,6 +26,11 @@ Qué puedes hacer (campo actions; si no hace falta nada, devuelve una lista vac�
 - run_agent_now: pide a un agente que haga su tarea ya (por ejemplo, que el Karma Farmer publique ahora).
 Rellena con "" los campos que no use cada acción."""
 
+INSTRUCTIONS += """\nEl flujo actual es editorial: Reddit Planner prepara propuestas y tú las revisas una vez al día.
+César publica manualmente desde su cuenta. run_agent_now solo prepara un borrador.
+Ningún agente publica, vota ni inicia sesión en Reddit. Las entregas están en el dashboard y en la hoja enlazada.
+No afirmes que se han revisado normas o publicaciones actuales de Reddit: esa comprobación la hace César."""
+
 SCHEMA = {
     "type": "object", "additionalProperties": False, "required": ["reply", "actions"],
     "properties": {
@@ -50,6 +55,7 @@ class Director(Agent):
     def __init__(self, rt):
         super().__init__(rt)
         self.inbox = queue.Queue()
+        self._reviewing = False
         # receive() persists before queueing. Rebuild in-flight work after a crash;
         # redeliveries from Cloudflare are deduplicated by the existing chat id.
         for message in self.rt.store.q("""
@@ -70,10 +76,32 @@ class Director(Agent):
             self.inbox.put(m)
 
     def tick(self):
+        if self._reviewing:
+            return
         if not self.busy and not self.inbox.empty():
             self.start(self.work)
         elif not self.busy and self.status != "resting":
             self.status, self.detail = "resting", "En su mesa, atento al chat"
+
+    def review_draft(self, draft):
+        self._reviewing = True
+        self.status, self.detail = 'thinking', 'Revisando la propuesta diaria'
+        try:
+            schema = {'type': 'object', 'additionalProperties': False, 'required': ['approved', 'notes'],
+                      'properties': {'approved': {'type': 'boolean'}, 'notes': {'type': 'string'}}}
+            result = self.rt.llm.call(self.id,
+                'Eres el editor de una propuesta para que César la adapte y publique manualmente. '
+                'Revisa claridad, originalidad y adecuación general. No has navegado Reddit y no puedes '
+                'confirmar sus normas actuales. Responde con approved y notes (en español, máximo 4 frases útiles). '
+                'No publiques ni ordenes acciones. Si necesita cambios sustanciales, approved=false.',
+                {'draft': draft, 'directives': self.rt.directives_for('karma-farmer')}, schema,
+                deep=True, max_out=900, name='editorial_review')
+            self.finish('Revisó la propuesta diaria de Reddit Planner')
+            self.log('Revisión editorial diaria completada', 'ok')
+            return result
+        finally:
+            self._reviewing = False
+            self.status, self.detail = 'resting', 'Revisión terminada; atento al chat'
 
     def work(self):
         while not self.inbox.empty():

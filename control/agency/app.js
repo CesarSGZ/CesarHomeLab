@@ -2,8 +2,8 @@
 // agencia (que corre en ServerCesar), el chat con el Director, las fichas del equipo, el karma
 // de Reddit y el registro. Lee /control/api/agency/status y deja mensajes y órdenes en cola.
 import { VW, VH } from './art.js';
-import { agency } from './room.js?v=20261021a';
-import { chatCard, teamCard, karmaCard, logCard, headChip, esc } from './panel.js?v=20261021a';
+import { agency } from './room.js?v=20261023a';
+import { chatCard, teamCard, karmaCard, logCard, headChip, esc } from './panel.js?v=20261023a';
 
 const PX = 4, root = document.getElementById('agency-app');
 const reduced = matchMedia('(prefers-reduced-motion: reduce)');
@@ -22,19 +22,19 @@ function shell() {
   <p class="ag-notice" id="ag-notice" role="status" hidden></p>
   <div class="ag-main">
     <div class="ag-left">
-      <div class="ag-stage"><canvas class="ag-canvas" width="${VW * PX}" height="${VH * PX}" role="img" aria-label="Oficina de la agencia: el Director en su despacho, el Karma Farmer en la planta abierta y puestos libres para nuevos agentes."></canvas><div class="ag-toast" role="status" hidden></div></div>
-      <div class="ag-things"><button type="button" data-go="director">Hablar con el Director</button><button type="button" data-go="karma-farmer">Ver al Karma Farmer</button><button type="button" data-go="kpis">Mirar el panel de KPIs</button></div>
+      <div class="ag-stage"><canvas class="ag-canvas" width="${VW * PX}" height="${VH * PX}" role="img" aria-label="Oficina de la agencia: el Director en su despacho, el Reddit Planner en la planta abierta y puestos libres para nuevos agentes."></canvas><div class="ag-toast" role="status" hidden></div></div>
+      <div class="ag-things"><button type="button" data-go="director">Hablar con el Director</button><button type="button" data-go="karma-farmer">Ver al Reddit Planner</button><button type="button" data-go="kpis">Mirar el panel de KPIs</button></div>
       <section class="ag-card" id="ag-chat-card"></section>
       <section class="ag-card" id="ag-log"></section>
     </div>
     <aside class="ag-side"><section class="ag-card" id="ag-team"></section><section class="ag-card" id="ag-karma"></section></aside>
   </div>
-  <p class="ag-foot">El equipo trabaja en ServerCesar y sincroniza su estado con esta página. Karma Farmer usa una sesión persistente de Reddit; los envíos sin confirmar requieren revisión.</p>`;
+  <p class="ag-foot">El equipo trabaja en ServerCesar y sincroniza su estado con esta página. Los agentes preparan propuestas e instrucciones. César adapta y publica manualmente desde su cuenta.</p>`;
   const cv = root.querySelector('canvas'), g = cv.getContext('2d'), toastEl = root.querySelector('.ag-toast');
   const base = document.createElement('canvas'); base.width = VW; base.height = VH; agency.paintStatic(base.getContext('2d'));
   let toastTimer = 0;
   const toast = text => { toastEl.textContent = text; toastEl.hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => { toastEl.hidden = true; }, 4200); };
-  const S = () => ({ agents: live?.state?.agents || [], reddit: live?.state?.reddit, online: !!live?.backend.online });
+  const S = () => ({ agents: live?.state?.agents || [], reddit: live?.state?.reddit, drafts: live?.state?.drafts, online: !!live?.backend.online });
   const hour = () => { const p = new Intl.DateTimeFormat('es-ES', { timeZone: 'Europe/Madrid', hour: 'numeric', minute: 'numeric', hourCycle: 'h23' }).formatToParts(new Date()); return Number(p.find(x => x.type === 'hour').value) + Number(p.find(x => x.type === 'minute').value) / 60; };
   function draw(t = performance.now() / 1000) {
     const c = { g, now: t, S: S(), hour: hour(), online: S().online };
@@ -44,7 +44,7 @@ function shell() {
     if (c.hour < 7.5 || c.hour >= 22) { g.fillStyle = 'rgba(10,16,40,.32)'; g.fillRect(0, 0, VW, VH); }
   }
   function go(id) {
-    if (id === 'kpis') { const r = live?.state?.reddit; toast(r?.configured ? `Karma total ${r.karma?.total ?? '—'} · últimos 7 días ${r.karma7d == null ? 'midiendo' : (r.karma7d >= 0 ? '+' : '') + r.karma7d} · ${r.posts?.length || 0} publicaciones registradas.` : 'El panel espera a que se conecte la cuenta de Reddit.'); return; }
+    if (id === 'kpis') { toast(`${live?.state?.drafts?.length || 0} propuestas preparadas. Publicación manual por César.`); return; }
     selected = id; paintTeam();
     if (id === 'director') { const input = root.querySelector('#ag-chat-input'); input?.scrollIntoView({ behavior: reduced.matches ? 'auto' : 'smooth', block: 'center' }); input?.focus({ preventScroll: true }); toast('El Director te escucha: escríbele en el chat.'); }
     else { root.querySelector('#ag-agent-' + CSS.escape(id))?.scrollIntoView({ behavior: reduced.matches ? 'auto' : 'smooth', block: 'center' }); const a = live?.state?.agents?.find(x => x.id === id); if (a) toast(a.name + ': ' + (a.detail || a.role)); }
@@ -56,7 +56,6 @@ function shell() {
   root.querySelector('.ag-things').addEventListener('click', e => { const b = e.target.closest('[data-go]'); if (b) go(b.dataset.go); });
   root.querySelector('#ag-team').addEventListener('click', e => {
     const b = e.target.closest('[data-cmd]'); if (!b) return;
-    if (b.dataset.cmd === 'run-now' && !confirm('¿Publicar ahora en r/AskReddit? Cuenta como el post de hoy (máximo 2 en 24 h).')) return;
     b.disabled = true; api('command', { agent: b.dataset.agent, type: b.dataset.cmd }).then(() => { notice('Orden enviada: la oficina la recoge en unos segundos.'); refresh(); }).catch(err => { b.disabled = false; notice(err.message, true); });
   });
   root.querySelector('#ag-chat-card').addEventListener('submit', e => {

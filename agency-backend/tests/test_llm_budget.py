@@ -85,9 +85,8 @@ class BudgetTests(unittest.TestCase):
                         '"llm":{"daily_usd_cap":0.2}}', encoding='utf-8-sig')
         with patch('agency.config.DATA_DIR', path.parent), patch('agency.config.SETTINGS_PATH', path):
             settings = load_settings()
-        self.assertNotIn('enabled', settings['karma_farmer'])
-        self.assertFalse(settings['karma_farmer']['browser']['session_ready'])
-        self.assertEqual(settings['karma_farmer']['browser']['session_error'], '')
+        self.assertNotIn('karma_farmer', settings)
+        self.assertEqual(settings['planning']['subreddit'], 'AskReddit')
         self.assertEqual(settings['llm']['daily_usd_cap'], 0.2)
 
     def test_corrupt_settings_do_not_reset_budget_to_defaults(self):
