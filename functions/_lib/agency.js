@@ -24,7 +24,6 @@ export async function ensureTables(db) {
     db.prepare("CREATE INDEX IF NOT EXISTS idx_agency_messages_created ON agency_messages(created_at)"),
     db.prepare("CREATE INDEX IF NOT EXISTS idx_agency_events_at ON agency_events(at)"),
     db.prepare("CREATE INDEX IF NOT EXISTS idx_agency_commands_status ON agency_commands(status, requested_at)"),
-    db.prepare("UPDATE agency_events SET text = 'PROTOCOLO OSIRIS' WHERE agent = 'system' AND text LIKE 'Backend Playwright instalado.%'"),
   ]);
   schemaReady = true;
 }
@@ -59,7 +58,6 @@ export function sanitiseState(raw = {}) {
   const r = raw.reddit && typeof raw.reddit === "object" ? raw.reddit : null;
   const reddit = r ? {
     configured: r.configured === true,
-    protocol: r.protocol === "PROTOCOLO OSIRIS" ? r.protocol : "",
     browserError: str(r.browserError, 200),
     username: str(r.username, 40),
     karma: { total: num(r.karma?.total), post: num(r.karma?.post), comment: num(r.karma?.comment) },
@@ -82,7 +80,14 @@ export function sanitiseState(raw = {}) {
     id: str(d?.id, 40), target: str(d?.target, 32), text: str(d?.text, 400), createdAt: time(d?.createdAt),
   }));
   const llm = raw.llm && typeof raw.llm === "object" ? { model: str(raw.llm.model, 40), usdToday: num(raw.llm.usdToday), usdMonth: num(raw.llm.usdMonth), ready: raw.llm.ready === true } : null;
-  return { version: str(raw.version, 20), startedAt: time(raw.startedAt), timezone: str(raw.timezone, 40), agents, reddit, directives, llm };
+  const drafts = (Array.isArray(raw.drafts) ? raw.drafts : []).slice(0, 30).map(d => ({
+    id: str(d?.id, 64), day: str(d?.day, 10), subreddit: str(d?.subreddit, 21), title: str(d?.title, 300),
+    body: str(d?.body, 2000), review: str(d?.review, 2000), approved: d?.approved === true,
+    steps: (Array.isArray(d?.steps) ? d.steps : []).slice(0, 8).map(s => str(s, 500)), createdAt: time(d?.createdAt),
+  }));
+  const delivery = {publication: 'manual', sheetUrl: /^https:\/\/docs\.google\.com\/spreadsheets\/d\/[A-Za-z0-9_-]+/.test(raw.delivery?.sheetUrl || '') ? str(raw.delivery.sheetUrl, 300) : '',
+    sheetConnected: raw.delivery?.sheetConnected === true, sheetError: str(raw.delivery?.sheetError, 200)};
+  return { version: str(raw.version, 20), startedAt: time(raw.startedAt), timezone: str(raw.timezone, 40), agents, reddit, directives, llm, drafts, delivery };
 }
 
 export function sanitiseEvent(e = {}) {

@@ -1,50 +1,52 @@
-# Backend de la Agencia (Scarlett Storm)
+# Agencia Scarlett Storm
 
-El equipo de agentes de la vista **06 · Agencia** del Mission Control. Corre en ServerCesar
-(Python 3.12, sin permisos de administrador) y habla con Cloudflare solo por HTTPS saliente.
+El servicio de Windows prepara contenido para que César lo adapte y publique manualmente.
+No utiliza una sesión de Reddit ni publica, vota o mide karma automáticamente.
 
-```text
-Dashboard (/control/#agency) ── GET status · POST chat / command ──► Pages Functions ──► D1 (agency_*)
-                                                                          ▲
-ServerCesar · tarea «Scarlett Agency» ── POST /api/agent/agency cada 3–15 s ┘  (token AGENCY_AGENT_TOKEN)
-      └─ Director       chat con César, directrices, órdenes al equipo (OpenAI)
-```
+## Equipo y cadencia
 
-## Agentes
+- Reddit Planner (`karma-farmer`, ID conservado por compatibilidad) prepara una propuesta diaria a las 09:00 en Europe/Madrid.
+- El Director revisa cada propuesta y responde al chat. Las directrices del chat se usan en las siguientes propuestas.
+- El resultado contiene título, instrucciones, revisión y fecha. Se muestra en Mission Control y se exporta a `deliveries/reddit-drafts.json` y CSV.
+- Una automatización diaria de Codex sincroniza los IDs nuevos con Google Sheets a las 09:15 usando la conexión de Google Drive de la tarea. Conserva los estados, enlaces y notas de filas existentes. El PC y Codex deben estar disponibles. La automatización se administra en Codex; este repositorio no incluye credenciales de Google.
 
-| Agente | Qué hace |
-| --- | --- |
-| Director (`agents/director.py`) | Lee el chat, contesta con `gpt-6.1-sol` y puede guardar o retirar directrices, pausar, reanudar o pedir a un agente que trabaje ya. Las directrices se pasan a los trabajadores en cada tarea. |
+La hoja tiene Estado, URL publicada, Fecha publicación y Notas de César. Marcar una propuesta como preparada no significa que se haya publicado. César realiza y registra esa acción.
 
-Agente nuevo: subclase de `agents/base.py:Agent` añadida a `agents/__init__.py:TEAM`. El
-Director lo conoce por su `description` y el dashboard le da el siguiente puesto libre de la oficina.
-
-## Instalación y actualización
+## Instalación
 
 ```powershell
 cd C:\Homelab\repos\CesarHomeLab\agency-backend
 .\install.ps1
 ```
 
-Crea `%LOCALAPPDATA%\ScarlettAgency\` (venv, código, base de datos, registros, secretos) y la tarea
-`Scarlett Agency`. La primera vez genera el token del backend, lo sube como secreto de GitHub y
-lanza `agency-secrets.yml`, que lo copia al proyecto Pages y redespliega. Para actualizar el
-código basta con volver a ejecutarlo.
-
-## Apagones y cortes de red
-
-- La tarea arranca al iniciar sesión (el PC entra solo) y se relanza cada 5 minutos y tras un fallo;
-  un candado impide dos instancias.
-- Todo el estado vive en SQLite con `synchronous=FULL`: el plan del día, los posts, las fotos de karma,
-  el chat, las directrices y la cola de eventos. Si no hay red, los eventos y las respuestas del
-  Director se acumulan y se suben al volver; el dashboard marca la oficina «sin señal».
-- La clave de OpenAI llega del secreto `OPENAI_API_KEY` de Pages y se guarda con DPAPI; si cambia, se
-  vuelve a pedir sola.
-
-## Comandos
+El instalador detiene la tarea, guarda código, ajustes y SQLite en `backups/`, actualiza el entorno y copia el backend a `%LOCALAPPDATA%\ScarlettAgency\app`.
+Reutiliza los secretos DPAPI existentes. Migra los antiguos ajustes de Reddit al bloque `planning` y comprueba el acceso a la nube y a ambos modelos antes de habilitar y arrancar Scarlett Agency.
+La URL de la hoja y el modo `sheet_sync=codex_daily` viven en settings.json, fuera del repositorio.
 
 ```powershell
-cd $env:LOCALAPPDATA\ScarlettAgency\app
-..\venv\Scripts\python.exe -m agency status    # estado local en JSON
-Get-Content $env:LOCALAPPDATA\ScarlettAgency\logs\agency.log -Tail 50
+cd "$env:LOCALAPPDATA\ScarlettAgency\app"
+..\venv\Scripts\python.exe -m agency status
+..\venv\Scripts\python.exe -m agency check
+# Solo con la tarea detenida: prepara o recupera la propuesta de hoy.
+..\venv\Scripts\python.exe -m agency prepare
 ```
+
+## Consumo y recuperación
+
+El límite local predeterminado compartido es 1 USD y 20 peticiones de OpenAI al día.
+Una propuesta usa una generación ligera y una revisión del Director. El Director en reposo y la sincronización de estado no generan texto.
+Cada llamada reserva presupuesto en SQLite antes del envío. Las solicitudes ambiguas conservan la reserva y no se repiten automáticamente. La estimación depende de las tarifas de `llm.py`; no sustituye la facturación de OpenAI.
+La sincronización diaria de la hoja utiliza además una ejecución breve de Codex, independiente del presupuesto de la API.
+
+SQLite conserva chat, directrices, eventos, publicaciones históricas y propuestas. El día tiene una clave única: los reinicios y órdenes repetidas no crean otro borrador ni vuelven a generar uno ya terminado.
+Si falla la revisión, Preparar ahora recupera el título guardado y solo repite la fase pendiente. Un fallo queda visible y requiere una orden explícita; el servicio no entra en un bucle de generación.
+
+## Comprobaciones
+
+```powershell
+python -m unittest discover -s tests -v
+cd ..
+node --test tests/*.test.mjs
+```
+
+Las pruebas cubren presupuesto, concurrencia, recuperación del chat y de las propuestas, entregas sin cliente de Reddit, deduplicación, horarios, pausas, sanitización y controles de la interfaz.

@@ -95,12 +95,17 @@ test('completed browser job survives sync and is shown as Completado', async () 
   assert.equal(live.events[0].text, 'Publicado con navegador');
 });
 
-test('inactive Karma Farmer exposes only PROTOCOLO OSIRIS', async () => {
+test('manual proposals survive sync, escape content and offer prepare controls', async () => {
   const { teamCard, karmaCard } = await import('../control/agency/panel.js');
-  const state = sanitiseState({agents: [{id: 'karma-farmer', name: 'Karma Farmer', status: 'blocked', detail: 'PROTOCOLO OSIRIS', commands: []}],
-    reddit: {configured: false, protocol: 'PROTOCOLO OSIRIS', browserError: 'PROTOCOLO OSIRIS'}});
+  const state = sanitiseState({agents: [{id: 'karma-farmer', name: 'Reddit Planner', status: 'resting', detail: 'Preparado', commands: ['pause', 'run-now']}],
+    drafts: [{id: 'reddit-2026-10-23', day: '2026-10-23', subreddit: 'AskReddit', title: 'Which <test>?', review: 'Nota <editor>', steps: ['Publica tú'], approved: true}],
+    delivery: {publication: 'manual', sheetUrl: 'https://docs.google.com/spreadsheets/d/test123', sheetConnected: false}});
   const live = {state, backend: {online: true}};
-  assert.match(teamCard(live, ''), /PROTOCOLO OSIRIS/);
-  assert.doesNotMatch(teamCard(live, ''), /Bloqueado|data-cmd/);
-  assert.equal(karmaCard(live), '<h3>Reddit</h3><p class="ag-muted">PROTOCOLO OSIRIS</p>');
+  assert.match(teamCard(live, ''), /data-cmd="run-now"/);
+  assert.match(teamCard(live, ''), /Preparar ahora/);
+  assert.match(karmaCard(live), /Which &lt;test&gt;\?/);
+  assert.match(karmaCard(live), /Nota &lt;editor&gt;/);
+  assert.match(karmaCard(live), /requiere conectar la hoja/);
+  assert.doesNotMatch(karmaCard(live), /Publicar ahora|sesión de Reddit/);
+  assert.equal(sanitiseState({delivery:{sheetUrl:'javascript:alert(1)'}}).delivery.sheetUrl, '');
 });

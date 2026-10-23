@@ -24,8 +24,8 @@ const LAMP = { working: PAL.green, thinking: PAL.green, resting: PAL.amber, paus
 // Qué hace cada uno en pantalla según su estado real.
 function look(a, c) {
   const night = c.hour < 8 || c.hour >= 23.5, st = c.online ? a.status : 'offline';
-  if (st === 'working') return { pose: 'type', m: ['reddit', 'typing'], say: /^Publicando/.test(a.detail) ? 'PUBLICANDO' : /^Pensando/.test(a.detail) ? 'PENSANDO...' : 'LEYENDO REDDIT' };
-  if (st === 'blocked') return { pose: 'sit', m: ['alert', 'off'], say: a.id === 'karma-farmer' ? 'PROTOCOLO OSIRIS' : 'NO DISPONIBLE' };
+  if (st === 'working') return { pose: 'type', m: ['reddit', 'typing'], say: 'PREPARANDO' };
+  if (st === 'blocked') return { pose: 'sit', m: ['alert', 'off'], say: 'REVISAR' };
   if (st === 'error') return { pose: 'sit', m: ['alert', 'reddit'], say: 'ERROR' };
   if (st === 'completed') return { pose: 'sit', m: ['reddit', 'saver'], say: 'COMPLETADO' };
   if (st === 'paused') return { pose: 'sit', m: ['off', 'off'], sign: 'PAUSA' };
@@ -84,11 +84,11 @@ export const agency = {
     text(g, 'KPIS · REDDIT', 297, 10, '#6f8aa6'); R(g, 398, 10, 3, 3, on ? ((t * 2 | 0) % 2 ? PAL.green : '#1d3b2a') : PAL.red);
     const row = (y, k, v, col) => { text(g, k, 297, y, '#8ea3b8'); text(g, v, 403 - textW(v), y, col); };
     const k7 = r.karma7d, k7s = k7 == null ? '—' : (k7 >= 0 ? '+' : '') + k7;
-    row(17, 'KARMA 7 DIAS', k7s, k7 > 0 ? PAL.green : k7 < 0 ? PAL.red : '#e9f2fb');
-    row(23, 'KARMA TOTAL', r.karma?.total != null ? String(r.karma.total) : '—', '#e9f2fb');
-    row(29, 'POSTS 7 DIAS', String((r.posts || []).filter(p => p.createdAt > Date.now() - 7 * 864e5).length), '#e9f2fb');
+    row(17, 'PROPUESTAS', String((S.drafts || []).length), '#e9f2fb');
+    row(23, 'PUBLICACION', 'MANUAL', '#e9f2fb');
+    row(29, 'REVISION', 'DIRECTOR', '#e9f2fb');
     const next = kf?.nextRunAt ? new Intl.DateTimeFormat('es-ES', { timeZone: 'Europe/Madrid', hour: '2-digit', minute: '2-digit' }).format(new Date(kf.nextRunAt)) : (r.posts || []).some(p => p.createdAt > Date.now() - 20 * 3600e3) ? 'HECHO' : '—';
-    row(35, 'PROXIMO POST', on ? next : 'SIN SEÑAL', on ? PAL.amber : PAL.red);
+    row(35, 'PROXIMO PLAN', on ? next : 'SIN SEÑAL', on ? PAL.amber : PAL.red);
   },
   items(D, c) {
     const { g, now, S = {} } = c, staff = agency.layout(S.agents);
@@ -123,7 +123,7 @@ export const agency = {
     D.push({ y: 3 * T + 15, f: () => coffeeMachine(g, 1 * T + 2, 3 * T - 6, now) });
     D.push({ y: 3 * T + 15, f: () => { const x = 3 * T + 4, y = 3 * T - 8; R(g, x, y + 10, 10, 14, '#d7dde4'); R(g, x + 1, y, 8, 10, '#8fd3ff'); R(g, x + 1, y, 8, 2, '#bfe8ff'); R(g, x + 3, y + 13, 4, 2, '#5d7186'); } });
     D.push({ y: 3 * T + 15, f: () => { const x = 6 * T, y = 3 * T + 2; R(g, x, y, 22, 12, '#c9cdd3'); R(g, x, y, 22, 1, '#eef0f2'); R(g, x + 3, y + 3, 16, 2, '#2a2f37'); R(g, x + 4, y - 3, 12, 3, '#f6f4ec'); R(g, x + 18, y + 7, 2, 2, (now * 2 | 0) % 2 ? PAL.green : '#1d3b2a'); } });
-    D.push({ y: 3 * T + 15, f: () => { const x = 10 * T - 2, y = 3 * T - 4; R(g, x, y, 42, 18, '#e9e2d2'); R(g, x + 1, y + 1, 40, 16, '#fbf8f0'); text(g, 'OBJETIVOS', x + 2, y + 2, CRIMSON); text(g, '1 KARMA', x + 2, y + 8, '#55666f'); text(g, '2 FANS', x + 2, y + 13, '#9aa3ad'); } });
+    D.push({ y: 3 * T + 15, f: () => { const x = 10 * T - 2, y = 3 * T - 4; R(g, x, y, 42, 18, '#e9e2d2'); R(g, x + 1, y + 1, 40, 16, '#fbf8f0'); text(g, 'OBJETIVOS', x + 2, y + 2, CRIMSON); text(g, '1 IDEAS', x + 2, y + 8, '#55666f'); text(g, '2 PLANES', x + 2, y + 13, '#9aa3ad'); } });
     for (const [px, py] of [[1, 13], [16, 13], [16, 4], [1, 8]]) D.push({ y: py * T + 14, f: () => plant(g, px * T + 8, py * T + 14, now, true) });
     // etiquetas y bocadillos encima de todo
     D.push({ y: 999, f: () => {

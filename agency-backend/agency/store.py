@@ -21,6 +21,7 @@ CREATE TABLE IF NOT EXISTS posts (id TEXT PRIMARY KEY, agent TEXT NOT NULL, subr
 CREATE TABLE IF NOT EXISTS karma (day TEXT PRIMARY KEY, total INTEGER NOT NULL, post INTEGER NOT NULL, comment INTEGER NOT NULL, at INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS llm_usage (id INTEGER PRIMARY KEY AUTOINCREMENT, day TEXT NOT NULL, agent TEXT NOT NULL, model TEXT NOT NULL, input_tokens INTEGER NOT NULL, output_tokens INTEGER NOT NULL, usd REAL NOT NULL, at INTEGER NOT NULL);
 CREATE INDEX IF NOT EXISTS llm_usage_day ON llm_usage(day);
+CREATE TABLE IF NOT EXISTS drafts (id TEXT PRIMARY KEY, day TEXT NOT NULL UNIQUE, state TEXT NOT NULL, payload TEXT NOT NULL, created_at INTEGER NOT NULL, error TEXT NOT NULL DEFAULT '');
 """
 
 
@@ -81,6 +82,24 @@ class Store:
             self.x(f"UPDATE {table} SET synced = 1 WHERE id IN ({','.join('?' * len(ids))})", tuple(ids))
 
     # ---- uso de IA ----
+    def reserve_llm(self, day, agent, model, usd, cap, request_cap):
+        """Persist before sending; interrupted requests keep their reservation."""
+        with self._lock:
+            try:
+                self.db.execute("BEGIN IMMEDIATE")
+                spent, count = self.db.execute(
+                    "SELECT COALESCE(SUM(usd), 0), COUNT(*) FROM llm_usage WHERE day = ?", (day,)).fetchone()
+                if spent + usd > cap or count >= request_cap:
+                    raise ValueError("Tope diario de IA alcanzado (presupuesto o número de peticiones)")
+                cur = self.db.execute(
+                    "INSERT INTO llm_usage (day, agent, model, input_tokens, output_tokens, usd, at) VALUES (?, ?, ?, 0, 0, ?, ?)",
+                    (day, agent, model, usd, now_ms()))
+                self.db.commit()
+                return cur.lastrowid
+            except Exception:
+                self.db.rollback()
+                raise
+
     def llm_spent(self, day):
         return self.one("SELECT COALESCE(SUM(usd), 0) AS usd FROM llm_usage WHERE day = ?", (day,))["usd"]
 

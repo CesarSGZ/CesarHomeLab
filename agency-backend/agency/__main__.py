@@ -1,10 +1,11 @@
 """Servicio de la agencia y su línea de comandos.
 
   python -m agency run            servicio (lo arranca la tarea programada «Scarlett Agency»)
-  python -m agency setup-reddit   conecta la cuenta de Reddit (pide los datos por teclado)
+  python -m agency prepare        prepara y revisa la propuesta de hoy para publicación manual
   python -m agency new-token      crea y registra el token del backend (lo usa install.ps1)
-  python -m agency dry-run        genera una pregunta para r/AskReddit sin publicarla
   python -m agency status         resumen local
+  python -m agency check          comprueba nube y modelos sin generar texto
+  python -m agency check --generate  añade una generación mínima con presupuesto
 """
 import datetime as dt
 import hashlib
@@ -23,7 +24,7 @@ from .agents import TEAM
 from .cloud import CloudError, MissionControl
 from .config import DATA_DIR, DB_PATH, LOG_DIR, load_settings
 from .llm import LLM
-from .platforms.reddit import PROTOCOL, Reddit, RedditError
+from . import delivery
 from .store import Store, now_ms
 
 STATE_EVERY_S = 300
@@ -45,7 +46,6 @@ class Runtime:
         self.store = Store(DB_PATH)
         self.cloud = MissionControl(self.settings["cloud_url"], vault.load("agent_token"))
         self.llm = LLM(self)
-        self.reddit = Reddit(self.settings["karma_farmer"])
         self.started_at = now_ms()
         self._wake = threading.Event()
         self._online = (0, False)
@@ -94,8 +94,7 @@ class Runtime:
         kf = self.agents.get("karma-farmer")
         if not kf:
             return None
-        r = kf.reddit_state()
-        return {**r, "posts": r["posts"][:10], "history": r["history"][-14:]}
+        return {"publication": "manual", "drafts": kf.drafts()[:5]}
 
     def state(self):
         cfg = self.settings["llm"]
@@ -103,7 +102,11 @@ class Runtime:
         return {
             "version": VERSION, "startedAt": self.started_at, "timezone": self.settings["timezone"],
             "agents": [a.snapshot() for a in self.agents.values()],
-            "reddit": kf.reddit_state() if kf else None,
+            "reddit": None,
+            "drafts": kf.drafts() if kf else [],
+            "delivery": {"publication": "manual", "sheetUrl": self.settings["planning"]["sheet_url"],
+                         "sheetConnected": self.settings["planning"].get("sheet_sync") == "codex_daily",
+                         "sheetError": self.store.get("delivery:error", "")},
             "directives": [{"id": d["id"], "target": d["target"], "text": d["text"], "createdAt": d["created_at"]}
                            for d in self.store.q("SELECT * FROM directives WHERE active = 1 ORDER BY created_at")],
             "llm": {"model": cfg["deep"] + " / " + cfg["light"], "usdToday": round(self.store.llm_spent(self.today()), 4),
@@ -126,7 +129,16 @@ class Runtime:
         self.logger.info("Agencia %s arrancando", VERSION)
         self.log("system", "info", f"Backend de la agencia en marcha (v{VERSION})")
         last_state_hash, last_state_at, next_sync, failures = None, 0, 0, 0
+        next_delivery = 0
         while True:
+            if time.time() >= next_delivery:
+                try:
+                    delivery.export(self)
+                    self.store.put("delivery:error", "")
+                except Exception as exc:
+                    self.store.put("delivery:error", f"Entrega pendiente ({type(exc).__name__})")
+                    self.logger.warning("Entrega pendiente: %s", type(exc).__name__)
+                next_delivery = time.time() + 300
             for agent in self.agents.values():
                 try:
                     agent.tick()
@@ -182,24 +194,32 @@ def single_instance():
     return f
 
 
-def setup_reddit():
-    if not load_settings()['karma_farmer'].get('enabled', False):
-        print(PROTOCOL)
-        return
-    import asyncio
-    import re
-    from .config import SETTINGS_PATH
-    from .playwright_worker import login_profile
-    print("Detén Scarlett Agency antes de preparar el perfil persistente de Reddit.")
-    profile_lock = single_instance()  # keeps scheduled service instances out during login
-    settings = load_settings()
-    username = input("Usuario de Reddit (sin u/): ").strip().removeprefix("u/")
-    if not re.fullmatch(r"[A-Za-z0-9_-]{3,20}", username):
-        sys.exit("Usuario no válido")
-    settings["karma_farmer"]["username"] = username
-    SETTINGS_PATH.write_text(json.dumps(settings, indent=2, ensure_ascii=False), encoding="utf-8")
-    asyncio.run(login_profile("https://old.reddit.com/login/"))
-    print("Perfil guardado. Reinicia Scarlett Agency para cargar el usuario y los ajustes.")
+def check(generate=False):
+    """Explicit operator probe, never part of the recurring service loop."""
+    import requests
+    rt = Runtime()
+    # Authenticate without fetching or executing queued work.
+    key = rt.llm.key()
+    for model in {rt.settings['llm']['light'], rt.settings['llm']['deep']}:
+        from .llm import RATES
+        if model not in RATES:
+            raise RuntimeError('Modelo sin tarifa de presupuesto: revisa llm.py')
+        response = requests.get(f'https://api.openai.com/v1/models/{model}',
+                                headers={'Authorization': 'Bearer ' + key}, timeout=(10, 20))
+        if response.status_code != 200:
+            raise RuntimeError(f'No se pudo verificar el modelo {model}: HTTP {response.status_code}')
+    if generate:
+        schema = {'type': 'object', 'additionalProperties': False,
+                  'required': ['ok'], 'properties': {'ok': {'type': 'boolean'}}}
+        result = rt.llm.call('director', 'Return ok=true for this connectivity test.',
+                             'Connectivity check', schema, deep=True, max_out=256, name='health')
+        if result.get('ok') is not True:
+            raise RuntimeError('La generación de prueba no devolvió la confirmación esperada')
+    # A state-only sync leaves commands/messages queued and does not generate replies.
+    rt.cloud.sync(state=rt.state())
+    print(json.dumps({'cloud': 'authenticated', 'openai_models': 'accessible',
+                      'publication': 'manual',
+                      'generation': 'verified' if generate else 'not_requested'}))
 
 
 def main(argv):
@@ -212,8 +232,15 @@ def main(argv):
             except Exception:  # noqa: BLE001 - p. ej. disco lleno o base bloqueada: reintenta
                 logging.getLogger("agency").exception("El servicio se ha caído; reinicio en 30 s")
                 time.sleep(30)
-    elif cmd == "setup-reddit":
-        setup_reddit()
+    elif cmd == "check":
+        check('--generate' in argv)
+    elif cmd == "migrate-settings":
+        from .config import SETTINGS_PATH
+        settings = load_settings()
+        temporary = SETTINGS_PATH.with_suffix('.json.tmp')
+        temporary.write_text(json.dumps(settings, indent=2, ensure_ascii=False), encoding='utf-8')
+        temporary.replace(SETTINGS_PATH)
+        print('Ajustes actualizados; límites de gasto conservados.')
     elif cmd == "new-token":
         # Token nuevo: se guarda con DPAPI, se sube como secreto de GitHub y se lanza el workflow que
         # lo copia a Cloudflare Pages. Se hace aquí (no en PowerShell) para que no lleve BOM ni saltos.
@@ -227,14 +254,14 @@ def main(argv):
         print("Token nuevo creado; Cloudflare lo tendrá en unos minutos (workflow agency-secrets).")
     elif cmd == "has-token":
         sys.exit(0 if vault.load("agent_token") else 1)
-    elif cmd == "dry-run":
-        if not load_settings()['karma_farmer'].get('enabled', False):
-            print(PROTOCOL)
-            return
+    elif cmd == "prepare":
+        lock = single_instance()
         rt = Runtime()
-        kf = rt.agents["karma-farmer"]
-        hot = kf.reddit.hot_titles(kf.cfg["subreddit"], 40) if kf.reddit.configured else []
-        print(kf.write_question(hot, []))
+        rt.agents["karma-farmer"].run(manual=True)
+        delivery.export(rt)
+        print(json.dumps(rt.agents["karma-farmer"].drafts(), ensure_ascii=False, indent=2))
+        if rt.agents["karma-farmer"].status == "error":
+            sys.exit(1)
     elif cmd == "status":
         rt = Runtime()
         print(json.dumps(rt.state(), indent=2, ensure_ascii=False, default=str))
