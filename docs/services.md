@@ -10,7 +10,6 @@
 | AGT-02 | ServerCesar agent + guardian | ServerCesar | Outbound HTTPS only; `SERVERCESAR_AGENT_TOKEN` | `server-agent/servercesar/` | Keeps Claude, ChatGPT, Parsec and Tailscale running, reports their health, remote reboot |
 | LAB-01 | Terra Powerplant Lab | Cloudflare Pages | Owner portal | `control/data/` | Engineering experiment |
 | GIT-01 | GitHub Galaxy | GitHub API + Cloudflare Pages | Owner portal | `control/galaxy-model.js` and authenticated read-only endpoint | Current architecture and source explorer |
-| AGN-01 | Agencia (Agent Office) | Cloudflare Pages + ServerCesar | Owner portal (`agency:manage`) | `control/agency/`, `functions/_lib/agency.js`, `agency-backend/` | Scarlett Storm agency office. Director (chat, directives) and Karma Farmer (one r/AskReddit question a day via the official Reddit API) run on ServerCesar as the user task `Scarlett Agency` and sync over outbound HTTPS with `AGENCY_AGENT_TOKEN`. OpenAI key: Pages secret `OPENAI_API_KEY` |
 | BTL-01 | Backtest Lab | GitHub Actions (Python) + Pages + D1 | Owner portal; runner token via the scoped D1 bridge | `backtest-lab/` and `control/backtest.js` | Weekly strategy backtests on the Spanish continuous market |
 
 ## Naming rule

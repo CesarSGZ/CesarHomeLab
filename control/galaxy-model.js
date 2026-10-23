@@ -29,7 +29,7 @@ export const SYSTEMS = [
     matches:path=>!path.includes('/')&&/\.(html|css|js)$/.test(path)||path.startsWith('assets/')},
   {id:'portal',number:'05',name:'Mission Control',tag:'PRIVATE WORKSPACE',colour:'#d5e99a',icon:'dashboard',x:81,y:43,
     summary:'A personal workspace with user-specific access.',
-    explanation:'Mission Control is the authenticated interface. The session determines which sections each user sees. CesarVapor can access GitHub Galaxy, Infrastructure, Thermal Lab, Training, the Agency and Backtest Lab; SuperSanti86 has the shared Minecraft controls. The Agency is the office where the AI agents of the agency will work.',
+    explanation:'Mission Control is the authenticated interface. The session determines which sections each user sees. CesarVapor can access GitHub Galaxy, Infrastructure, Thermal Lab, Training and Backtest Lab; SuperSanti86 has the shared Minecraft controls.',
     input:'A valid user session and its allowed capabilities.',output:'The sections and read-only information available to that user.',
     matches:path=>path.startsWith('control/')&&!path.startsWith('control/vendor/')&&!path.startsWith('control/data/')},
   {id:'api',number:'06',name:'Pages Functions',tag:'PERMISSIONS & LOGIC',colour:'#83d7ed',icon:'code',x:49,y:64,
