@@ -10,7 +10,7 @@ param(
 $ErrorActionPreference = 'Continue'
 Add-Type -AssemblyName System.Security
 
-$AgentVersion = '1.6.0'
+$AgentVersion = '1.7.0'
 $SiteBaseUrl = 'https://cesar-solla.pages.dev'
 # 120 s keeps the panel fresh enough for a homelab while keeping D1 operations well under the free tier.
 $IntervalSeconds = 120
@@ -147,10 +147,10 @@ function Get-ResumeInfo {
 function Invoke-Power($command) {
     Write-Log "$($command.type) requested ($($command.id))"
     if ($command.type -eq 'shutdown') {
-        if (-not (Test-Path (Join-Path $Root 's5-wake-verified.txt'))) {
-            return @{ id = $command.id; ok = $false; detail = 'Apagado bloqueado: recuperacion S5 pendiente de verificar' }
-        }
-        # The machine can stay online over Wi-Fi even when the wired WOL path is unplugged.
+        # Owner's decision (27/10/2026): always power off when asked. The wake checks below only add a
+        # warning to the result, because the current router cannot keep the PC reachable while it is off.
+        $warnings = @()
+        if (-not (Test-Path (Join-Path $Root 's5-wake-verified.txt'))) { $warnings += 'recuperacion S5 sin verificar' }
         try {
             $wakeTarget = Get-Content -Raw (Join-Path $Root 'wol-target.json') -ErrorAction Stop | ConvertFrom-Json
             $wakeMac = ($wakeTarget.mac -replace '[^0-9a-fA-F]', '').ToUpperInvariant()
@@ -160,14 +160,13 @@ function Invoke-Power($command) {
             })
             if ($wired.Count -ne 1) { throw 'Wake adapter has no link' }
         } catch {
-            return @{ id = $command.id; ok = $false; detail = 'Apagado cancelado: la tarjeta de encendido remoto no tiene enlace de red comprobado' }
+            $warnings += 'el cable de red no tiene enlace'
         }
         & "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -NonInteractive -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'prepare-wake.ps1') 2>&1 | Out-Null
-        if ($LASTEXITCODE -ne 0) {
-            return @{ id = $command.id; ok = $false; detail = 'No se pudo preparar el router; apagado cancelado' }
-        }
+        if ($LASTEXITCODE -ne 0) { $warnings += 'el router no se pudo preparar' }
+        if ($warnings) { Write-Log ('shutdown with warnings: ' + ($warnings -join ', ')) }
         & shutdown.exe /s /t 20 /d p:4:1 /c 'Apagado solicitado desde Mission Control' 2>&1 | Out-Null
-        $detail = 'Apagado completo de Windows programado en 20 s'
+        $detail = 'Apagado completo de Windows programado en 20 s' + $(if ($warnings) { ' (aviso: ' + ($warnings -join ', ') + '; el encendido remoto puede fallar)' } else { '' })
     } elseif ($command.type -eq 'reboot') {
         & shutdown.exe /r /f /t 20 /d p:4:1 /c 'Reinicio solicitado desde Mission Control' 2>&1 | Out-Null
         $detail = 'Reinicio de Windows programado en 20 s'

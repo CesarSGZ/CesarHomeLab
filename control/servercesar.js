@@ -106,8 +106,10 @@
     // Never offer "Apagar" unless the agent has just proved a magic packet from the Internet reaches the PC.
     $('#sc-reboot').disabled = powerBlocked;
     // S5 recovery verified; still require a fresh agent and recent packet-delivery check.
-    $('#sc-shutdown').disabled = powerBlocked || !data.shutdownEnabled || !data.agent?.wolPath?.ok || Date.now() - (data.agent.wolPath.at || 0) >= 12 * 3600e3;
-    $('#sc-shutdown').title = 'Apagado completo; requiere agente conectado y comprobación reciente de la ruta WOL';
+    // Always available while the agent is connected (owner's choice); the confirmation warns that
+    // remote power-on is not guaranteed with the current router.
+    $('#sc-shutdown').disabled = powerBlocked || !data.shutdownEnabled;
+    $('#sc-shutdown').title = 'Apagado completo. Ojo: con el router actual el encendido remoto puede fallar si pasa mucho rato.';
     if (phase && !(online && phase.label === 'APAGADO')) { feedback(phase.text, phase.kind); if (phase.busy) fastUntil = Math.max(fastUntil, Date.now() + 60e3); }
     else if (p.state === 'unconfigured' && !online) feedback(data.canWake ? 'Abre «Configuración» y guarda la MAC, el host y el puerto para poder encenderlo.' : 'El propietario aún no ha configurado ServerCesar.');
     else if (online) {
@@ -152,7 +154,7 @@
   async function power(action) {
     const off = action === 'shutdown';
     const question = off
-      ? '¿Apagar ServerCesar por completo? Se cerrarán Minecraft y las aplicaciones. Podrás volver a encenderlo con «Encender ServerCesar». Guarda antes cualquier trabajo pendiente.'
+      ? '¿Apagar ServerCesar por completo? Se cerrarán Minecraft y las aplicaciones.\n\nOJO: con el router actual el encendido remoto NO está garantizado; si no arranca con «Encender ServerCesar», habrá que encenderlo a mano.'
       : '¿Reiniciar ServerCesar ahora? Se cerrará todo lo que esté abierto (Minecraft incluido) y volverá a arrancar solo.';
     if (!confirm(question)) return;
     $('#sc-reboot').disabled = true; $('#sc-shutdown').disabled = true;

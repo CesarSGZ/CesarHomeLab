@@ -157,11 +157,8 @@ export async function queuePowerCommand(db, action, username, now = Date.now()) 
   if (!POWER_ACTIONS.includes(action)) return { ok: false, error: "invalid_action" };
   const report = await readReport(db);
   if (!report || now - report.receivedAt > REPORT_FRESH_MS) return { ok: false, error: "agent_offline" };
-  // A sleeping PC can only come back through Wake-on-LAN: refuse unless the agent's last
-  // end-to-end check (within 12 h) saw a magic packet from the Internet arrive.
-  if (action === "shutdown" && !(report.wolPath?.ok === true && now - (report.wolPath.at || 0) < 12 * 3600_000)) {
-    return { ok: false, error: "wol_route_unverified" };
-  }
+  // Shutdown is allowed even when remote power-on is not guaranteed: the owner chose this on
+  // 27/10/2026 (the current router cannot keep the PC reachable while it is off). The panel warns.
   // A packet that reaches the PC while it is on did not wake it from sleep or hibernation
   // S5 recovery was tested on 18/10/2026. Keep this switch available to disable power-off if recovery regresses.
   if (action === "shutdown" && !SHUTDOWN_ENABLED) return { ok: false, error: "shutdown_disabled" };
