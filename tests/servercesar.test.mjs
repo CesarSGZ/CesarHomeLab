@@ -103,12 +103,13 @@ test('verified shutdown can be queued with a recent WOL route', async () => {
   assert.equal(db.commands.length, 1);
 });
 
-test('"Apagar" is refused unless the Internet power-on route was verified in the last 12 hours', async () => {
+test('"Apagar" is allowed even when the Internet power-on route is not verified (owner decision)', async () => {
   const now = 1_000_000_000;
-  assert.equal((await queuePowerCommand(fakeDb({reportAt: now, wolPath: null}), 'shutdown', 'CesarVapor', now)).error, 'wol_route_unverified');
-  assert.equal((await queuePowerCommand(fakeDb({reportAt: now, wolPath: {ok: false, at: now}}), 'shutdown', 'CesarVapor', now)).error, 'wol_route_unverified');
-  assert.equal((await queuePowerCommand(fakeDb({reportAt: now, wolPath: {ok: true, at: now - 13 * 3600_000}}), 'shutdown', 'CesarVapor', now)).error, 'wol_route_unverified');
-  assert.equal((await queuePowerCommand(fakeDb({reportAt: now, wolPath: {ok: true, at: now - 3600_000}}), 'shutdown', 'CesarVapor', now)).ok, true);
+  assert.equal((await queuePowerCommand(fakeDb({reportAt: now, wolPath: null}), 'shutdown', 'CesarVapor', now)).ok, true);
+  assert.equal((await queuePowerCommand(fakeDb({reportAt: now, wolPath: {ok: false, at: now}}), 'shutdown', 'CesarVapor', now)).ok, true);
+  assert.equal((await queuePowerCommand(fakeDb({reportAt: now, wolPath: {ok: true, at: now - 13 * 3600_000}}), 'shutdown', 'CesarVapor', now)).ok, true);
+  // still needs a connected agent to receive the order
+  assert.equal((await queuePowerCommand(fakeDb({reportAt: now - 400_000}), 'shutdown', 'CesarVapor', now)).error, 'agent_offline');
   // a reboot comes back on its own, so it does not need the route
   assert.equal((await queuePowerCommand(fakeDb({reportAt: now, wolPath: null}), 'reboot', 'CesarVapor', now)).ok, true);
 });
