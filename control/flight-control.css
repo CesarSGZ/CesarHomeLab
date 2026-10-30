@@ -36,10 +36,10 @@
 @media(min-width:1101px){
   #overview .dashboard-grid{grid-template-columns:repeat(6,minmax(0,1fr));gap:14px}
   #overview .dashboard-grid>.module{grid-column:span 3}
-  #overview .dashboard-grid>:is(.minecraft-summary,.github-summary,.training-summary){grid-column:span 2}
+  #overview .dashboard-grid>:is(.github-summary,.training-summary){grid-column:span 2}
   #overview .dashboard-grid>.thermal-summary{grid-column:span 6}
-  #overview .dashboard-grid>:is(.minecraft-summary,.github-summary,.training-summary) :is(.server-summary,.github-summary-body,.thermal-summary-body){grid-template-columns:auto 1fr;row-gap:22px}
-  #overview .dashboard-grid>:is(.minecraft-summary,.github-summary,.training-summary) .module-action{grid-column:1/-1;justify-self:start}
+  #overview .dashboard-grid>:is(.github-summary,.training-summary) :is(.server-summary,.github-summary-body,.thermal-summary-body){grid-template-columns:auto 1fr;row-gap:22px}
+  #overview .dashboard-grid>:is(.github-summary,.training-summary) .module-action{grid-column:1/-1;justify-self:start}
 }
 #overview .module{border-radius:16px;transition:transform .45s var(--fc-ease),box-shadow .45s var(--fc-ease),border-color .3s}
 #overview .module:hover{transform:translateY(-5px);box-shadow:0 22px 50px color-mix(in srgb,var(--accent) 14%,transparent);border-color:color-mix(in srgb,var(--accent) 45%,transparent)}

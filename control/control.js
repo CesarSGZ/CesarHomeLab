@@ -55,23 +55,7 @@ const canvas=document.getElementById('control-grid'),ctx=canvas.getContext('2d')
 function drawGrid(){const d=devicePixelRatio||1;canvas.width=innerWidth*d;canvas.height=innerHeight*d;ctx.setTransform(d,0,0,d,0,0);ctx.clearRect(0,0,innerWidth,innerHeight);ctx.strokeStyle='rgba(82,217,255,.12)';ctx.lineWidth=.5;for(let x=0;x<innerWidth;x+=48){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,innerHeight);ctx.stroke()}for(let y=0;y<innerHeight;y+=48){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(innerWidth,y);ctx.stroke()}}
 addEventListener('resize',drawGrid);drawGrid();
 
-const restartButton=document.getElementById('restart-server');
-const commandFeedback=document.getElementById('command-feedback');
-let minecraftState=null;
 let csrfToken='';
-
-function setText(selector,value){
-  document.querySelectorAll(selector).forEach(element=>{element.textContent=value});
-}
-
-function relativeTime(timestamp){
-  if(!timestamp)return 'NEVER';
-  const seconds=Math.max(0,Math.round((Date.now()-timestamp)/1000));
-  if(seconds<10)return 'NOW';
-  if(seconds<60)return `${seconds}S AGO`;
-  const minutes=Math.round(seconds/60);
-  return `${minutes}M AGO`;
-}
 
 async function loadSession(){
   try{
@@ -93,7 +77,6 @@ function applyAccess(data){
   capabilities=new Set(data.access?.capabilities||[]);
   accessProfile=data.access?.profile||'standard';
   const owner=accessProfile==='owner';
-  const minecraftOperator=accessProfile==='minecraft-operator';
   const username=data.user.username;
 
   navItems.forEach(item=>{item.hidden=!allowedViews.has(item.dataset.view)});
@@ -119,76 +102,12 @@ function applyAccess(data){
   if(owner){
     overviewIntro.textContent='One private entry point for services, experiments and operational tools running across Cesar HomeLab.';
     accessSummary.textContent=`OWNER ACCESS · ${allowedViews.size-1} MODULES`;
-  }else if(minecraftOperator){
-    overviewIntro.textContent='A focused home for shared tools. Your account currently includes Minecraft server operations.';
-    accessSummary.textContent='STANDARD ACCESS · MINECRAFT ENABLED';
   }else{
     overviewIntro.textContent='A simple, focused home. Shared tools will appear here when they are assigned to your account.';
     accessSummary.textContent='STANDARD ACCESS';
   }
 
-  if(minecraftOperator){
-    document.getElementById('infrastructure-nav-label').textContent='Minecraft Server';
-    document.getElementById('infrastructure').dataset.title='Minecraft Server';
-    document.getElementById('infrastructure-eyebrow').textContent='Minecraft operations';
-    document.getElementById('infrastructure-title').textContent='Server control.';
-    document.getElementById('infrastructure-intro').textContent='Live status and authorised recovery controls for the shared Minecraft server.';
-  }
-
   document.body.classList.remove('access-pending');
-}
-
-function renderMinecraft(data){
-  minecraftState=data;
-  const connected=Boolean(data?.agent?.connected);
-  const serverStatus=connected?(data.server.status||'unknown'):'unknown';
-  const online=connected&&serverStatus==='online';
-  const statusLabel=serverStatus.toUpperCase();
-  const meta=connected
-    ? `${data.server.version||'Minecraft'} · ${data.server.playersOnline??'—'} / ${data.server.playersMax??'—'} players`
-    : 'The secure command channel is waiting for the server agent.';
-
-  setText('[data-agent-label]',connected?'AGENT ONLINE':'AGENT OFFLINE');
-  setText('[data-server-status]',connected?`${statusLabel} · SERVER LINKED`:'Waiting for server agent');
-  setText('[data-server-meta]',meta);
-  setText('[data-detail-status]',statusLabel);
-  setText('[data-detail-players]',`${data.server.playersOnline??'—'} / ${data.server.playersMax??'—'}`);
-  setText('[data-detail-version]',data.server.version||'—');
-  setText('[data-detail-seen]',relativeTime(data.agent.lastSeen));
-  setText('[data-connection-pill]',connected?'CONNECTED':'OFFLINE');
-
-  document.querySelectorAll('[data-server-orb]').forEach(element=>element.classList.toggle('online',online));
-  document.querySelectorAll('[data-agent-dot]').forEach(element=>element.classList.toggle('online',connected));
-  document.querySelectorAll('[data-connection-pill]').forEach(element=>element.classList.toggle('online',connected));
-
-  restartButton.disabled=!connected;
-  if(!connected){
-    commandFeedback.className='command-feedback';
-    commandFeedback.textContent='Agent pairing required.';
-  }else if(data.lastCommand?.status==='queued'||data.lastCommand?.status==='claimed'){
-    restartButton.disabled=true;
-    commandFeedback.className='command-feedback';
-    commandFeedback.textContent=`RESTART ${data.lastCommand.status.toUpperCase()} · PLEASE WAIT`;
-  }else if(data.lastCommand?.status==='failed'){
-    commandFeedback.className='command-feedback error';
-    commandFeedback.textContent=`LAST RESTART FAILED · ${data.lastCommand.result||'CHECK SERVER AGENT'}`;
-  }else if(data.lastCommand?.status==='succeeded'){
-    commandFeedback.className='command-feedback success';
-    commandFeedback.textContent='LAST RESTART COMPLETED SUCCESSFULLY';
-  }else{
-    commandFeedback.className='command-feedback success';
-    commandFeedback.textContent='SECURE COMMAND CHANNEL READY';
-  }
-}
-
-async function refreshMinecraft(){
-  try{
-    const response=await fetch('/control/api/minecraft/status',{credentials:'same-origin',headers:{accept:'application/json'}});
-    if(!response.ok)throw new Error('status_unavailable');
-    renderMinecraft(await response.json());
-  }catch{
-    renderMinecraft({agent:{connected:false,lastSeen:null},server:{status:'unknown'}});
-  }
 }
 
 function formatTemperature(value){return `${Number(value).toFixed(1)} °C`}
@@ -386,39 +305,6 @@ document.querySelectorAll('[data-thermal-view]').forEach(button=>button.addEvent
   document.querySelectorAll('[data-thermal-panel]').forEach(panel=>panel.classList.toggle('active',panel.dataset.thermalPanel===button.dataset.thermalView));
 }));
 
-restartButton.addEventListener('click',async()=>{
-  if(!minecraftState?.agent?.connected)return;
-  const approved=window.confirm('Force restart the Minecraft server now? The Java process will be terminated immediately. Connected players will be disconnected and unsaved data may be lost.');
-  if(!approved)return;
-
-  restartButton.disabled=true;
-  commandFeedback.className='command-feedback';
-  commandFeedback.textContent='QUEUEING HARD RESTART REQUEST…';
-
-  try{
-    const response=await fetch('/control/api/minecraft/restart',{
-      method:'POST',
-      credentials:'same-origin',
-      headers:{
-        'content-type':'application/json',
-        'idempotency-key':crypto.randomUUID(),
-        'x-csrf-token':csrfToken
-      },
-      body:'{}'
-    });
-    const data=await response.json();
-    if(!response.ok)throw new Error(data.error||'request_failed');
-    commandFeedback.textContent='RESTART QUEUED · WAITING FOR SERVER AGENT';
-    setTimeout(refreshMinecraft,1200);
-  }catch(error){
-    commandFeedback.className='command-feedback error';
-    commandFeedback.textContent=error.message==='agent_offline'
-      ?'SERVER AGENT IS OFFLINE'
-      :'RESTART REQUEST FAILED';
-    restartButton.disabled=false;
-  }
-});
-
 document.getElementById('sign-out').addEventListener('click',async()=>{
   try{
     await fetch('/control/api/auth/logout',{
@@ -440,10 +326,6 @@ async function initialiseControl(){
   applyAccess(session);
   if(hasCapability('doors:play'))window.DoorsGame?.initialise(csrfToken,session.user);
   showView(location.hash.slice(1)||'overview',false);
-  if(hasCapability('minecraft:read')){
-    await refreshMinecraft();
-    setInterval(refreshMinecraft,10000);
-  }
   if(hasCapability('github:read'))window.GitHubGalaxy?.initialise();
   if(hasCapability('training:read'))window.TrainingLab?.initialise(csrfToken);
   if(hasCapability('servercesar:read')){window.ServerCesarPending={csrf:csrfToken,canWake:hasCapability('servercesar:wake')};window.ServerCesar?.initialise(csrfToken,hasCapability('servercesar:wake'))}

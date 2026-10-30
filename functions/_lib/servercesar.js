@@ -12,7 +12,6 @@
 // override them from Mission Control, which stores the override in D1.
 
 export const WAKE_COOLDOWN_MS = 60_000;
-export const AGENT_FRESH_MS = 60_000;
 export const REPORT_FRESH_MS = 300_000;
 export const REBOOT_COOLDOWN_MS = 180_000;
 export const REBOOT_STALE_MS = 15 * 60_000;
@@ -43,7 +42,7 @@ export async function ensureTables(db) {
 
 // ---- ServerCesar agent (server-agent/servercesar/): app health report and reboot queue ----
 
-/** Bearer token of the ServerCesar agent (SERVERCESAR_AGENT_TOKEN), separate from the Minecraft agent's. */
+/** Bearer token of the ServerCesar agent (SERVERCESAR_AGENT_TOKEN). */
 export function requireServerAgent(request, env, constantTimeEqual) {
   const configured = String(env.SERVERCESAR_AGENT_TOKEN || "");
   const supplied = String(request.headers.get("authorization") || "").replace(/^Bearer\s+/i, "");
@@ -258,16 +257,15 @@ export async function loadConnect() {
   try { return (await import("cloudflare:sockets")).connect; } catch { return null; }
 }
 
-/** Power status from the agent heartbeats (Minecraft agent or ServerCesar agent) and the TCP probe. */
+/** Power status from the ServerCesar agent's last report and the TCP probe. */
 export async function powerStatus(db, config, connectImpl, now = Date.now(), reportAt = null) {
-  const agent = await db.prepare("SELECT last_seen FROM agent_state WHERE id = 1").first().catch(() => null);
-  const agentFresh = Boolean(agent?.last_seen && now - agent.last_seen < AGENT_FRESH_MS) || Boolean(reportAt && now - reportAt < REPORT_FRESH_MS);
+  const agentFresh = Boolean(reportAt && now - reportAt < REPORT_FRESH_MS);
   const openPort = config && !agentFresh ? await probe(config.host, config.probePorts, connectImpl) : null;
   const online = agentFresh || openPort != null;
   return {
     state: online ? "online" : !config ? "unconfigured" : "no-response",
     via: agentFresh ? "agent" : openPort != null ? `port ${openPort}` : null,
-    agentLastSeen: Math.max(agent?.last_seen || 0, reportAt || 0) || null,
+    agentLastSeen: reportAt || null,
     probed: config?.probePorts || [],
   };
 }

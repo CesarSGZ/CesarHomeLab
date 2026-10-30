@@ -17,7 +17,7 @@ Cloudflare Pages ---------------- Public portfolio
     |
     +-- D1 ----------------------- Users, sessions and operational state
     |
-    +-- outbound command queue <-- ServerCesar Minecraft agent
+    +-- outbound command queue <-- ServerCesar agent
 
 ```
 
@@ -26,8 +26,7 @@ Cloudflare Pages ---------------- Public portfolio
 ### GitHub
 
 Stores versioned source code, deployment automation, database migrations and
-agent installation scripts. It does not run Minecraft, Stirling PDF or the D1
-database.
+agent installation scripts. It does not run Stirling PDF or the D1 database.
 
 ### Cloudflare
 
@@ -37,13 +36,13 @@ configured outside the repository.
 
 ### ServerCesar
 
-Runs Minecraft. Its agent polls Cloudflare over outbound HTTPS and accepts
-only a restricted restart order. Galaxy is read-only and never issues commands.
+Home PC. Its agent reports status to Cloudflare over outbound HTTPS and accepts
+only reboot or shutdown orders. Galaxy is read-only and never issues commands.
 
 ### Tailscale
 
 Provides private device-to-device access for administration. The web-based
-Minecraft command flow uses the agent's outbound HTTPS connection, not a
+ServerCesar command flow uses the agent's outbound HTTPS connection, not a
 browser-to-Tailscale connection.
 
 ## Change workflow

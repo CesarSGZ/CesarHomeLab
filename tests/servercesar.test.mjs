@@ -22,7 +22,7 @@ function fakeDb({reportAt = null, wolPath = {ok: true, at: reportAt}} = {}) {
 }
 
 test('agent report keeps only known apps and fields', () => {
-  const r = sanitiseReport({cpu: 12.345, ram: 140, bootTime: 1, apps: {claude: {running: true, signedIn: true, remoteControl: true, version: '2.1', evil: '<script>'}, minecraft: {running: true}}});
+  const r = sanitiseReport({cpu: 12.345, ram: 140, bootTime: 1, apps: {claude: {running: true, signedIn: true, remoteControl: true, version: '2.1', evil: '<script>'}, unknownapp: {running: true}}});
   assert.deepEqual(Object.keys(r.apps), ['claude']);
   assert.equal(r.apps.claude.evil, undefined);
   assert.equal(r.cpu, 12.3);
@@ -76,7 +76,6 @@ test('the ServerCesar agent token is separate and must be long', () => {
   const req = token => new Request('https://x/api/agent/servercesar', {headers: {authorization: 'Bearer ' + token}});
   const token = 'a'.repeat(40);
   assert.equal(requireServerAgent(req(token), {SERVERCESAR_AGENT_TOKEN: token}, constantTimeEqual), true);
-  assert.equal(requireServerAgent(req(token), {MINECRAFT_AGENT_TOKEN: token}, constantTimeEqual), false);
   assert.equal(requireServerAgent(req('short'), {SERVERCESAR_AGENT_TOKEN: 'short'}, constantTimeEqual), false);
 });
 
@@ -158,7 +157,7 @@ test('status: an open probe port or a fresh agent heartbeat means the PC is on',
   const db = lastSeen => ({prepare: () => ({first: async () => ({last_seen: lastSeen})})});
   const cfg = {host: 'example.org', probePorts: [3389]};
   assert.deepEqual(await powerStatus(db(0), cfg, connect), {state: 'online', via: 'port 3389', agentLastSeen: null, probed: [3389]});
-  assert.equal((await powerStatus(db(Date.now() - 5000), {...cfg, probePorts: []}, connect)).via, 'agent');
+  assert.equal((await powerStatus(db(0), {...cfg, probePorts: []}, connect, Date.now(), Date.now() - 5000)).via, 'agent');
   assert.equal((await powerStatus(db(0), {...cfg, probePorts: [80]}, connect)).state, 'no-response');
   assert.equal((await powerStatus(db(0), null, connect)).state, 'unconfigured');
 });

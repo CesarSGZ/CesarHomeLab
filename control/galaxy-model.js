@@ -9,7 +9,7 @@ export function activeFiles(files) {
 export const SYSTEMS = [
   {id:'source',number:'01',name:'GitHub',tag:'SOURCE OF TRUTH',colour:'#bba8f1',icon:'git',x:15,y:16,
     summary:'The blueprint. Every change starts here.',
-    explanation:'CesarHomeLab stores the website code, server-agent scripts and deployment configuration. The main branch is the version used for production. GitHub stores the instructions; it does not run the Minecraft server.',
+    explanation:'CesarHomeLab stores the website code, server-agent scripts and deployment configuration. The main branch is the version used for production. GitHub stores the instructions; it does not run anything on ServerCesar.',
     input:'Code changes committed to main.',output:'Versioned source code for the deployment workflow.',
     matches:path=>path.startsWith('.github/')||path==='README.md'||path.startsWith('docs/')},
   {id:'deploy',number:'02',name:'GitHub Actions',tag:'AUTOMATIC DEPLOYMENT',colour:'#bba8f1',icon:'rocket',x:15,y:43,
@@ -29,7 +29,7 @@ export const SYSTEMS = [
     matches:path=>!path.includes('/')&&/\.(html|css|js)$/.test(path)||path.startsWith('assets/')},
   {id:'portal',number:'05',name:'Mission Control',tag:'PRIVATE WORKSPACE',colour:'#d5e99a',icon:'dashboard',x:81,y:43,
     summary:'A personal workspace with user-specific access.',
-    explanation:'Mission Control is the authenticated interface. The session determines which sections each user sees. CesarVapor can access GitHub Galaxy, Infrastructure, Thermal Lab, Training and Backtest Lab; SuperSanti86 has the shared Minecraft controls.',
+    explanation:'Mission Control is the authenticated interface. The session determines which sections each user sees. CesarVapor can access GitHub Galaxy, Infrastructure, Thermal Lab, Training and Backtest Lab. Other accounts only see the overview.',
     input:'A valid user session and its allowed capabilities.',output:'The sections and read-only information available to that user.',
     matches:path=>path.startsWith('control/')&&!path.startsWith('control/vendor/')&&!path.startsWith('control/data/')},
   {id:'api',number:'06',name:'Pages Functions',tag:'PERMISSIONS & LOGIC',colour:'#83d7ed',icon:'code',x:49,y:64,
@@ -39,13 +39,13 @@ export const SYSTEMS = [
     matches:path=>path.startsWith('functions/')},
   {id:'database',number:'07',name:'Cloudflare D1',tag:'SHARED APPLICATION STATE',colour:'#83d7ed',icon:'database',x:81,y:82,
     summary:'Remembers sessions, server signals and queued commands.',
-    explanation:'D1 is the database used by the Functions. The active application stores users, expiring sessions, agent status and a queue of Minecraft commands. This node describes the storage architecture; Galaxy does not read or expose database contents, passwords or tokens.',
+    explanation:'D1 is the database used by the Functions. The active application stores users, expiring sessions, the ServerCesar agent report and its queue of power commands. This node describes the storage architecture; Galaxy does not read or expose database contents, passwords or tokens.',
     input:'Validated reads and writes from Pages Functions.',output:'Persistent application state and queued commands.',
     matches:path=>/^migrations\/000[128]_/.test(path)||path==='wrangler.jsonc'},
-  {id:'server',number:'08',name:'ServerCesar',tag:'MINECRAFT EXECUTION',colour:'#efbe8c',icon:'server',x:15,y:82,
-    summary:'The machine that actually runs Minecraft.',
-    explanation:'The PowerShell agent on ServerCesar contacts Cloudflare using outbound HTTPS. It reports state, polls for an authorised restart command, executes the local restart script and reports the result. Galaxy only illustrates this flow: exploring this node never restarts anything.',
-    input:'A restricted command obtained by the authenticated agent.',output:'Minecraft status and command completion sent back to Cloudflare.',
+  {id:'server',number:'08',name:'ServerCesar',tag:'HOME PC AGENT',colour:'#efbe8c',icon:'server',x:15,y:82,
+    summary:'The home PC, watched and controlled by its agent.',
+    explanation:'The PowerShell agent on ServerCesar contacts Cloudflare using outbound HTTPS. It reports system and app status, picks up authorised reboot or shutdown commands and reports the result. Galaxy only illustrates this flow: exploring this node never touches the PC.',
+    input:'A restricted command obtained by the authenticated agent.',output:'PC status and command completion sent back to Cloudflare.',
     matches:path=>path.startsWith('server-agent/')}
 ];
 export const CONNECTIONS = [

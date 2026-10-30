@@ -72,18 +72,6 @@
             <span>AUTHORISED SESSION</span>
           </div>
         </article>
-        <article class="module module-wide minecraft-summary" data-requires="minecraft:read" data-accent="cyan">
-          <header><span>MINECRAFT SERVER</span><small>SERVICE / 01</small></header>
-          <div class="server-summary">
-            <div class="server-orb" data-server-orb><i></i><b>MC</b></div>
-            <div>
-              <p class="server-kicker"><span data-agent-dot></span><span data-agent-label>AGENT OFFLINE</span></p>
-              <strong data-server-status>Waiting for server agent</strong>
-              <p data-server-meta>The secure command channel is ready to be paired.</p>
-            </div>
-            <button class="module-action" data-open="infrastructure">Open controls →</button>
-          </div>
-        </article>
         <article class="module module-wide github-summary" data-requires="github:read" data-accent="blue">
           <header><span>GITHUB GALAXY</span><small>CODE / 02</small></header>
           <div class="github-summary-body">
@@ -167,43 +155,12 @@
             <label><span>MAC</span><input name="mac" required placeholder="AA-BB-CC-DD-EE-FF" maxlength="17"></label>
             <label><span>Host o IP pública</span><input name="host" required placeholder="tu-dominio.duckdns.org" maxlength="253"></label>
             <label><span>Puerto Wake-on-LAN</span><input name="wolPort" required inputmode="numeric" placeholder="40010" maxlength="5"></label>
-            <label><span>Puertos para comprobar el estado</span><input name="probePorts" placeholder="p. ej. 3389, 25565" maxlength="40"></label>
+            <label><span>Puertos para comprobar el estado</span><input name="probePorts" placeholder="p. ej. 3389" maxlength="40"></label>
             <button type="submit" class="module-action">Guardar configuración</button>
             <p class="sc-help">Viene precargada desde los secretos cifrados del despliegue; si la cambias aquí se guarda solo en la base de datos privada de Mission Control. Nunca está en el repositorio público. El estado se considera encendido si responde alguno de esos puertos TCP o si el agente de Mission Control de ese PC ha dado señal en el último minuto.</p>
           </form>
         </details>
       </article>
-      <div class="server-console">
-        <article class="server-card">
-          <header>
-            <div><small>NODE / MC-01</small><h3>Minecraft Server</h3></div>
-            <span class="connection-pill" data-connection-pill>OFFLINE</span>
-          </header>
-          <div class="server-readout">
-            <div><small>SERVER</small><strong data-detail-status>UNKNOWN</strong></div>
-            <div><small>PLAYERS</small><strong data-detail-players>— / —</strong></div>
-            <div><small>VERSION</small><strong data-detail-version>—</strong></div>
-            <div><small>LAST SIGNAL</small><strong data-detail-seen>NEVER</strong></div>
-          </div>
-          <div class="server-actions">
-            <div>
-              <small>RESTRICTED ACTION</small>
-              <p>Hard restart: force-terminates the identified Minecraft process tree and relaunches it. Intended for crash recovery.</p>
-            </div>
-            <button class="restart-button" id="restart-server" type="button" disabled>
-              <span>↻</span> Force restart server
-            </button>
-          </div>
-          <p class="command-feedback" id="command-feedback" role="status" aria-live="polite">Agent pairing required.</p>
-        </article>
-        <aside class="security-card">
-          <small>ACCESS CONTROL</small>
-          <h3>Two-person operations.</h3>
-          <div class="operator-row active"><b>CV</b><span><strong>CesarVapor</strong><small>OWNER · ACTIVE</small></span></div>
-          <div class="operator-row active"><b>S8</b><span><strong>SuperSanti86</strong><small>OPERATOR · ACTIVE</small></span></div>
-          <p>Each operator has an independent account. Passwords are protected using one-way hashing and secure, expiring sessions.</p>
-        </aside>
-      </div>
     </section>
 
     <section class="view github-view" id="github" data-title="GitHub Galaxy" data-code="03">
@@ -236,7 +193,7 @@
       <div class="galaxy-facts"><div><small>CURRENT BRANCH</small><strong id="galaxy-branch">main</strong></div><div><small>ACTIVE SOURCE FILES</small><strong id="galaxy-file-count">—</strong></div><div><small>LATEST COMMIT</small><a id="galaxy-commit" target="_blank" rel="noreferrer">—</a></div><div><small>LAST DEPLOY WORKFLOW</small><a id="galaxy-deploy" target="_blank" rel="noreferrer">Not checked yet</a></div></div>
       <div class="galaxy-bottom">
         <section class="galaxy-files" id="galaxy-files"><header><div><small>GO ONE LEVEL DEEPER</small><h3 id="galaxy-files-title">Source files</h3></div><span id="galaxy-file-total">0</span></header><label class="galaxy-search"><span aria-hidden="true">⌕</span><input id="galaxy-file-search" type="search" placeholder="Find a source file…" aria-label="Find a source file"></label><div id="galaxy-file-list"></div><p class="galaxy-file-note">Current main only. Removed features and historical migrations are not shown as active services.</p></section>
-        <section class="galaxy-activity"><header><small>THE LATEST CHANGES</small><h3>From idea to commit.</h3></header><div id="galaxy-activity-list"></div><p>Source and deployment data, not a live health monitor. Infrastructure is where the Minecraft agent reports its operational state.</p></section>
+        <section class="galaxy-activity"><header><small>THE LATEST CHANGES</small><h3>From idea to commit.</h3></header><div id="galaxy-activity-list"></div><p>Source and deployment data, not a live health monitor.</p></section>
       </div>
       <p class="github-feedback" id="github-feedback" role="status" aria-live="polite"></p>
     </section>

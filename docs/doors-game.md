@@ -2,7 +2,7 @@
 
 Shared, authenticated multiplayer party game at `/control/#doors`.
 Every existing/future Mission Control account receives `doors:play`. This does **not**
-grant access to training, trading, GitHub, thermal data or Minecraft operations.
+grant access to training, trading, GitHub, thermal data or ServerCesar controls.
 
 ## Play
 
