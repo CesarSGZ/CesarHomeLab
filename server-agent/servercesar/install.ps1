@@ -26,7 +26,7 @@ New-Item -ItemType Directory -Force $Root, $bin, $state, $logs | Out-Null
 & icacls.exe $Root /inheritance:r /grant:r '*S-1-5-18:(OI)(CI)F' '*S-1-5-32-544:(OI)(CI)F' '*S-1-5-32-545:(OI)(CI)RX' | Out-Null
 & icacls.exe $state /grant "${UserId}:(OI)(CI)M" | Out-Null
 
-Copy-Item (Join-Path $PSScriptRoot 'agent.ps1'), (Join-Path $PSScriptRoot 'guardian.ps1'), (Join-Path $PSScriptRoot 'prepare-wake.ps1') -Destination $bin -Force
+Copy-Item (Join-Path $PSScriptRoot 'agent.ps1'), (Join-Path $PSScriptRoot 'guardian.ps1') -Destination $bin -Force
 
 if ($TokenFile) {
     $token = (Get-Content -Raw -LiteralPath $TokenFile).Trim()

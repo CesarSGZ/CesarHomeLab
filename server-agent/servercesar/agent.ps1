@@ -10,7 +10,7 @@ param(
 $ErrorActionPreference = 'Continue'
 Add-Type -AssemblyName System.Security
 
-$AgentVersion = '1.7.0'
+$AgentVersion = '1.7.1'
 $SiteBaseUrl = 'https://cesar-solla.pages.dev'
 # 120 s keeps the panel fresh enough for a homelab while keeping D1 operations well under the free tier.
 $IntervalSeconds = 120
@@ -148,7 +148,7 @@ function Invoke-Power($command) {
     Write-Log "$($command.type) requested ($($command.id))"
     if ($command.type -eq 'shutdown') {
         # Owner's decision (27/10/2026): always power off when asked. The wake checks below only add a
-        # warning to the result, because the current router cannot keep the PC reachable while it is off.
+        # warning to the result; remote power-on now relies on the smart plug, not on the router.
         $warnings = @()
         if (-not (Test-Path (Join-Path $Root 's5-wake-verified.txt'))) { $warnings += 'recuperacion S5 sin verificar' }
         try {
@@ -162,8 +162,6 @@ function Invoke-Power($command) {
         } catch {
             $warnings += 'el cable de red no tiene enlace'
         }
-        & "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -NonInteractive -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'prepare-wake.ps1') 2>&1 | Out-Null
-        if ($LASTEXITCODE -ne 0) { $warnings += 'el router no se pudo preparar' }
         if ($warnings) { Write-Log ('shutdown with warnings: ' + ($warnings -join ', ')) }
         & shutdown.exe /s /t 20 /d p:4:1 /c 'Apagado solicitado desde Mission Control' 2>&1 | Out-Null
         $detail = 'Apagado completo de Windows programado en 20 s' + $(if ($warnings) { ' (aviso: ' + ($warnings -join ', ') + '; el encendido remoto puede fallar)' } else { '' })

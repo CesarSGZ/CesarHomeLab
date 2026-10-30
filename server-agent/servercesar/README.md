@@ -32,7 +32,7 @@ Logs: `C:\ProgramData\ServerCesar\logs\agent.log` and `state\guardian.log`.
 
 ## Power-state evidence
 
-Agent 1.5.1 runs `prepare-wake.ps1` before accepting a low-power command. It starts the separately configured `ServerCesar Router ARP` task and requires a new successful completion within 90 seconds; a missing task, failure or timeout cancels the transition. Router credentials and helper configuration stay outside the repository. This is necessary because the router can relearn a dynamic ARP entry after resume; a five-minute refresh is insufficient immediately before another transition.
+Earlier versions ran a router ARP preparation step before shutting down. The current router does not support it, so it was removed; remote power-on is handled by a smart plug with the BIOS set to power on after AC loss.
 
 On 18 October, two S4 tests with a freshly restored permanent ARP entry returned about 63–64 seconds after hibernation, well before the seven-minute rescue timer. Windows recorded S4 but no wake-source identity. A repeat without restoring ARP returned only by the rescue timer. These results support the preparation step, but do not establish S5 recovery or recovery after the router restarts while the PC is off. A subsequent S5 test issued full shutdown at 11:31:55 (Europe/Madrid); external GitHub workflow 39115678527 sent packets from 11:33:38 and Windows recorded a cold boot (Kernel-Boot event 27, BootType 0) at 11:34:08, with no wake-timer recovery. Full shutdown is now enabled, retaining the recent-route and immediate-router-preparation checks. A router restart while the PC is off remains an unverified recovery scenario.
 
