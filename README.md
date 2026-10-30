@@ -16,7 +16,7 @@ small agents that connect cloud controls to services running on ServerCesar.
 | Cesar HomeLab portal | `/control/` | Cloudflare Pages + Functions |
 | Authentication and operational APIs | `/functions/` | Cloudflare Pages Functions |
 | Users, sessions and operational data | `/migrations/` | Cloudflare D1 |
-| Minecraft recovery agent | `/server-agent/` | ServerCesar / Windows |
+| ServerCesar agent | `/server-agent/servercesar/` | ServerCesar / Windows |
 | GitHub Galaxy | `/control/` | GitHub Actions + browser canvas |
 | Thermal experiment | `/control/data/` and `/control/assets/thermal/` | Versioned static evidence |
 | Backtest Lab (strategy backtests) | `/backtest-lab/` and `/control/backtest.js` | GitHub Actions (Python) + D1 |
@@ -32,7 +32,7 @@ The detailed boundaries and request flows are documented in
 |-- control/         Private Cesar HomeLab frontend
 |-- functions/       Cloudflare backend functions and API routes
 |-- migrations/      D1 database schema history
-|-- server-agent/    Restricted Minecraft recovery agent for Windows
+|-- server-agent/    ServerCesar status and power agent for Windows
 |-- backtest-lab/    Python backtesting engine run by GitHub Actions (not in the Pages output)
 |-- docs/            Architecture and service documentation
 |-- assets/          Public portfolio assets
@@ -66,7 +66,7 @@ minutes so new repositories and external changes appear automatically.
 
 - The GitHub repository contains source code, never real passwords or service tokens.
 - Authentication data and sessions live in Cloudflare D1.
-- The Minecraft agent accepts only the predefined `restart` command over outbound HTTPS.
+- The ServerCesar agent accepts only predefined `reboot`/`shutdown` commands over outbound HTTPS.
 
 ## Local development
 

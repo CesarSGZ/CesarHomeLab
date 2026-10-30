@@ -154,8 +154,8 @@
   async function power(action) {
     const off = action === 'shutdown';
     const question = off
-      ? '¿Apagar ServerCesar por completo? Se cerrarán Minecraft y las aplicaciones.\n\nOJO: con el router actual el encendido remoto NO está garantizado; si no arranca con «Encender ServerCesar», habrá que encenderlo a mano.'
-      : '¿Reiniciar ServerCesar ahora? Se cerrará todo lo que esté abierto (Minecraft incluido) y volverá a arrancar solo.';
+      ? '¿Apagar ServerCesar por completo? Se cerrarán las aplicaciones.\n\nOJO: con el router actual el encendido remoto NO está garantizado; si no arranca con «Encender ServerCesar», habrá que encenderlo a mano.'
+      : '¿Reiniciar ServerCesar ahora? Se cerrará todo lo que esté abierto y volverá a arrancar solo.';
     if (!confirm(question)) return;
     $('#sc-reboot').disabled = true; $('#sc-shutdown').disabled = true;
     feedback('Enviando orden de ' + (off ? 'apagado' : 'reinicio') + '…');

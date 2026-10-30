@@ -20,7 +20,7 @@ test('New and old column layouts retain original notes and separate alternatives
   const old=parseTrainingRows([['Días','Series','Músculo','Ejercicio','Reps x Peso'],['Día 2','3','Espalda','Deadlift','6x150 (note)']]);
   assert.equal(old[0].name,'Deadlift');assert.equal(old[0].cell,'E2');assert.equal(old[0].raw,'6x150 (note)');
 });
-test('Training belongs only to the owner, not Minecraft operators or standard users',()=>{
+test('Training belongs only to the owner, not other users',()=>{
   assert.ok(accessForUser({username:'CesarVapor'}).capabilities.includes('training:read'));
   for(const username of ['SuperSanti86','another-user']){
     assert.ok(!accessForUser({username}).views.includes('training'));

@@ -12,12 +12,7 @@ const USER_ACCESS = Object.freeze({
   cesarvapor: Object.freeze({
     profile: "owner",
     views: ["overview", "infrastructure", "github", "thermal", "training", "backtest"],
-    capabilities: ["minecraft:read", "minecraft:restart", "servercesar:read", "servercesar:wake", "github:read", "thermal:read", "training:read", "backtest:read", "backtest:run"],
-  }),
-  supersanti86: Object.freeze({
-    profile: "minecraft-operator",
-    views: ["overview", "infrastructure"],
-    capabilities: ["minecraft:read", "minecraft:restart"],
+    capabilities: ["servercesar:read", "servercesar:wake", "github:read", "thermal:read", "training:read", "backtest:read", "backtest:run"],
   }),
 });
 
@@ -202,11 +197,3 @@ export function constantTimeEqual(left, right) {
   return diff === 0;
 }
 
-export function requireAgent(request, env) {
-  const configured = String(env.MINECRAFT_AGENT_TOKEN || "");
-  const supplied = String(request.headers.get("authorization") || "").replace(
-    /^Bearer\s+/i,
-    "",
-  );
-  return configured.length >= 32 && constantTimeEqual(configured, supplied);
-}
