@@ -51,6 +51,6 @@ The user could not wake the PC after the production shutdown on 18 October and r
 
 ## Smart plug (remote power-on)
 
-A Shelly Plug S Gen3 feeds ServerCesar. `shelly-plug.js` runs on the plug: every minute it reports relay state and power draw to `/api/agent/servercesar-plug` and runs a queued `poweron` (a 10 s power cut; refused above 20 W). The plug is set to turn on after a power outage, to switch itself back on 30 s after being turned off, and has its LED and setup access point off. `install-shelly.ps1` (run elevated on ServerCesar) uploads the script and stores the plug token, an HMAC of the agent token, in the plug KVS. Read the last poll result with `Script.Eval` (`JSON.stringify(last)`).
+A Shelly Plug S Gen3 feeds ServerCesar. `shelly-plug.js` runs on the plug: every minute it reports relay state and power draw to `/api/agent/servercesar-plug` and runs a queued `poweron` (a 10 s power cut; refused above 20 W). The plug is set to turn on after a power outage and has its LED and setup access point off. `install-shelly.ps1` (run elevated on ServerCesar) uploads the script and stores the plug token, an HMAC of the agent token, in the plug KVS. Read the last poll result with `Script.Eval` (`JSON.stringify(last)`).
 
 During LaLiga match blocks some Spanish ISPs (Movistar included) drop traffic to the Cloudflare IPs that serve `cesar-solla.pages.dev`; neither the agent nor the plug can reach the site until the block lifts.

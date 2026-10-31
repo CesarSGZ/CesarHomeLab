@@ -346,7 +346,7 @@ export async function queuePowerOn(db, username, now = Date.now()) {
 // agent nor the plug script can reach it. The plug stays connected to Shelly Cloud, which this
 // function can call from Cloudflare. The owner pastes the cloud server and authorisation key in
 // Mission Control (stored in D1, never returned to the browser). The 20 W check is done here
-// before switching off; the plug's auto-on turns the power back on if the timer is not honoured.
+// before switching off; toggle_after turns the power back on after 10 s.
 
 const CLOUD_SERVER = /^shelly-\d+-[a-z]+\.shelly\.cloud$/;
 
