@@ -37,6 +37,7 @@ export async function ensureTables(db) {
     db.prepare("CREATE INDEX IF NOT EXISTS idx_servercesar_commands_status ON servercesar_commands(status, requested_at)"),
     db.prepare("CREATE INDEX IF NOT EXISTS idx_servercesar_events ON servercesar_events(kind, at)"),
     db.prepare("CREATE TABLE IF NOT EXISTS servercesar_plug (id INTEGER PRIMARY KEY CHECK (id = 1), output INTEGER, apower REAL, received_at INTEGER NOT NULL)"),
+    db.prepare("CREATE TABLE IF NOT EXISTS servercesar_shelly_cloud (id INTEGER PRIMARY KEY CHECK (id = 1), server TEXT NOT NULL, auth_key TEXT NOT NULL, device_id TEXT, updated_by TEXT, updated_at INTEGER)"),
   ]);
   schemaReady = true;
 }
@@ -312,6 +313,9 @@ export async function plugExchange(db, body = {}, now = Date.now()) {
   const apower = num(body.apower, 0, 4000);
   await db.prepare("INSERT INTO servercesar_plug (id, output, apower, received_at) VALUES (1, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET output = excluded.output, apower = excluded.apower, received_at = excluded.received_at")
     .bind(output, apower, now).run();
+  // The plug reports its own id (shellyplugsg3-<mac>): the Shelly Cloud fallback needs it and it stays out of the repo.
+  const device = cloudDeviceId(body.device);
+  if (device) await db.prepare("UPDATE servercesar_shelly_cloud SET device_id = ? WHERE id = 1 AND (device_id IS NULL OR device_id <> ?)").bind(device, device).run();
   const done = body.done;
   if (done?.id) {
     await db.prepare("UPDATE servercesar_commands SET status = ?, completed_at = ?, result = ? WHERE id = ? AND type = 'poweron' AND status = 'claimed'")
@@ -334,4 +338,67 @@ export async function queuePowerOn(db, username, now = Date.now()) {
   const id = crypto.randomUUID();
   await db.prepare("INSERT INTO servercesar_commands (id, type, status, requested_by, requested_at) VALUES (?, 'poweron', 'queued', ?, ?)").bind(id, username, now).run();
   return { ok: true, id };
+}
+
+// ---- Shelly Cloud fallback: power-on while the plug cannot reach this site ----
+//
+// On LaLiga match days Spanish ISPs block the Cloudflare IPs that serve this site, so neither the
+// agent nor the plug script can reach it. The plug stays connected to Shelly Cloud, which this
+// function can call from Cloudflare. The owner pastes the cloud server and authorisation key in
+// Mission Control (stored in D1, never returned to the browser). The 20 W check is done here
+// before switching off; the plug's auto-on turns the power back on if the timer is not honoured.
+
+const CLOUD_SERVER = /^shelly-\d+-[a-z]+\.shelly\.cloud$/;
+
+export function cloudDeviceId(value) {
+  const match = /^shelly[a-z0-9]*-([0-9a-f]{12})$/i.exec(String(value || ""));
+  return match ? match[1].toLowerCase() : null;
+}
+
+export function checkCloudConfig(raw = {}) {
+  const server = String(raw.server || "").trim().toLowerCase().replace(/^https?:\/\//, "").replace(/[:/].*$/, "");
+  const key = String(raw.key || "").trim();
+  if (!CLOUD_SERVER.test(server)) return { ok: false, error: "invalid_cloud_server" };
+  if (!/^[A-Za-z0-9+/=_-]{20,200}$/.test(key)) return { ok: false, error: "invalid_cloud_key" };
+  return { ok: true, config: { server, key } };
+}
+
+export async function saveCloudConfig(db, config, username, now = Date.now()) {
+  await db.prepare("INSERT INTO servercesar_shelly_cloud (id, server, auth_key, updated_by, updated_at) VALUES (1, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET server = excluded.server, auth_key = excluded.auth_key, updated_by = excluded.updated_by, updated_at = excluded.updated_at")
+    .bind(config.server, config.key, username, now).run();
+}
+
+export async function readCloudConfig(db) {
+  const row = await db.prepare("SELECT server, auth_key, device_id, updated_at FROM servercesar_shelly_cloud WHERE id = 1").first();
+  return row ? { server: row.server, key: row.auth_key, deviceId: row.device_id, updatedAt: row.updated_at } : null;
+}
+
+async function cloudCall(cloud, path, body, fetchImpl) {
+  const response = await fetchImpl(`https://${cloud.server}/v2/devices/api/${path}?auth_key=${encodeURIComponent(cloud.key)}`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(10_000),
+  });
+  if (!response.ok) throw new Error(`Shelly Cloud respondió ${response.status}`);
+  const text = await response.text();
+  return text ? JSON.parse(text) : null;
+}
+
+/** Plug state as Shelly Cloud sees it: {online, output, apower}. */
+export async function cloudPlugStatus(cloud, fetchImpl = fetch) {
+  const devices = await cloudCall(cloud, "get", { ids: [cloud.deviceId], select: ["status"] }, fetchImpl);
+  const device = Array.isArray(devices) ? devices.find((d) => d.id === cloud.deviceId) : null;
+  const sw = device?.status?.["switch:0"];
+  return { online: Boolean(device?.online), output: typeof sw?.output === "boolean" ? sw.output : null, apower: num(sw?.apower, 0, 4000) };
+}
+
+/** Cuts the plug's power for 10 s through Shelly Cloud, only if the PC draws under 20 W. Returns {ok, message}. */
+export async function cloudPowerOn(cloud, fetchImpl = fetch) {
+  if (!cloud?.deviceId) return { ok: false, message: "Nube de Shelly: el enchufe aún no ha dicho su ID" };
+  const state = await cloudPlugStatus(cloud, fetchImpl);
+  if (!state.online) return { ok: false, message: "Nube de Shelly: el enchufe no está conectado" };
+  if (state.output && (state.apower == null || state.apower > 20)) return { ok: false, message: `Nube de Shelly: el PC ya consume ${state.apower ?? "?"} W, no se corta la corriente` };
+  await cloudCall(cloud, "set/switch", state.output ? { id: cloud.deviceId, channel: 0, on: false, toggle_after: 10 } : { id: cloud.deviceId, channel: 0, on: true }, fetchImpl);
+  return { ok: true, message: state.output ? `Nube de Shelly: corriente cortada 10 s (${state.apower} W antes)` : "Nube de Shelly: corriente restablecida" };
 }

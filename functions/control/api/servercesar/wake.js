@@ -1,6 +1,6 @@
 import { userCan, validCsrf } from "../../../_lib/auth.js";
 import { json, methodNotAllowed } from "../../../_lib/http.js";
-import { ensureTables, lastWake, queuePowerOn, readConfig, readReport, recordEvent, sendMagicPacket, wakeTargets, WAKE_COOLDOWN_MS } from "../../../_lib/servercesar.js";
+import { cloudPowerOn, ensureTables, lastWake, queuePowerOn, readCloudConfig, readConfig, readReport, recordEvent, sendMagicPacket, wakeTargets, WAKE_COOLDOWN_MS } from "../../../_lib/servercesar.js";
 
 // POST: sends the Wake-on-LAN magic packet to ServerCesar (owner only, CSRF-protected, 60 s cooldown),
 // to the DDNS host and to the last public IP its agent reported from. If the smart plug is online it
@@ -30,9 +30,18 @@ export async function onRequest(context) {
     }
   }
   const plug = await queuePowerOn(db, session.user.username);
-  const plugNote = plug.ok ? "Enchufe: encenderá el PC si sigue apagado" : plug.error === "plug_offline" ? "Enchufe sin conexión" : null;
-  const ok = results.some((r) => r.ok) || plug.ok;
+  let plugNote = plug.ok ? "Enchufe: encenderá el PC si sigue apagado" : plug.error === "plug_offline" ? "Enchufe sin conexión con la web" : null;
+  // The plug cannot reach this site (usually a LaLiga IP block): switch it through Shelly Cloud instead.
+  let cloud = null;
+  if (plug.error === "plug_offline") {
+    const cloudConfig = await readCloudConfig(db);
+    if (cloudConfig) {
+      try { cloud = await cloudPowerOn(cloudConfig); } catch (error) { cloud = { ok: false, message: `Nube de Shelly: ${String(error.message).slice(0, 80)}` }; }
+      plugNote = cloud.message;
+    }
+  }
+  const ok = results.some((r) => r.ok) || plug.ok || Boolean(cloud?.ok);
   const message = [...results.map((r) => r.message), plugNote].filter(Boolean).join(" · ").slice(0, 280);
   await recordEvent(db, "wake", session.user.username, ok, message);
-  return json({ ok, message, plugQueued: plug.ok, sentAt: Date.now() }, { status: ok ? 200 : 502 });
+  return json({ ok, message, plugQueued: plug.ok, cloudPowerOn: Boolean(cloud?.ok), sentAt: Date.now() }, { status: ok ? 200 : 502 });
 }

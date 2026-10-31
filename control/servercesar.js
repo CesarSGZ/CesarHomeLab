@@ -127,6 +127,9 @@
     const cfg = $('#sc-config'); cfg.hidden = !data.canWake;
     if (data.config && !cfg.dataset.filled) { const f = $('#sc-config-form'); f.mac.value = data.config.mac; f.host.value = data.config.host; f.wolPort.value = data.config.wolPort; f.probePorts.value = data.config.probePorts.join(', '); cfg.dataset.filled = '1'; }
     if (p.state === 'unconfigured' && data.canWake && !online) cfg.open = true;
+    const cloudState = $('[data-sc-cloud-state]', card());
+    if (cloudState && data.shellyCloud && !cloudState.dataset.saved) cloudState.textContent = 'Nube de Shelly configurada (' + data.shellyCloud.server + ', ' + fmt(data.shellyCloud.updatedAt) + ')' + (data.shellyCloud.deviceKnown ? '. Lista como plan B.' : '. Falta que el enchufe envíe su ID a la web.') + ' Para cambiarla, vuelve a pegar servidor y clave.';
+    if (cloudState && data.shellyCloud) $('#sc-cloud-form').server.value ||= data.shellyCloud.server;
   }
 
   async function refresh() {
@@ -146,7 +149,7 @@
     try {
       const response = await fetch('/control/api/servercesar/wake', {method: 'POST', credentials: 'same-origin', headers: {'content-type': 'application/json', 'x-csrf-token': csrf}, body: '{}'});
       const data = await response.json().catch(() => ({}));
-      if (response.ok && data.ok) { fastUntil = Date.now() + 4 * 60e3; feedback((data.plugQueued ? 'Encendiendo: si el PC sigue apagado, el enchufe le cortará la corriente unos segundos en el próximo minuto (' : 'Paquete enviado (') + (data.message || 'ok') + '). Esperando a que arranque…', 'success'); }
+      if (response.ok && data.ok) { fastUntil = Date.now() + 4 * 60e3; feedback((data.cloudPowerOn ? 'Encendiendo a través de la nube de Shelly (' : data.plugQueued ?'Encendiendo: si el PC sigue apagado, el enchufe le cortará la corriente unos segundos en el próximo minuto (' : 'Paquete enviado (') + (data.message || 'ok') + '). Esperando a que arranque…', 'success'); }
       else if (data.error === 'cooldown') feedback('Ya se envió hace menos de un minuto. Espera un momento.', 'error');
       else feedback('No se pudo enviar: ' + (data.message || data.error || response.status), 'error');
     } catch { feedback('No se pudo enviar el paquete. Inténtalo de nuevo.', 'error'); }
@@ -186,6 +189,19 @@
     } catch { feedback('No se pudo guardar la configuración.', 'error'); }
   }
 
+  async function saveCloud(event) {
+    event.preventDefault();
+    const f = event.currentTarget, state = $('[data-sc-cloud-state]', card());
+    const messages = {invalid_cloud_server: 'El servidor no es válido (tiene que ser algo como shelly-123-eu.shelly.cloud).', invalid_cloud_key: 'La clave no parece válida. Cópiala entera desde la app.'};
+    state.textContent = 'Guardando y probando la nube de Shelly…';
+    try {
+      const response = await fetch('/control/api/servercesar/shelly-cloud', {method: 'POST', credentials: 'same-origin', headers: {'content-type': 'application/json', 'x-csrf-token': csrf}, body: JSON.stringify({server: f.server.value, key: f.key.value})});
+      const data = await response.json().catch(() => ({}));
+      if (response.ok && data.ok) { f.key.value = ''; state.dataset.saved = '1'; state.textContent = data.check || 'Guardado.'; }
+      else state.textContent = messages[data.error] || 'No se pudo guardar: ' + (data.error || response.status);
+    } catch { state.textContent = 'No se pudo guardar la nube de Shelly.'; }
+  }
+
   window.ServerCesar = {
     initialise(token, wakeAllowed) {
       csrf = token || ''; canWake = Boolean(wakeAllowed);
@@ -196,6 +212,7 @@
       $('#sc-reboot').addEventListener('click', () => power('reboot'));
       $('#sc-shutdown').addEventListener('click', () => power('shutdown'));
       $('#sc-config-form').addEventListener('submit', save);
+      $('#sc-cloud-form').addEventListener('submit', saveCloud);
       addEventListener('homelab:view', event => { if (event.detail === 'infrastructure') refresh(); });
       document.addEventListener('visibilitychange', () => { if (!document.hidden) refresh(); });
       refresh();
