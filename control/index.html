@@ -20,7 +20,7 @@
   <link rel="stylesheet" href="backtest.css?v=20261012n">
   <link rel="stylesheet" href="/theme.css?v=20261001contrast">
   <link rel="stylesheet" href="flight-control.css?v=20261014agent">
-  <link rel="stylesheet" href="thermal.css?v=20261031a">
+  <link rel="stylesheet" href="thermal.css?v=20261031b">
 </head>
 <body class="access-pending" data-workspace>
   <canvas id="control-grid" aria-hidden="true"></canvas>
@@ -256,10 +256,12 @@
           </article>
           <div class="tl-side">
             <dl class="tl-specs">
-              <div><dt>Case</dt><dd>Fractal Terra · spine position 3</dd></div>
-              <div><dt>CPU</dt><dd>Ryzen 7 9800X3D · low-profile cooler</dd></div>
-              <div><dt>GPU</dt><dd>RTX 5070 Ti · ZOTAC SFF, 3 fans</dd></div>
-              <div><dt>Board</dt><dd>Gigabyte B850I AORUS PRO</dd></div>
+              <div><dt>Case</dt><dd>Fractal Terra Jade · spine position 3<small>343 × 153 × 198 mm · 10.4 L</small></dd></div>
+              <div><dt>CPU</dt><dd>Ryzen 7 9800X3D · Thermalright AXP90-X47 Full Copper<small>47 mm top-flow · TL-9015R fan · Noctua NA-FD1 duct to the panel</small></dd></div>
+              <div><dt>GPU</dt><dd>ZOTAC RTX 5070 Ti SOLID SFF OC<small>304 × 116 × 42 mm · 3 × 90 mm fans · 300 W</small></dd></div>
+              <div><dt>Board</dt><dd>Gigabyte B850I AORUS PRO<small>Vengeance DDR5 2 × 16 GB · WD_BLACK SN850X 2 TB</small></dd></div>
+              <div><dt>PSU</dt><dd>Corsair SF850 (2024) SFX Platinum<small>125 × 100 × 63.5 mm · 92 mm fan</small></dd></div>
+              <div><dt>Case fans</dt><dd>Noctua NF-A12x15 bottom · NF-A9x14 top<small>both exhaust · grille on the bottom fan</small></dd></div>
               <div><dt>Room</dt><dd id="tl-ambient">26.5 °C, held fixed</dd></div>
             </dl>
             <div class="tl-loads" id="tl-loads" aria-label="Measured load tests"><p class="tl-loading">Loading measurements…</p></div>
@@ -324,11 +326,35 @@
         <p class="tl-note">Lower is better. The dashed line is today; paler bars have less physical evidence behind them. Tap a row for the idea and its main risk.</p>
       </section>
 
+      <section class="tl-block" aria-labelledby="tl-cfd-title">
+        <header class="tl-block-head"><span>05</span><div><h3 id="tl-cfd-title">What the CFD will start from</h3><p>Every part is now identified. These are the boundary conditions a flow simulation needs: what blows air, what heats it and how much room it has.</p></div></header>
+        <div class="tl-cfd">
+          <article class="tl-cfd-card tl-cfd-fans">
+            <h4>Fans <small>free-air maximum flow, manufacturer data</small></h4>
+            <div id="tl-fans"><p class="tl-loading">Loading fans…</p></div>
+          </article>
+          <article class="tl-cfd-card">
+            <h4>Heat to remove <small>full load</small></h4>
+            <div id="tl-heat"><p class="tl-loading">Loading heat sources…</p></div>
+            <h4 class="tl-cfd-sub">Gaps that matter</h4>
+            <ul class="tl-gaps" id="tl-gaps"></ul>
+          </article>
+          <article class="tl-cfd-card tl-cfd-wide">
+            <h4>How much air does it take? <small>energy balance, no CFD needed</small></h4>
+            <div class="tl-balance">
+              <figure id="tl-balance-chart"><p class="tl-loading">Loading balance…</p></figure>
+              <p id="tl-balance-text"></p>
+            </div>
+          </article>
+        </div>
+        <p class="tl-note" id="tl-cfd-note"></p>
+      </section>
+
       <section class="tl-block" aria-labelledby="tl-next-title">
-        <header class="tl-block-head"><span>05</span><div><h3 id="tl-next-title">Next steps</h3><p>From a validated GPU model to a proven hardware change, then CFD.</p></div></header>
+        <header class="tl-block-head"><span>06</span><div><h3 id="tl-next-title">Next steps</h3><p>From a validated GPU model to a proven hardware change, then CFD.</p></div></header>
         <div class="tl-next">
           <ol class="tl-roadmap">
-            <li><b>1</b><div><strong>Close the unknowns</strong><p>Exact cooler, PSU and fan models, fan-to-panel gaps and how much the cables block.</p></div></li>
+            <li class="done"><b>✓</b><div><strong>Close the unknowns</strong><p>Done 31 Oct: every part identified and the key gaps derived. Still estimated: cable bundle, top-fan position, panel open area, PSU exhaust direction.</p></div></li>
             <li><b>2</b><div><strong>Repeat the baseline 3×</strong><p>Same idle, load and cool-down each time, to learn the normal run-to-run scatter.</p></div></li>
             <li><b>3</b><div><strong>A/B test the best idea</strong><p>Baseline → modification → baseline, three runs each. Add one air-temperature sensor inside the case.</p></div></li>
             <li><b>4</b><div><strong>Check the prediction</strong><p>Did the measured change land inside the predicted range? Re-fit without the test data and decide.</p></div></li>
@@ -336,10 +362,11 @@
           <aside class="tl-gate" aria-labelledby="tl-gate-title">
             <h4 id="tl-gate-title">Ready for CFD when…</h4>
             <ul>
+              <li class="done">Parts, fan specs and key gaps documented</li>
+              <li>Panel open area and grille pressure loss</li>
               <li>Repeated peaks agree within ±1 °C</li>
               <li>GPU model error below 2 °C</li>
               <li>CPU model passes on CPU-only and combined load (&lt; 3 °C)</li>
-              <li>Fan curves, grille areas and gaps documented</li>
             </ul>
             <p>CFD then answers the spatial questions: where hot air recirculates and which fan layout deserves a rebuild.</p>
           </aside>
@@ -347,7 +374,7 @@
       </section>
 
       <section class="tl-block" aria-labelledby="tl-why-title">
-        <header class="tl-block-head"><span>06</span><div><h3 id="tl-why-title">What it is good for</h3></div></header>
+        <header class="tl-block-head"><span>07</span><div><h3 id="tl-why-title">What it is good for</h3></div></header>
         <div class="tl-why">
           <article><small>FOR THIS PC</small><strong>Change only what works.</strong><p>Know roughly how many degrees each modification is worth before cutting, printing or buying anything.</p></article>
           <article><small>AS A METHOD</small><strong>Engine-bay thinking.</strong><p>Controlled configuration, measured boundary conditions, fast reduced-order models and CFD only where it adds value, as in engine–nacelle integration.</p></article>
@@ -376,9 +403,9 @@
   <script src="training.js?v=20261001strength"></script>
   <script type="module" src="backtest.js?v=20261012m"></script>
   <script src="github-galaxy.js?v=20260928atlas"></script>
-  <script src="control.js?v=20261031thermal"></script>
+  <script src="control.js?v=20261031cfd"></script>
   <script src="servercesar.js?v=20261020wake" defer></script>
   <script src="flight-control.js?v=20261014a" defer></script>
-  <script src="thermal-viewer.bundle.js?v=20260805o"></script>
+  <script src="thermal-viewer.bundle.js?v=20261031b"></script>
 </body>
 </html>

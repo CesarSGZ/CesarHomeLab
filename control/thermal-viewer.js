@@ -71,7 +71,9 @@ async function initViewer() {
   const palette = {
     GPU: 0x52d9ff,
     MOTHERBOARD: 0xc9ff3d,
-    CPU_COOLER_ENVELOPE: 0x67e8c4,
+    CPU_COOLER: 0x67e8c4,
+    CPU_DUCT: 0x67e8c4,
+    RAM: 0xf2c14e,
     PSU_REFERENCE: 0xa98be0,
     BOTTOM_FAN: 0xff8f66,
     TOP_CUSTOM_FAN: 0xff8f66,
@@ -86,8 +88,8 @@ async function initViewer() {
   addGpuFans(componentGroups.get('GPU'), parts.get('GPU'), selectable);
   addCaseFan(componentGroups.get('TOP_CUSTOM_FAN'), parts.get('TOP_CUSTOM_FAN'), 0xff8f66, selectable);
   addCaseFan(componentGroups.get('BOTTOM_FAN'), parts.get('BOTTOM_FAN'), 0xff8f66, selectable);
-  addCpuFan(componentGroups.get('CPU_COOLER_ENVELOPE'), parts.get('CPU_COOLER_ENVELOPE'), selectable);
-  addCpuIntakeGuide(componentGroups.get('CPU_COOLER_ENVELOPE'), parts.get('CPU_COOLER_ENVELOPE'), selectable);
+  addCpuFan(componentGroups.get('CPU_COOLER'), parts.get('CPU_COOLER'), selectable);
+  addDuctLayers(componentGroups.get('CPU_DUCT'), parts.get('CPU_DUCT'));
   addPsuFan(componentGroups.get('PSU_REFERENCE'), parts.get('PSU_REFERENCE'), selectable);
   addAirflow(componentGroups, parts);
 
@@ -189,7 +191,9 @@ function addComponent(root, component, color, selectable) {
   const explodeOffsets = {
     GPU: [0, 0, -1.15],
     MOTHERBOARD: [0.15, 0, 1.0],
-    CPU_COOLER_ENVELOPE: [0.3, 0.05, 1.65],
+    CPU_COOLER: [0.3, 0.05, 1.45],
+    CPU_DUCT: [0.3, 0.05, 2.25],
+    RAM: [0.2, 0.25, 1.1],
     PSU_REFERENCE: [-0.25, 0.05, 1.35],
     BOTTOM_FAN: [-3.0, -0.12, 2.5],
     TOP_CUSTOM_FAN: [0, 1.15, 0],
@@ -297,59 +301,37 @@ function addGpuFans(parent, gpu, selectable) {
 
 function addCaseFan(parent, component, color, selectable) {
   if (!parent || !component) return;
-  const fan = makeFan(0.58, component.box.size[2] * SCALE * 0.45, color, component, selectable);
+  const fan = makeFan(component.box.size[0] * SCALE * 0.48, component.box.size[2] * SCALE * 0.45, color, component, selectable);
   parent.add(fan);
 }
 
 function addCpuFan(parent, cooler, selectable) {
   if (!parent || !cooler) return;
-  const { center } = worldBox(cooler.box);
-  const fan = makeFan(0.57, 0.055, 0x67e8c4, { ...cooler, label: 'CPU side intake fan and guide' }, selectable);
+  // Top-flow cooler: the 92 x 15 mm fan sits on the fin stack, facing the CPU-side panel.
+  const fan = makeFan(0.44, 0.15, 0x67e8c4, { ...cooler, label: 'Thermalright TL-9015R · 92 mm CPU intake fan' }, selectable);
   fan.rotation.x = Math.PI / 2;
-  fan.position.set(0, 0, 0.73 - center.z);
+  fan.position.set(0, 0, (cooler.box.size[1] / 2 - 7.5) * SCALE);
   parent.add(fan);
 }
 
-function addCpuIntakeGuide(parent, cooler, selectable) {
-  if (!parent || !cooler) return;
-  const component = {
-    ...cooler,
-    label: 'Existing CPU intake flow-straightening guide',
-    status: 'user-confirmed baseline hardware; exact dimensions pending',
-  };
-  const material = new THREE.MeshStandardMaterial({
-    color: 0x67e8c4,
-    transparent: true,
-    opacity: 0.2,
-    roughness: 0.35,
-    metalness: 0,
-    side: THREE.DoubleSide,
-    depthWrite: false,
-  });
-  const duct = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.62, 0.57, 0.12, 36, 1, true),
-    material,
-  );
-  duct.rotation.x = Math.PI / 2;
-  duct.position.set(0, 0, 0.40);
-  duct.userData.component = component;
-  selectable.push(duct);
-  parent.add(duct);
-
-  const outerRim = new THREE.Mesh(
-    new THREE.TorusGeometry(0.62, 0.018, 8, 40),
-    new THREE.MeshBasicMaterial({ color: 0x67e8c4, transparent: true, opacity: 0.8 }),
-  );
-  outerRim.position.set(0, 0, 0.46);
-  outerRim.userData.component = component;
-  selectable.push(outerRim);
-  parent.add(outerRim);
+function addDuctLayers(parent, duct) {
+  if (!parent || !duct) return;
+  // NA-FD1: stacked square foam spacers between the CPU fan and the side grille.
+  const [width, depth, height] = duct.box.size;
+  const material = new THREE.LineBasicMaterial({ color: 0x67e8c4, transparent: true, opacity: 0.85 });
+  const frame = new THREE.EdgesGeometry(new THREE.BoxGeometry(width * SCALE, height * SCALE, 0.001));
+  const layers = 5;
+  for (let i = 0; i < layers; i += 1) {
+    const layer = new THREE.LineSegments(frame, material);
+    layer.position.z = (-depth / 2 + (i + 0.5) * depth / layers) * SCALE;
+    parent.add(layer);
+  }
 }
 
 function addPsuFan(parent, psu, selectable) {
   if (!parent || !psu) return;
   const { center } = worldBox(psu.box);
-  const component = { ...psu, label: 'PSU side intake fan · 92 mm assumed' };
+  const component = { ...psu, label: 'Corsair SF850 · 92 mm intake fan' };
   const fan = makeFan(0.44, 0.05, 0x52d9ff, component, selectable);
   fan.rotation.x = Math.PI / 2;
   fan.position.set(0, 0, 0.73 - center.z);
@@ -405,10 +387,10 @@ function addAirflow(componentGroups, parts) {
     }
   }
 
-  const cpu = parts.get('CPU_COOLER_ENVELOPE');
+  const cpu = parts.get('CPU_COOLER');
   if (cpu) {
     const { center } = worldBox(cpu.box);
-    arrows.push(['CPU_COOLER_ENVELOPE', [center.x, center.y, 1.38], [0, 0, -1], 0x52d9ff, 0.48]);
+    arrows.push(['CPU_COOLER', [center.x, center.y, 1.38], [0, 0, -1], 0x52d9ff, 0.48]);
   }
   const psu = parts.get('PSU_REFERENCE');
   if (psu) {

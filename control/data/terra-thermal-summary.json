@@ -1,6 +1,6 @@
 {
-  "schema_version": "1.2.0",
-  "generated_at": "2026-08-05T00:06:28.845399+00:00",
+  "schema_version": "1.3.0",
+  "generated_at": "2026-10-31T16:00:00+00:00",
   "project": {
     "id": "terra-powerplant-lab",
     "title": "Terra Powerplant Lab",
@@ -12,13 +12,13 @@
     "name": "baseline_2026-08-04",
     "date_created": "2026-08-04",
     "case": {
-      "model": "Fractal Design Terra",
+      "model": "Fractal Design Terra (Jade, walnut front)",
       "spine_position": 3,
       "orientation": "vertical_normal",
       "side_panels": "installed",
       "nominal_internal_volume_L": 10.4,
       "official_fan_mounts": "1x120 mm bottom",
-      "notes": "Spine position 3 confirmed by the user. Official clearances: CPU cooler 67 mm; GPU thickness 53 mm up to 131 mm GPU height or 43 mm up to 145 mm. Photos confirm the custom top fan is inside the case beneath the installed slotted grille; Terra has no official top mount. The bottom exhaust discharges into the approximately 20 mm foot gap above a solid desk."
+      "notes": "Spine position 3 confirmed by the user. Official position-3 clearances: CPU cooler 67 mm; GPU thickness 53 mm up to 131 mm GPU height or 43 mm up to 145 mm. The 92 mm top fan is a custom internal fit beneath the slotted top grille (Terra has no official top mount). The bottom 120 mm exhaust discharges through a wire grille into the approximately 20 mm foot gap above a solid desk."
     },
     "environment": {
       "ambient_temperature_C": 26.5,
@@ -27,25 +27,49 @@
     },
     "cpu": {
       "model": "AMD Ryzen 7 9800X3D",
-      "cooler": "unknown",
-      "cooler_airflow": "intake from the side grille through the existing fan-to-grille flow-straightening guide and into the CPU cooler"
+      "tdp_W": 120,
+      "cooler": {
+        "model": "Thermalright AXP90-X47 Full Copper",
+        "type": "low-profile top-flow (fan blows down onto the board)",
+        "heatsink_mm": [
+          94.5,
+          95,
+          32
+        ],
+        "height_with_fan_mm": 47,
+        "heat_pipes": "4 × 6 mm copper",
+        "fins": "54 copper fins, C1100 copper base",
+        "mass_g": 520,
+        "fan": "CPU-01 · Thermalright TL-9015R (stock)"
+      },
+      "thermal_paste": "Noctua NT-H2",
+      "cooler_airflow": "intake from the CPU-side grille through the Noctua NA-FD1 foam duct into the TL-9015R and down through the fin stack"
     },
     "gpu": {
-      "model": "ZOTAC NVIDIA GeForce RTX 5070 Ti 16 GB",
+      "model": "ZOTAC GAMING GeForce RTX 5070 Ti SOLID SFF OC 16 GB (ZT-B50710J3-10P)",
       "pci_subsystem_id": "0x276519DA",
-      "variant": "inferred ZOTAC SOLID SFF family; exact SKU not exposed by telemetry",
-      "inferred_dimensions_mm": [
+      "variant": "confirmed by purchase record",
+      "dimension_confidence": "official ZOTAC dimensions; two-slot card",
+      "fans": 3,
+      "airflow": "intake from side through GPU heatsink",
+      "dimensions_mm": [
         304.4,
         115.8,
         41.6
       ],
-      "dimension_confidence": "high: the 55.7 mm SOLID CORE cannot fit the official 53 mm position-3 envelope, while the 41.6 mm SOLID SFF can",
-      "fans": 3,
-      "airflow": "intake from side through GPU heatsink"
+      "board_power_W": 300,
+      "fan_size_mm": 90
     },
     "psu": {
-      "model": "unknown",
-      "airflow": "intake from side; PSU exhaust leaves its own duct/opening"
+      "model": "Corsair SF850 (2024) 850 W SFX, 80 PLUS Platinum, fully modular",
+      "dimensions_mm": [
+        125,
+        100,
+        63.5
+      ],
+      "fan": "92 mm fluid-dynamic-bearing fan with zero-RPM mode",
+      "efficiency_at_50pct_load": 0.92,
+      "airflow": "intake from the CPU/PSU-side grille; exhaust direction inside the Terra still to be confirmed"
     },
     "fans": [
       {
@@ -53,6 +77,11 @@
         "group": "GPU",
         "location": "GPU side",
         "orientation": "intake",
+        "model": "ZOTAC 90 mm (card fan 1)",
+        "size_mm": [
+          90,
+          90
+        ],
         "telemetry": "GPU channel A"
       },
       {
@@ -60,6 +89,11 @@
         "group": "GPU",
         "location": "GPU side",
         "orientation": "intake",
+        "model": "ZOTAC 90 mm (card fan 2)",
+        "size_mm": [
+          90,
+          90
+        ],
         "telemetry": "GPU channel A or B; mapping unknown"
       },
       {
@@ -67,63 +101,122 @@
         "group": "GPU",
         "location": "GPU side",
         "orientation": "intake",
+        "model": "ZOTAC 90 mm (card fan 3)",
+        "size_mm": [
+          90,
+          90
+        ],
         "telemetry": "GPU channel B"
       },
       {
         "id": "CPU-01",
         "group": "CPU",
-        "location": "CPU side",
+        "location": "on the CPU heatsink, fed through the NA-FD1 duct",
         "orientation": "intake",
-        "telemetry": "HWiNFO channel to identify"
+        "model": "Thermalright TL-9015R",
+        "size_mm": [
+          92,
+          92,
+          15
+        ],
+        "max_rpm": 2700,
+        "max_flow_m3h": 72.3,
+        "max_pressure_mmH2O": 1.33,
+        "noise_dBA": 22.4,
+        "telemetry": "CPU_FAN header (HWiNFO)"
       },
       {
         "id": "PSU-01",
         "group": "PSU",
-        "location": "PSU",
+        "location": "inside the SF850",
         "orientation": "intake",
-        "telemetry": "probably unavailable unless PSU exposes digital telemetry"
+        "model": "Corsair 92 mm FDB (zero-RPM)",
+        "size_mm": [
+          92,
+          92
+        ],
+        "telemetry": "not exposed"
       },
       {
         "id": "TOP-01",
         "group": "case",
-        "location": "internal custom position beneath top grille, cable-tied",
+        "location": "internal, cable-tied beneath the slotted top grille",
         "orientation": "exhaust",
-        "telemetry": "HWiNFO channel to identify"
+        "model": "Noctua NF-A9x14 PWM",
+        "size_mm": [
+          92,
+          92,
+          14
+        ],
+        "max_rpm": 2200,
+        "max_flow_m3h": 50.5,
+        "max_pressure_mmH2O": 1.64,
+        "noise_dBA": 19.9,
+        "telemetry": "HWiNFO system-fan channel to identify"
       },
       {
         "id": "BOTTOM-01",
         "group": "case",
-        "location": "bottom, exhausting into approximately 20 mm desk plenum",
+        "location": "official bottom 120 mm mount with COYUN wire grille, into the ~20 mm desk gap",
         "orientation": "exhaust",
-        "telemetry": "HWiNFO channel to identify"
+        "model": "Noctua NF-A12x15 PWM",
+        "size_mm": [
+          120,
+          120,
+          15
+        ],
+        "max_rpm": 1850,
+        "max_flow_m3h": 94.2,
+        "max_pressure_mmH2O": 1.53,
+        "noise_dBA": 23.9,
+        "telemetry": "HWiNFO system-fan channel to identify"
       }
     ],
-    "cabling_notes": "Current cabling is represented as a bounded porous obstruction rather than invented cable-by-cable geometry. Cable shortening/rerouting changes pressure loss, not heat generation.",
+    "cabling_notes": "Estimated, not measured: modular SF850 cables for the 24-pin ATX, the 8-pin EPS and one 12V-2x6 GPU lead, plus front-panel and fan leads, gathered between the PSU and the board. Modelled as one porous block (roughly 0.25 L, 60–80% open). Shortening or re-routing changes pressure loss, not heat generation.",
     "air_guides": [
       {
-        "location": "between CPU fan and CPU-side grille",
-        "status": "present during every recorded baseline test; user-confirmed",
-        "function": "reduces lateral bypass/recirculation and straightens the incoming stream before the CPU fan",
-        "geometry": "exact inlet shape, length, fan clearance and sealing remain to be measured",
-        "modelling_note": "treated as baseline hardware, not as a later configuration improvement; flow straightening does not imply fully laminar fan flow"
+        "location": "between the CPU fan and the CPU-side grille",
+        "model": "Noctua NA-FD1 fan duct kit (stacked EVA foam spacers, 5–45 mm range)",
+        "status": "present during every recorded baseline test; model confirmed 2026-10-31",
+        "function": "seals the gap so the CPU fan draws outside air instead of recirculated case air",
+        "geometry": "92 × 92 mm frame; ~20 mm stack derived from 67 mm clearance minus 47 mm cooler height",
+        "modelling_note": "treated as baseline hardware; flow straightening does not imply laminar fan flow"
       }
     ],
     "photo_references": [
       "Photo 1: installed panels, feet and desk placement",
-      "Photo 2: internal white-bladed top fan beneath grille",
+      "Photo 2: 92 mm top fan beneath the grille, held with cable ties",
       "Photo 3: slotted GPU-side panel and horizontal GPU fan row",
       "Photo 4: slotted CPU-side panel and low-profile CPU cooler"
     ],
     "open_items": [
-      "CPU cooler model and fan model",
-      "CPU intake-guide inlet shape, length, fan gap and degree of sealing to the side grille",
-      "PSU model",
-      "top and bottom fan models, dimensions and RPM",
-      "measurements of cable obstruction and custom top-fan clearance"
-    ]
+      "exact NA-FD1 stack height and how well it seals to the grille",
+      "exact top-fan position and tilt under the grille",
+      "open-area fraction of the slotted side and top panels (pressure-loss model)",
+      "PSU exhaust direction inside the Terra",
+      "real cable bundle volume and position",
+      "mapping of the HWiNFO system-fan channels to TOP-01 and BOTTOM-01"
+    ],
+    "revision": "B · bill of materials closed 2026-10-31 (same physical baseline as the August tests)",
+    "motherboard": {
+      "model": "Gigabyte B850I AORUS PRO",
+      "form_factor_mm": [
+        170,
+        170
+      ]
+    },
+    "memory": {
+      "model": "Corsair Vengeance DDR5 32 GB (2 × 16 GB) 6000 MT/s CL30 (CMK32GX5M2B6000C30)",
+      "module_height_mm": 35,
+      "height_confidence": "standard Vengeance heat spreader, approximately 35 mm; verify"
+    },
+    "storage": {
+      "model": "WD_BLACK SN850X 2 TB NVMe M.2 2280",
+      "location": "board M.2 slot under the board heatsink"
+    }
   },
   "geometry": {
-    "schema_version": "1.1.0",
+    "schema_version": "1.2.0",
     "coordinate_system": {
       "origin": "rear-bottom-GPU-side corner of the nominal chassis body",
       "x": "rear to front",
@@ -162,11 +255,11 @@
     "components": [
       {
         "id": "GPU",
-        "label": "ZOTAC RTX 5070 Ti SOLID SFF family",
+        "label": "ZOTAC RTX 5070 Ti SOLID SFF OC",
         "box": {
           "min": [
             8,
-            5,
+            14.4,
             42
           ],
           "size": [
@@ -175,13 +268,13 @@
             115.8
           ]
         },
-        "status": "high-confidence inference",
+        "status": "official dimensions; ~11 mm fan-to-panel gap derived from the 53 mm position-3 slot",
         "uncertainty_mm": [
           3,
           2,
           3
         ],
-        "basis": "telemetry identifies ZOTAC and 300 W; position-3 fit excludes the 55.7 mm SOLID CORE family",
+        "basis": "purchase record + ZOTAC spec sheet; spine at y ≈ 56 mm",
         "cooling_fans": {
           "count": 3,
           "nominal_diameter_mm": 90,
@@ -204,7 +297,7 @@
               58
             ]
           ],
-          "status": "official family fan size; centres simplified for reduced-order geometry"
+          "status": "three 90 mm fans; centres simplified"
         }
       },
       {
@@ -230,37 +323,74 @@
         ]
       },
       {
-        "id": "CPU_COOLER_ENVELOPE",
-        "label": "CPU cooler with existing intake guide",
+        "id": "CPU_COOLER",
+        "label": "Thermalright AXP90-X47 Full Copper + TL-9015R",
+        "box": {
+          "min": [
+            202.5,
+            83,
+            54.8
+          ],
+          "size": [
+            95,
+            47,
+            94.5
+          ]
+        },
+        "status": "official dimensions; centred on the socket area of the board",
+        "uncertainty_mm": [
+          8,
+          2,
+          8
+        ]
+      },
+      {
+        "id": "CPU_DUCT",
+        "label": "Noctua NA-FD1 duct (fan to side grille)",
+        "box": {
+          "min": [
+            204,
+            130,
+            56
+          ],
+          "size": [
+            92,
+            20,
+            92
+          ]
+        },
+        "status": "model confirmed; ~20 mm stack derived from clearance",
+        "uncertainty_mm": [
+          2,
+          3,
+          2
+        ]
+      },
+      {
+        "id": "RAM",
+        "label": "Corsair Vengeance DDR5 2 × 16 GB",
         "box": {
           "min": [
             190,
             83,
-            42
+            160
           ],
           "size": [
-            120,
-            65,
-            120
+            133,
+            35,
+            14
           ]
         },
-        "status": "clearance-bounded envelope; user-corrected placement; guide user-confirmed; cooler model unknown",
+        "status": "typical mini-ITX DIMM edge; height approximately 35 mm",
         "uncertainty_mm": [
           15,
-          2,
+          3,
           15
-        ],
-        "intake_guide": {
-          "path": "CPU-side grille to CPU fan inlet",
-          "status": "installed during all recorded tests",
-          "function": "flow straightening and reduction of lateral inlet bypass/recirculation",
-          "geometry_status": "unmeasured; visual envelope only",
-          "physics_note": "do not assume fully laminar flow without velocity and turbulence measurements"
-        }
+        ]
       },
       {
         "id": "PSU_REFERENCE",
-        "label": "SFX reference envelope",
+        "label": "Corsair SF850 (2024) SFX",
         "box": {
           "min": [
             18,
@@ -273,17 +403,17 @@
             125
           ]
         },
-        "status": "standard-envelope assumption; user-corrected placement; PSU model unknown",
+        "status": "official SFX dimensions; user-corrected placement",
         "uncertainty_mm": [
-          15,
-          5,
-          10
+          8,
+          4,
+          8
         ],
-        "note": "If the installed unit is SFX-L, front-rear depth becomes approximately 130 mm."
+        "note": "92 mm intake fan faces the CPU/PSU-side panel."
       },
       {
         "id": "BOTTOM_FAN",
-        "label": "Official bottom 120 mm position",
+        "label": "Noctua NF-A12x15 PWM · bottom exhaust",
         "box": {
           "min": [
             8,
@@ -296,39 +426,39 @@
             15
           ]
         },
-        "status": "official mount, user-corrected PSU alignment, slim-fan thickness assumed",
+        "status": "official mount; fan and COYUN wire grille confirmed",
         "uncertainty_mm": [
-          8,
-          8,
-          10
+          5,
+          5,
+          3
         ]
       },
       {
         "id": "TOP_CUSTOM_FAN",
-        "label": "Custom internal top exhaust beneath grille",
+        "label": "Noctua NF-A9x14 PWM · top exhaust",
         "box": {
           "min": [
-            8,
-            17,
-            183
+            22,
+            31,
+            184
           ],
           "size": [
-            120,
-            120,
-            15
+            92,
+            92,
+            14
           ]
         },
-        "status": "photo-confirmed internal and cable-tied; user-corrected PSU alignment; 120 x 15 mm envelope assumed",
+        "status": "fan confirmed; cable-tied beneath the top grille, position ±10 mm",
         "uncertainty_mm": [
-          12,
           10,
-          4
+          10,
+          3
         ],
-        "note": "The installed slotted top panel remains above the fan and adds flow resistance."
+        "note": "The slotted top panel above the fan adds flow resistance."
       },
       {
         "id": "CABLE_ZONE",
-        "label": "Cable obstruction zone",
+        "label": "Cable bundle (24-pin, EPS, 12V-2x6)",
         "box": {
           "min": [
             112,
@@ -341,7 +471,7 @@
             92
           ]
         },
-        "status": "porous-zone abstraction",
+        "status": "estimated porous block",
         "uncertainty_mm": [
           25,
           20,
@@ -357,7 +487,7 @@
           1,
           0
         ],
-        "driven_by": "three GPU fans"
+        "driven_by": "three ZOTAC 90 mm fans, ~11 mm behind the slotted panel"
       },
       {
         "id": "CPU_SIDE_INTAKE",
@@ -366,7 +496,7 @@
           -1,
           0
         ],
-        "driven_by": "CPU cooler fan through the installed fan-to-grille intake guide"
+        "driven_by": "TL-9015R through the sealed NA-FD1 duct"
       },
       {
         "id": "PSU_SIDE_INTAKE",
@@ -375,7 +505,7 @@
           -1,
           0
         ],
-        "driven_by": "PSU fan; separate exhaust path"
+        "driven_by": "SF850 92 mm fan (zero-RPM at low load)"
       },
       {
         "id": "BOTTOM_EXHAUST",
@@ -384,7 +514,7 @@
           0,
           -1
         ],
-        "driven_by": "case fan into approximately 20 mm desk plenum"
+        "driven_by": "NF-A12x15 through a wire grille into the ~20 mm desk gap"
       },
       {
         "id": "TOP_EXHAUST",
@@ -393,7 +523,7 @@
           0,
           1
         ],
-        "driven_by": "custom internal fan beneath slotted top grille"
+        "driven_by": "NF-A9x14 beneath the slotted top grille"
       }
     ],
     "photo_evidence": [
@@ -403,7 +533,7 @@
       },
       {
         "reference": "Photo 2",
-        "observation": "White-bladed top fan is inside the chassis beneath the top grille and retained with black cable ties."
+        "observation": "The 92 mm top fan is inside the chassis beneath the top grille and retained with black cable ties."
       },
       {
         "reference": "Photo 3",
@@ -414,7 +544,7 @@
         "observation": "CPU-side panel is highly slotted; low-profile CPU cooler fan is visible behind it."
       }
     ],
-    "modelling_rule": "Known dimensions, fit-bounded inferences and assumptions are kept separate. This is a reduced-order/CFD-preparation geometry, not a manufacturing CAD model."
+    "modelling_rule": "Official dimensions, derived gaps and estimates are kept separate. This is reduced-order / CFD-preparation geometry, not a manufacturing CAD model."
   },
   "headline_metrics": {
     "cpu_only": {
@@ -853,7 +983,76 @@
     "Fan-location scenarios are screening intervals, not physically validated predictions.",
     "System 2 RPM is considered invalid or incorrectly scaled.",
     "No external temperature probes are used; shared-air behaviour remains inside the uncertainty bounds.",
-    "Unknown cooler, PSU and custom-fan dimensions are represented as bounded envelopes, never as exact CAD.",
+    "Cable routing, RAM position and the PSU exhaust path are estimates, not measurements.",
     "Raw logs remain the authoritative source for traceability."
-  ]
+  ],
+  "cfd_inputs": {
+    "heat_sources": [
+      {
+        "id": "GPU",
+        "label": "GPU",
+        "W": 286,
+        "basis": "measured GPU-only mean board power",
+        "path": "into the case air through the card's heatsink",
+        "into_case_air": true
+      },
+      {
+        "id": "CPU",
+        "label": "CPU",
+        "W": 90,
+        "basis": "measured CPU-only mean package power",
+        "path": "into the case air below the top-flow cooler",
+        "into_case_air": true
+      },
+      {
+        "id": "PSU",
+        "label": "PSU losses",
+        "W": 36,
+        "basis": "≈ 8% of ~420 W DC at 92% efficiency (estimate)",
+        "path": "PSU exhaust; direction to confirm",
+        "into_case_air": null
+      },
+      {
+        "id": "BOARD",
+        "label": "Board, RAM, SSD",
+        "W": 20,
+        "basis": "VRM, chipset, DDR5 and NVMe (estimate)",
+        "path": "into the case air",
+        "into_case_air": true
+      }
+    ],
+    "gaps_mm": [
+      {
+        "label": "CPU fan → side grille",
+        "value": 20,
+        "basis": "67 mm clearance − 47 mm cooler, filled by NA-FD1"
+      },
+      {
+        "label": "GPU fans → side panel",
+        "value": 11,
+        "basis": "53 mm slot − 41.6 mm card"
+      },
+      {
+        "label": "Bottom fan → desk",
+        "value": 20,
+        "basis": "Terra feet"
+      },
+      {
+        "label": "PSU fan → side panel",
+        "value": 3,
+        "basis": "SFX body against the panel (estimate)"
+      }
+    ],
+    "air": {
+      "density_kg_m3": 1.16,
+      "cp_J_kgK": 1005,
+      "ambient_C": 26.5
+    },
+    "grille_derating": 0.6,
+    "notes": [
+      "Fan flows are free-air maxima from the manufacturers; real flow through grilles and filters is lower.",
+      "ZOTAC and Corsair do not publish flow for the GPU and PSU fans.",
+      "The slotted panels also let air in and out passively, so fan exhaust is not the only outlet."
+    ]
+  }
 }
