@@ -124,6 +124,7 @@
           <span><small>SESIÓN WINDOWS</small><b data-sc-session>—</b></span>
           <span><small>ENTREGA DEL PAQUETE CON EL PC ENCENDIDO</small><b data-sc-wolpath>—</b></span>
           <span><small>ÚLTIMA REACTIVACIÓN · CAUSA</small><b data-sc-resume>—</b></span>
+          <span><small>ENCHUFE INTELIGENTE · CONSUMO</small><b data-sc-plug>—</b></span>
         </div>
         <ul class="sc-apps" data-sc-apps aria-label="Aplicaciones de ServerCesar">
           <li data-app="claude"><i></i><div><strong>Claude</strong><small data-app-detail>—</small></div></li>
@@ -133,15 +134,15 @@
         </ul>
         <div class="server-actions">
           <div>
-            <small>WAKE-ON-LAN</small>
-            <p>Envía el paquete de encendido al PC a través de depicus.com, como hacías a mano. Tarda uno o dos minutos en arrancar; el estado se actualiza solo mientras tanto.</p>
+            <small>ENCENDIDO REMOTO</small>
+            <p>Envía el paquete Wake-on-LAN y, si el PC sigue apagado, el enchufe inteligente le corta la corriente 10 segundos para que arranque solo. El enchufe nunca corta la corriente si el PC está gastando más de 20 W. Tarda uno o dos minutos; el estado se actualiza solo.</p>
           </div>
           <button class="wake-button" id="sc-wake" type="button" disabled><span>⏻</span> Encender ServerCesar</button>
         </div>
         <div class="server-actions" id="sc-power-row" hidden>
           <div>
             <small>REINICIO Y APAGADO REMOTOS</small>
-            <p>El agente recoge la orden en unos 2 minutos. «Apagar» cierra las aplicaciones y apaga Windows por completo, después de preparar la ruta de encendido. «Encender ServerCesar» sigue disponible aunque el último informe todavía indique que está encendido.</p>
+            <p>El agente recoge la orden en unos 2 minutos. «Apagar» cierra las aplicaciones y apaga Windows por completo. «Encender ServerCesar» sigue disponible aunque el último informe todavía indique que está encendido.</p>
           </div>
           <div class="sc-power-buttons">
             <button class="wake-button reboot-button" id="sc-reboot" type="button" disabled><span>↻</span> Reiniciar</button>

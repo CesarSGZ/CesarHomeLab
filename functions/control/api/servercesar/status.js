@@ -1,6 +1,6 @@
 import { userCan } from "../../../_lib/auth.js";
 import { json, methodNotAllowed } from "../../../_lib/http.js";
-import { appHealth, ensureTables, lastPowerCommand, lastWake, loadConnect, powerStatus, readConfig, readReport, wakeResult, SHUTDOWN_ENABLED, REBOOT_COOLDOWN_MS, REPORT_FRESH_MS, WAKE_COOLDOWN_MS } from "../../../_lib/servercesar.js";
+import { appHealth, ensureTables, lastPowerCommand, lastPowerOn, lastWake, loadConnect, powerStatus, readConfig, readPlug, readReport, wakeResult, PLUG_FRESH_MS, SHUTDOWN_ENABLED, REBOOT_COOLDOWN_MS, REPORT_FRESH_MS, WAKE_COOLDOWN_MS } from "../../../_lib/servercesar.js";
 
 // GET: ServerCesar power status, app health from its agent, last wake and reboot/shutdown, and (for the owner) its configuration.
 export async function onRequest(context) {
@@ -17,6 +17,8 @@ export async function onRequest(context) {
   const power = await powerStatus(db, config, await loadConnect(), now, report?.receivedAt);
   const wake = await lastWake(db);
   const command = await lastPowerCommand(db);
+  const plug = await readPlug(db);
+  const powerOn = await lastPowerOn(db);
   const apps = report ? Object.fromEntries(Object.entries(report.apps || {}).map(([name, app]) => [name, { ...app, health: appHealth(app) }])) : {};
   return json({
     ok: true,
@@ -25,6 +27,8 @@ export async function onRequest(context) {
     apps,
     lastResume: report?.lastResume || null,
     shutdownEnabled: SHUTDOWN_ENABLED,
+    plug: plug ? { fresh: now - plug.receivedAt < PLUG_FRESH_MS, output: plug.output, apower: plug.apower, receivedAt: plug.receivedAt } : null,
+    lastPowerOn: powerOn ? { by: powerOn.requested_by, at: powerOn.requested_at, completedAt: powerOn.completed_at, status: powerOn.status, result: powerOn.result } : null,
     lastWake: wake ? { by: wake.by_user, at: wake.at, ok: Boolean(wake.ok), detail: wake.detail, outcome: wakeResult(report, wake, now) } : null,
     lastPower: command ? { action: command.type, by: command.requested_by, at: command.requested_at, claimedAt: command.claimed_at, completedAt: command.completed_at, status: command.status, result: command.result } : null,
     cooldownUntil: wake ? wake.at + WAKE_COOLDOWN_MS : 0,
