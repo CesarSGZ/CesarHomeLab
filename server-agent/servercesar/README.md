@@ -48,3 +48,9 @@ The user could not wake the PC after the production shutdown on 18 October and r
 
 20 October, subsequent recovery: the owner reported the cable had been moved to a router port disabled by the ISP. Ethernet subsequently returned with the expected DHCP address and 1 Gbps link; packet delivery from the external relay and immediate router preparation passed. The gateway retained its hardware address after the ISP intervention; its replacement SSH key was pinned. At the owner's request shutdown was re-enabled without another S5 test. Agent 1.5.2 now additionally refuses shutdown if the physical adapter matching the private WOL MAC has no live link; Wi-Fi connectivity alone is insufficient. The previous cold-boot test remains the S5 evidence; long-delay and router-restart recovery have not been re-tested.
 
+
+## Smart plug (remote power-on)
+
+A Shelly Plug S Gen3 feeds ServerCesar. `shelly-plug.js` runs on the plug: every minute it reports relay state and power draw to `/api/agent/servercesar-plug` and runs a queued `poweron` (a 10 s power cut; refused above 20 W). The plug is set to turn on after a power outage, to switch itself back on 30 s after being turned off, and has its LED and setup access point off. `install-shelly.ps1` (run elevated on ServerCesar) uploads the script and stores the plug token, an HMAC of the agent token, in the plug KVS. Read the last poll result with `Script.Eval` (`JSON.stringify(last)`).
+
+During LaLiga match blocks some Spanish ISPs (Movistar included) drop traffic to the Cloudflare IPs that serve `cesar-solla.pages.dev`; neither the agent nor the plug can reach the site until the block lifts.
