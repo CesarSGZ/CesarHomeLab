@@ -86,10 +86,28 @@ def descargar_cartera():
     raise SystemExit("No hay ninguna cartera objetivo descargable en GitHub (¿ha corrido ya el cálculo semanal?).")
 
 
+def descargar(tickers, **kw):
+    """yf.download con reintentos: Yahoo a veces falla un momento (p. ej. 'database is locked' en su caché) y
+    devuelve tablas vacías; sin esto un fallo puntual tumbaba la foto o el lunes entero."""
+    import time
+    import yfinance as yf
+    datos = None
+    for intento in range(4):
+        try:
+            datos = yf.download(tickers, progress=False, **kw)
+            cierre = datos["Close"] if "Close" in datos else datos.xs("Close", axis=1, level=1)
+            if len(datos) and not cierre.isna().all().any():
+                return datos
+        except Exception as e:  # noqa: BLE001
+            log(f"Yahoo falló ({type(e).__name__}), reintento {intento + 1}/3")
+        time.sleep(15 * (intento + 1))
+    return datos
+
+
 def precios_eur(tickers):
     """Último cierre (divisa local) y euros por unidad de divisa, con Yahoo (solo para calcular cuántas acciones)."""
     import yfinance as yf
-    datos = yf.download(tickers, period="5d", auto_adjust=False, progress=False, group_by="ticker", threads=True)
+    datos = descargar(tickers, period="5d", auto_adjust=False, group_by="ticker", threads=True)
     precio = {}
     for tk in tickers:
         try:
@@ -99,7 +117,7 @@ def precios_eur(tickers):
             precio[tk] = math.nan
     divisas = {d for _, d in MERCADOS.values()} - {"EUR"}
     fx = {"EUR": 1.0}
-    cambios = yf.download([f"EUR{d}=X" for d in divisas], period="5d", progress=False, group_by="ticker")
+    cambios = descargar([f"EUR{d}=X" for d in divisas], period="5d", group_by="ticker")
     for d in divisas:
         try:
             fx[d] = 1 / float(cambios[f"EUR{d}=X"]["Close"].dropna().iloc[-1])
@@ -131,7 +149,7 @@ def guardar_libro(libro):
 def caida_sp_hoy():
     """Caída del S&P 500 (rentabilidad total en EUR) desde su máximo de 1 año, como en el backtest del plan."""
     import yfinance as yf
-    x = yf.download(["^SP500TR", "EURUSD=X"], period="2y", progress=False)["Close"].ffill().dropna()
+    x = descargar(["^SP500TR", "EURUSD=X"], period="2y")["Close"].ffill().dropna()
     return float(PL.caida_sp(x["^SP500TR"] / x["EURUSD=X"]).iloc[-1])
 
 
@@ -292,7 +310,7 @@ def foto(puerto, enviar=True, salida=None):
     pendientes = len(ib.openTrades())
     ib.disconnect()
     divisas = sorted({p["divisa"] for p in posiciones} | {r[2] for r in realizadas_nuevas} | {"USD"})
-    cambios = yf.download(["^SP500TR"] + [f"EUR{d}=X" for d in divisas if d != "EUR"], period="10d", progress=False)["Close"].ffill()
+    cambios = descargar(["^SP500TR"] + [f"EUR{d}=X" for d in divisas if d != "EUR"], period="10d")["Close"].ffill()
     eur = {"EUR": 1.0, **{d: 1 / float(cambios[f"EUR{d}=X"].dropna().iloc[-1]) for d in divisas if d != "EUR"}}
     sp_eur = float(cambios["^SP500TR"].dropna().iloc[-1] * eur["USD"])
     for execid, sim, div, pnl in realizadas_nuevas:
