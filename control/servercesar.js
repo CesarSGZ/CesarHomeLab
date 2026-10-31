@@ -104,7 +104,8 @@
     // WOL is harmless while awake. A cached heartbeat must never prevent recovery after shutdown.
     button.disabled = !data.canWake || p.state === 'unconfigured' || Date.now() < cooldownUntil;
     $('#sc-power-row').hidden = !data.canWake;
-    const powerBlocked = !data.canWake || !data.agent?.fresh || Boolean(phase?.busy || phase?.powerUnavailable) || Date.now() < (data.powerCooldownUntil || 0);
+    // Owner's choice: reboot and shutdown stay available even while the agent is silent; only the cooldown blocks them.
+    const powerBlocked = !data.canWake || Date.now() < (data.powerCooldownUntil || 0);
     // Never offer "Apagar" unless the agent has just proved a magic packet from the Internet reaches the PC.
     $('#sc-reboot').disabled = powerBlocked;
     // S5 recovery verified; still require a fresh agent and recent packet-delivery check.
@@ -167,7 +168,7 @@
     try {
       const response = await fetch('/control/api/servercesar/power', {method: 'POST', credentials: 'same-origin', headers: {'content-type': 'application/json', 'x-csrf-token': csrf}, body: JSON.stringify({action})});
       const data = await response.json().catch(() => ({}));
-      if (response.ok && data.ok) { fastUntil = Date.now() + 4 * 60e3; feedback('Orden enviada. El agente la recoge en unos 2 minutos…', 'success'); }
+      if (response.ok && data.ok) { fastUntil = Date.now() + 4 * 60e3; feedback(data.agentOffline ? 'Orden en cola. El agente no da señal ahora mismo (¿bloqueo de Movistar?): la ejecutará si vuelve en los próximos 15 minutos.' : 'Orden enviada. El agente la recoge en unos 2 minutos…', 'success'); }
       else if (data.error === 'cooldown') feedback('Ya se pidió un reinicio o apagado hace menos de 3 minutos. Espera un momento.', 'error');
       else if (data.error === 'agent_offline') feedback('El agente de ServerCesar no da señal, así que no puede recibir la orden.', 'error');
       else if (data.error === 'shutdown_disabled') feedback('«Apagar» está desactivado hasta que el encendido remoto esté comprobado.', 'error');

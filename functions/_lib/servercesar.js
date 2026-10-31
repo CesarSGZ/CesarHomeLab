@@ -153,11 +153,13 @@ export async function lastPowerCommand(db) {
   return db.prepare("SELECT id, type, status, requested_by, requested_at, claimed_at, completed_at, result FROM servercesar_commands WHERE type IN ('reboot', 'shutdown') ORDER BY requested_at DESC LIMIT 1").first();
 }
 
-/** Queues a reboot or shutdown for the agent. Returns {ok, id} or {ok: false, error}. */
+/** Queues a reboot or shutdown for the agent. Returns {ok, id, agentOffline} or {ok: false, error}. */
 export async function queuePowerCommand(db, action, username, now = Date.now()) {
   if (!POWER_ACTIONS.includes(action)) return { ok: false, error: "invalid_action" };
+  // Owner's decision (31/10/2026): never refuse because the agent is silent (e.g. a LaLiga IP block);
+  // the order waits in the queue and expires after REBOOT_STALE_MS if the agent does not pick it up.
   const report = await readReport(db);
-  if (!report || now - report.receivedAt > REPORT_FRESH_MS) return { ok: false, error: "agent_offline" };
+  const agentOffline = !report || now - report.receivedAt > REPORT_FRESH_MS;
   // Shutdown is allowed even when remote power-on is not guaranteed: the owner chose this on
   // 27/10/2026 (the current router cannot keep the PC reachable while it is off). The panel warns.
   // A packet that reaches the PC while it is on did not wake it from sleep or hibernation
@@ -167,7 +169,7 @@ export async function queuePowerCommand(db, action, username, now = Date.now()) 
   if (previous && now - previous.requested_at < REBOOT_COOLDOWN_MS) return { ok: false, error: "cooldown", retryAt: previous.requested_at + REBOOT_COOLDOWN_MS };
   const id = crypto.randomUUID();
   await db.prepare("INSERT INTO servercesar_commands (id, type, status, requested_by, requested_at) VALUES (?, ?, 'queued', ?, ?)").bind(id, action, username, now).run();
-  return { ok: true, id };
+  return { ok: true, id, agentOffline };
 }
 
 /** Records the result the agent sends back, expires forgotten commands and hands over the oldest queued one. */

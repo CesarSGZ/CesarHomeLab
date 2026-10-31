@@ -81,8 +81,9 @@ test('the ServerCesar agent token is separate and must be long', () => {
 
 test('reboot: needs a live agent, is handed out once, has a cooldown and records the result', async () => {
   const now = 1_000_000_000;
-  assert.equal((await queuePowerCommand(fakeDb(), 'reboot', 'CesarVapor', now)).error, 'agent_offline');
-  assert.equal((await queuePowerCommand(fakeDb({reportAt: now - 400_000}), 'reboot', 'CesarVapor', now)).error, 'agent_offline');
+  // a silent agent does not block the order (owner's decision): it waits in the queue
+  assert.equal((await queuePowerCommand(fakeDb(), 'reboot', 'CesarVapor', now)).agentOffline, true);
+  assert.equal((await queuePowerCommand(fakeDb({reportAt: now - 400_000}), 'reboot', 'CesarVapor', now)).agentOffline, true);
   const db = fakeDb({reportAt: now - 10_000});
   const queued = await queuePowerCommand(db, 'reboot', 'CesarVapor', now);
   assert.equal(queued.ok, true);
@@ -107,8 +108,8 @@ test('"Apagar" is allowed even when the Internet power-on route is not verified 
   assert.equal((await queuePowerCommand(fakeDb({reportAt: now, wolPath: null}), 'shutdown', 'CesarVapor', now)).ok, true);
   assert.equal((await queuePowerCommand(fakeDb({reportAt: now, wolPath: {ok: false, at: now}}), 'shutdown', 'CesarVapor', now)).ok, true);
   assert.equal((await queuePowerCommand(fakeDb({reportAt: now, wolPath: {ok: true, at: now - 13 * 3600_000}}), 'shutdown', 'CesarVapor', now)).ok, true);
-  // still needs a connected agent to receive the order
-  assert.equal((await queuePowerCommand(fakeDb({reportAt: now - 400_000}), 'shutdown', 'CesarVapor', now)).error, 'agent_offline');
+  // a silent agent does not block it either: the order waits in the queue
+  assert.equal((await queuePowerCommand(fakeDb({reportAt: now - 400_000}), 'shutdown', 'CesarVapor', now)).ok, true);
   // a reboot comes back on its own, so it does not need the route
   assert.equal((await queuePowerCommand(fakeDb({reportAt: now, wolPath: null}), 'reboot', 'CesarVapor', now)).ok, true);
 });

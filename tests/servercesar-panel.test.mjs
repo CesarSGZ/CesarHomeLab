@@ -52,7 +52,8 @@ test('accepted shutdown stops saying shutting down before the five-minute report
     at: now - 150e3, completedAt: now - 90e3}});
   assert.equal(p.get('[data-sc-state]').textContent, 'APAGADO SIN CONFIRMAR');
   assert.equal(p.get('#sc-wake').disabled, false);
-  assert.equal(p.get('#sc-shutdown').disabled, true);
+  // owner's choice: reboot/shutdown stay available, only the cooldown disables them
+  assert.equal(p.get('#sc-shutdown').disabled, false);
 });
 
 test('new boot clears the shutdown phase and shows the PC online again', async () => {
