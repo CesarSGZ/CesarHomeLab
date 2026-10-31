@@ -255,6 +255,79 @@ function renderThermalLedger(experiments){
   }));
 }
 
+function renderThermalFans(fans){
+  const list=document.getElementById('tl-fans');
+  const gpuFans=fans.filter(fan=>fan.group==='GPU');
+  const rows=[
+    ...(gpuFans.length?[{position:'GPU side',model:`${gpuFans.length} × ZOTAC 90 mm (on the card)`,orientation:'intake'}]:[]),
+    ...fans.filter(fan=>fan.group!=='GPU').map(fan=>({position:{CPU:'CPU side',PSU:'PSU side'}[fan.group]||(fan.id.startsWith('TOP')?'Top':'Bottom'),...fan}))
+  ];
+  const maxFlow=Math.max(...rows.map(row=>row.max_flow_m3h||0));
+  list.replaceChildren(...rows.map(row=>{
+    const item=makeElement('div',`tl-fan ${row.orientation==='exhaust'?'out':'in'}`);
+    const name=makeElement('div','tl-fan-name');
+    name.append(makeElement('strong',null,row.model),makeElement('small',null,`${row.position.toUpperCase()} · ${row.orientation==='exhaust'?'OUT':'IN'}${row.size_mm?` · ${row.size_mm.join(' × ')} mm`:''}`));
+    const flow=row.max_flow_m3h
+      ?thermalBar('',row.max_flow_m3h,maxFlow,`${row.max_flow_m3h.toFixed(0)} m³/h`)
+      :makeElement('p','tl-fan-unknown','Flow not published');
+    if(row.max_pressure_mmH2O)flow.title=`Max static pressure ${row.max_pressure_mmH2O} mm H₂O · ${row.max_rpm} rpm`;
+    item.append(name,flow);
+    return item;
+  }));
+}
+
+function renderThermalHeat(sources){
+  const heat=document.getElementById('tl-heat');
+  const total=sources.reduce((sum,source)=>sum+source.W,0);
+  const bar=makeElement('div','tl-heat-bar');
+  const legend=makeElement('ul','tl-heat-legend');
+  sources.forEach((source,index)=>{
+    const segment=makeElement('i',`h${index}`);
+    segment.style.flexGrow=String(source.W);
+    segment.title=`${source.label}: ${source.W} W · ${source.basis}`;
+    bar.append(segment);
+    const item=makeElement('li',`h${index}`);
+    item.append(makeElement('b',null,`${source.W} W`),document.createTextNode(` ${source.label}${source.into_case_air===null?' *':''}`));
+    legend.append(item);
+  });
+  const head=makeElement('p','tl-heat-total');
+  head.append(makeElement('strong',null,`≈ ${total} W`),document.createTextNode(' in total, almost all of it into the case air'));
+  heat.replaceChildren(head,bar,legend);
+}
+
+function renderThermalBalance(cfd,fans){
+  const {density_kg_m3:rho,cp_J_kgK:cp}=cfd.air;
+  const power=cfd.heat_sources.filter(source=>source.into_case_air).reduce((sum,source)=>sum+source.W,0);
+  const exhaust=fans.filter(fan=>fan.orientation==='exhaust').reduce((sum,fan)=>sum+(fan.max_flow_m3h||0),0);
+  const realistic=exhaust*cfd.grille_derating;
+  const rise=flow=>power/(rho*cp*flow/3600);
+  const width=560,height=230,left=44,right=16,top=16,bottom=40;
+  const xMax=200,yMax=40;
+  const x=flow=>left+flow/xMax*(width-left-right);
+  const y=delta=>top+(1-Math.min(delta,yMax)/yMax)*(height-top-bottom);
+  const points=[];
+  for(let flow=power/(rho*cp*yMax)*3600;flow<=xMax;flow+=2)points.push(`${x(flow).toFixed(1)},${y(rise(flow)).toFixed(1)}`);
+  const ticksX=[0,50,100,150,200].map(flow=>`<line x1="${x(flow)}" y1="${height-bottom}" x2="${x(flow)}" y2="${top}" class="tl-b-grid"/><text x="${x(flow)}" y="${height-bottom+16}" text-anchor="middle" class="tl-b-axis">${flow}</text>`).join('');
+  const ticksY=[0,10,20,30,40].map(delta=>`<line x1="${left}" y1="${y(delta)}" x2="${width-right}" y2="${y(delta)}" class="tl-b-grid"/><text x="${left-8}" y="${y(delta)+4}" text-anchor="end" class="tl-b-axis">${delta}</text>`).join('');
+  const marker=(flow,label)=>`<line x1="${x(flow)}" y1="${y(rise(flow))}" x2="${x(flow)}" y2="${height-bottom}" class="tl-b-mark"/><circle cx="${x(flow)}" cy="${y(rise(flow))}" r="5" class="tl-b-dot"/><text x="${x(flow)+8}" y="${y(rise(flow))-12}" class="tl-b-label">${label}: +${rise(flow).toFixed(0)} °C</text>`;
+  const figure=document.getElementById('tl-balance-chart');
+  figure.innerHTML=`<svg viewBox="0 0 ${width} ${height}" role="img" aria-label="Air temperature rise against total airflow for ${power} W"><g>${ticksX}${ticksY}</g><polyline points="${points.join(' ')}" class="tl-b-curve"/>${marker(realistic,'Through grilles')}${marker(exhaust,'Fans flat out')}<text x="${(left+width-right)/2}" y="${height-4}" text-anchor="middle" class="tl-b-axis">airflow through the case, m³/h</text><text x="12" y="${top+2}" class="tl-b-axis" transform="rotate(-90 12 ${top+2})" text-anchor="end">air warms by, °C</text></svg>`;
+  document.getElementById('tl-balance-text').innerHTML=`To carry <b>${power} W</b> out, every m³/h of air can take only ~${(rho*cp/3600).toFixed(2)} W per degree. The two exhaust fans move at most <b>${exhaust.toFixed(0)} m³/h</b> in free air, so the case air ends up at least <b>+${rise(exhaust).toFixed(0)} °C</b> over the room; behind grilles (~${Math.round(cfd.grille_derating*100)}% of that flow) it is closer to <b>+${rise(realistic).toFixed(0)} °C</b>. The slotted panels also vent passively, which the CFD will quantify.`;
+}
+
+function renderThermalCfd(cfd,fans){
+  renderThermalFans(fans);
+  renderThermalHeat(cfd.heat_sources);
+  document.getElementById('tl-gaps').replaceChildren(...cfd.gaps_mm.map(gap=>{
+    const item=makeElement('li');
+    item.title=gap.basis;
+    item.append(makeElement('b',null,`${gap.value} mm`),makeElement('span',null,gap.label));
+    return item;
+  }));
+  renderThermalBalance(cfd,fans);
+  document.getElementById('tl-cfd-note').textContent=`* PSU losses may leave through the PSU's own exhaust; its direction is still to confirm. ${cfd.notes.join(' ')}`;
+}
+
 function renderThermalLab(data){
   const ambient=data.project.ambient_C.toFixed(1);
   const models=data.model_lineage||[];
@@ -267,11 +340,12 @@ function renderThermalLab(data){
   renderThermalScores(models);
   renderThermalRanking(data.configuration_screening||[]);
   renderThermalLedger(data.experimental_campaign||[]);
+  if(data.cfd_inputs)renderThermalCfd(data.cfd_inputs,data.configuration.fans);
 }
 
 async function loadThermalLab(){
   try{
-    const response=await fetch('/control/data/terra-thermal-summary.json?v=20260805o',{credentials:'same-origin',headers:{accept:'application/json'}});
+    const response=await fetch('/control/data/terra-thermal-summary.json?v=20261031b',{credentials:'same-origin',headers:{accept:'application/json'}});
     if(!response.ok)throw new Error('thermal_data_unavailable');
     renderThermalLab(await response.json());
   }catch{
