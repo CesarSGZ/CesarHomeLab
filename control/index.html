@@ -11,7 +11,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,300..900&family=DM+Mono:wght@300;400;500&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="control.css?v=20261031thermal">
+  <link rel="stylesheet" href="control.css?v=20260909chat">
   <link rel="stylesheet" href="auth-overrides.css?v=20260728a">
   <link rel="stylesheet" href="refinement.css?v=20260909chat">
   <link rel="stylesheet" href="github-galaxy.css?v=20260928atlas">
@@ -20,7 +20,6 @@
   <link rel="stylesheet" href="backtest.css?v=20261012n">
   <link rel="stylesheet" href="/theme.css?v=20261001contrast">
   <link rel="stylesheet" href="flight-control.css?v=20261014agent">
-  <link rel="stylesheet" href="thermal.css?v=20261031a">
 </head>
 <body class="access-pending" data-workspace>
   <canvas id="control-grid" aria-hidden="true"></canvas>
@@ -90,13 +89,13 @@
           </div>
         </article>
         <article class="module module-wide thermal-summary" data-requires="thermal:read" data-accent="violet">
-          <header><span>THERMAL LAB</span><small>PROJECT / 03</small></header>
+          <header><span>TERRA POWERPLANT LAB</span><small>PROJECT / 03</small></header>
           <div class="thermal-summary-body">
             <div class="thermal-mark"><i></i><i></i><i></i><b>TL</b></div>
             <div>
-              <p>GPU MODEL VALIDATED · NEXT: A/B TEST</p>
-              <strong>How hot does a 10-litre PC get?</strong>
-              <small>Measure → model → rank airflow changes before building them.</small>
+              <p>MODEL STATUS · GPU VALIDATED</p>
+              <strong>357 W integrated thermal test point</strong>
+              <small>Fractal Terra · spine 3 · CPU/GPU transient modelling</small>
             </div>
             <button class="module-action" data-open="thermal">Open laboratory →</button>
           </div>
@@ -206,160 +205,132 @@
       <p class="github-feedback" id="github-feedback" role="status" aria-live="polite"></p>
     </section>
 
-    <section class="view thermal-view" id="thermal" data-title="Thermal Lab" data-code="04">
-      <header class="tl-hero">
-        <p class="eyebrow"><span></span> Thermal Lab · Fractal Terra</p>
-        <h2>How hot does a 10-litre PC get, <em>and what would actually cool it?</em></h2>
-        <p class="tl-lead">I load the CPU and GPU in controlled tests, turn the measurements into a small physical model, and use that model to rank airflow changes before building any of them. It is the same loop used for engine-bay thermal integration, at desk scale.</p>
-        <ul class="tl-chips" aria-label="Lab status">
-          <li><b id="tl-test-count">7</b> load tests</li>
-          <li><b id="tl-model-count">4</b> models built</li>
-          <li><b id="tl-valid-count">1</b> validated</li>
-          <li id="tl-config">CFG-000 baseline · 26.5 °C room</li>
-        </ul>
-      </header>
+    <section class="view" id="thermal" data-title="Thermal Lab" data-code="04">
+      <div class="simple-heading thermal-heading">
+        <p class="eyebrow"><span></span> Propulsion integration analogue</p>
+        <h2>Terra Powerplant Lab.</h2>
+        <p>A compact-PC demonstrator for transient thermal modelling, system integration, configuration control and evidence-led airflow decisions.</p>
+      </div>
 
-      <ol class="tl-steps" aria-label="Project progress">
-        <li class="done"><i aria-hidden="true">✓</i><strong>Measure</strong><p>Load tests logging temperature, power and fan speed.</p></li>
-        <li class="done"><i aria-hidden="true">✓</i><strong>Model</strong><p>Fit a heat model, then test it on data it never saw.</p></li>
-        <li class="done"><i aria-hidden="true">✓</i><strong>Rank ideas</strong><p>Predict how much each airflow change could help.</p></li>
-        <li class="next"><i aria-hidden="true">4</i><strong>Prove it</strong><p>Build the best idea and A/B test it on the real PC.</p></li>
-        <li><i aria-hidden="true">5</i><strong>CFD</strong><p>Simulate the airflow once the inputs are trustworthy.</p></li>
-      </ol>
+      <div class="thermal-status">
+        <span><i></i> DATASET LOADED</span>
+        <span id="thermal-config">CFG-000 · SPINE 3</span>
+        <span id="thermal-ambient">26.5 °C AMBIENT</span>
+      </div>
 
-      <section class="tl-block" aria-labelledby="tl-machine-title">
-        <header class="tl-block-head"><span>01</span><div><h3 id="tl-machine-title">The machine and what was measured</h3><p>Compact case, two big heat sources, seven fans. Every test starts at idle, applies a fixed load, then lets the PC cool down.</p></div></header>
-        <div class="tl-machine">
-          <article class="thermal-panel thermal-geometry-panel">
-            <div class="thermal-view-controls" aria-label="3D camera views">
-              <button type="button" class="active" data-thermal-camera="iso" aria-pressed="true">Isometric</button>
-              <button type="button" data-thermal-camera="gpu" aria-pressed="false">GPU side</button>
-              <button type="button" data-thermal-camera="board" aria-pressed="false">Board side</button>
-              <button type="button" data-thermal-camera="top" aria-pressed="false">Top</button>
-              <button type="button" data-thermal-explode aria-pressed="false">Exploded view</button>
-            </div>
-            <div class="thermal-3d-shell" id="thermal-3d-shell">
-              <canvas id="thermal-3d-canvas" aria-label="Interactive 3D model of the Fractal Terra layout"></canvas>
-              <div class="thermal-3d-badge">343 × 153 × 198 MM · 10.4 L</div>
-              <div class="thermal-3d-legend" aria-label="How sure each dimension is">
-                <span><i class="known"></i>Measured / official</span>
-                <span><i class="inferred"></i>Inferred</span>
-                <span><i class="assumed"></i>Assumed</span>
-              </div>
-              <div class="thermal-flow-key" aria-label="Airflow legend"><span><i></i>AIR IN</span><span><i></i>AIR OUT</span></div>
-              <div class="thermal-component-readout" id="thermal-component-readout" aria-live="polite">
-                <small>SELECT A COMPONENT</small><strong>Drag to orbit · wheel to zoom</strong>
-              </div>
-              <p class="thermal-3d-fallback" id="thermal-3d-fallback" hidden>WebGL is unavailable. The numbers alongside still describe the machine.</p>
-            </div>
-            <p class="tl-note">Air enters through both slotted sides (GPU, CPU and PSU fans) and leaves through the top and bottom fans. Arrows show direction only, not speed.</p>
-          </article>
-          <div class="tl-side">
-            <dl class="tl-specs">
-              <div><dt>Case</dt><dd>Fractal Terra · spine position 3</dd></div>
-              <div><dt>CPU</dt><dd>Ryzen 7 9800X3D · low-profile cooler</dd></div>
-              <div><dt>GPU</dt><dd>RTX 5070 Ti · ZOTAC SFF, 3 fans</dd></div>
-              <div><dt>Board</dt><dd>Gigabyte B850I AORUS PRO</dd></div>
-              <div><dt>Room</dt><dd id="tl-ambient">26.5 °C, held fixed</dd></div>
-            </dl>
-            <div class="tl-loads" id="tl-loads" aria-label="Measured load tests"><p class="tl-loading">Loading measurements…</p></div>
+      <div class="thermal-guide" aria-label="How to read the thermal laboratory">
+        <header><span>HOW TO READ THIS PAGE</span><small>MEASURE → MODEL → DECIDE</small></header>
+        <div>
+          <article><b>01</b><strong>Measure</strong><p>CSV logs capture temperature, power and fan response during controlled workloads.</p></article>
+          <article><b>02</b><strong>Identify a model</strong><p>The model learns the measured heating and cooling dynamics rather than assuming a catalogue value.</p></article>
+          <article><b>03</b><strong>Screen ideas</strong><p>Candidate modifications are ranked before spending time physically rebuilding the case.</p></article>
+          <article><b>04</b><strong>Validate</strong><p>A prediction is accepted only when an independent A/B test confirms its direction and magnitude.</p></article>
+        </div>
+      </div>
+
+      <div class="thermal-metrics" aria-label="Measured thermal headline metrics">
+        <article><small>CPU · ISOLATED-LOAD MEAN</small><strong id="thermal-cpu">—</strong><span id="thermal-cpu-power">—</span><p>Mean processor temperature while only the CPU workload is active.</p></article>
+        <article><small>GPU · ISOLATED-LOAD MEAN</small><strong id="thermal-gpu">—</strong><span id="thermal-gpu-power">—</span><p>Mean graphics-card temperature during its isolated test. This is not the peak.</p></article>
+        <article><small>POWER · COMBINED LOAD</small><strong id="thermal-power">—</strong><span>CPU + GPU simultaneously</span><p>Mean joint chip power ultimately dissipated as heat during the most demanding test.</p></article>
+        <article><small>VRM · MAXIMUM TEMPERATURE</small><strong id="thermal-vrm">—</strong><span>Motherboard power-stage sensor</span><p>Highest measured temperature in the regulators supplying the processor.</p></article>
+      </div>
+
+      <div class="thermal-grid">
+        <article class="thermal-panel thermal-geometry-panel">
+          <header><span>GEOMETRY / SPINE 3</span><small>REDUCED-ORDER MODEL</small></header>
+          <div class="thermal-view-controls" aria-label="3D camera views">
+            <button type="button" class="active" data-thermal-camera="iso" aria-pressed="true">Isometric</button>
+            <button type="button" data-thermal-camera="gpu" aria-pressed="false">GPU side</button>
+            <button type="button" data-thermal-camera="board" aria-pressed="false">Board side</button>
+            <button type="button" data-thermal-camera="top" aria-pressed="false">Top</button>
+            <button type="button" data-thermal-explode aria-pressed="false">Exploded view</button>
           </div>
-        </div>
-      </section>
-
-      <section class="tl-block" aria-labelledby="tl-model-title">
-        <header class="tl-block-head"><span>02</span><div><h3 id="tl-model-title">How the heat is modelled</h3><p>Not a black box and not a full simulation: a small thermal circuit with four physical numbers.</p></div></header>
-        <div class="tl-model">
-          <div class="tl-model-main">
-            <figure class="tl-circuit">
-              <svg viewBox="0 0 640 236" role="img" aria-labelledby="tl-circuit-title">
-                <title id="tl-circuit-title">Two-node thermal network: power heats the chip, heat flows through the cooler to the room air.</title>
-                <defs><marker id="tl-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0L10 5L0 10z" class="tl-c-hot-fill"/></marker></defs>
-                <line x1="16" y1="86" x2="94" y2="86" class="tl-c-hot" marker-end="url(#tl-arrow)"/>
-                <text x="16" y="66" class="tl-c-label">Heat in</text>
-                <text x="16" y="114" class="tl-c-sub">power (W)</text>
-                <path d="M180 86H200l6-12 12 24 12-24 12 24 12-24 12 24 12-24 6 12H300" class="tl-c-wire"/>
-                <text x="242" y="56" text-anchor="middle" class="tl-c-label">R₁</text>
-                <text x="242" y="126" text-anchor="middle" class="tl-c-sub">chip → cooler</text>
-                <path d="M380 86H400l6-12 12 24 12-24 12 24 12-24 12 24 12-24 6 12H560" class="tl-c-wire tl-c-fan"/>
-                <text x="442" y="56" text-anchor="middle" class="tl-c-label">R₂</text>
-                <text x="442" y="126" text-anchor="middle" class="tl-c-sub tl-c-cool">fan speed sets it</text>
-                <path d="M560 86V200" class="tl-c-wire"/>
-                <path d="M140 126V156M124 156H156M124 164H156M140 164V200" class="tl-c-wire"/>
-                <path d="M340 126V156M324 156H356M324 164H356M340 164V200" class="tl-c-wire"/>
-                <text x="166" y="165" class="tl-c-sub">C₁ stores heat</text>
-                <text x="366" y="165" class="tl-c-sub">C₂ stores heat</text>
-                <path d="M100 200H612" class="tl-c-room"/>
-                <text x="612" y="228" text-anchor="end" class="tl-c-label tl-c-cool">Room air · 26.5 °C</text>
-                <circle cx="140" cy="86" r="40" class="tl-c-node tl-c-node-hot"/>
-                <text x="140" y="91" text-anchor="middle" class="tl-c-node-text">Chip</text>
-                <circle cx="340" cy="86" r="40" class="tl-c-node"/>
-                <text x="340" y="84" text-anchor="middle" class="tl-c-node-text">Cooler</text>
-                <text x="340" y="103" text-anchor="middle" class="tl-c-sub">+ air</text>
-              </svg>
-            </figure>
-            <p><b>Read it like water tanks.</b> Power pours heat into the chip and it drains through the cooler to the room. The tanks (C) set how fast temperatures rise and fall; the pipes (R) set where they settle. Faster fans widen the last pipe.</p>
-            <ol class="tl-method">
-              <li><b>1 · Fit</b>the four numbers to one test.</li>
-              <li><b>2 · Predict</b>a different test without re-fitting.</li>
-              <li><b>3 · Trust</b>it only if the prediction lands close.</li>
-            </ol>
+          <div class="thermal-3d-shell" id="thermal-3d-shell">
+            <canvas id="thermal-3d-canvas" aria-label="Interactive 3D reduced-order geometry of the Fractal Terra"></canvas>
+            <div class="thermal-3d-badge">343 × 153 × 198 MM · SPINE 3</div>
+            <div class="thermal-3d-legend" aria-label="Geometry confidence legend">
+              <span><i class="known"></i>Official / measured</span>
+              <span><i class="inferred"></i>Fit-bounded inference</span>
+              <span><i class="assumed"></i>Assumed envelope</span>
+            </div>
+            <div class="thermal-flow-key" aria-label="Airflow legend"><span><i></i>INTAKE</span><span><i></i>EXHAUST</span></div>
+            <div class="thermal-component-readout" id="thermal-component-readout" aria-live="polite">
+              <small>SELECT A COMPONENT</small><strong>Drag to orbit · wheel to zoom</strong>
+            </div>
+            <p class="thermal-3d-fallback" id="thermal-3d-fallback" hidden>WebGL is unavailable. The engineering data remains accessible in the panels alongside the viewer.</p>
           </div>
-          <figure class="tl-plot">
-            <figcaption><strong>The proof: a test the GPU model never saw</strong><span><i class="tl-k-measured"></i>Measured</span><span><i class="tl-k-model"></i>Prediction</span></figcaption>
-            <div class="tl-plot-crop"><img src="/control/assets/thermal/gpu_physical_two_node_validation.png" alt="GPU validation run: measured temperature (solid) and model prediction (dashed) overlap closely through heat-up and cool-down." loading="lazy"></div>
-            <p>Load on at 15 s, off at 60 s. The prediction follows the heat-up and the cool-down; it is about 3 °C off on average. <a href="/control/assets/thermal/gpu_physical_two_node_validation.png" target="_blank" rel="noopener">Full plot ↗</a></p>
-          </figure>
+          <p class="thermal-caption"><b>How to read it:</b> cyan marks every intake; orange marks every exhaust. Each physical fan has one centred arrow. The translucent cyan duct at the CPU inlet is the existing fan-to-grille flow-straightening guide. Arrow size indicates direction only, not CFD velocity or mass flow.</p>
+        </article>
+
+        <article class="thermal-panel">
+          <header><span>CONFIGURATION SCREENING</span><small>MODELLED GPU PEAK · LOWER IS BETTER</small></header>
+          <div class="screening-explainer">
+            <strong>What does “screening” mean?</strong>
+            <p>It is a preselection step that avoids rebuilding the case blindly. The GPU model calculates a <b>plausible maximum-temperature interval</b> for each change. A 77.0–79.1 °C range means the peak should land inside it only if the assumed airflow improvement is real.</p>
+            <p><b>Reference:</b> the model reproduces an 80.3 °C peak for the present configuration. New-configuration values are not measurements and are not CFD results.</p>
+          </div>
+          <div class="scenario-list" id="thermal-scenarios"><p>Loading model output…</p></div>
+          <p class="thermal-caption"><b>CFG-xxx</b> is the traceable configuration identifier. “Confidence” rates the physical evidence behind the hypothesis, not the decimal precision of the temperature.</p>
+        </article>
+      </div>
+
+      <section class="thermal-provenance" aria-labelledby="thermal-provenance-title">
+        <header>
+          <span id="thermal-provenance-title">EXPERIMENT → MODEL → DECISION</span>
+          <small>TRACEABLE EVIDENCE CHAIN</small>
+        </header>
+        <div class="evidence-primer">
+          <article><b>01</b><strong>Calibration</strong><p>One declared dataset is used to estimate model parameters. Good calibration fit only proves that the model can reproduce data it has already seen.</p></article>
+          <article><b>02</b><strong>Verification</strong><p>We check that the implementation behaves as intended: stable equations, positive thermal parameters, correct units, synchronisation and no accidental use of reserved data.</p></article>
+          <article><b>03</b><strong>Validation</strong><p>A different physical experiment is predicted without refitting. FIT scores curve shape; RMSE reports the typical temperature error in degrees Celsius.</p></article>
+          <article><b>04</b><strong>Authority</strong><p>The validation result determines what the model may be used for: prediction, preliminary screening or diagnosis only.</p></article>
         </div>
-      </section>
-
-      <section class="tl-block" aria-labelledby="tl-score-title">
-        <header class="tl-block-head"><span>03</span><div><h3 id="tl-score-title">Which models can be trusted</h3><p>Each model was judged on a test it had never seen. <b>Shape match</b>: how much of the curve it reproduces (100% is perfect). <b>Typical error</b>: average gap in °C.</p></div></header>
-        <div class="tl-scores" id="tl-scores"><p class="tl-loading">Loading models…</p></div>
-      </section>
-
-      <section class="tl-block" aria-labelledby="tl-rank-title">
-        <header class="tl-block-head"><span>04</span><div><h3 id="tl-rank-title">Which airflow change is worth building?</h3><p>The validated GPU model predicts the peak GPU temperature for each idea. Bars are ranges, not measurements: the real effect is only known after an A/B test.</p></div></header>
-        <div class="tl-rank" id="tl-rank"><p class="tl-loading">Loading predictions…</p></div>
-        <p class="tl-note">Lower is better. The dashed line is today; paler bars have less physical evidence behind them. Tap a row for the idea and its main risk.</p>
-      </section>
-
-      <section class="tl-block" aria-labelledby="tl-next-title">
-        <header class="tl-block-head"><span>05</span><div><h3 id="tl-next-title">Next steps</h3><p>From a validated GPU model to a proven hardware change, then CFD.</p></div></header>
-        <div class="tl-next">
-          <ol class="tl-roadmap">
-            <li><b>1</b><div><strong>Close the unknowns</strong><p>Exact cooler, PSU and fan models, fan-to-panel gaps and how much the cables block.</p></div></li>
-            <li><b>2</b><div><strong>Repeat the baseline 3×</strong><p>Same idle, load and cool-down each time, to learn the normal run-to-run scatter.</p></div></li>
-            <li><b>3</b><div><strong>A/B test the best idea</strong><p>Baseline → modification → baseline, three runs each. Add one air-temperature sensor inside the case.</p></div></li>
-            <li><b>4</b><div><strong>Check the prediction</strong><p>Did the measured change land inside the predicted range? Re-fit without the test data and decide.</p></div></li>
-          </ol>
-          <aside class="tl-gate" aria-labelledby="tl-gate-title">
-            <h4 id="tl-gate-title">Ready for CFD when…</h4>
-            <ul>
-              <li>Repeated peaks agree within ±1 °C</li>
-              <li>GPU model error below 2 °C</li>
-              <li>CPU model passes on CPU-only and combined load (&lt; 3 °C)</li>
-              <li>Fan curves, grille areas and gaps documented</li>
-            </ul>
-            <p>CFD then answers the spatial questions: where hot air recirculates and which fan layout deserves a rebuild.</p>
-          </aside>
+        <div class="experiment-ledger-wrap">
+          <div class="provenance-subhead"><span>EXPERIMENT LEDGER</span><small>WHAT WAS RUN AND WHY</small></div>
+          <div class="experiment-ledger" id="thermal-experiment-ledger"><p>Loading experiment traceability…</p></div>
         </div>
-      </section>
-
-      <section class="tl-block" aria-labelledby="tl-why-title">
-        <header class="tl-block-head"><span>06</span><div><h3 id="tl-why-title">What it is good for</h3></div></header>
-        <div class="tl-why">
-          <article><small>FOR THIS PC</small><strong>Change only what works.</strong><p>Know roughly how many degrees each modification is worth before cutting, printing or buying anything.</p></article>
-          <article><small>AS A METHOD</small><strong>Engine-bay thinking.</strong><p>Controlled configuration, measured boundary conditions, fast reduced-order models and CFD only where it adds value, as in engine–nacelle integration.</p></article>
-          <article><small>AS EVIDENCE</small><strong>A “no” is a result.</strong><p>Rejected models show exactly which measurement is missing, instead of producing confident but unsupported predictions.</p></article>
+        <div class="model-lineage-wrap">
+          <div class="provenance-subhead"><span>MODEL LINEAGE</span><small>WHAT EACH DATASET CREATED OR TESTED</small></div>
+          <div class="model-lineage" id="thermal-model-lineage"><p>Loading model lineage…</p></div>
         </div>
+        <p class="thermal-caption"><b>Important:</b> a rejected model is not a failed project. It is a documented engineering result that prevents an unsupported prediction and specifies the next informative experiment.</p>
       </section>
 
-      <details class="tl-notebook">
-        <summary><span>Lab notebook</span><small>Every test, what it was for and what it showed</small></summary>
-        <div class="tl-table-wrap"><table id="tl-ledger"><thead><tr><th>#</th><th>Test</th><th>Profile</th><th>Used for</th><th>Result</th></tr></thead><tbody></tbody></table></div>
-        <p class="tl-note">Raw sensor logs stay the authoritative source. One fan channel (System 2) was rejected as implausible; no external temperature probes were used.</p>
-      </details>
+      <div class="model-assurance">
+        <article><small>GPU PHYSICAL MODEL</small><strong id="thermal-gpu-fit">—</strong><span>Independent transient validation</span><p>FIT measures how much of the measured curve shape is reproduced. 100% is a perfect match; 80.4% does not mean “80.4% accurate”.</p></article>
+        <article><small>CPU PHYSICAL MODEL</small><strong id="thermal-cpu-fit">—</strong><span>Conservative prototype</span><p>It captures part of the CPU dynamics but does not yet generalise reliably from CPU-only to combined load.</p></article>
+        <article><small>COUPLED MIMO MODEL</small><strong>DIAGNOSTIC</strong><span>Not accepted for prediction</span><p>MIMO means Multiple Input, Multiple Output: several heat and fan inputs are used to predict several component temperatures.</p></article>
+        <article><small>NEXT GATE</small><strong>CFD READINESS</strong><span>Boundary-condition qualification</span><p>Geometry, fan behaviour, repeatability and energy balance must be credible before solving the internal flow field.</p></article>
+      </div>
+
+      <section class="thermal-deep-dive" aria-label="Why the rejected models were still useful">
+        <article>
+          <header><span>WHY THE CPU MODEL IS NOT ACCEPTED YET</span><small>37.3% FIT · 4.51 °C RMSE</small></header>
+          <p>The CPU-only step identified a fast silicon response and a slower cooler/case response. Under combined load, however, the GPU changes the shared-air temperature while the motherboard fan controls also move. With no measured internal-air state, the model cannot distinguish all of those effects.</p>
+          <p><b>What it taught us:</b> CPU power alone is not a sufficient input. The existing CPU fan-to-grille guide was installed throughout every recorded test, so its effect is already embedded in the baseline and cannot be isolated from these data. We need independent CPU-fan excitation, a repeated combined test and—later—one intake-air or case-air temperature channel to make the shared thermal state observable.</p>
+        </article>
+        <article>
+          <header><span>WHAT THE MIMO MODEL TAUGHT US</span><small>CPU 47.1% FIT · GPU 9.6% FIT</small></header>
+          <p>The coupled model used CPU power, GPU power and available fan signals as multiple inputs, with CPU and GPU temperatures as multiple outputs. It attempted to learn cross-heating in both directions.</p>
+          <p><b>Why it failed validation:</b> CPU and GPU inputs moved together for too much of the campaign, fan telemetry was incomplete, and no shared-air temperature was measured. The model could fit correlation but not identify causation. That is a useful result because it tells us exactly which experiments are missing.</p>
+        </article>
+      </section>
+
+      <section class="thermal-roadmap" aria-labelledby="thermal-roadmap-title">
+        <header><span id="thermal-roadmap-title">NEXT STEPS</span><small>FROM DEMONSTRATOR TO INTEGRATION STUDY</small></header>
+        <ol>
+          <li><b>01</b><div><strong>Close the geometry</strong><p>Measure the exact PSU and cooler models, fan diameters/thicknesses, fan-to-panel gaps, CPU-guide inlet/length/sealing, GPU clearances, cable blockage, grille open area and the real desk plenum.</p></div></li>
+          <li><b>02</b><div><strong>Qualify the baseline</strong><p>Run at least three baseline repetitions with identical idle, load and cool-down phases. Record power, every valid RPM channel and the 26.5 °C ambient assumption.</p></div></li>
+          <li><b>03</b><div><strong>Run the most informative test</strong><p>First step GPU fan command at near-constant GPU power; then run baseline → removable sealed GPU guide → baseline, ideally three repetitions per state.</p></div></li>
+          <li><b>04</b><div><strong>Re-identify and validate</strong><p>Refit without using the validation runs. Confirm that measured peaks, time constants and the A/B temperature change fall inside the predicted interval.</p></div></li>
+        </ol>
+      </section>
+
+      <section class="thermal-readiness" aria-label="CFD readiness and engineering value">
+        <article><header><span>CFD ENTRY CRITERIA</span><small>WHEN THE MODEL IS READY</small></header><ul><li>Three-run peak repeatability within about ±1 °C.</li><li>Independent GPU validation below 2 °C RMSE while retaining strong transient FIT.</li><li>CPU model validated on both CPU-only and combined load, preferably below 3 °C RMSE.</li><li>Fan RPM/curve or measured flow estimates, grille pressure-loss assumptions and all opening areas documented.</li><li>Fan/duct gaps measured to a few millimetres and electrical heat sources reconciled with the energy balance.</li></ul></article>
+        <article><header><span>WHAT CFD WILL ANSWER</span><small>SPATIAL QUESTIONS</small></header><ul><li>Where hot air recirculates and which component ingests it.</li><li>Whether top or bottom external fans create useful through-flow or merely short-circuit an intake.</li><li>How a sealed guide, cable obstruction or fan spacing changes local velocity and inlet temperature.</li><li>Which fan orientation is worth a physical rebuild and where a temperature-sensitive component could safely sit.</li></ul></article>
+        <article><header><span>WHY THIS MATTERS FOR POWERPLANT</span><small>TRANSFERABLE WORKFLOW</small></header><ul><li>Configuration-controlled geometry and explicit uncertainty.</li><li>Measured boundary conditions instead of invented precision.</li><li>Reduced-order transient models for rapid screening.</li><li>CFD reserved for spatial flow questions and validated against tests.</li><li>A traceable accept/reject decision chain analogous to engine–nacelle thermal integration.</li></ul></article>
+      </section>
     </section>
 
     <section class="view training-view" id="training" data-title="Training" data-code="05" lang="es">
@@ -376,7 +347,7 @@
   <script src="training.js?v=20261001strength"></script>
   <script type="module" src="backtest.js?v=20261012m"></script>
   <script src="github-galaxy.js?v=20260928atlas"></script>
-  <script src="control.js?v=20261031thermal"></script>
+  <script src="control.js?v=20261023a"></script>
   <script src="servercesar.js?v=20261020wake" defer></script>
   <script src="flight-control.js?v=20261014a" defer></script>
   <script src="thermal-viewer.bundle.js?v=20260805o"></script>
