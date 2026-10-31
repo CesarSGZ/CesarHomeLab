@@ -1,6 +1,7 @@
 import { userCan, validCsrf } from '../../../_lib/auth.js';
 import { json, readJson, methodNotAllowed } from '../../../_lib/http.js';
 import { GameError, createRoom, applyAction, fulfillEnemyRequest, publicRoom } from '../../../_lib/doors-engine.js';
+import { runBots } from '../../../_lib/doors-bots.js';
 
 const CODE = /^[A-Z2-9]{6}$/;
 const schemas = new WeakMap();
@@ -79,6 +80,7 @@ export async function onRequest(context) {
     const now = Date.now();
     if (input.action === 'reassign') fulfillEnemyRequest(room, session.user, input, now);
     else applyAction(room, session.user, input, now);
+    runBots(room, now);
     const state = JSON.stringify(room);
     if (state !== before) {
       const result = await env.CONTROL_DB.prepare('UPDATE doors_rooms SET host_user_id = ?, status = ?, state_json = ?, version = version + 1, updated_at = ? WHERE code = ? AND version = ?')
