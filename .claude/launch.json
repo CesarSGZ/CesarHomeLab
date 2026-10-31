@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "control-preview",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["C:\\Users\\SERVER~1\\AppData\\Local\\Temp\\claude\\C--Users-SERVERCESAR-AppData-Roaming-Claude-scratch-workspaces-de4fb1cb-7f47-4b3e-b206-f7d33d68f754-a08d1f94-73a0-4dd1-acf1-0396032d98eb-scratch-2026-10-31-4f1be2\\878270c1-0afb-47c2-9670-0554956551e3\\scratchpad\\mock-server.mjs", "C:\\Homelab\\repos\\CesarHomeLab", "8788"],
+      "port": 8788
+    }
+  ]
+}

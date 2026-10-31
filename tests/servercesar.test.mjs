@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile, readdir} from 'node:fs/promises';
-import {checkConfig, sendMagicPacket, probe, powerStatus, sanitiseReport, appHealth, requireServerAgent, queuePowerCommand, agentExchange, agentPublicIp, wakeTargets, wakeResult, plugToken, requirePlug, plugExchange, queuePowerOn} from '../functions/_lib/servercesar.js';
+import {checkConfig, sendMagicPacket, probe, powerStatus, sanitiseReport, appHealth, requireServerAgent, queuePowerCommand, agentExchange, agentPublicIp, wakeTargets, wakeResult, plugToken, requirePlug, plugExchange, queuePowerOn, cloudDeviceId, checkCloudConfig, cloudPowerOn} from '../functions/_lib/servercesar.js';
 import {userCan, constantTimeEqual} from '../functions/_lib/auth.js';
 
 // Minimal D1 stand-in for the power command queue: answers the handful of statements servercesar.js issues.
@@ -260,4 +260,32 @@ test('power-on: needs an online plug and an offline PC, goes only to the plug, o
   assert.equal(await plugExchange(db, {output: true, apower: 1.5}, now + 4000), null);
   await plugExchange(db, {output: true, apower: 80, done: {id: queued.id, ok: true, detail: 'Corriente cortada 10 s'}}, now + 70_000);
   assert.equal(db.commands[0].status, 'succeeded');
+});
+
+test('Shelly Cloud fallback: config is validated, the device id comes from the plug, and 20 W is respected', async () => {
+  assert.equal(cloudDeviceId('shellyplugsg3-AABBCCDDEEFF'), 'aabbccddeeff');
+  assert.equal(cloudDeviceId('not-a-device'), null);
+  assert.deepEqual(checkCloudConfig({server: 'https://shelly-123-eu.shelly.cloud/', key: 'k'.repeat(40)}), {ok: true, config: {server: 'shelly-123-eu.shelly.cloud', key: 'k'.repeat(40)}});
+  assert.equal(checkCloudConfig({server: 'evil.example.com', key: 'k'.repeat(40)}).error, 'invalid_cloud_server');
+  assert.equal(checkCloudConfig({server: 'shelly-1-eu.shelly.cloud', key: 'short'}).error, 'invalid_cloud_key');
+
+  const cloud = {server: 'shelly-1-eu.shelly.cloud', key: 'k'.repeat(40), deviceId: 'aabbccddeeff'};
+  const fakeFetch = (apower, online = true) => {
+    const calls = [];
+    const impl = async (url, init) => {
+      calls.push({url: String(url), body: JSON.parse(init.body)});
+      if (String(url).includes('/get?')) return new Response(JSON.stringify([{id: 'aabbccddeeff', online, status: {'switch:0': {output: true, apower}}}]));
+      return new Response('');
+    };
+    return {impl, calls};
+  };
+  const running = fakeFetch(120);
+  assert.equal((await cloudPowerOn(cloud, running.impl)).ok, false);
+  assert.equal(running.calls.length, 1);
+  const off = fakeFetch(1.2);
+  assert.equal((await cloudPowerOn(cloud, off.impl)).ok, true);
+  assert.deepEqual(off.calls[1].body, {id: 'aabbccddeeff', channel: 0, on: false, toggle_after: 10});
+  assert.match(off.calls[1].url, /^https:\/\/shelly-1-eu\.shelly\.cloud\/v2\/devices\/api\/set\/switch\?auth_key=/);
+  assert.equal((await cloudPowerOn(cloud, fakeFetch(1, false).impl)).ok, false);
+  assert.equal((await cloudPowerOn({...cloud, deviceId: null}, off.impl)).ok, false);
 });

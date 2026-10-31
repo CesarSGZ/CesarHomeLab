@@ -28,7 +28,7 @@ function poll() {
   if (busy || !token) return;
   busy = true;
   let s = Shelly.getComponentStatus("switch", 0);
-  let body = JSON.stringify({ output: s.output, apower: s.apower, done: done });
+  let body = JSON.stringify({ device: Shelly.getDeviceInfo().id, output: s.output, apower: s.apower, done: done });
   Shelly.call("HTTP.Request", {
     method: "POST",
     url: URL,
