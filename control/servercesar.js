@@ -63,7 +63,7 @@
     if (back) return recent ? {text: 'ServerCesar ' + (off ? 'se volvió a encender' : 'se reinició y ya está de vuelta') + ' (' + fmt(upSince) + ').', kind: 'success'} : null;
     if (off) {
       const acceptedAt = r.completedAt || r.claimedAt || r.at;
-      if (r.status === 'claimed' && Date.now() - acceptedAt < 120e3) return {busy: true, label: 'PREPARANDO APAGADO', text: 'El agente está preparando el router antes de apagar. «Encender» sigue disponible.'};
+      if (r.status === 'claimed' && Date.now() - acceptedAt < 120e3) return {busy: true, label: 'PREPARANDO APAGADO', text: 'El agente ha recogido la orden y va a apagar Windows. «Encender» sigue disponible.'};
       if (r.status === 'succeeded' && Date.now() - acceptedAt < 45e3) return {busy: true, label: 'APAGANDO', text: 'Windows aceptó la orden y tiene programado el apagado. «Encender» sigue disponible.'};
       if (data.agent?.fresh && data.agent.receivedAt > acceptedAt + 45e3) return {text: 'El agente sigue respondiendo después de la orden de apagado.', kind: 'error'};
       return {powerUnavailable: true, label: 'APAGADO SIN CONFIRMAR', text: 'La orden de apagado fue enviada. El último informe guardado no confirma el estado actual. Puedes usar «Encender ServerCesar».'};
@@ -96,6 +96,8 @@
     set('[data-sc-last]', wakeOutcome(data));
     set('[data-sc-checked]', ago(Date.now()));
     renderApps(data);
+    const plug = data.plug, plugEl = $('[data-sc-plug]', card());
+    if (plugEl) plugEl.textContent = !plug ? 'SIN CONECTAR' : !plug.fresh ? 'SIN SEÑAL · ' + ago(plug.receivedAt) : (plug.output === false ? 'CORRIENTE CORTADA' : (plug.apower ?? '—') + ' W') + (data.lastPowerOn?.result && Date.now() - data.lastPowerOn.at < 15 * 60e3 ? ' · ' + data.lastPowerOn.result : '');
     cooldownUntil = data.cooldownUntil || 0;
     const button = $('#sc-wake');
     button.hidden = !data.canWake;
@@ -109,7 +111,7 @@
     // Always available while the agent is connected (owner's choice); the confirmation warns that
     // remote power-on is not guaranteed with the current router.
     $('#sc-shutdown').disabled = powerBlocked || !data.shutdownEnabled;
-    $('#sc-shutdown').title = 'Apagado completo. Ojo: con el router actual el encendido remoto puede fallar si pasa mucho rato.';
+    $('#sc-shutdown').title = 'Apagado completo. Se vuelve a encender con «Encender ServerCesar» (enchufe inteligente).';
     if (phase && !(online && phase.label === 'APAGADO')) { feedback(phase.text, phase.kind); if (phase.busy) fastUntil = Math.max(fastUntil, Date.now() + 60e3); }
     else if (p.state === 'unconfigured' && !online) feedback(data.canWake ? 'Abre «Configuración» y guarda la MAC, el host y el puerto para poder encenderlo.' : 'El propietario aún no ha configurado ServerCesar.');
     else if (online) {
@@ -144,7 +146,7 @@
     try {
       const response = await fetch('/control/api/servercesar/wake', {method: 'POST', credentials: 'same-origin', headers: {'content-type': 'application/json', 'x-csrf-token': csrf}, body: '{}'});
       const data = await response.json().catch(() => ({}));
-      if (response.ok && data.ok) { fastUntil = Date.now() + 3 * 60e3; feedback('Paquete enviado (' + (data.message || 'ok') + '). Esperando a que arranque…', 'success'); }
+      if (response.ok && data.ok) { fastUntil = Date.now() + 4 * 60e3; feedback((data.plugQueued ? 'Encendiendo: si el PC sigue apagado, el enchufe le cortará la corriente unos segundos en el próximo minuto (' : 'Paquete enviado (') + (data.message || 'ok') + '). Esperando a que arranque…', 'success'); }
       else if (data.error === 'cooldown') feedback('Ya se envió hace menos de un minuto. Espera un momento.', 'error');
       else feedback('No se pudo enviar: ' + (data.message || data.error || response.status), 'error');
     } catch { feedback('No se pudo enviar el paquete. Inténtalo de nuevo.', 'error'); }
@@ -154,7 +156,7 @@
   async function power(action) {
     const off = action === 'shutdown';
     const question = off
-      ? '¿Apagar ServerCesar por completo? Se cerrarán las aplicaciones.\n\nOJO: con el router actual el encendido remoto NO está garantizado; si no arranca con «Encender ServerCesar», habrá que encenderlo a mano.'
+      ? '¿Apagar ServerCesar por completo? Se cerrarán las aplicaciones.\n\nPara volver a encenderlo usa «Encender ServerCesar»: el enchufe inteligente le corta la corriente unos segundos y arranca solo.'
       : '¿Reiniciar ServerCesar ahora? Se cerrará todo lo que esté abierto y volverá a arrancar solo.';
     if (!confirm(question)) return;
     $('#sc-reboot').disabled = true; $('#sc-shutdown').disabled = true;

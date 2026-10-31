@@ -36,6 +36,7 @@ export async function ensureTables(db) {
     db.prepare("CREATE INDEX IF NOT EXISTS idx_servercesar_commands ON servercesar_commands(type, requested_at)"),
     db.prepare("CREATE INDEX IF NOT EXISTS idx_servercesar_commands_status ON servercesar_commands(status, requested_at)"),
     db.prepare("CREATE INDEX IF NOT EXISTS idx_servercesar_events ON servercesar_events(kind, at)"),
+    db.prepare("CREATE TABLE IF NOT EXISTS servercesar_plug (id INTEGER PRIMARY KEY CHECK (id = 1), output INTEGER, apower REAL, received_at INTEGER NOT NULL)"),
   ]);
   schemaReady = true;
 }
@@ -175,7 +176,7 @@ export async function agentExchange(db, done, now = Date.now()) {
       .bind(done.ok === true ? "succeeded" : "failed", now, String(done.detail || "").slice(0, 300), String(done.id)).run();
   }
   await db.prepare("UPDATE servercesar_commands SET status = 'expired' WHERE status = 'queued' AND requested_at < ?").bind(now - REBOOT_STALE_MS).run();
-  const command = await db.prepare("SELECT id, type FROM servercesar_commands WHERE status = 'queued' ORDER BY requested_at ASC LIMIT 1").first();
+  const command = await db.prepare("SELECT id, type FROM servercesar_commands WHERE status = 'queued' AND type IN ('reboot', 'shutdown') ORDER BY requested_at ASC LIMIT 1").first();
   if (!command) return null;
   const claim = await db.prepare("UPDATE servercesar_commands SET status = 'claimed', claimed_at = ? WHERE id = ? AND status = 'queued'").bind(now, command.id).run();
   return claim.meta?.changes ? { id: command.id, type: command.type } : null;
@@ -268,4 +269,69 @@ export async function powerStatus(db, config, connectImpl, now = Date.now(), rep
     agentLastSeen: reportAt || null,
     probed: config?.probePorts || [],
   };
+}
+
+// ---- Shelly Plug S Gen3 in front of ServerCesar: remote power-on by cutting power for a few seconds ----
+//
+// The BIOS powers the PC on when AC comes back, so a short power cut boots it from a full shutdown.
+// A script on the plug (server-agent/servercesar/shelly-plug.js) polls this API every minute, reports
+// the relay state and power draw, and runs a queued "poweron". The plug itself refuses to cut power
+// while the PC draws more than 20 W, so a running PC is never switched off from here.
+// Its token is derived from SERVERCESAR_AGENT_TOKEN, so no extra secret is needed and a leaked plug
+// token cannot impersonate the PC agent.
+
+export const PLUG_FRESH_MS = 180_000;
+export const POWERON_COOLDOWN_MS = 180_000;
+
+export async function plugToken(env) {
+  const secret = String(env.SERVERCESAR_AGENT_TOKEN || "");
+  if (secret.length < 32) return null;
+  const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  const mac = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode("servercesar-plug"));
+  return [...new Uint8Array(mac)].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+export async function requirePlug(request, env, constantTimeEqual) {
+  const expected = await plugToken(env);
+  const supplied = String(request.headers.get("authorization") || "").replace(/^Bearer\s+/i, "");
+  return Boolean(expected) && constantTimeEqual(expected, supplied);
+}
+
+export async function readPlug(db) {
+  const row = await db.prepare("SELECT output, apower, received_at FROM servercesar_plug WHERE id = 1").first();
+  return row ? { output: row.output == null ? null : Boolean(row.output), apower: row.apower, receivedAt: row.received_at } : null;
+}
+
+export async function lastPowerOn(db) {
+  return db.prepare("SELECT id, status, requested_by, requested_at, completed_at, result FROM servercesar_commands WHERE type = 'poweron' ORDER BY requested_at DESC LIMIT 1").first();
+}
+
+/** Plug poll: stores its readings, records the result of its last command and hands over a queued power-on. */
+export async function plugExchange(db, body = {}, now = Date.now()) {
+  const output = typeof body.output === "boolean" ? (body.output ? 1 : 0) : null;
+  const apower = num(body.apower, 0, 4000);
+  await db.prepare("INSERT INTO servercesar_plug (id, output, apower, received_at) VALUES (1, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET output = excluded.output, apower = excluded.apower, received_at = excluded.received_at")
+    .bind(output, apower, now).run();
+  const done = body.done;
+  if (done?.id) {
+    await db.prepare("UPDATE servercesar_commands SET status = ?, completed_at = ?, result = ? WHERE id = ? AND type = 'poweron' AND status = 'claimed'")
+      .bind(done.ok === true ? "succeeded" : "failed", now, String(done.detail || "").slice(0, 300), String(done.id)).run();
+  }
+  const command = await db.prepare("SELECT id FROM servercesar_commands WHERE status = 'queued' AND type = 'poweron' AND requested_at > ? ORDER BY requested_at ASC LIMIT 1").bind(now - REBOOT_STALE_MS).first();
+  if (!command) return null;
+  const claim = await db.prepare("UPDATE servercesar_commands SET status = 'claimed', claimed_at = ? WHERE id = ? AND status = 'queued'").bind(now, command.id).run();
+  return claim.meta?.changes ? { id: command.id, type: "poweron" } : null;
+}
+
+/** Queues a power-on for the plug when it is online and the PC agent is not reporting. */
+export async function queuePowerOn(db, username, now = Date.now()) {
+  const plug = await readPlug(db);
+  if (!plug || now - plug.receivedAt > PLUG_FRESH_MS) return { ok: false, error: "plug_offline" };
+  const report = await readReport(db);
+  if (report && now - report.receivedAt < REPORT_FRESH_MS) return { ok: false, error: "already_on" };
+  const previous = await lastPowerOn(db);
+  if (previous && now - previous.requested_at < POWERON_COOLDOWN_MS) return { ok: false, error: "cooldown", retryAt: previous.requested_at + POWERON_COOLDOWN_MS };
+  const id = crypto.randomUUID();
+  await db.prepare("INSERT INTO servercesar_commands (id, type, status, requested_by, requested_at) VALUES (?, 'poweron', 'queued', ?, ?)").bind(id, username, now).run();
+  return { ok: true, id };
 }

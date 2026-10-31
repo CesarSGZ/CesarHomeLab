@@ -1,9 +1,10 @@
 import { userCan, validCsrf } from "../../../_lib/auth.js";
 import { json, methodNotAllowed } from "../../../_lib/http.js";
-import { ensureTables, lastWake, readConfig, readReport, recordEvent, sendMagicPacket, wakeTargets, WAKE_COOLDOWN_MS } from "../../../_lib/servercesar.js";
+import { ensureTables, lastWake, queuePowerOn, readConfig, readReport, recordEvent, sendMagicPacket, wakeTargets, WAKE_COOLDOWN_MS } from "../../../_lib/servercesar.js";
 
 // POST: sends the Wake-on-LAN magic packet to ServerCesar (owner only, CSRF-protected, 60 s cooldown),
-// to the DDNS host and to the last public IP its agent reported from.
+// to the DDNS host and to the last public IP its agent reported from. If the smart plug is online it
+// also queues a power-on: the plug cuts power for a few seconds only if the PC is still off.
 export async function onRequest(context) {
   if (context.request.method !== "POST") return methodNotAllowed(["POST"]);
   const session = context.data.session;
@@ -28,7 +29,10 @@ export async function onRequest(context) {
       results.push({ ok: false, message: "No se pudo contactar con el servicio de Wake-on-LAN" });
     }
   }
-  const result = { ok: results.some((r) => r.ok), message: results.map((r) => r.message).join(" · ").slice(0, 280) };
-  await recordEvent(db, "wake", session.user.username, result.ok, result.message);
-  return json({ ok: result.ok, message: result.message, sentAt: Date.now() }, { status: result.ok ? 200 : 502 });
+  const plug = await queuePowerOn(db, session.user.username);
+  const plugNote = plug.ok ? "Enchufe: encenderá el PC si sigue apagado" : plug.error === "plug_offline" ? "Enchufe sin conexión" : null;
+  const ok = results.some((r) => r.ok) || plug.ok;
+  const message = [...results.map((r) => r.message), plugNote].filter(Boolean).join(" · ").slice(0, 280);
+  await recordEvent(db, "wake", session.user.username, ok, message);
+  return json({ ok, message, plugQueued: plug.ok, sentAt: Date.now() }, { status: ok ? 200 : 502 });
 }

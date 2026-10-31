@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile, readdir} from 'node:fs/promises';
-import {checkConfig, sendMagicPacket, probe, powerStatus, sanitiseReport, appHealth, requireServerAgent, queuePowerCommand, agentExchange, agentPublicIp, wakeTargets, wakeResult} from '../functions/_lib/servercesar.js';
+import {checkConfig, sendMagicPacket, probe, powerStatus, sanitiseReport, appHealth, requireServerAgent, queuePowerCommand, agentExchange, agentPublicIp, wakeTargets, wakeResult, plugToken, requirePlug, plugExchange, queuePowerOn} from '../functions/_lib/servercesar.js';
 import {userCan, constantTimeEqual} from '../functions/_lib/auth.js';
 
 // Minimal D1 stand-in for the power command queue: answers the handful of statements servercesar.js issues.
@@ -12,7 +12,7 @@ function fakeDb({reportAt = null, wolPath = {ok: true, at: reportAt}} = {}) {
     if (sql.startsWith('SELECT id, type, status')) return [...commands].sort((a, b) => b.requested_at - a.requested_at)[0] || null;
     if (sql.startsWith('INSERT INTO servercesar_commands')) { commands.push({id: args[0], type: args[1], status: 'queued', requested_by: args[2], requested_at: args[3]}); return {meta: {changes: 1}}; }
     if (sql.startsWith("UPDATE servercesar_commands SET status = 'expired'")) { commands.filter(c => c.status === 'queued' && c.requested_at < args[0]).forEach(c => { c.status = 'expired'; }); return {meta: {}}; }
-    if (sql.startsWith('SELECT id, type')) return commands.filter(c => c.status === 'queued').sort((a, b) => a.requested_at - b.requested_at)[0] || null;
+    if (sql.startsWith('SELECT id, type')) return commands.filter(c => c.status === 'queued' && (!sql.includes('type IN') || ['reboot', 'shutdown'].includes(c.type))).sort((a, b) => a.requested_at - b.requested_at)[0] || null;
     if (sql.startsWith("UPDATE servercesar_commands SET status = 'claimed'")) { const c = commands.find(c => c.id === args[1] && c.status === 'queued'); if (c) { c.status = 'claimed'; c.claimed_at = args[0]; } return {meta: {changes: c ? 1 : 0}}; }
     if (sql.startsWith('UPDATE servercesar_commands SET status = ?')) { const c = commands.find(c => c.id === args[3] && c.status === 'claimed'); if (c) { c.status = args[0]; c.result = args[2]; } return {meta: {changes: c ? 1 : 0}}; }
     throw new Error('unexpected SQL ' + sql);
@@ -212,4 +212,52 @@ test('a bare heartbeat only refreshes the report timestamp and asks for a full r
   assert.ok(withRow.writes.some((s) => s.startsWith('UPDATE servercesar_report SET received_at')));
   assert.ok(!withRow.writes.some((s) => s.startsWith('INSERT INTO servercesar_report')), 'a heartbeat never rewrites the report');
   assert.equal((await run(false)).body.needReport, true);
+});
+
+// D1 stand-in for the plug: one plug row, the agent report and the poweron queue.
+function plugDb({reportAt = null, plugAt = null} = {}) {
+  const commands = [];
+  let plug = plugAt == null ? null : {output: 1, apower: 2, received_at: plugAt};
+  const run = (sql, args) => {
+    if (sql.startsWith('SELECT report')) return reportAt == null ? null : {report: JSON.stringify({apps: {}}), received_at: reportAt};
+    if (sql.startsWith('SELECT output')) return plug;
+    if (sql.startsWith('INSERT INTO servercesar_plug')) { plug = {output: args[0], apower: args[1], received_at: args[2]}; return {meta: {changes: 1}}; }
+    if (sql.startsWith('SELECT id, status')) return [...commands].filter(c => c.type === 'poweron').sort((a, b) => b.requested_at - a.requested_at)[0] || null;
+    if (sql.startsWith('INSERT INTO servercesar_commands')) { commands.push({id: args[0], type: 'poweron', status: 'queued', requested_by: args[1], requested_at: args[2]}); return {meta: {changes: 1}}; }
+    if (sql.startsWith("UPDATE servercesar_commands SET status = 'expired'")) return {meta: {}};
+    if (sql.startsWith('SELECT id, type')) return commands.filter(c => c.status === 'queued' && ['reboot', 'shutdown'].includes(c.type))[0] || null;
+    if (sql.startsWith('SELECT id FROM')) return commands.filter(c => c.status === 'queued' && c.type === 'poweron' && c.requested_at > args[0])[0] || null;
+    if (sql.startsWith("UPDATE servercesar_commands SET status = 'claimed'")) { const c = commands.find(c => c.id === args[1] && c.status === 'queued'); if (c) c.status = 'claimed'; return {meta: {changes: c ? 1 : 0}}; }
+    if (sql.startsWith('UPDATE servercesar_commands SET status = ?')) { const c = commands.find(c => c.id === args[3] && c.status === 'claimed'); if (c) { c.status = args[0]; c.result = args[2]; } return {meta: {changes: c ? 1 : 0}}; }
+    throw new Error('unexpected SQL ' + sql);
+  };
+  const prepare = sql => { let args = []; const s = {bind: (...a) => { args = a; return s; }, first: async () => run(sql, args), run: async () => run(sql, args)}; return s; };
+  return {prepare, commands, get plug() { return plug; }};
+}
+
+test('the plug token is derived from the agent secret and differs from it', async () => {
+  const env = {SERVERCESAR_AGENT_TOKEN: 'a'.repeat(40)};
+  const token = await plugToken(env);
+  assert.match(token, /^[0-9a-f]{64}$/);
+  assert.notEqual(token, env.SERVERCESAR_AGENT_TOKEN);
+  const req = t => new Request('https://x/api/agent/servercesar-plug', {headers: {authorization: 'Bearer ' + t}});
+  assert.equal(await requirePlug(req(token), env, constantTimeEqual), true);
+  assert.equal(await requirePlug(req(env.SERVERCESAR_AGENT_TOKEN), env, constantTimeEqual), false);
+  assert.equal(await plugToken({SERVERCESAR_AGENT_TOKEN: 'short'}), null);
+});
+
+test('power-on: needs an online plug and an offline PC, goes only to the plug, once, and records the result', async () => {
+  const now = 2_000_000_000;
+  assert.equal((await queuePowerOn(plugDb(), 'CesarVapor', now)).error, 'plug_offline');
+  assert.equal((await queuePowerOn(plugDb({plugAt: now - 10_000, reportAt: now - 10_000}), 'CesarVapor', now)).error, 'already_on');
+  const db = plugDb({plugAt: now - 10_000, reportAt: now - 3_600_000});
+  const queued = await queuePowerOn(db, 'CesarVapor', now);
+  assert.equal(queued.ok, true);
+  assert.equal((await queuePowerOn(db, 'CesarVapor', now + 1000)).error, 'cooldown');
+  assert.equal(await agentExchange(db, null, now + 2000), null);
+  assert.deepEqual(await plugExchange(db, {output: true, apower: 1.5}, now + 3000), {id: queued.id, type: 'poweron'});
+  assert.equal(db.plug.apower, 1.5);
+  assert.equal(await plugExchange(db, {output: true, apower: 1.5}, now + 4000), null);
+  await plugExchange(db, {output: true, apower: 80, done: {id: queued.id, ok: true, detail: 'Corriente cortada 10 s'}}, now + 70_000);
+  assert.equal(db.commands[0].status, 'succeeded');
 });
