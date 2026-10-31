@@ -8,6 +8,8 @@ let OFF_WATTS = 20;
 let token = null;
 let done = null;
 let busy = false;
+// Last poll outcome, readable with Script.Eval("last") for diagnostics.
+let last = null;
 
 function runPowerOn(id) {
   let s = Shelly.getComponentStatus("switch", 0);
@@ -35,6 +37,7 @@ function poll() {
     timeout: 15
   }, function (res, code) {
     busy = false;
+    last = { at: Shelly.getComponentStatus("sys").unixtime, code: res ? res.code : code };
     if (code !== 0 || !res || res.code !== 200) return;
     done = null;
     let answer = JSON.parse(res.body);
