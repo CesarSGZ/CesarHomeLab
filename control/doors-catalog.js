@@ -51,6 +51,7 @@ export const ENEMIES = [
   'Un gladiador con una sola mano y un escudo enorme', 'Un fantasma que solo puede tocar objetos azules', 'Una planta carnívora que sigue los sonidos',
   'Un chef colosal que usa dos tapas como escudos',
 ];
+export const BOT_NAMES = ['IA Nova', 'IA Bruma', 'IA Cobre', 'IA Lince', 'IA Marea', 'IA Ámbar', 'IA Faro', 'IA Kiwi', 'IA Ozono', 'IA Runa', 'IA Tundra'];
 export function suggestion(kind, random = Math.random) {
   const pick = list => list[Math.floor(random() * list.length)];
   return kind === 'enemy' ? pick(ENEMIES) : { scenario: pick(ARENAS), weapon: pick(WEAPONS) };

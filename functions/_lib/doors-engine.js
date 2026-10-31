@@ -1,4 +1,4 @@
-import { CARDS, ROLES } from '../../control/doors-catalog.js';
+import { BOT_NAMES, CARDS, ROLES } from '../../control/doors-catalog.js';
 
 export class GameError extends Error {
   constructor(message, status = 400) { super(message); this.status = status; }
@@ -246,6 +246,15 @@ export function applyAction(room, user, input, now = Date.now(), random = secure
     log(room, `${user.username} entra en la sala.`, now); return;
   }
   fail(actor, 'No perteneces a esta partida.', 403);
+  if (input.action === 'addBot') {
+    fail(room.host === actor.id && room.phase === 'lobby', 'Solo el anfitrión puede añadir IA antes de empezar.', 403);
+    fail(room.players.length < 12, 'La sala está completa (12 jugadores).');
+    const taken = new Set(room.players.map(p => p.name));
+    const name = BOT_NAMES.find(n => !taken.has(n)) || `IA ${room.players.length + 1}`;
+    // Bots are always ready; the server plays their turns after every human action.
+    room.players.push({ id: `bot-${uid()}`, name, lives: 3, hand: [], ready: true, bot: true });
+    log(room, `${name} (IA) entra en la sala.`, now); return;
+  }
   if (input.action === 'chat') {
     fail(now - (actor.lastChat || 0) >= 1500, 'Espera un instante antes de enviar otro mensaje.', 429);
     room.chat.push({ id: uid(), name: actor.name, message: text(input.message, 500), at: now });
@@ -349,7 +358,7 @@ export function publicRoom(room, userId, code, version) {
       id: p.id, name: p.name, lives: p.lives, ready: p.ready, choice: p.choice || null, weapon: p.weapon || null,
       role: roleKnown ? p.role || null : null, enemy: enemyKnown ? p.enemy || null : null,
       enemyAssigned: Boolean(p.enemy), double: p.double || false, roll: p.roll || null,
-      cardCount: p.hand.length,
+      cardCount: p.hand.length, bot: Boolean(p.bot),
     };
   });
   const pending = room.pending ? {

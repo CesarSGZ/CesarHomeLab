@@ -222,3 +222,30 @@ test('Authenticated startup initialises only the game schema, with no broader de
   assert.equal((await request(env,users[0])).status,200);
   sqlite.close();
 });
+
+test('AI players fill a room and play complete games against one human', async () => {
+  const { runBots } = await import('../functions/_lib/doors-bots.js');
+  const room = createRoom(users[0], 'Contra la IA', clock);
+  for (let i = 0; i < 3; i++) action(room, 0, { action: 'addBot' });
+  assert.equal(room.players.filter(p => p.bot).length, 3);
+  assert.ok(room.players.every(p => p.bot ? p.ready : true));
+  assert.throws(() => action(room, 1, { action: 'addBot' }));
+  action(room, 0, { action: 'ready' }); action(room, 0, { action: 'start' }); runBots(room, ++clock);
+  const random = (() => { let seed = 7; return () => (seed = (seed * 16807) % 2147483647) / 2147483647; })();
+  for (let step = 0; step < 400 && room.phase !== 'finished'; step++) {
+    const me = room.players[0];
+    if (me.lives > 0) {
+      const input = room.vote?.voters.includes('u0') && !('u0' in room.vote.ballots) ? { action: 'vote', yes: false }
+        : room.order[room.turn] === 'u0' && room.phase === 'crafting' ? { action: 'craft', scenario: 'Mi arena', weapon: 'Mi arma' }
+        : room.order[room.turn] === 'u0' && room.phase === 'choosing' ? { action: 'choose', door: room.doors[0].id }
+        : room.phase === 'assigning' ? (() => { const t = room.players.find(p => p.lives && !p.enemy && room.doors.find(d => d.id === p.choice)?.creator === 'u0'); return t && { action: 'assign', target: t.id, enemy: 'Un dragón' }; })()
+        : !me.ready && ['preparation', 'sealed', 'revealed', 'results'].includes(room.phase) ? { action: 'ready' } : null;
+      if (input) applyAction(room, users[0], input, ++clock, random);
+    }
+    runBots(room, ++clock, random);
+  }
+  assert.equal(room.phase, 'finished');
+  assert.equal(room.winners.length <= 2, true);
+  const view = publicRoom(room, 'u0', 'ABCDEF', 1);
+  assert.ok(view.players.some(p => p.bot));
+});
