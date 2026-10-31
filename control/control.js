@@ -120,153 +120,170 @@ function makeElement(tag,className,text){
   return element;
 }
 
-// Plain-language reading of each model; the numbers come from the dataset.
-const thermalModelNotes={
-  'MDL-GPU-PHY-02':{title:'GPU model',verdict:'Trusted for ranking ideas',tone:'ok',why:'Predicted a GPU test it had never seen, about 3 °C off on average. Good enough to compare airflow ideas, not yet to promise exact temperatures.'},
-  'MDL-CPU-PHY-02':{title:'CPU model',verdict:'Not trusted yet',tone:'no',why:'Matches CPU-only load, but runs too hot when the GPU also heats the shared air. Nothing measures that air yet.'},
-  'MDL-SYS-MIMO-02':{title:'CPU + GPU together',verdict:'Diagnostic only',tone:'no',why:'CPU and GPU load rose together in the tests, so it cannot tell which one caused what. It shows exactly which tests are missing.'},
-  'MDL-GPU-EMP-02':{title:'First GPU model',verdict:'Replaced',tone:'old',why:'A pure curve fit with no physics inside. It worked, but the physical model beat it on every score.'}
-};
-
-function thermalBar(label,value,max,text){
-  const row=makeElement('div','tl-bar');
-  const track=makeElement('i');
-  track.style.setProperty('--w',`${Math.max(0,Math.min(100,value/max*100))}%`);
-  row.append(makeElement('span',null,label),track,makeElement('b',null,text));
-  return row;
-}
-
-function renderThermalLoads(headline,board){
-  const loads=document.getElementById('tl-loads');
-  const chipRow=(label,peak)=>thermalBar(label,peak-20,80,formatTemperature(peak));
-  const cards=[
-    ['CPU ONLY',headline.cpu_only.mean_power_W,[chipRow('CPU peak',headline.cpu_only.peak_temperature_C)],`Average under load ${formatTemperature(headline.cpu_only.mean_temperature_C)}`],
-    ['GPU ONLY',headline.gpu_only.mean_power_W,[chipRow('GPU peak',headline.gpu_only.peak_temperature_C)],`Average under load ${formatTemperature(headline.gpu_only.mean_temperature_C)}`],
-    ['BOTH AT ONCE · 15 S',headline.full_combined.mean_chip_power_W,[chipRow('CPU peak',headline.full_combined.cpu_peak_temperature_C),chipRow('GPU peak',headline.full_combined.gpu_peak_temperature_C)],`Board power stage peaked at ${formatTemperature(board.full_combined.vrm_load_peak_C)}`]
-  ];
-  loads.replaceChildren(...cards.map(([label,power,rows,note])=>{
-    const card=makeElement('article','tl-load');
-    const head=makeElement('header');
-    head.append(makeElement('small',null,label),makeElement('strong',null,formatPower(power)));
-    card.append(head,...rows,makeElement('p',null,note));
-    return card;
-  }));
-}
-
-function renderThermalScores(models){
-  const scores=document.getElementById('tl-scores');
-  const order=['MDL-GPU-PHY-02','MDL-CPU-PHY-02','MDL-SYS-MIMO-02','MDL-GPU-EMP-02'];
-  const sorted=[...models].sort((a,b)=>order.indexOf(a.id)-order.indexOf(b.id));
-  scores.replaceChildren(...sorted.map(model=>{
-    const note=thermalModelNotes[model.id]||{title:model.name,verdict:model.decision,tone:'old',why:model.authority};
-    const card=makeElement('article',`tl-score ${note.tone}`);
-    const head=makeElement('header');
-    head.append(makeElement('strong',null,note.title),makeElement('b',null,note.verdict));
-    card.append(head);
-    const fits=[].concat(model.validation_fit_pct);
-    const errors=[].concat(model.validation_rmse_C);
-    fits.forEach((fit,index)=>{
-      const prefix=fits.length>1?`${index?'GPU':'CPU'} · `:'';
-      card.append(
-        thermalBar(`${prefix}shape match`,fit,100,`${fit.toFixed(0)}%`),
-        thermalBar(`${prefix}typical error`,errors[index],10,`${errors[index].toFixed(1)} °C`)
-      );
-    });
-    card.append(makeElement('p',null,note.why));
-    if(model.validation_plot&&model.id!=='MDL-GPU-PHY-02'){
-      const more=makeElement('details','tl-curves');
-      const image=makeElement('img');
-      image.src=model.validation_plot;
-      image.alt=`Measured temperature against the ${note.title} prediction`;
-      image.loading='lazy';
-      more.append(makeElement('summary',null,'See the curves'),image);
-      card.append(more);
-    }
-    return card;
-  }));
-}
-
-function renderThermalRanking(screening){
-  const rank=document.getElementById('tl-rank');
-  const baseline=screening.find(item=>item.configuration_id==='CFG-000');
-  const baselinePeak=baseline?baseline.gpu_peak_model_low_C:80.31;
-  const ideas=screening
-    .filter(item=>item.configuration_id!=='CFG-000')
-    .map(item=>({...item,mid:(item.gpu_peak_model_low_C+item.gpu_peak_model_high_C)/2}))
-    .sort((a,b)=>a.mid-b.mid);
-  const lo=Math.floor(Math.min(...ideas.map(item=>item.gpu_peak_model_low_C)))-.5;
-  const hi=Math.ceil(Math.max(baselinePeak,...ideas.map(item=>item.gpu_peak_model_high_C)))+.5;
-  const at=value=>`${(value-lo)/(hi-lo)*100}%`;
-
-  const axis=makeElement('div','tl-rank-axis');
-  const scale=makeElement('div','tl-rank-scale');
-  for(let tick=Math.ceil(lo);tick<=hi;tick++){
-    const label=makeElement('span',null,`${tick}°`);
-    label.style.left=at(tick);
-    scale.append(label);
-  }
-  const today=makeElement('em',null,`Today ${baselinePeak.toFixed(1)} °C`);
-  today.style.left=at(baselinePeak);
-  scale.append(today);
-  axis.append(makeElement('span'),scale,makeElement('span'));
-
-  const rows=ideas.map((idea,index)=>{
-    const row=makeElement('details',`tl-rank-row conf-${idea.evidence_confidence.split(/[ ;]/)[0]}`);
-    const summary=makeElement('summary');
-    const name=makeElement('div','tl-rank-name');
-    name.append(makeElement('strong',null,idea.physical_change),makeElement('small',null,`${idea.configuration_id}${index===0?' · TOP PICK':''}`));
-    const track=makeElement('div','tl-rank-track');
-    const range=makeElement('i');
-    range.style.left=at(idea.gpu_peak_model_low_C);
-    range.style.width=`calc(${at(idea.gpu_peak_model_high_C)} - ${at(idea.gpu_peak_model_low_C)})`;
-    const marker=makeElement('b');
-    marker.style.left=at(baselinePeak);
-    track.append(marker,range);
-    const value=makeElement('div','tl-rank-value');
-    value.append(
-      makeElement('strong',null,`${idea.gpu_peak_model_low_C.toFixed(1)}–${idea.gpu_peak_model_high_C.toFixed(1)} °C`),
-      makeElement('small',null,`≈ −${Math.max(0,baselinePeak-idea.mid).toFixed(1)} °C`)
+function renderExperimentLedger(experiments){
+  const ledger=document.getElementById('thermal-experiment-ledger');
+  ledger.replaceChildren();
+  experiments.forEach((experiment,index)=>{
+    const row=makeElement('article','experiment-row');
+    const heading=makeElement('header');
+    const sequence=makeElement('b',null,String(index+1).padStart(2,'0'));
+    const title=makeElement('div');
+    title.append(
+      makeElement('strong',null,experiment.id),
+      makeElement('span',null,experiment.role)
     );
-    summary.append(name,track,value);
-    const more=makeElement('div','tl-rank-more');
-    [['Idea',idea.hypothesis],['Risk',idea.main_risk],['Confidence',idea.evidence_confidence]].forEach(([label,text])=>{
-      const line=makeElement('p');
-      line.append(makeElement('b',null,`${label} · `),document.createTextNode(text));
-      more.append(line);
-    });
-    row.append(summary,more);
-    return row;
+    heading.append(sequence,title);
+
+    const profile=makeElement('div','experiment-profile');
+    profile.append(
+      makeElement('small',null,'LOAD PROFILE'),
+      makeElement('p',null,experiment.profile),
+      makeElement('small',null,'INSTRUMENTATION'),
+      makeElement('p',null,experiment.instrumentation)
+    );
+
+    const channels=makeElement('div','experiment-channels');
+    channels.append(makeElement('small',null,'MEASURED CHANNELS'));
+    const channelList=makeElement('ul');
+    experiment.measured_channels.forEach(channel=>channelList.append(makeElement('li',null,channel)));
+    channels.append(channelList);
+
+    const outcome=makeElement('div','experiment-outcome');
+    outcome.append(
+      makeElement('small',null,'KEY RESULT'),
+      makeElement('strong',null,experiment.key_result),
+      makeElement('small',null,'FEEDS'),
+      makeElement('p',null,experiment.used_by.join(' · '))
+    );
+    row.append(heading,profile,channels,outcome);
+    ledger.append(row);
   });
-  rank.replaceChildren(axis,...rows);
 }
 
-function renderThermalLedger(experiments){
-  const body=document.querySelector('#tl-ledger tbody');
-  body.replaceChildren(...experiments.map((experiment,index)=>{
-    const row=makeElement('tr');
-    const stamp=experiment.id.match(/^EXP-\d{8}-(\d{2})(\d{2})\d{2}-/);
-    const test=makeElement('td');
-    test.append(
-      makeElement('strong',null,experiment.id.replace(/^EXP-(\d{8}-\d{6}-)?/,'').replace(/-/g,' ')),
-      makeElement('small',null,stamp?`4 Aug · ${stamp[1]}:${stamp[2]}`:'4 Aug')
+function formatLineageMetric(value,unit){
+  if(value===null||value===undefined)return 'NOT REPORTED';
+  const decimals=unit.includes('°C')?2:1;
+  if(Array.isArray(value))return `CPU ${value[0].toFixed(decimals)}${unit} · GPU ${value[1].toFixed(decimals)}${unit}`;
+  return `${Number(value).toFixed(decimals)}${unit}`;
+}
+
+function renderModelLineage(models){
+  const lineage=document.getElementById('thermal-model-lineage');
+  lineage.replaceChildren();
+  models.forEach(model=>{
+    const card=makeElement('article','lineage-card');
+    const heading=makeElement('header');
+    heading.append(
+      makeElement('span',null,model.id),
+      makeElement('b',model.decision.startsWith('ACCEPTED')?'accepted':model.decision==='SUPERSEDED'?'superseded':'rejected',model.decision)
     );
-    row.append(makeElement('td',null,String(index+1)),test,makeElement('td',null,experiment.profile),makeElement('td',null,experiment.role),makeElement('td',null,experiment.key_result));
-    return row;
-  }));
+    const name=makeElement('strong','lineage-name',model.name);
+    const family=makeElement('p','lineage-family',model.family);
+
+    const flow=makeElement('div','lineage-flow');
+    const input=makeElement('div');
+    input.append(makeElement('small',null,'INPUTS'),makeElement('span',null,model.inputs.join(' + ')));
+    const states=makeElement('div');
+    states.append(makeElement('small',null,'MODEL / STATES'),makeElement('span',null,model.states));
+    const output=makeElement('div');
+    output.append(makeElement('small',null,'OUTPUTS'),makeElement('span',null,model.outputs.join(' + ')));
+    flow.append(input,makeElement('i',null,'→'),states,makeElement('i',null,'→'),output);
+
+    const sources=makeElement('div','lineage-sources');
+    const calibration=makeElement('p');
+    calibration.append(makeElement('b',null,'CALIBRATION · '),document.createTextNode(model.calibration_source));
+    const validation=makeElement('p');
+    validation.append(makeElement('b',null,'HELD-OUT VALIDATION · '),document.createTextNode(model.validation_source));
+    sources.append(calibration,validation);
+
+    let plot=null;
+    if(model.validation_plot){
+      plot=makeElement('figure','lineage-plot');
+      const plotImage=makeElement('img');
+      plotImage.src=model.validation_plot;
+      plotImage.alt=`Measured and modelled calibration/validation curves for ${model.name}`;
+      plotImage.loading='lazy';
+      const plotCaption=makeElement('figcaption',null,'MEASURED CURVE VS MODEL OUTPUT');
+      plot.append(plotImage,plotCaption);
+    }
+
+    const metrics=makeElement('div','lineage-metrics');
+    [
+      ['CAL FIT',formatLineageMetric(model.calibration_fit_pct,'%')],
+      ['CAL RMSE',formatLineageMetric(model.calibration_rmse_C,' °C')],
+      ['VAL FIT',formatLineageMetric(model.validation_fit_pct,'%')],
+      ['VAL RMSE',formatLineageMetric(model.validation_rmse_C,' °C')]
+    ].forEach(([label,value])=>{
+      const metric=makeElement('div');
+      metric.append(makeElement('small',null,label),makeElement('strong',null,value));
+      metrics.append(metric);
+    });
+
+    const verification=makeElement('p','lineage-verification');
+    verification.append(makeElement('b',null,'VERIFICATION · '),document.createTextNode(model.verification));
+    const authority=makeElement('p','lineage-authority');
+    authority.append(makeElement('b',null,'PERMITTED USE · '),document.createTextNode(model.authority));
+    card.append(heading,name,family,flow,sources);
+    if(plot)card.append(plot);
+    card.append(metrics,verification,authority);
+    lineage.append(card);
+  });
 }
 
 function renderThermalLab(data){
-  const ambient=data.project.ambient_C.toFixed(1);
-  const models=data.model_lineage||[];
-  document.getElementById('tl-test-count').textContent=String((data.experimental_campaign||[]).length);
-  document.getElementById('tl-model-count').textContent=String(models.length);
-  document.getElementById('tl-valid-count').textContent=String(models.filter(model=>model.decision.startsWith('ACCEPTED')).length);
-  document.getElementById('tl-config').textContent=`${data.project.configuration_id} baseline · ${ambient} °C room`;
-  document.getElementById('tl-ambient').textContent=`${ambient} °C, held fixed`;
-  renderThermalLoads(data.headline_metrics,data.motherboard_telemetry);
-  renderThermalScores(models);
-  renderThermalRanking(data.configuration_screening||[]);
-  renderThermalLedger(data.experimental_campaign||[]);
+  const headline=data.headline_metrics;
+  const board=data.motherboard_telemetry;
+  document.getElementById('thermal-config').textContent=`${data.project.configuration_id} · SPINE ${data.configuration.case.spine_position}`;
+  document.getElementById('thermal-ambient').textContent=`${data.project.ambient_C.toFixed(1)} °C AMBIENT`;
+  document.getElementById('thermal-cpu').textContent=formatTemperature(headline.cpu_only.mean_temperature_C);
+  document.getElementById('thermal-cpu-power').textContent=`${formatPower(headline.cpu_only.mean_power_W)} mean package`;
+  document.getElementById('thermal-gpu').textContent=formatTemperature(headline.gpu_only.mean_temperature_C);
+  document.getElementById('thermal-gpu-power').textContent=`${formatPower(headline.gpu_only.mean_power_W)} mean board`;
+  document.getElementById('thermal-power').textContent=formatPower(headline.full_combined.mean_chip_power_W);
+  document.getElementById('thermal-vrm').textContent=formatTemperature(board.full_combined.vrm_load_peak_C);
+  document.getElementById('thermal-gpu-fit').textContent=`${data.model_quality.gpu_physical.validation_fit_pct.toFixed(1)}% FIT`;
+  document.getElementById('thermal-cpu-fit').textContent=`${data.model_quality.cpu_physical.full_validation_fit_pct.toFixed(1)}% FIT`;
+
+  const scenarios=document.getElementById('thermal-scenarios');
+  scenarios.replaceChildren();
+  const baselineScenario=data.configuration_screening.find(scenario=>scenario.configuration_id==='CFG-000');
+  const baselinePeak=baselineScenario
+    ?(baselineScenario.gpu_peak_model_low_C+baselineScenario.gpu_peak_model_high_C)/2
+    :80.31;
+  const confidenceLabels={
+    medium:'medium',
+    'medium-low':'medium-low',
+    reference:'reference',
+    'low for GPU; useful CPU experiment':'low for GPU'
+  };
+  data.configuration_screening.filter(scenario=>scenario.configuration_id!=='CFG-000').slice(0,6).forEach(scenario=>{
+    const row=document.createElement('div');
+    row.className='scenario-row';
+    const label=document.createElement('div');
+    const code=document.createElement('small');
+    code.textContent=scenario.configuration_id;
+    const name=document.createElement('strong');
+    name.textContent=scenario.physical_change;
+    const hypothesis=document.createElement('p');
+    hypothesis.textContent=scenario.hypothesis||'Hypothesis pending physical validation.';
+    const midpoint=(scenario.gpu_peak_model_low_C+scenario.gpu_peak_model_high_C)/2;
+    const gain=Math.max(0,baselinePeak-midpoint);
+    const meta=document.createElement('em');
+    meta.textContent=`${confidenceLabels[scenario.evidence_confidence]||scenario.evidence_confidence} confidence · central improvement estimate ${gain.toFixed(1)} °C`;
+    const risk=document.createElement('p');
+    risk.className='scenario-risk';
+    risk.textContent=`Risk: ${scenario.main_risk||'requires A/B validation'}`;
+    label.append(code,name,hypothesis,meta,risk);
+    const range=document.createElement('span');
+    range.textContent=scenario.gpu_peak_model_low_C===scenario.gpu_peak_model_high_C
+      ?formatTemperature(scenario.gpu_peak_model_low_C)
+      :`${scenario.gpu_peak_model_low_C.toFixed(1)}–${scenario.gpu_peak_model_high_C.toFixed(1)} °C`;
+    range.setAttribute('aria-label','Modelled GPU maximum-temperature interval');
+    row.append(label,range);
+    scenarios.append(row);
+  });
+  renderExperimentLedger(data.experimental_campaign||[]);
+  renderModelLineage(data.model_lineage||[]);
 }
 
 async function loadThermalLab(){
@@ -275,9 +292,18 @@ async function loadThermalLab(){
     if(!response.ok)throw new Error('thermal_data_unavailable');
     renderThermalLab(await response.json());
   }catch{
-    document.querySelectorAll('#thermal .tl-loading').forEach(element=>{element.textContent='Thermal dataset unavailable.'});
+    document.getElementById('thermal-scenarios').textContent='Thermal dataset unavailable.';
   }
 }
+
+document.querySelectorAll('[data-thermal-view]').forEach(button=>button.addEventListener('click',()=>{
+  document.querySelectorAll('[data-thermal-view]').forEach(peer=>{
+    const active=peer===button;
+    peer.classList.toggle('active',active);
+    peer.setAttribute('aria-pressed',String(active));
+  });
+  document.querySelectorAll('[data-thermal-panel]').forEach(panel=>panel.classList.toggle('active',panel.dataset.thermalPanel===button.dataset.thermalView));
+}));
 
 document.getElementById('sign-out').addEventListener('click',async()=>{
   try{
