@@ -549,7 +549,7 @@ def main():
                                                f"(~{gastado:,.0f} EUR a {px:,.2f} {c.currency})"))
 
     log(f"{len(ordenes)} órdenes ({'SE ENVÍAN' if args.ejecutar else 'SIMULACIÓN, no se envía nada'}):")
-    filas, rechazadas = [], []
+    filas, rechazadas, enviadas = [], [], []
     for accion, c, n, porque in ordenes:
         log(f"  {accion:8s} {n:>8,} {c.symbol:<8s} {c.currency}  · {porque}")
         fila = {"fecha": datetime.now().isoformat(timespec="seconds"), "cuenta": cuenta, "accion": accion,
@@ -565,9 +565,17 @@ def main():
             t = ib.placeOrder(c, MarketOrder("SELL" if accion == "VENDER" else "BUY", n, tif="DAY"))
             ib.sleep(1)
             fila["estado"] = t.orderStatus.status
-            if t.orderStatus.status in ("ValidationError", "Cancelled", "Inactive"):
-                rechazadas.append(f"{accion} {c.symbol}")
+            enviadas.append((accion, c.symbol, t, fila))
         filas.append(fila)
+    # IBKR puede tardar más de un segundo en rechazar una orden: se mira el estado final de todas
+    if enviadas:
+        ib.sleep(10)
+    for accion, simbolo, t, fila in enviadas:
+        fila["estado"] = t.orderStatus.status
+        if t.orderStatus.status in ("ValidationError", "Cancelled", "ApiCancelled", "Inactive"):
+            rechazadas.append(f"{accion} {simbolo}")
+            motivo = next((e.message for e in reversed(t.log) if e.message), "sin motivo")
+            log(f"  RECHAZADA {accion} {simbolo}: {motivo}")
     log("Cajas tras las órdenes: " + ", ".join(f"{k} {x:,.0f}" for k, x in estado["cajas"].items()))
     if args.ejecutar:
         libro["pesos"] = pesos
