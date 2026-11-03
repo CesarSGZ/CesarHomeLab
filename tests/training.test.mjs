@@ -4,7 +4,7 @@ import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 import {accessForUser} from '../functions/_lib/auth.js';
 import {onRequest} from '../functions/control/api/training/status.js';
-import {F,e1rm,sessions,progression,marks,recordsFor,suggestion,weeklySets,summary,alternatives,weightAt} from '../control/training-model.js';
+import {F,e1rm,sessions,progression,marks,recordsFor,suggestion,weeklySets,summary,alternatives,weightAt,exerciseName,knownParts} from '../control/training-model.js';
 
 const row=(fecha,ej,serie,reps,kg,rpe='',origen='app',musc='Pecho')=>[fecha,1,ej,musc,serie,reps,kg,rpe,'',origen,`${fecha}${ej}${serie}`];
 const owner={user:{username:'CesarVapor'},csrfToken:'test-token'};
@@ -62,6 +62,12 @@ test('Alternatives prefer the same movement and skip what is already planned',()
   const out=alternatives(list,[],{ejercicio:'Deadlift',original:'Deadlift',musculo:'Isquios'},new Set(['Usado']));
   assert.deepEqual(out.map(a=>a.ejercicio),['Deadlift TG','Leg Curl']);
 });
+test('New exercises get a distinct name per gym and variant',()=>{
+  assert.equal(exerciseName('Leg Extension','Basic Fit Getafe','Unilateral'),'Leg Extension · Basic Fit Getafe · Unilateral');
+  assert.equal(exerciseName('  Leg  Extension ','',''),'Leg Extension');
+  assert.equal(exerciseName('','',''),'');
+  assert.deepEqual(knownParts(['Remo T · Vivagym','Remo T','Curl · Vivagym · Unilateral']),{bases:['Curl','Remo T'],tags:['Unilateral','Vivagym']});
+});
 test('Training belongs only to the owner',async()=>{
   assert.ok(accessForUser({username:'CesarVapor'}).capabilities.includes('training:read'));
   for(const username of ['SuperSanti86','another-user'])assert.ok(!accessForUser({username}).capabilities.includes('training:read'));
@@ -83,6 +89,8 @@ test('API: unconnected state, CSRF, code validation and never leaking the key',a
     const read=await onRequest({request:new Request(url),data:{session:owner},env});
     assert.ok(!(await read.text()).includes('secret-key'));
     assert.equal((await onRequest({request:post({action:'ops',ops:[{tipo:'guardar',fila:{id:'a',fecha:'nope',ejercicio:'A',serie:1}}]}),data:{session:owner},env})).status,400);
+    assert.equal((await onRequest({request:post({action:'ops',ops:[{tipo:'alternativa',ejercicio:' '}]}),data:{session:owner},env})).status,400);
+    assert.equal((await onRequest({request:post({action:'ops',ops:[{tipo:'alternativa',ejercicio:'Remo · Vivagym',musculo:'Espalda'}]}),data:{session:owner},env})).status,200);
     const ok=await onRequest({request:post({action:'ops',ops:[{tipo:'guardar',fila:{id:'a',fecha:'2026-01-01',ejercicio:'A',serie:1,reps:5,kg:100,rpe:8}}]}),data:{session:owner},env});
     assert.equal(ok.status,200);assert.equal(JSON.parse(sent.init.body).k,'secret-key');
     globalThis.fetch=async()=>new Response(JSON.stringify({error:'clave'}));
@@ -100,6 +108,9 @@ test('Sheet script: resent operations do not duplicate rows and deletes apply',(
   assert.equal(tabs.Registro.length,2);assert.equal(tabs.Registro[1][7],8);assert.equal(tabs.Registro[1][9],'app');
   send([{tipo:'guardar',fila:{...fila,kg:105}}]);assert.equal(tabs.Registro[1][6],105);assert.equal(tabs.Registro.length,2);
   send([{tipo:'borrar',id:'a1'}]);assert.equal(tabs.Registro.length,1);
+  tabs.Alternativas=[['Músculo','Ejercicio','Referencia']];
+  send([{tipo:'alternativa',musculo:'Pecho',ejercicio:'Press · Vivagym',referencia:''}]);send([{tipo:'alternativa',musculo:'Pecho',ejercicio:'Press · Vivagym',referencia:''}]);
+  assert.deepEqual(tabs.Alternativas.slice(1),[['Pecho','Press · Vivagym','']]);
   assert.equal(JSON.parse(box.doGet({parameter:{k:'mala'}})).error,'clave');
   assert.equal(JSON.parse(box.doPost({postData:{contents:JSON.stringify({k:'mala',ops:[]})}})).error,'clave');
 });

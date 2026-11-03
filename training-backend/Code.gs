@@ -63,6 +63,18 @@ function reemplazar_(nombre, columnas, filas) {
   if (filas.length) hoja.getRange(2, 1, filas.length, columnas.length).setValues(filas);
 }
 
+// Un ejercicio creado desde la app queda como alternativa; si el nombre ya existe no se duplica.
+function anadirAlternativas_(altas) {
+  var hoja = SpreadsheetApp.getActive().getSheetByName('Alternativas');
+  var vistos = {};
+  hoja.getDataRange().getValues().forEach(function (r) { vistos[r[1]] = true; });
+  altas.forEach(function (a) {
+    if (vistos[a.ejercicio]) return;
+    vistos[a.ejercicio] = true;
+    hoja.getRange(hoja.getLastRow() + 1, 1, 1, COLS_ALTERNATIVAS.length).setValues([[a.musculo || '', a.ejercicio, a.referencia || '']]);
+  });
+}
+
 function fechaTexto_(v) {
   if (v instanceof Date) return Utilities.formatDate(v, Session.getScriptTimeZone(), 'yyyy-MM-dd');
   return String(v);
@@ -90,6 +102,9 @@ function leerTodo_() {
 
 // Las operaciones llevan ID, así que reenviarlas tras un corte de red no duplica nada.
 function aplicar_(ops) {
+  var altas = ops.filter(function (op) { return op.tipo === 'alternativa'; });
+  ops = ops.filter(function (op) { return op.tipo !== 'alternativa'; });
+  if (altas.length) anadirAlternativas_(altas);
   if (!ops.length) return;
   var hoja = SpreadsheetApp.getActive().getSheetByName('Registro');
   var ultima = hoja.getLastRow();

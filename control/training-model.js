@@ -106,3 +106,20 @@ export function alternatives(list, rows, current, used) {
   const score = a => (a.ejercicio.toLowerCase().startsWith(word) ? 2 : 0) + (a.musculo === current.musculo ? 1 : 0);
   return [...seen.values()].filter(a => a.musculo === current.musculo || score(a) >= 2).sort((a, b) => score(b) - score(a) || a.ejercicio.localeCompare(b.ejercicio, 'es'));
 }
+
+// Each machine, gym or variation is its own exercise: different loads must not share a history.
+export const SEPARATOR = ' · ';
+export const clean = value => String(value ?? '').replace(/\s+/g, ' ').trim();
+export function exerciseName(base, gym = '', variant = '') {
+  return [base, gym, variant].map(clean).filter(Boolean).join(SEPARATOR);
+}
+// Gyms and machines already used, taken from the part after the base name.
+export function knownParts(names) {
+  const bases = new Set(), tags = new Set();
+  for (const name of names) {
+    const [base, ...rest] = String(name).split(SEPARATOR);
+    if (base) bases.add(base);
+    rest.forEach(tag => tags.add(tag));
+  }
+  return { bases: [...bases].sort((a, b) => a.localeCompare(b, 'es')), tags: [...tags].sort((a, b) => a.localeCompare(b, 'es')) };
+}
