@@ -26,6 +26,7 @@ async function readSheet({ url, key }) {
 
 function validOp(op) {
   if (op?.tipo === 'borrar') return typeof op.id === 'string' && op.id.length < 80;
+  if (op?.tipo === 'alternativa') return typeof op.ejercicio === 'string' && op.ejercicio.trim().length > 0 && op.ejercicio.length < 120 && String(op.musculo || '').length < 40 && String(op.referencia || '').length < 200;
   if (op?.tipo !== 'guardar' || !op.fila || typeof op.fila !== 'object') return false;
   const f = op.fila;
   return typeof f.id === 'string' && f.id.length < 80 && /^\d{4}-\d{2}-\d{2}$/.test(f.fecha) && typeof f.ejercicio === 'string' && f.ejercicio.length < 120

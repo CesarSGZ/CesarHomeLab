@@ -29,7 +29,8 @@
 
   // ---------- Today's plan: skips, order and swaps that expire with the date ----------
   function plan() {
-    if (!S.plan || S.plan.fecha !== today()) S.plan = { fecha: today(), saltos: {}, orden: {}, cambios: {} };
+    if (!S.plan || S.plan.fecha !== today()) S.plan = { fecha: today(), saltos: {}, orden: {}, cambios: {}, extras: {} };
+    S.plan.extras ||= {};
     return S.plan;
   }
   const savePlan = () => write('plan', S.plan);
@@ -40,9 +41,10 @@
       const swap = p.cambios[`${dia}|${r.ejercicio}`];
       if (!swap) return { ...r, original: r.ejercicio };
       const alt = S.alternativas.find(a => a.ejercicio === swap);
-      return { ...r, original: r.ejercicio, ejercicio: swap, referencia: alt?.referencia || '' };
+      return { ...r, original: r.ejercicio, ejercicio: swap, referencia: alt?.referencia || '', musculo: alt?.musculo || r.musculo };
     });
-    if (p.orden[dia]) list.sort((a, b) => p.orden[dia].indexOf(a.original) - p.orden[dia].indexOf(b.original));
+    for (const extra of p.extras[dia] || []) if (!list.some(x => x.ejercicio === extra.ejercicio)) list.push({ dia, orden: 99, series: 4, reps: 8, salto: 2.5, referencia: '', ...extra, original: extra.ejercicio });
+    if (p.orden[dia]) { const at = x => { const i = p.orden[dia].indexOf(x.original); return i < 0 ? 99 : i; }; list.sort((a, b) => at(a) - at(b)); }
     return list;
   }
   const todayRows = (dia, name) => S.filas.filter(f => f[F.FECHA] === today() && f[F.DIA] === dia && f[F.EJ] === name).sort((a, b) => a[F.SERIE] - b[F.SERIE]);
@@ -84,7 +86,7 @@
   const toRow = f => [f.fecha, f.dia, f.ejercicio, f.musculo, f.serie, f.reps ?? '', f.kg ?? '', f.rpe ?? '', f.nota || '', 'app', f.id];
   function merge(serverRows) {
     const pending = new Map(), deleted = new Set();
-    for (const op of S.queue) { if (op.tipo === 'borrar') deleted.add(op.id); else pending.set(op.fila.id, toRow(op.fila)); }
+    for (const op of S.queue) { if (op.tipo === 'borrar') deleted.add(op.id); else if (op.tipo === 'guardar') pending.set(op.fila.id, toRow(op.fila)); }
     S.filas = serverRows.filter(f => !deleted.has(f[F.ID]) && !pending.has(f[F.ID])).concat([...pending.values()]);
   }
   async function load() {
@@ -93,6 +95,7 @@
     if (!data.connected) return;
     S.rutina = data.rutina; S.alternativas = data.alternativas; S.bodyWeight = data.bodyWeight;
     merge(data.filas);
+    for (const op of S.queue) if (op.tipo === 'alternativa' && !S.alternativas.some(a => a.ejercicio === op.ejercicio)) S.alternativas.push({ musculo: op.musculo, ejercicio: op.ejercicio, referencia: op.referencia });
     write('cache', { rutina: S.rutina, alternativas: S.alternativas, filas: S.filas, bodyWeight: S.bodyWeight });
     S.error = '';
   }
@@ -149,7 +152,7 @@
     const anyDone = list.some(x => todayRows(S.dia, x.ejercicio).length);
     const week = model.weeklySets(S.filas, today());
     $('#tl-body').innerHTML = `${dayRow}<div class="tl-layout"><div>${paintFocus(r)}</div><aside class="tl-side">
-      <div class="tl-side-head"><h3>Hoy</h3><button type="button" class="tl-link" data-act="order">Cambiar orden</button></div>
+      <div class="tl-side-head"><h3>Hoy</h3><span><button type="button" class="tl-link" data-act="new">Añadir</button><button type="button" class="tl-link" data-act="order">Cambiar orden</button></span></div>
       <ul class="tl-list">${list.map(x => { const s = setState(x); return `<li class="${s.complete ? 'done' : ''}${x === r ? ' current' : ''}"><button type="button" data-ex="${E(x.ejercicio)}"><span>${E(x.ejercicio)}</span><span class="tl-dots" aria-label="${s.done.length} de ${x.series} series">${Array.from({ length: x.series }, (_, i) => `<i class="${s.done.some(f => f[F.SERIE] === i + 1) ? 'ok' : s.skipped.includes(i + 1) ? 'skip' : ''}"></i>`).join('')}</span></button></li>`; }).join('')}</ul>
       ${anyDone ? '<button type="button" class="tl-secondary" data-act="finish">Terminar entreno</button>' : ''}
       ${week.length ? `<h3>Series duras, 7 días</h3><ul class="tl-week">${week.map(([m, n]) => `<li><span>${E(m)}</span><b>${n}</b><i style="width:${Math.min(100, n / Math.max(...week.map(w => w[1])) * 100)}%"></i></li>`).join('')}</ul>` : ''}
@@ -246,7 +249,46 @@
     showLayer(`<div class="tl-card plain" role="dialog" aria-label="Cambiar ejercicio"><h3>Cambiar por</h3><p class="tl-note">Solo hoy. Lo que apuntes se guarda en el ejercicio que elijas.</p><div class="tl-options">
       ${r.ejercicio !== r.original ? `<button type="button" class="back" data-swap="${E(r.original)}">Volver a ${E(r.original)}</button>` : ''}
       ${options.map(a => `<button type="button" data-swap="${E(a.ejercicio)}"><b>${E(a.ejercicio)}</b>${a.referencia ? `<small>${E(a.referencia)}</small>` : ''}</button>`).join('')}</div>
-      <label class="tl-field" for="tl-other">O escribe otro</label><input class="tl-text" id="tl-other" autocomplete="off"><button type="button" class="tl-primary" data-act="swap-other">Usar este</button><button type="button" class="tl-link center" data-act="close">Cancelar</button></div>`);
+      <button type="button" class="tl-primary" data-act="new">Crear ejercicio nuevo</button><button type="button" class="tl-link center" data-act="close">Cancelar</button></div>`);
+  }
+  // A new gym or machine: the name decides the history, so each combination starts its own.
+  function layerNew() {
+    const current = exercises(S.dia).find(x => x.ejercicio === S.ejercicio);
+    const names = [...S.alternativas.map(a => a.ejercicio), ...S.rutina.map(r => r.ejercicio), ...S.filas.map(f => f[F.EJ])];
+    const { bases, tags } = model.knownParts(new Set(names));
+    const muscles = [...new Set([...S.rutina.map(r => r.musculo), ...S.alternativas.map(a => a.musculo)].filter(Boolean))].sort((a, b) => a.localeCompare(b, 'es'));
+    const base = String(current?.ejercicio || '').split(model.SEPARATOR)[0];
+    S.newVariant = '';
+    showLayer(`<div class="tl-card plain" role="dialog" aria-label="Ejercicio nuevo"><h3>Ejercicio nuevo</h3><p class="tl-note">Cada máquina, gimnasio o variante lleva sus propios pesos e historial.</p>
+      <label class="tl-field" for="tl-new-base">Ejercicio</label><input class="tl-text" id="tl-new-base" list="tl-new-bases" value="${E(base)}" autocomplete="off"><datalist id="tl-new-bases">${bases.map(b => `<option value="${E(b)}"></option>`).join('')}</datalist>
+      <label class="tl-field" for="tl-new-gym">Gimnasio o máquina</label><input class="tl-text" id="tl-new-gym" list="tl-new-tags" placeholder="Basic Fit Getafe, TG..." autocomplete="off"><datalist id="tl-new-tags">${tags.map(b => `<option value="${E(b)}"></option>`).join('')}</datalist>
+      <span class="tl-field">Variante</span><div class="tl-chips tl-new-variants" role="group" aria-label="Variante">${['Normal', 'Unilateral', 'Poco recorrido', 'Con parada', 'Agarre neutro'].map(v => `<button type="button" data-variant="${v === 'Normal' ? '' : v}" aria-pressed="${v === 'Normal'}">${v}</button>`).join('')}</div>
+      <input class="tl-text" id="tl-new-variant" placeholder="U otra: altura 5, goma roja..." autocomplete="off" aria-label="Otra variante">
+      <label class="tl-field" for="tl-new-muscle">Músculo</label><select class="tl-text" id="tl-new-muscle">${muscles.map(m => `<option${m === current?.musculo ? ' selected' : ''}>${E(m)}</option>`).join('')}</select>
+      <p class="tl-new-name" id="tl-new-name" role="status"></p>
+      ${current ? `<button type="button" class="tl-primary" data-act="new-swap">Sustituir ${E(current.ejercicio)} hoy</button>` : ''}
+      <button type="button" class="tl-secondary" data-act="new-add">Añadirlo a hoy sin sustituir</button><button type="button" class="tl-link center" data-act="close">Cancelar</button></div>`);
+    previewNew();
+  }
+  const newName = () => model.exerciseName(document.getElementById('tl-new-base').value, document.getElementById('tl-new-gym').value, document.getElementById('tl-new-variant').value || S.newVariant);
+  function previewNew() {
+    const node = document.getElementById('tl-new-name');
+    if (!node) return;
+    const name = newName(), rows = S.filas.filter(f => f[F.EJ] === name).length;
+    node.innerHTML = name ? `<b>${E(name)}</b>${rows ? ` ya existe, con ${rows} registros: seguirás su historial.` : ' empieza historial propio.'}` : 'Escribe el nombre del ejercicio.';
+  }
+  function createExercise(swap) {
+    const name = newName();
+    if (!document.getElementById('tl-new-base').value.trim()) return previewNew();
+    const musculo = document.getElementById('tl-new-muscle').value;
+    if (!S.alternativas.some(a => a.ejercicio === name)) {
+      S.alternativas.push({ musculo, ejercicio: name, referencia: '' });
+      enqueue({ tipo: 'alternativa', musculo, ejercicio: name, referencia: '' });
+    }
+    if (swap) return doSwap(name);
+    const p = plan();
+    p.extras[S.dia] = (p.extras[S.dia] || []).filter(x => x.ejercicio !== name).concat({ ejercicio: name, musculo });
+    savePlan(); S.ejercicio = name; closeLayer(); return paint();
   }
   function doSwap(name) {
     const value = name.trim();
@@ -323,7 +365,7 @@
     if (S.muscle !== 'weight' && (!S.chart || !inMuscle.some(e => e.name === S.chart))) S.chart = (S.muscle === 'Pecho' && usable.has('Bench Press')) ? 'Bench Press' : inMuscle[0].name;
     $('#tl-body').innerHTML = `<div class="tl-kpis"><article><small>DESDE</small><strong>${first.slice(0, 4)}</strong><span>${N0(S.filas.length)} registros, ${N0(logged)} apuntados aquí</span></article>${lifts.slice(0, 3).map(l => `<article><small>${E(l.n.split(' (')[0].toUpperCase())}</small><strong>${N0(l.b)}</strong><span>e1RM, desde ${N0(l.a)} kg</span></article>`).join('')}</div>
       <div class="tl-chips" role="group" aria-label="Músculo">${muscles.map(m => `<button type="button" data-muscle="${E(m)}" aria-pressed="${m === S.muscle}">${E(m)}</button>`).join('')}${S.bodyWeight.length ? `<button type="button" data-muscle="weight" aria-pressed="${S.muscle === 'weight'}">Peso corporal</button>` : ''}</div>
-      ${S.muscle === 'weight' ? '' : `<div class="tl-chips minor" role="group" aria-label="Ejercicio">${inMuscle.slice(0, 14).map(e => `<button type="button" data-chart="${E(e.name)}" aria-pressed="${e.name === S.chart}">${E(e.name)}</button>`).join('')}</div>
+      ${S.muscle === 'weight' ? '' : `<div class="tl-chips minor" role="group" aria-label="Ejercicio">${inMuscle.map(e => `<button type="button" data-chart="${E(e.name)}" aria-pressed="${e.name === S.chart}">${E(e.name)}</button>`).join('')}</div>
       <div class="tl-metrics" role="group" aria-label="Métrica">${[['e1rm', 'e1RM'], ['kg', 'Kilos'], ['relative', '× peso corporal']].map(([id, label]) => `<button type="button" data-metric="${id}" aria-pressed="${S.metric === id}">${label}</button>`).join('')}</div>`}
       <div class="tl-chart-box" id="tl-chart-box"></div><div id="tl-log"></div>`;
     if (S.muscle === 'weight') {
@@ -382,6 +424,7 @@
     if (d.edit) return layerEdit(d.edit);
     if (d.move) { const list = exercises(S.dia).map(x => x.original), [item] = list.splice(+d.move, 1); list.splice(+d.move + +d.v, 0, item); plan().orden[S.dia] = list; savePlan(); return layerOrder(); }
     if (d.swap) return doSwap(d.swap);
+    if (d.variant !== undefined) { S.newVariant = d.variant; document.getElementById('tl-new-variant').value = ''; portal.querySelectorAll('[data-variant]').forEach(x => x.setAttribute('aria-pressed', String(x === b))); return previewNew(); }
     if (d.muscle) { S.muscle = d.muscle; S.chart = null; return paint(); }
     if (d.chart) { S.chart = d.chart; return paint(); }
     if (d.metric) { S.metric = d.metric; return paint(); }
@@ -392,7 +435,9 @@
       case 'order': keepDraft(); return layerOrder();
       case 'close-order': closeLayer(); S.ejercicio = null; return paint();
       case 'swap': keepDraft(); return layerSwap();
-      case 'swap-other': return doSwap(document.getElementById('tl-other').value);
+      case 'new': keepDraft(); return layerNew();
+      case 'new-swap': return createExercise(true);
+      case 'new-add': return createExercise(false);
       case 'edit-save': return saveEdit();
       case 'edit-delete': return deleteEdit();
       case 'close': return closeLayer();
@@ -411,6 +456,7 @@
   };
   app.addEventListener('click', onClick);
   portal.addEventListener('click', onClick);
+  portal.addEventListener('input', event => { if (event.target.closest('.tl-card')) previewNew(); });
   portal.addEventListener('focusin', event => { if (event.target.matches('.tl-input input')) event.target.select(); });
   app.addEventListener('focusin', event => { if (event.target.matches('.tl-input input')) event.target.select(); });
   app.addEventListener('input', event => {
@@ -427,7 +473,7 @@
   window.TrainingLab = { async initialise(token) {
     csrf = token;
     try {
-      model = await import('./training-model.js?v=20261103rpe'); F = model.F;
+      model = await import('./training-model.js?v=20261103var'); F = model.F;
       S.queue = read('queue', []); S.plan = read('plan', null);
       const cache = read('cache', null);
       if (cache) { Object.assign(S, cache); S.connected = true; paint(); }
