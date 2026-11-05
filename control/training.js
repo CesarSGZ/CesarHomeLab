@@ -245,37 +245,44 @@
   }
   function layerSwap() {
     const r = exercises(S.dia).find(x => x.ejercicio === S.ejercicio), used = new Set(exercises(S.dia).map(x => x.ejercicio));
-    const options = model.alternatives(S.alternativas, S.filas, r, used);
-    showLayer(`<div class="tl-card plain" role="dialog" aria-label="Cambiar ejercicio"><h3>Cambiar por</h3><p class="tl-note">Solo hoy. Lo que apuntes se guarda en el ejercicio que elijas.</p><div class="tl-options">
-      ${r.ejercicio !== r.original ? `<button type="button" class="back" data-swap="${E(r.original)}">Volver a ${E(r.original)}</button>` : ''}
-      ${options.map(a => `<button type="button" data-swap="${E(a.ejercicio)}"><b>${E(a.ejercicio)}</b>${a.referencia ? `<small>${E(a.referencia)}</small>` : ''}</button>`).join('')}</div>
+    const current = model.nameParts(r.ejercicio).base;
+    const groups = model.groupByExercise(model.alternatives(S.alternativas, S.filas, r, used), current);
+    showLayer(`<div class="tl-card plain" role="dialog" aria-label="Cambiar ejercicio"><h3>Cambiar por</h3><p class="tl-note">Solo hoy. Lo que apuntes se guarda en el ejercicio que elijas.</p>${r.ejercicio !== r.original ? `<div class="tl-options"><button type="button" class="back" data-swap="${E(r.original)}">Volver a ${E(r.original)}</button></div>` : ''}
+      ${groups.map(g => `<section class="tl-option-group"><div class="tl-option-head"><h4>${E(g.base)}</h4><button type="button" class="tl-link" data-new-base="${E(g.base)}">Otra máquina o gimnasio</button></div>
+        ${g.items.length ? `<div class="tl-options">${g.items.map(a => `<button type="button" data-swap="${E(a.ejercicio)}"><b>${E(a.tags.join(' · ') || 'Normal')}</b>${a.referencia ? `<small>${E(a.referencia)}</small>` : ''}</button>`).join('')}</div>` : ''}</section>`).join('')}
       <button type="button" class="tl-primary" data-act="new">Crear ejercicio nuevo</button><button type="button" class="tl-link center" data-act="close">Cancelar</button></div>`);
   }
   // A new gym or machine: the name decides the history, so each combination starts its own.
-  function layerNew() {
+  const allNames = () => new Set([...S.alternativas.map(a => a.ejercicio), ...S.rutina.map(r => r.ejercicio), ...S.filas.map(f => f[F.EJ])].filter(Boolean));
+  function layerNew(chosenBase) {
     const current = exercises(S.dia).find(x => x.ejercicio === S.ejercicio);
-    const names = [...S.alternativas.map(a => a.ejercicio), ...S.rutina.map(r => r.ejercicio), ...S.filas.map(f => f[F.EJ])];
-    const { bases, tags } = model.knownParts(new Set(names));
+    const { bases, machines, gyms } = model.knownParts(allNames());
     const muscles = [...new Set([...S.rutina.map(r => r.musculo), ...S.alternativas.map(a => a.musculo)].filter(Boolean))].sort((a, b) => a.localeCompare(b, 'es'));
-    const base = String(current?.ejercicio || '').split(model.SEPARATOR)[0];
+    const base = chosenBase || model.nameParts(current?.ejercicio || '').base;
+    const muscle = S.alternativas.find(a => model.nameParts(a.ejercicio).base === base)?.musculo || current?.musculo;
     S.newVariant = '';
-    showLayer(`<div class="tl-card plain" role="dialog" aria-label="Ejercicio nuevo"><h3>Ejercicio nuevo</h3><p class="tl-note">Cada máquina, gimnasio o variante lleva sus propios pesos e historial.</p>
+    showLayer(`<div class="tl-card plain" role="dialog" aria-label="Ejercicio nuevo"><h3>Ejercicio nuevo</h3><p class="tl-note">Cada máquina, gimnasio o modalidad lleva sus propios pesos e historial. TG es Technogym, TGD Technogym Discos y HS Hammer Strength.</p>
       <label class="tl-field" for="tl-new-base">Ejercicio</label><input class="tl-text" id="tl-new-base" list="tl-new-bases" value="${E(base)}" autocomplete="off"><datalist id="tl-new-bases">${bases.map(b => `<option value="${E(b)}"></option>`).join('')}</datalist>
-      <label class="tl-field" for="tl-new-gym">Gimnasio o máquina</label><input class="tl-text" id="tl-new-gym" list="tl-new-tags" placeholder="Basic Fit Getafe, TG..." autocomplete="off"><datalist id="tl-new-tags">${tags.map(b => `<option value="${E(b)}"></option>`).join('')}</datalist>
-      <span class="tl-field">Variante</span><div class="tl-chips tl-new-variants" role="group" aria-label="Variante">${['Normal', 'Unilateral', 'Poco recorrido', 'Con parada', 'Agarre neutro'].map(v => `<button type="button" data-variant="${v === 'Normal' ? '' : v}" aria-pressed="${v === 'Normal'}">${v}</button>`).join('')}</div>
-      <input class="tl-text" id="tl-new-variant" placeholder="U otra: altura 5, goma roja..." autocomplete="off" aria-label="Otra variante">
-      <label class="tl-field" for="tl-new-muscle">Músculo</label><select class="tl-text" id="tl-new-muscle">${muscles.map(m => `<option${m === current?.musculo ? ' selected' : ''}>${E(m)}</option>`).join('')}</select>
+      <label class="tl-field" for="tl-new-machine">Máquina o marca</label><input class="tl-text" id="tl-new-machine" list="tl-new-machines" placeholder="TGD, HS, Impulse..." autocomplete="off"><datalist id="tl-new-machines">${machines.map(b => `<option value="${E(b)}"></option>`).join('')}</datalist>
+      <label class="tl-field" for="tl-new-gym">Gimnasio</label><input class="tl-text" id="tl-new-gym" list="tl-new-gyms" placeholder="Vivagym, Basic Fit Getafe..." autocomplete="off"><datalist id="tl-new-gyms">${gyms.map(b => `<option value="${E(b)}"></option>`).join('')}</datalist>
+      <span class="tl-field">Modalidad</span><div class="tl-chips tl-new-variants" role="group" aria-label="Modalidad">${['Normal', 'Unilateral', 'Poco recorrido', 'Con parada', 'Agarre neutro'].map(v => `<button type="button" data-variant="${v === 'Normal' ? '' : v}" aria-pressed="${v === 'Normal'}">${v}</button>`).join('')}</div>
+      <input class="tl-text" id="tl-new-variant" placeholder="U otra: altura 5, goma roja..." autocomplete="off" aria-label="Otra modalidad">
+      <label class="tl-field" for="tl-new-muscle">Músculo</label><select class="tl-text" id="tl-new-muscle">${muscles.map(m => `<option${m === muscle ? ' selected' : ''}>${E(m)}</option>`).join('')}</select>
       <p class="tl-new-name" id="tl-new-name" role="status"></p>
       ${current ? `<button type="button" class="tl-primary" data-act="new-swap">Sustituir ${E(current.ejercicio)} hoy</button>` : ''}
       <button type="button" class="tl-secondary" data-act="new-add">Añadirlo a hoy sin sustituir</button><button type="button" class="tl-link center" data-act="close">Cancelar</button></div>`);
     previewNew();
   }
-  const newName = () => model.exerciseName(document.getElementById('tl-new-base').value, document.getElementById('tl-new-gym').value, document.getElementById('tl-new-variant').value || S.newVariant);
+  // Written with other accents or capitals, it is still the exercise that already exists.
+  const newName = () => {
+    const name = model.exerciseName(document.getElementById('tl-new-base').value, document.getElementById('tl-new-machine').value, document.getElementById('tl-new-gym').value, document.getElementById('tl-new-variant').value || S.newVariant);
+    return model.findExercise(allNames(), name) || name;
+  };
   function previewNew() {
     const node = document.getElementById('tl-new-name');
     if (!node) return;
-    const name = newName(), rows = S.filas.filter(f => f[F.EJ] === name).length;
-    node.innerHTML = name ? `<b>${E(name)}</b>${rows ? ` ya existe, con ${rows} registros: seguirás su historial.` : ' empieza historial propio.'}` : 'Escribe el nombre del ejercicio.';
+    const name = newName(), rows = S.filas.filter(f => f[F.EJ] === name).length, exists = allNames().has(name);
+    node.innerHTML = name ? `<b>${E(name)}</b>${exists ? ` ya existe${rows ? `, con ${rows} registros` : ''}: seguirás su historial.` : ' empieza historial propio.'}` : 'Escribe el nombre del ejercicio.';
   }
   function createExercise(swap) {
     const name = newName();
@@ -359,7 +366,7 @@
     if (!list.length) { $('#tl-body').innerHTML = '<p class="tl-note">Todavía no hay series con peso.</p>'; return; }
     const first = S.filas.reduce((m, f) => (f[F.FECHA] < m ? f[F.FECHA] : m), today());
     const logged = S.filas.filter(f => f[F.ORIGEN] === 'app').length;
-    const lifts = ['Bench Press', 'Overhead Press', 'Deadlift TG', 'Sentadilla (Poco Recorrido altura: 11,17)', 'Lat Pulldown TGD'].filter(n => usable.has(n)).map(n => { const p = model.progression(S.filas, n); return p.length ? { n, a: p[0].value, b: Math.max(...p.map(x => x.value)) } : null; }).filter(Boolean);
+    const lifts = ['Bench Press', 'Overhead Press', 'Deadlift · TG', 'Sentadilla · Poco recorrido', 'Lat Pulldown · TGD'].filter(n => usable.has(n)).map(n => { const p = model.progression(S.filas, n); return p.length ? { n, a: p[0].value, b: Math.max(...p.map(x => x.value)) } : null; }).filter(Boolean);
     if (!S.muscle || (S.muscle !== 'weight' && !muscles.includes(S.muscle))) S.muscle = usable.get(S.chart)?.muscle || (muscles.includes('Pecho') ? 'Pecho' : muscles[0]);
     const inMuscle = list.filter(e => e.muscle === S.muscle).sort((a, b) => b.n - a.n);
     if (S.muscle !== 'weight' && (!S.chart || !inMuscle.some(e => e.name === S.chart))) S.chart = (S.muscle === 'Pecho' && usable.has('Bench Press')) ? 'Bench Press' : inMuscle[0].name;
@@ -424,6 +431,7 @@
     if (d.edit) return layerEdit(d.edit);
     if (d.move) { const list = exercises(S.dia).map(x => x.original), [item] = list.splice(+d.move, 1); list.splice(+d.move + +d.v, 0, item); plan().orden[S.dia] = list; savePlan(); return layerOrder(); }
     if (d.swap) return doSwap(d.swap);
+    if (d.newBase) { keepDraft(); return layerNew(d.newBase); }
     if (d.variant !== undefined) { S.newVariant = d.variant; document.getElementById('tl-new-variant').value = ''; portal.querySelectorAll('[data-variant]').forEach(x => x.setAttribute('aria-pressed', String(x === b))); return previewNew(); }
     if (d.muscle) { S.muscle = d.muscle; S.chart = null; return paint(); }
     if (d.chart) { S.chart = d.chart; return paint(); }
@@ -473,7 +481,7 @@
   window.TrainingLab = { async initialise(token) {
     csrf = token;
     try {
-      model = await import('./training-model.js?v=20261103var'); F = model.F;
+      model = await import('./training-model.js?v=20261105pick'); F = model.F;
       S.queue = read('queue', []); S.plan = read('plan', null);
       const cache = read('cache', null);
       if (cache) { Object.assign(S, cache); S.connected = true; paint(); }
