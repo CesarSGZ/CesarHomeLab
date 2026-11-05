@@ -75,6 +75,11 @@ html[data-theme=day] .training-view{--tl-accent:#567b23;--tl-accent-ink:#fff;--t
 .tl-side-head{display:flex;justify-content:space-between;align-items:center}
 .tl-side-head span{display:flex;gap:14px}
 .tl-new-variants{margin:4px 0 6px}
+.tl-option-group{margin-top:14px}
+.tl-option-head{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+.tl-option-head h4{margin:0;font-size:14.5px;font-weight:700}
+.tl-option-head .tl-link{flex:none;font-size:12.5px}
+.tl-option-group .tl-options{margin-top:6px}
 .tl-new-name{min-height:40px;margin:12px 0 0;font-size:14px;color:var(--tl-muted)}
 .tl-new-name b{color:var(--tl-ink)}
 select.tl-text{appearance:auto}

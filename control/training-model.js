@@ -108,18 +108,44 @@ export function alternatives(list, rows, current, used) {
 }
 
 // Each machine, gym or variation is its own exercise: different loads must not share a history.
+// A name reads "Exercise · Machine · Gym · Variant", and only the exercise is required.
 export const SEPARATOR = ' · ';
 export const clean = value => String(value ?? '').replace(/\s+/g, ' ').trim();
-export function exerciseName(base, gym = '', variant = '') {
-  return [base, gym, variant].map(clean).filter(Boolean).join(SEPARATOR);
+export function exerciseName(...parts) {
+  return parts.map(clean).filter(Boolean).join(SEPARATOR);
 }
-// Gyms and machines already used, taken from the part after the base name.
+export function nameParts(name) {
+  const [base = '', ...tags] = String(name).split(SEPARATOR);
+  return { base, tags };
+}
+const GYM = /vivagym|basic ?fit/i;
+const VARIANT = /unilateral|individual|parcial|parada|neutro|recorrido|alta|suelo|goma|regulable/i;
+const byName = list => [...list].sort((a, b) => a.localeCompare(b, 'es'));
+// Parts already used, sorted into the field where they belong.
 export function knownParts(names) {
-  const bases = new Set(), tags = new Set();
+  const bases = new Set(), machines = new Set(), gyms = new Set(), variants = new Set();
   for (const name of names) {
-    const [base, ...rest] = String(name).split(SEPARATOR);
+    const { base, tags } = nameParts(name);
     if (base) bases.add(base);
-    rest.forEach(tag => tags.add(tag));
+    for (const tag of tags) (GYM.test(tag) ? gyms : VARIANT.test(tag) ? variants : machines).add(tag);
   }
-  return { bases: [...bases].sort((a, b) => a.localeCompare(b, 'es')), tags: [...tags].sort((a, b) => a.localeCompare(b, 'es')) };
+  return { bases: byName(bases), machines: byName(machines), gyms: byName(gyms), variants: byName(variants) };
+}
+// Accents, capitals and the order of the tags must not create a second history.
+const plain = value => clean(value).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+export function sameExercise(a, b) {
+  const key = name => { const { base, tags } = nameParts(name); return [plain(base), ...tags.map(plain).sort()].join('|'); };
+  return key(a) === key(b);
+}
+export const findExercise = (names, name) => [...names].find(existing => sameExercise(existing, name)) || null;
+// Options under their exercise, the current one first, so the machine or gym is the only choice left.
+export function groupByExercise(options, currentBase = '') {
+  const groups = new Map(currentBase ? [[currentBase, []]] : []);
+  for (const option of options) {
+    const { base, tags } = nameParts(option.ejercicio);
+    if (!groups.has(base)) groups.set(base, []);
+    groups.get(base).push({ ...option, tags });
+  }
+  return [...groups].map(([base, items]) => ({ base, items: items.sort((a, b) => a.tags.length - b.tags.length || a.ejercicio.localeCompare(b.ejercicio, 'es')) }))
+    .sort((a, b) => (b.base === currentBase) - (a.base === currentBase) || a.base.localeCompare(b.base, 'es'));
 }

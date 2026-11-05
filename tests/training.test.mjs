@@ -4,7 +4,7 @@ import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 import {accessForUser} from '../functions/_lib/auth.js';
 import {onRequest} from '../functions/control/api/training/status.js';
-import {F,e1rm,sessions,progression,marks,recordsFor,suggestion,weeklySets,summary,alternatives,weightAt,exerciseName,knownParts} from '../control/training-model.js';
+import {F,e1rm,sessions,progression,marks,recordsFor,suggestion,weeklySets,summary,alternatives,weightAt,exerciseName,knownParts,nameParts,sameExercise,findExercise,groupByExercise} from '../control/training-model.js';
 
 const row=(fecha,ej,serie,reps,kg,rpe='',origen='app',musc='Pecho')=>[fecha,1,ej,musc,serie,reps,kg,rpe,'',origen,`${fecha}${ej}${serie}`];
 const owner={user:{username:'CesarVapor'},csrfToken:'test-token'};
@@ -66,7 +66,22 @@ test('New exercises get a distinct name per gym and variant',()=>{
   assert.equal(exerciseName('Leg Extension','Basic Fit Getafe','Unilateral'),'Leg Extension · Basic Fit Getafe · Unilateral');
   assert.equal(exerciseName('  Leg  Extension ','',''),'Leg Extension');
   assert.equal(exerciseName('','',''),'');
-  assert.deepEqual(knownParts(['Remo T · Vivagym','Remo T','Curl · Vivagym · Unilateral']),{bases:['Curl','Remo T'],tags:['Unilateral','Vivagym']});
+  assert.equal(exerciseName('Lat Pulldown','TGD','Vivagym','Agarre neutro'),'Lat Pulldown · TGD · Vivagym · Agarre neutro');
+  assert.deepEqual(nameParts('Remo T · Sterling · Vivagym'),{base:'Remo T',tags:['Sterling','Vivagym']});
+  assert.deepEqual(knownParts(['Remo T · Sterling · Vivagym','Remo T','Curl · TGD · Basic Fit Getafe · Unilateral']),{bases:['Curl','Remo T'],machines:['Sterling','TGD'],gyms:['Basic Fit Getafe','Vivagym'],variants:['Unilateral']});
+});
+test('The same exercise is recognised through accents, capitals and tag order',()=>{
+  assert.ok(sameExercise('Bíceps Curl Scott · TG','biceps curl scott · tg'));
+  assert.ok(sameExercise('Leg Extension · TGD · Unilateral','leg extension · unilateral · TGD'));
+  assert.ok(!sameExercise('Deadlift','Deadlift · TG'));
+  assert.equal(findExercise(['Deadlift · TG','Deadlift'],'deadlift · tg'),'Deadlift · TG');
+  assert.equal(findExercise(['Deadlift'],'Deadlift · TG'),null);
+});
+test('Options are grouped by exercise, with the current one first',()=>{
+  const out=groupByExercise([{ejercicio:'Curl · HS'},{ejercicio:'Remo T · TGD'},{ejercicio:'Remo T'},{ejercicio:'Ab'}],'Remo T');
+  assert.deepEqual(out.map(g=>g.base),['Remo T','Ab','Curl']);
+  assert.deepEqual(out[0].items.map(i=>i.tags),[[],['TGD']]);
+  assert.deepEqual(groupByExercise([],'Solo').map(g=>[g.base,g.items.length]),[['Solo',0]]);
 });
 test('Training belongs only to the owner',async()=>{
   assert.ok(accessForUser({username:'CesarVapor'}).capabilities.includes('training:read'));
