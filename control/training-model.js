@@ -442,3 +442,13 @@ export function yearHighlight(review, today) {
   ];
   return options.length ? options[Math.floor(Date.parse(today) / 864e5) % options.length] : null;
 }
+// All of them, starting with the day's one, for a card that shows the next on each tap.
+export function yearHighlights(review, today) {
+  const options = [
+    ...review.muscles.filter(m => m.now > m.before).map(m => ({ kind: 'muscle', ...m })),
+    ...review.changes.filter(c => c.change >= 0.04).map(c => ({ kind: 'exercise', ...c }))
+  ];
+  if (!options.length) return [];
+  const start = Math.floor(Date.parse(today) / 864e5) % options.length;
+  return options.slice(start).concat(options.slice(0, start));
+}
