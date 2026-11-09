@@ -4,7 +4,7 @@ import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 import {accessForUser} from '../functions/_lib/auth.js';
 import {onRequest} from '../functions/control/api/training/status.js';
-import {F,e1rm,sessions,progression,marks,recordsFor,suggestion,weeklySets,summary,alternatives,weightAt,exerciseName,knownParts,nameParts,sameExercise,findExercise,groupByExercise} from '../control/training-model.js';
+import {F,e1rm,sessions,progression,marks,recordsFor,suggestion,weeklySets,summary,alternatives,weightAt,exerciseName,knownParts,nameParts,sameExercise,findExercise,groupByExercise,WALK,walkOf,walkNote,muscleOf,defaultMeasure,sessionMeasures,standardFor,standardAt,percentile,strengthByMuscle,muscleHistory,yearReview} from '../control/training-model.js';
 
 const row=(fecha,ej,serie,reps,kg,rpe='',origen='app',musc='Pecho')=>[fecha,1,ej,musc,serie,reps,kg,rpe,'',origen,`${fecha}${ej}${serie}`];
 const owner={user:{username:'CesarVapor'},csrfToken:'test-token'};
@@ -128,4 +128,48 @@ test('Sheet script: resent operations do not duplicate rows and deletes apply',(
   assert.deepEqual(tabs.Alternativas.slice(1),[['Pecho','Press · Vivagym','']]);
   assert.equal(JSON.parse(box.doGet({parameter:{k:'mala'}})).error,'clave');
   assert.equal(JSON.parse(box.doPost({postData:{contents:JSON.stringify({k:'mala',ops:[]})}})).error,'clave');
+});
+
+test('Treadmill rows keep speed and incline in the note and stay out of hard sets and session totals',()=>{
+  const walk=['2026-11-09',2,WALK,'Cardio',1,30,'','',walkNote(6.5,2),'app','w1'];
+  assert.equal(walkNote(6.5,2),'6,5 km/h, 2°');
+  assert.deepEqual(walkOf(walk),{vel:6.5,inc:2,min:30,km:3.25});
+  assert.deepEqual(weeklySets([walk],'2026-11-09'),[]);
+  assert.equal(summary([walk,row('2026-11-09','A',1,5,100)],'2026-11-09').sets,1);
+});
+test('Muscles come from the exercise name, so the same lift lands in the same group since the first row',()=>{
+  assert.equal(muscleOf('Overhead Press','Hombros'),'deltAnt');
+  assert.equal(muscleOf('Lateral Raise Polea · Basic Fit Getafe','Hombros'),'deltLat');
+  assert.equal(muscleOf('Rope Face Pull','Hombros'),'deltPost');
+  assert.equal(muscleOf('Lat Pulldown · TGD','Espalda'),'dorsal');
+  assert.equal(muscleOf('Remo T · TGD','Espalda'),'espalda');
+  assert.equal(muscleOf('Something new','Pecho'),'pecho');
+  assert.equal(defaultMeasure('Bench Press'),'rm');
+  assert.equal(defaultMeasure('Rope Face Pull'),'volumen');
+});
+test('Session measures: best e1RM, mean load and mean load by mean reps',()=>{
+  const [s]=sessionMeasures([row('2026-01-01','A',1,10,100,10),row('2026-01-01','A',2,8,90,10)],'A');
+  assert.equal(s.rm,100*(1+10/30));assert.equal(s.medio,95);assert.equal(s.volumen,95*9);
+});
+test('Strength standards: interpolated by body weight, flattering variants left out, per-side machines doubled',()=>{
+  assert.deepEqual(standardAt('bench',85),[60.5,80,103.5,130.5,158]);
+  assert.equal(standardFor('Sentadilla · Poco recorrido'),null);
+  assert.equal(standardFor('Leg Extension · HS · Unilateral'),null);
+  assert.deepEqual(standardFor('Remo Medio · TG'),{std:'machineRow',factor:2});
+  assert.deepEqual(standardFor('St Leg Curl · TGD'),{std:'standingCurl',factor:1});
+  assert.deepEqual(percentile(103.5,standardAt('bench',85)),{level:2,pct:50});
+  assert.equal(percentile(30,standardAt('bench',85)).level,-1);
+  const rows=[row('2026-06-01','Bench Press',1,1,103.5),row('2026-06-01','Pecho Máquina · HS',1,1,500),row('2026-06-01','Bench Press Inclinado',1,1,10)];
+  const pecho=strengthByMuscle(rows,85,'2026-11-09').find(m=>m.id==='pecho');
+  assert.equal(pecho.rated.pct,50,'the median keeps one generous machine from deciding the muscle');
+  assert.equal(pecho.stale,null);
+  const old=strengthByMuscle([row('2023-06-01','Bench Press',1,1,103.5)],85,'2026-11-09').find(m=>m.id==='pecho');
+  assert.equal(old.stale,'2023-06-01');
+  assert.deepEqual(muscleHistory(rows,'pecho',[],85).map(p=>p.fecha),['2026-05-15']);
+});
+test('Year review compares the same exercise and ignores jumps that are a change of machine',()=>{
+  const rows=[row('2025-11-01','Bench Press',1,1,100),row('2026-10-01','Bench Press',1,1,110),row('2025-11-01','Leg Press',1,1,100),row('2026-10-01','Leg Press',1,1,300)];
+  const y=yearReview(rows,'2026-11-09',85);
+  assert.deepEqual(y.changes.map(c=>[c.name,Math.round(c.change*100)]),[['Bench Press',10]]);
+  assert.equal(y.muscles[0].name,'Pecho');assert.ok(y.muscles[0].now>y.muscles[0].before);
 });

@@ -10,7 +10,7 @@
   };
   let model, F, csrf = '', S = {
     connected: null, rutina: [], alternativas: [], filas: [], bodyWeight: [], tab: 'hoy', dia: null, ejercicio: null, draft: {}, chosen: {},
-    muscle: null, chart: null, metric: 'e1rm', more: false, editing: null, rest: null, restSeconds: 150, busy: false, error: '', hello: '', queue: [], plan: null
+    muscle: null, chart: null, measures: {}, strength: null, allEx: false, recentMore: false, more: false, editing: null, rest: null, restSeconds: 150, busy: false, error: '', hello: '', queue: [], plan: null
   };
   const read = (k, d) => { try { const v = localStorage.getItem('training.' + k); return v === null ? d : JSON.parse(v); } catch { return d; } };
   const write = (k, v) => { try { localStorage.setItem('training.' + k, JSON.stringify(v)); } catch { /* memory only */ } };
@@ -59,7 +59,7 @@
     const list = days();
     if (!list.length) return null;
     let last = null;
-    for (const f of S.filas) if (f[F.ORIGEN] === 'app' && (!last || f[F.FECHA] >= last[F.FECHA])) last = f;
+    for (const f of S.filas) if (f[F.ORIGEN] === 'app' && !model.isWalk(f) && (!last || f[F.FECHA] >= last[F.FECHA])) last = f;
     if (!last) return list[0].dia;
     if (last[F.FECHA] === today()) return last[F.DIA];
     return list[(list.findIndex(d => d.dia === last[F.DIA]) + 1) % list.length].dia;
@@ -155,11 +155,12 @@
       <div class="tl-side-head"><h3>Hoy</h3><span><button type="button" class="tl-link" data-act="new">Añadir</button><button type="button" class="tl-link" data-act="order">Cambiar orden</button></span></div>
       <ul class="tl-list">${list.map(x => { const s = setState(x); return `<li class="${s.complete ? 'done' : ''}${x === r ? ' current' : ''}"><button type="button" data-ex="${E(x.ejercicio)}"><span>${E(x.ejercicio)}</span><span class="tl-dots" aria-label="${s.done.length} de ${x.series} series">${Array.from({ length: x.series }, (_, i) => `<i class="${s.done.some(f => f[F.SERIE] === i + 1) ? 'ok' : s.skipped.includes(i + 1) ? 'skip' : ''}"></i>`).join('')}</span></button></li>`; }).join('')}</ul>
       ${anyDone ? '<button type="button" class="tl-secondary" data-act="finish">Terminar entreno</button>' : ''}
+      ${paintWalkToday()}
       ${week.length ? `<h3>Series duras, 7 días</h3><ul class="tl-week">${week.map(([m, n]) => `<li><span>${E(m)}</span><b>${n}</b><i style="width:${Math.min(100, n / Math.max(...week.map(w => w[1])) * 100)}%"></i></li>`).join('')}</ul>` : ''}
     </aside></div>`;
   }
   function paintPrevious(r) {
-    const all = model.sessions(S.filas, r.ejercicio, today());
+    const s = setState(r), all = model.sessions(S.filas, r.ejercicio, s.complete && s.done.length ? null : today());
     if (!all.length) return '<p class="tl-note">Sin historial. Esta primera serie marca la referencia.</p>';
     const visible = all.slice(0, S.more ? 6 : 2);
     const top = Math.max(...visible.flatMap(s => s.series.map(f => model.num(f[F.KG]) || 0)), 1);
@@ -173,7 +174,7 @@
         const kg = model.num(f[F.KG]), reps = model.num(f[F.REPS]), rpe = model.num(f[F.RPE]);
         cells.push(`<span class="tl-cell" style="--h:${Math.round((kg || 0) / top * 100)}%"><b>${kg === null ? '—' : N(kg)}</b><small>${reps === null ? 'sin repes' : `×${reps}`}${rpe ? ` @${N(rpe)}` : ''}</small></span>`);
       }
-      return `<div class="tl-prev-row${i ? '' : ' last'}" style="--cols:${cols}"><span class="tl-date">${shortDate(s.fecha)}</span>${cells.join('')}</div>`;
+      return `<div class="tl-prev-row${i ? '' : ' last'}" style="--cols:${cols}"><span class="tl-date">${s.fecha === today() ? 'Hoy' : shortDate(s.fecha)}</span>${cells.join('')}</div>`;
     }).join('')}</div>`;
   }
   function paintFocus(r) {
@@ -329,11 +330,47 @@
     enqueue({ tipo: 'borrar', id });
     S.draft = {}; closeLayer(); paint();
   }
+  const walkLine = () => { const w = walksToday().map(model.walkOf); if (!w.length) return ''; const min = w.reduce((a, x) => a + x.min, 0), km = w.reduce((a, x) => a + x.km, 0); return `<p>Y ${N(min)} min de caminadora, ${N(Math.round(km * 100) / 100)} km.</p>`; };
   function finish() {
     const sum = model.summary(S.filas, today());
     S.rest = null; releaseLock();
-    showLayer(`<div class="tl-card" role="dialog" aria-label="Entreno terminado"><small>SESIÓN CERRADA</small><strong>${N(Math.round(sum.tonnes * 10) / 10)} t</strong><p>${sum.sets} ${sum.sets === 1 ? 'serie' : 'series'} en ${sum.exercises} ${sum.exercises === 1 ? 'ejercicio' : 'ejercicios'}${sum.rpe ? `, RPE medio ${N(Math.round(sum.rpe * 10) / 10)}` : ''}.</p><p>${E(pick(PHRASES.done))}</p><button type="button" class="tl-primary" data-act="close-finish">Hecho</button></div>`);
+    showLayer(`<div class="tl-card" role="dialog" aria-label="Entreno terminado"><small>SESIÓN CERRADA</small><strong>${N(Math.round(sum.tonnes * 10) / 10)} t</strong><p>${sum.sets} ${sum.sets === 1 ? 'serie' : 'series'} en ${sum.exercises} ${sum.exercises === 1 ? 'ejercicio' : 'ejercicios'}${sum.rpe ? `, RPE medio ${N(Math.round(sum.rpe * 10) / 10)}` : ''}.</p>${walkLine()}<p>${E(pick(PHRASES.done))}</p><button type="button" class="tl-primary" data-act="close-finish">Hecho</button></div>`);
     paintRest();
+  }
+
+  // ---------- Treadmill: any day, without touching the routine ----------
+  const walksToday = () => S.filas.filter(f => model.isWalk(f) && f[F.FECHA] === today());
+  function paintWalkToday() {
+    const list = walksToday();
+    return `<div class="tl-walk"><div class="tl-side-head"><h3>Caminadora</h3><button type="button" class="tl-link" data-act="walk">${list.length ? 'Añadir' : 'Apuntar'}</button></div>
+      ${list.map(f => { const w = model.walkOf(f); return `<button type="button" class="tl-walk-item" data-walk="${E(f[F.ID])}"><b>${N(w.min)} min</b><span>${N(w.vel)} km/h · ${N(w.inc)}° · ${N(Math.round(w.km * 100) / 100)} km</span></button>`; }).join('')}</div>`;
+  }
+  const walkField = (id, label, value, step) => `<div class="tl-input"><label for="${id}">${label}</label><input id="${id}" inputmode="decimal" value="${N(value)}" autocomplete="off"><div><button type="button" data-wstep="${id}" data-v="${-step}" aria-label="Bajar ${label.toLowerCase()}">−</button><button type="button" data-wstep="${id}" data-v="${step}" aria-label="Subir ${label.toLowerCase()}">+</button></div></div>`;
+  function layerWalk(id) {
+    const f = id ? S.filas.find(x => x[F.ID] === id) : null;
+    const lastWalk = S.filas.filter(model.isWalk).sort((a, b) => (a[F.FECHA] < b[F.FECHA] ? -1 : 1)).at(-1);
+    const v = f ? model.walkOf(f) : lastWalk ? model.walkOf(lastWalk) : model.WALK_DEFAULT;
+    S.editing = f ? id : null;
+    showLayer(`<div class="tl-card plain" role="dialog" aria-label="Caminadora"><h3>Caminadora</h3><p class="tl-note">Se guarda en el Registro como un ejercicio más, sin kilos: no suma toneladas ni series duras.</p>
+      <div class="tl-inputs three">${walkField('tl-winc', 'Inclinación', v.inc, 0.5)}${walkField('tl-wvel', 'km/h', v.vel, 0.1)}${walkField('tl-wmin', 'Minutos', v.min, 5)}</div>
+      <p class="tl-readout" id="tl-wkm"></p>
+      <button type="button" class="tl-primary" data-act="walk-save">${f ? 'Guardar cambios' : 'Apuntar caminadora'}</button>
+      ${f ? '<button type="button" class="tl-link center" data-act="edit-delete">Borrar</button>' : ''}<button type="button" class="tl-link center" data-act="close">Cancelar</button></div>`);
+    walkKm();
+  }
+  function walkKm() {
+    const node = document.getElementById('tl-wkm');
+    if (node) node.innerHTML = `Son unos <b>${N(Math.round(readNumber('tl-wvel', 0) * readNumber('tl-wmin', 0) / 60 * 100) / 100)} km</b>`;
+  }
+  function saveWalk() {
+    const min = readNumber('tl-wmin', 0), vel = readNumber('tl-wvel', 0), inc = readNumber('tl-winc', 0);
+    if (!min) return document.getElementById('tl-wmin').focus();
+    const nota = model.walkNote(vel, inc), f = S.filas.find(x => x[F.ID] === S.editing);
+    let fila;
+    if (f) { f[F.REPS] = min; f[F.NOTA] = nota; fila = { id: f[F.ID], fecha: f[F.FECHA], dia: f[F.DIA], ejercicio: model.WALK, musculo: 'Cardio', serie: f[F.SERIE], reps: min, kg: null, rpe: null, nota }; }
+    else { fila = { id: 'a' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7), fecha: today(), dia: S.dia, ejercicio: model.WALK, musculo: 'Cardio', serie: walksToday().length + 1, reps: min, kg: null, rpe: null, nota }; S.filas.push(toRow(fila)); }
+    enqueue({ tipo: 'guardar', fila });
+    closeLayer(); paint();
   }
 
   // ---------- Rest timer: stores the end time, so a sleeping phone still shows the truth ----------
@@ -359,56 +396,148 @@
   function releaseLock() { lock?.release(); lock = null; }
 
   // ---------- Evolution ----------
+  const bodyNow = () => { const m = S.bodyWeight.at(-1); return m ? { kg: m.trend ?? m.weight, fecha: m.date.slice(0, 10) } : null; };
+  const pct = value => `${N0(value)} %`;
+  const setsText = series => {
+    const reps = series.map(f => f[F.REPS]).filter(v => v !== '');
+    const kgs = [...new Set(series.map(f => model.num(f[F.KG])).filter(v => v > 0))];
+    const rpes = series.map(f => model.num(f[F.RPE])).filter(Boolean);
+    return `${reps.join('·')}${reps.length ? ' repes' : ''}${kgs.length ? ` × ${kgs.map(N).join('/')} kg` : ''}${rpes.length ? ` @${N(Math.max(...rpes))}` : ''}`;
+  };
   function paintEvolution() {
+    const rows = S.filas.filter(f => !model.isWalk(f)), routine = new Set(S.rutina.map(r => r.ejercicio));
     const usable = new Map();
-    for (const f of S.filas) { if (model.num(f[F.KG]) === null) continue; const e = usable.get(f[F.EJ]) || { name: f[F.EJ], muscle: f[F.MUSC], n: 0 }; e.n++; usable.set(f[F.EJ], e); }
-    const list = [...usable.values()], muscles = [...new Set(list.map(e => e.muscle))].sort((a, b) => a.localeCompare(b, 'es'));
-    if (!list.length) { $('#tl-body').innerHTML = '<p class="tl-note">Todavía no hay series con peso.</p>'; return; }
-    const first = S.filas.reduce((m, f) => (f[F.FECHA] < m ? f[F.FECHA] : m), today());
-    const logged = S.filas.filter(f => f[F.ORIGEN] === 'app').length;
-    const lifts = ['Bench Press', 'Overhead Press', 'Deadlift · TG', 'Sentadilla · Poco recorrido', 'Lat Pulldown · TGD'].filter(n => usable.has(n)).map(n => { const p = model.progression(S.filas, n); return p.length ? { n, a: p[0].value, b: Math.max(...p.map(x => x.value)) } : null; }).filter(Boolean);
-    if (!S.muscle || (S.muscle !== 'weight' && !muscles.includes(S.muscle))) S.muscle = usable.get(S.chart)?.muscle || (muscles.includes('Pecho') ? 'Pecho' : muscles[0]);
-    const inMuscle = list.filter(e => e.muscle === S.muscle).sort((a, b) => b.n - a.n);
-    if (S.muscle !== 'weight' && (!S.chart || !inMuscle.some(e => e.name === S.chart))) S.chart = (S.muscle === 'Pecho' && usable.has('Bench Press')) ? 'Bench Press' : inMuscle[0].name;
-    $('#tl-body').innerHTML = `<div class="tl-kpis"><article><small>DESDE</small><strong>${first.slice(0, 4)}</strong><span>${N0(S.filas.length)} registros, ${N0(logged)} apuntados aquí</span></article>${lifts.slice(0, 3).map(l => `<article><small>${E(l.n.split(' (')[0].toUpperCase())}</small><strong>${N0(l.b)}</strong><span>e1RM, desde ${N0(l.a)} kg</span></article>`).join('')}</div>
-      <div class="tl-chips" role="group" aria-label="Músculo">${muscles.map(m => `<button type="button" data-muscle="${E(m)}" aria-pressed="${m === S.muscle}">${E(m)}</button>`).join('')}${S.bodyWeight.length ? `<button type="button" data-muscle="weight" aria-pressed="${S.muscle === 'weight'}">Peso corporal</button>` : ''}</div>
-      ${S.muscle === 'weight' ? '' : `<div class="tl-chips minor" role="group" aria-label="Ejercicio">${inMuscle.map(e => `<button type="button" data-chart="${E(e.name)}" aria-pressed="${e.name === S.chart}">${E(e.name)}</button>`).join('')}</div>
-      <div class="tl-metrics" role="group" aria-label="Métrica">${[['e1rm', 'e1RM'], ['kg', 'Kilos'], ['relative', '× peso corporal']].map(([id, label]) => `<button type="button" data-metric="${id}" aria-pressed="${S.metric === id}">${label}</button>`).join('')}</div>`}
-      <div class="tl-chart-box" id="tl-chart-box"></div><div id="tl-log"></div>`;
-    if (S.muscle === 'weight') {
-      drawChart(S.bodyWeight.map(m => ({ fecha: m.date.slice(0, 10), value: m.trend ?? m.weight })), 'Peso corporal', 'kg', 'Tendencia de Libra');
-      return;
+    for (const f of rows) {
+      if (model.num(f[F.KG]) === null) continue;
+      const group = model.muscleOf(f[F.EJ], f[F.MUSC]);
+      if (!group) continue;
+      const e = usable.get(f[F.EJ]) || { name: f[F.EJ], group, n: 0, dates: new Set() };
+      e.n++; e.dates.add(f[F.FECHA]); usable.set(f[F.EJ], e);
     }
-    const metric = S.metric === 'relative' && !S.bodyWeight.length ? 'e1rm' : S.metric;
-    const points = model.progression(S.filas, S.chart, metric, S.bodyWeight);
-    drawChart(points, S.chart, metric === 'relative' ? '× peso' : 'kg', metric === 'e1rm' ? 'e1RM estimado con Epley; el RPE suma las repes en reserva' : metric === 'kg' ? 'Máximo apuntado de cada fecha' : 'e1RM entre tu peso más cercano');
-    const log = model.sessions(S.filas, S.chart).slice(0, 12);
-    $('#tl-log').innerHTML = log.length ? `<div class="tl-log"><table><caption>Últimos registros</caption><tbody>${log.map(s => `<tr><td>${shortDate(s.fecha)}</td><td>${s.series.map(f => `${f[F.REPS] === '' ? '?' : f[F.REPS]}×${f[F.KG] === '' ? '?' : N(+f[F.KG])}${f[F.RPE] !== '' ? ` @${N(+f[F.RPE])}` : ''}`).join(', ')}</td><td>${E(s.series.find(f => f[F.NOTA])?.[F.NOTA] || '')}</td></tr>`).join('')}</tbody></table></div>` : '';
+    const list = [...usable.values()];
+    if (!list.length) { $('#tl-body').innerHTML = '<p class="tl-note">Todavía no hay series con peso.</p>'; return; }
+    const first = rows.reduce((m, f) => (f[F.FECHA] < m ? f[F.FECHA] : m), today());
+    const logged = rows.filter(f => f[F.ORIGEN] === 'app').length;
+    const lifts = ['Bench Press', 'Overhead Press', 'Deadlift · TG', 'Sentadilla · Poco recorrido', 'Lat Pulldown · TGD'].filter(n => usable.has(n)).map(n => { const p = model.progression(rows, n); return p.length ? { n, a: p[0].value, b: Math.max(...p.map(x => x.value)) } : null; }).filter(Boolean);
+    const groups = model.MUSCLES.filter(m => list.some(e => e.group === m.id));
+    const extra = [...(S.filas.some(model.isWalk) ? [['walk', 'Caminadora']] : []), ...(S.bodyWeight.length ? [['weight', 'Peso corporal']] : [])];
+    if (!groups.some(g => g.id === S.muscle) && !extra.some(([id]) => id === S.muscle)) S.muscle = usable.get(S.chart)?.group || (groups.some(g => g.id === 'pecho') ? 'pecho' : groups[0].id);
+    const inMuscle = list.filter(e => e.group === S.muscle).sort((a, b) => b.dates.size - a.dates.size);
+    const main = inMuscle.filter(e => e.dates.size >= 3 || routine.has(e.name)), hidden = inMuscle.length - main.length;
+    const shown = S.allEx ? inMuscle : main;
+    if (S.chart !== '*' && !inMuscle.some(e => e.name === S.chart)) S.chart = '*';
+    const isGroup = groups.some(g => g.id === S.muscle), measure = S.chart === '*' ? null : measureOf(S.chart);
+    $('#tl-body').innerHTML = `<div class="tl-kpis"><article><small>DESDE</small><strong>${first.slice(0, 4)}</strong><span>${N0(rows.length)} registros, ${N0(logged)} apuntados aquí</span></article>${lifts.slice(0, 3).map(l => `<article><small>${E(l.n.split(' · ')[0].toUpperCase())}</small><strong>${N0(l.b)}</strong><span>e1RM, desde ${N0(l.a)} kg</span></article>`).join('')}</div>
+      ${paintYear()}
+      <h3 class="tl-section">Por músculo, desde el principio</h3>
+      <div class="tl-chips" role="group" aria-label="Músculo">${groups.map(g => `<button type="button" data-muscle="${g.id}" aria-pressed="${g.id === S.muscle}">${E(g.name)}</button>`).join('')}${extra.map(([id, label]) => `<button type="button" data-muscle="${id}" aria-pressed="${S.muscle === id}">${label}</button>`).join('')}</div>
+      ${isGroup ? `<div class="tl-chips minor" role="group" aria-label="Ejercicio"><button type="button" data-chart="*" aria-pressed="${S.chart === '*'}">Todo el músculo</button>${shown.map(e => `<button type="button" data-chart="${E(e.name)}" aria-pressed="${e.name === S.chart}">${E(e.name)}</button>`).join('')}${hidden ? `<button type="button" class="more" data-act="all-ex">${S.allEx ? 'Solo los habituales' : `+${hidden} sueltos`}</button>` : ''}</div>` : ''}
+      ${measure ? `<div class="tl-metrics" role="group" aria-label="Qué medir">${measuresOf().map(id => `<button type="button" data-measure="${id}" aria-pressed="${measure === id}">${model.MEASURES[id].name}</button>`).join('')}</div>` : ''}
+      <div class="tl-chart-box" id="tl-chart-box"></div><div id="tl-log"></div>
+      ${paintStrength()}
+      ${paintRecent()}`;
+    if (S.muscle === 'weight') return drawChart(S.bodyWeight.map(m => ({ fecha: m.date.slice(0, 10), value: m.trend ?? m.weight })), 'Peso corporal', 'kg', 'Tendencia de Libra');
+    if (S.muscle === 'walk') return paintWalkEvolution();
+    if (S.chart === '*') {
+      const group = groups.find(g => g.id === S.muscle), points = model.muscleHistory(rows, S.muscle, S.bodyWeight, bodyNow()?.kg || 85)
+        .map(p => ({ fecha: p.fecha, value: p.value, detail: p.rated.tests.map(t => `${t.name} ${N0(t.value)} kg`).join(', ') }));
+      drawChart(points, group.name, '%', 'Hombres a los que superas, trimestre a trimestre: mediana de sus ejercicios frente a los baremos de Strength Level. Sirve para seguir el músculo aunque cambies de máquina.');
+      $('#tl-log').innerHTML = points.length ? '' : `<p class="tl-note">Ninguno de sus ejercicios tiene baremo: elige uno arriba para ver su evolución.</p>`;
+      return undefined;
+    }
+    const all = model.sessionMeasures(rows, S.chart, S.bodyWeight), points = all.filter(s => s[measure] > 0).map(s => ({ fecha: s.fecha, value: s[measure], detail: setsText(s.series) }));
+    const M = model.MEASURES[measure];
+    drawChart(points, S.chart, M.unit, M.text);
+    const log = all.slice(-12).reverse();
+    $('#tl-log').innerHTML = log.length ? `<div class="tl-log"><table><caption>Últimas sesiones</caption><tbody>${log.map(s => `<tr><td>${dateLabel(s.fecha)}</td><td>${s.series.map(f => `${f[F.REPS] === '' ? '?' : f[F.REPS]}×${f[F.KG] === '' ? '?' : N(+f[F.KG])}${f[F.RPE] !== '' ? ` @${N(+f[F.RPE])}` : ''}`).join(', ')}</td><td>${s[measure] ? `${fmtUnit(s[measure], M.unit)}` : ''}</td><td>${E(s.series.find(f => f[F.NOTA])?.[F.NOTA] || '')}</td></tr>`).join('')}</tbody></table></div>` : '';
+    return undefined;
   }
+  // The default suits the exercise: e1RM for compound lifts, kg × reps for isolation; a choice is remembered per exercise.
+  const measuresOf = () => ['rm', 'volumen', 'medio', ...(S.bodyWeight.length ? ['relative'] : [])];
+  const measureOf = name => (measuresOf().includes(S.measures[name]) ? S.measures[name] : model.defaultMeasure(name));
+  const fmtUnit = (value, unit) => (unit === '× peso' ? `${N(Math.round(value * 100) / 100)} ×` : unit === '%' ? pct(value) : `${N(value >= 100 ? Math.round(value) : Math.round(value * 10) / 10)} ${unit}`);
+  const quarter = iso => `${Math.ceil(+iso.slice(5, 7) / 3)}.º trimestre de ${iso.slice(0, 4)}`;
+  const dateLabel = iso => (iso === today() ? 'Hoy' : shortDate(iso));
+
+  function paintYear() {
+    const now = bodyNow(), y = model.yearReview(S.filas, today(), now?.kg || 85);
+    const ups = y.changes.filter(c => c.change >= 0.02), downs = y.changes.filter(c => c.change <= -0.02);
+    const muscles = y.muscles.filter(m => m.now !== m.before);
+    if (!y.changes.length && !muscles.length) return '';
+    const diff = y.year.days - y.previous.days;
+    const change = c => `${c.change > 0 ? '+' : '−'}${N0(Math.abs(c.change) * 100)} %`;
+    const item = (c, cls) => `<li class="${cls}"><b>${change(c)}</b><span>${E(c.name)}<small>${model.MEASURES[c.measure].name}: de ${fmtUnit(c.before, model.MEASURES[c.measure].unit)} a ${fmtUnit(c.now, model.MEASURES[c.measure].unit)}</small></span></li>`;
+    return `<section class="tl-year"><h3 class="tl-section">Tu último año</h3>
+      <p class="tl-year-lead"><b>${y.year.days} días</b> de entreno en los últimos 12 meses${y.previous.days ? `, ${diff > 0 ? `${diff} más que` : diff < 0 ? `${-diff} menos que` : 'los mismos que'} en los 12 anteriores` : ''}.</p>
+      <div class="tl-year-grid">
+        ${ups.length || downs.length ? `<div><h4>Ejercicios</h4><ul class="tl-review">${ups.slice(0, 6).map(c => item(c, 'up')).join('')}${downs.slice(-3).reverse().map(c => item(c, 'down')).join('')}</ul></div>` : ''}
+        ${muscles.length ? `<div><h4>Frente a otros hombres</h4><ul class="tl-review">${muscles.slice(0, 8).map(m => `<li class="${m.now > m.before ? 'up' : 'down'}"><b>${m.now > m.before ? '+' : '−'}${Math.abs(m.now - m.before)}</b><span>${E(m.name)}<small>Superas al ${pct(m.now)}; hace un año, al ${pct(m.before)}</small></span></li>`).join('')}</ul></div>` : ''}
+      </div>
+      <p class="tl-method">Lo mejor de los últimos 3 meses frente a lo mejor de hace un año, con la misma máquina. Los músculos solo comparan ejercicios hechos en los dos años, en puntos de porcentaje.</p></section>`;
+  }
+
+  function paintStrength() {
+    const now = bodyNow(), kg = now?.kg || 85, list = model.strengthByMuscle(S.filas, kg, today());
+    const rated = list.filter(m => m.rated).sort((a, b) => b.rated.pct - a.rated.pct), none = list.filter(m => !m.rated);
+    if (!rated.length) return '';
+    const level = l => (l < 0 ? 'Por debajo de principiante' : model.LEVELS[l]);
+    return `<section class="tl-strength"><h3 class="tl-section">Frente a otros hombres</h3>
+      <p class="tl-note">Cada músculo, por lo mejor del último año. Comparado con los hombres de ${now ? `tu peso (${N(Math.round(kg * 10) / 10)} kg en Libra)` : 'unos 85 kg'} que registran sus marcas en Strength Level.</p>
+      <ul class="tl-str">${rated.map(m => `<li class="${S.strength === m.id ? 'open' : ''}"><button type="button" data-strength="${m.id}" aria-expanded="${S.strength === m.id}">
+        <span class="tl-str-name">${E(m.name)}${m.stale ? `<small>Último dato: ${shortDate(m.stale)}</small>` : ''}</span><span class="tl-str-level lv${m.rated.level + 1}">${level(m.rated.level)}</span><b>${pct(m.rated.pct)}</b>
+        <span class="tl-str-bar" aria-hidden="true"><i class="lv${m.rated.level + 1}" style="width:${m.rated.pct}%"></i>${model.TIERS.map(t => `<em style="left:${t}%"></em>`).join('')}</span></button>
+        ${S.strength === m.id ? `<ul class="tl-str-detail">${m.rated.tests.map(t => `<li><span>${E(t.name)}</span><span>${N0(t.logged)} kg e1RM${t.value !== t.logged ? ` (${N0(t.value)} contando los dos lados)` : ''}, ${shortDate(t.fecha)}</span><b>${pct(t.pct)}</b></li>`).join('')}</ul>` : ''}</li>`).join('')}</ul>
+      ${none.length ? `<p class="tl-note">Sin ejercicios con baremo: ${none.map(m => E(m.name)).join(', ')}.</p>` : ''}
+      <p class="tl-method">Las marcas del baremo dividen principiante, novato, intermedio, avanzado y élite: más fuerte que el 5, 20, 50, 80 y 95 % de esos hombres, no de toda la población. Cada músculo es la mediana de sus ejercicios, porque las máquinas de cada gimnasio pesan distinto. No cuentan las variantes unilaterales, de poco recorrido ni con goma. Toca un músculo para ver sus ejercicios.</p></section>`;
+  }
+
+  function paintRecent() {
+    const dates = [...new Set(S.filas.map(f => f[F.FECHA]))].sort().reverse().slice(0, S.recentMore ? 12 : 4);
+    if (!dates.length) return '';
+    const dayName = dia => S.rutina.find(r => r.dia === +dia)?.nombre;
+    return `<section class="tl-recent"><h3 class="tl-section">Últimos entrenos</h3>${dates.map(fecha => {
+      const rows = S.filas.filter(f => f[F.FECHA] === fecha), dia = rows.find(f => f[F.DIA] !== '' && !model.isWalk(f))?.[F.DIA];
+      const names = [...new Set(rows.map(f => f[F.EJ]))];
+      return `<article><h4>${dateLabel(fecha)}${dia && dayName(dia) ? `<small>Día ${E(dia)} · ${E(dayName(dia))}</small>` : ''}</h4><table><tbody>${names.map(n => {
+        const series = rows.filter(f => f[F.EJ] === n).sort((a, b) => a[F.SERIE] - b[F.SERIE]);
+        const text = n === model.WALK ? series.map(f => { const w = model.walkOf(f); return `${N(w.min)} min a ${N(w.vel)} km/h, ${N(w.inc)}°`; }).join(' + ') : setsText(series);
+        return `<tr><td>${E(n)}</td><td>${E(text)}</td></tr>`;
+      }).join('')}</tbody></table></article>`;
+    }).join('')}<button type="button" class="tl-link" data-act="recent-more">${S.recentMore ? 'Ver menos' : 'Ver más entrenos'}</button></section>`;
+  }
+
+  function paintWalkEvolution() {
+    const days = model.sessions(S.filas, model.WALK).reverse();
+    const points = days.map(s => ({ fecha: s.fecha, value: s.series.reduce((a, f) => a + model.walkOf(f).km, 0), detail: s.series.map(f => { const w = model.walkOf(f); return `${N(w.min)} min a ${N(w.vel)} km/h, ${N(w.inc)}°`; }).join(' + ') }));
+    const km = points.reduce((a, p) => a + p.value, 0), min = days.flatMap(s => s.series).reduce((a, f) => a + model.walkOf(f).min, 0);
+    drawChart(points, 'Caminadora', 'km', `Kilómetros de cada día. En total, ${N(Math.round(km * 10) / 10)} km en ${N0(min)} minutos y ${days.length} ${days.length === 1 ? 'día' : 'días'}.`);
+    $('#tl-log').innerHTML = `<div class="tl-log"><table><caption>Últimas caminatas</caption><tbody>${days.slice(-12).reverse().flatMap(s => s.series.map(f => { const w = model.walkOf(f); return `<tr><td>${dateLabel(s.fecha)}</td><td>${N(w.min)} min</td><td>${N(w.vel)} km/h, ${N(w.inc)}°</td><td>${N(Math.round(w.km * 100) / 100)} km</td></tr>`; })).join('')}</tbody></table></div>`;
+  }
+
   function drawChart(points, title, unit, method) {
     const box = $('#tl-chart-box');
-    if (!points.length) { box.innerHTML = `<h3>${E(title)}</h3><p class="tl-note">No hay datos suficientes para esta métrica.</p>`; return; }
+    if (!points.length) { box.innerHTML = `<h3>${E(title)}</h3><p class="tl-note">No hay datos suficientes para esta medida.</p>`; return; }
     const W = 720, H = 300, pl = 44, pr = 16, pt = 14, pb = 28, t = iso => Date.parse(iso);
     const x0 = t(points[0].fecha), x1 = Math.max(t(points.at(-1).fecha), x0 + 864e5);
     const values = points.map(p => p.value), low = Math.min(...values), high = Math.max(...values);
-    const raw = Math.max((high - low) / 4, unit === '× peso' ? .1 : 1), step = [.05, .1, .25, .5, 1, 2, 5, 10, 20, 25, 50, 100].find(s => s >= raw) || 200;
+    const raw = Math.max((high - low) / 4, unit === '× peso' ? .1 : 1), step = [.05, .1, .25, .5, 1, 2, 5, 10, 20, 25, 50, 100, 200, 250, 500, 1000].find(s => s >= raw) || 2000;
     const y0 = Math.floor(low / step) * step, y1 = Math.max(Math.ceil(high / step) * step, y0 + step);
-    const X = iso => pl + (t(iso) - x0) / (x1 - x0) * (W - pl - pr), Y = v => H - pb - (v - y0) / (y1 - y0) * (H - pb - pt);
+    const X = iso => (x1 === x0 ? (pl + W - pr) / 2 : pl + (t(iso) - x0) / (x1 - x0) * (W - pl - pr)), Y = v => H - pb - (v - y0) / (y1 - y0) * (H - pb - pt);
     const grid = [];
     for (let v = y0; v <= y1 + 1e-9; v += step) grid.push(`<line x1="${pl}" x2="${W - pr}" y1="${Y(v)}" y2="${Y(v)}"/><text x="${pl - 8}" y="${Y(v) + 4}" text-anchor="end">${N(Math.round(v * 100) / 100)}</text>`);
     for (let a = +points[0].fecha.slice(0, 4) + 1; a <= +points.at(-1).fecha.slice(0, 4); a++) { const px = X(`${a}-01-01`); if (px > pl + 18 && px < W - pr - 18) grid.push(`<text x="${px}" y="${H - 8}" text-anchor="middle">${a}</text>`); }
     let peak = points[0]; points.forEach(p => { if (p.value > peak.value) peak = p; });
-    const fmt = value => (unit === '× peso' ? N(Math.round(value * 100) / 100) : N(Math.round(value * 2) / 2));
-    const lead = () => `<b>${fmt(points[0].value)} → ${fmt(peak.value)} ${unit}</b>${peak.value > points[0].value && points[0].value ? ` · +${N0((peak.value / points[0].value - 1) * 100)} %` : ''}`;
-    box.innerHTML = `<h3>${E(title)}</h3><p class="tl-chart-lead" id="tl-chart-lead">${lead()}</p><div class="tl-chart" id="tl-chart"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${E(title)}: ${E(unit)} a lo largo del tiempo">${grid.join('')}<path d="${points.map((p, i) => `${i ? 'L' : 'M'}${X(p.fecha).toFixed(1)} ${Y(p.value).toFixed(1)}`).join('')}"/><circle class="peak" cx="${X(peak.fecha)}" cy="${Y(peak.value)}" r="5"/><line class="guide" id="tl-guide" y1="${pt}" y2="${H - pb}" visibility="hidden"/><circle class="probe" id="tl-probe" r="5" visibility="hidden"/></svg></div><p class="tl-method">${E(method)}</p>`;
+    const last = points.at(-1);
+    const lead = () => (unit === '%' ? `<b>${pct(points[0].value)} → ${pct(last.value)}</b> de los hombres${peak !== last ? ` · máximo ${pct(peak.value)} en ${quarter(peak.fecha)}` : ''}`
+      : `<b>${fmtUnit(points[0].value, unit)} → ${fmtUnit(peak.value, unit)}</b>${peak.value > points[0].value && points[0].value ? ` · +${N0((peak.value / points[0].value - 1) * 100)} %` : ''}${peak !== last ? ` · último ${fmtUnit(last.value, unit)}` : ''}`);
+    box.innerHTML = `<h3>${E(title)}</h3><p class="tl-chart-lead" id="tl-chart-lead">${lead()}</p><div class="tl-chart" id="tl-chart"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${E(title)}: ${E(unit)} a lo largo del tiempo">${grid.join('')}<path d="${points.map((p, i) => `${i ? 'L' : 'M'}${X(p.fecha).toFixed(1)} ${Y(p.value).toFixed(1)}`).join('')}"/>${points.length < 40 ? points.map(p => `<circle class="dot" cx="${X(p.fecha).toFixed(1)}" cy="${Y(p.value).toFixed(1)}" r="3"/>`).join('') : ''}<circle class="peak" cx="${X(peak.fecha)}" cy="${Y(peak.value)}" r="5"/><line class="guide" id="tl-guide" y1="${pt}" y2="${H - pb}" visibility="hidden"/><circle class="probe" id="tl-probe" r="5" visibility="hidden"/></svg></div><p class="tl-method">${E(method)}</p>`;
     const chart = $('#tl-chart'), guide = $('#tl-guide'), probe = $('#tl-probe'), label = $('#tl-chart-lead');
     const move = event => {
       const r = chart.getBoundingClientRect(), px = (event.clientX - r.left) / r.width * W;
       const near = points.reduce((a, b) => (Math.abs(X(b.fecha) - px) < Math.abs(X(a.fecha) - px) ? b : a));
       for (const [k, v] of [['x1', X(near.fecha)], ['x2', X(near.fecha)]]) guide.setAttribute(k, v);
       guide.setAttribute('visibility', 'visible'); probe.setAttribute('cx', X(near.fecha)); probe.setAttribute('cy', Y(near.value)); probe.setAttribute('visibility', 'visible');
-      const row = near.row;
-      label.innerHTML = `<b>${fmt(near.value)} ${unit}</b> · ${shortDate(near.fecha)}${row ? ` · ${E(row[F.REPS])}×${E(row[F.KG])}${row[F.RPE] !== '' ? ` @${E(row[F.RPE])}` : ''}` : ''}`;
+      label.innerHTML = `<b>${fmtUnit(near.value, unit)}</b> · ${unit === '%' ? quarter(near.fecha) : dateLabel(near.fecha)}${near.detail ? ` · ${E(near.detail)}` : ''}`;
     };
     const leave = () => { guide.setAttribute('visibility', 'hidden'); probe.setAttribute('visibility', 'hidden'); label.innerHTML = lead(); };
     chart.addEventListener('pointerdown', move); chart.addEventListener('pointermove', move); chart.addEventListener('pointerleave', leave); chart.addEventListener('pointercancel', leave);
@@ -433,11 +562,18 @@
     if (d.swap) return doSwap(d.swap);
     if (d.newBase) { keepDraft(); return layerNew(d.newBase); }
     if (d.variant !== undefined) { S.newVariant = d.variant; document.getElementById('tl-new-variant').value = ''; portal.querySelectorAll('[data-variant]').forEach(x => x.setAttribute('aria-pressed', String(x === b))); return previewNew(); }
-    if (d.muscle) { S.muscle = d.muscle; S.chart = null; return paint(); }
+    if (d.muscle) { S.muscle = d.muscle; S.chart = '*'; S.allEx = false; return paint(); }
     if (d.chart) { S.chart = d.chart; return paint(); }
-    if (d.metric) { S.metric = d.metric; return paint(); }
+    if (d.measure) { S.measures[S.chart] = d.measure; write('measures', S.measures); return paint(); }
+    if (d.strength) { S.strength = S.strength === d.strength ? null : d.strength; return paint(); }
+    if (d.walk) return layerWalk(d.walk);
+    if (d.wstep) { const node = document.getElementById(d.wstep); node.value = N(Math.max(0, Math.round((readNumber(d.wstep, 0) + +d.v) * 10) / 10)); return walkKm(); }
     switch (d.act) {
       case 'set': return doSet();
+      case 'walk': keepDraft(); return layerWalk();
+      case 'walk-save': return saveWalk();
+      case 'all-ex': S.allEx = !S.allEx; return paint();
+      case 'recent-more': S.recentMore = !S.recentMore; return paint();
       case 'skip': { keepDraft(); const r = exercises(S.dia).find(x => x.ejercicio === S.ejercicio), slot = `${S.dia}|${r.ejercicio}`, p = plan(); p.saltos[slot] = (p.saltos[slot] || []).concat(setState(r).active); savePlan(); delete S.chosen[r.ejercicio]; advance(r); return paint(); }
       case 'more': keepDraft(); S.more = !S.more; return paint();
       case 'order': keepDraft(); return layerOrder();
@@ -464,7 +600,7 @@
   };
   app.addEventListener('click', onClick);
   portal.addEventListener('click', onClick);
-  portal.addEventListener('input', event => { if (event.target.closest('.tl-card')) previewNew(); });
+  portal.addEventListener('input', event => { if (!event.target.closest('.tl-card')) return; if (event.target.matches('#tl-wvel, #tl-wmin')) walkKm(); else previewNew(); });
   portal.addEventListener('focusin', event => { if (event.target.matches('.tl-input input')) event.target.select(); });
   app.addEventListener('focusin', event => { if (event.target.matches('.tl-input input')) event.target.select(); });
   app.addEventListener('input', event => {
@@ -481,8 +617,8 @@
   window.TrainingLab = { async initialise(token) {
     csrf = token;
     try {
-      model = await import('./training-model.js?v=20261105pick'); F = model.F;
-      S.queue = read('queue', []); S.plan = read('plan', null);
+      model = await import('./training-model.js?v=20261109evo'); F = model.F;
+      S.queue = read('queue', []); S.plan = read('plan', null); S.measures = read('measures', {});
       const cache = read('cache', null);
       if (cache) { Object.assign(S, cache); S.connected = true; paint(); }
       await flush();
@@ -490,7 +626,7 @@
         if (!cache && error.message !== 'session') throw error;
         S.error = 'Sin conexión con el Sheet: uso lo último guardado y subiré los cambios en cuanto vuelva.';
       }
-      if (!document.activeElement?.matches?.('#tl-kg, #tl-reps, #tl-code, .tl-text')) { keepDraft(); paint(); }
+      if (!document.activeElement?.matches?.('#tl-kg, #tl-reps, #tl-code, .tl-text') && document.getElementById('tl-layer').hidden) { keepDraft(); paint(); }
     } catch {
       app.innerHTML = '<p class="eyebrow"><span></span> TRAINING LAB</p><h2>Entrenamiento</h2><p class="tl-error">No se ha podido leer el Sheet. Vuelve a intentarlo en un momento.</p>';
     }
