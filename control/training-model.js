@@ -238,7 +238,7 @@ export const STANDARDS = {
   legExt: [[48, 72, 103, 140, 180], [53, 79, 111, 149, 191]],
   deadlift: [[89, 119, 155, 196, 239], [102, 134, 172, 215, 260]],
   rdl: [[65, 92, 125, 163, 203], [75, 104, 139, 179, 221]],
-  seatedCurl: [[39, 58, 83, 112, 144], [44, 64, 90, 120, 152]],
+  standingCurl: [[11, 25, 46, 73, 105], [13, 28, 50, 79, 112]],
   lyingCurl: [[30, 46, 66, 90, 116], [35, 51, 73, 98, 125]],
   hipThrust: [[56, 96, 149, 213, 285], [68, 111, 168, 236, 311]],
   calf: [[49, 88, 141, 207, 282], [57, 99, 155, 224, 302]],
@@ -253,6 +253,7 @@ export const STANDARDS = {
   machineTriceps: [[31, 50, 73, 102, 133], [35, 55, 79, 109, 141]],
   cableCrunch: [[26, 44, 68, 97, 130], [29, 48, 73, 103, 136]]
 };
+// St Leg Curl is the standing, one-leg curl: its standard is already per leg, so it is not doubled.
 // [name test, standard, factor]. Partial range, bands and one-leg variants are left out: they would flatter the number.
 // The factor turns what is logged into what the standard measures: 2 when a machine is logged per side, or a cable per arm.
 const STANDARD_OF = [
@@ -263,7 +264,7 @@ const STANDARD_OF = [
   [/^lat pulldown/i, 'pulldown'], [/^barbell row/i, 'bentRow'], [/dumbbell row/i, 'dbRow'], [/^remo t\b/i, 'tbar'], [/^remo bajo polea/i, 'cableRow'],
   [/^remo medio · tg/i, 'machineRow', 2], [/^(remo|vertical row)/i, 'machineRow'],
   [/^sentadilla$/i, 'squat'], [/^hacka$/i, 'hack'], [/^leg extension/i, 'legExt'], [/^deadlift/i, 'deadlift'], [/^romanian/i, 'rdl'],
-  [/^st leg curl/i, 'seatedCurl'], [/^leg curl/i, 'lyingCurl'], [/^hip thrust/i, 'hipThrust'], [/^gemelos/i, 'calf'],
+  [/^st leg curl/i, 'standingCurl'], [/^leg curl/i, 'lyingCurl'], [/^hip thrust/i, 'hipThrust'], [/^gemelos/i, 'calf'],
   [/^b[ií]ceps curl barra/i, 'barbellCurl'], [/^b[ií]ceps (curl scott|predicador)/i, 'preacher'], [/^b[ií]ceps curl polea/i, 'cableCurl'], [/^b[ií]ceps dumbbells/i, 'inclineCurl'],
   [/^tr[ií]ceps polea cuerda alta/i, 'ropePushdown'], [/^tr[ií]ceps extensi[oó]n polea individual/i, 'pushdown', 2], [/^tr[ií]ceps dumbbell extension/i, 'dbTriceps'],
   [/^french press/i, 'lyingTriceps'], [/^tr[ií]ceps m[aá]quina/i, 'machineTriceps'], [/^(weighted crunch|abs de pie polea)/i, 'cableCrunch']

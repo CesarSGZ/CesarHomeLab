@@ -156,6 +156,7 @@ test('Strength standards: interpolated by body weight, flattering variants left 
   assert.equal(standardFor('Sentadilla · Poco recorrido'),null);
   assert.equal(standardFor('Leg Extension · HS · Unilateral'),null);
   assert.deepEqual(standardFor('Remo Medio · TG'),{std:'machineRow',factor:2});
+  assert.deepEqual(standardFor('St Leg Curl · TGD'),{std:'standingCurl',factor:1});
   assert.deepEqual(percentile(103.5,standardAt('bench',85)),{level:2,pct:50});
   assert.equal(percentile(30,standardAt('bench',85)).level,-1);
   const rows=[row('2026-06-01','Bench Press',1,1,103.5),row('2026-06-01','Pecho Máquina · HS',1,1,500),row('2026-06-01','Bench Press Inclinado',1,1,10)];
