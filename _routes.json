@@ -3,7 +3,8 @@
   "include": [
     "/control/*",
     "/api/agent/*",
-    "/api/runtime"
+    "/api/runtime",
+    "/api/pique"
   ],
   "exclude": []
 }

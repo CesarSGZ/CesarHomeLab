@@ -4,7 +4,9 @@ import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 import {accessForUser} from '../functions/_lib/auth.js';
 import {onRequest,renamePlan} from '../functions/control/api/training/status.js';
-import {F,e1rm,sessions,progression,marks,recordsFor,suggestion,weeklySets,summary,alternatives,weightAt,exerciseName,knownParts,nameParts,sameExercise,findExercise,groupByExercise,WALK,walkOf,walkNote,muscleOf,defaultMeasure,sessionMeasures,standardFor,standardAt,percentile,strengthByMuscle,muscleHistory,yearReview,splitName} from '../control/training-model.js';
+import {onRequest as pique} from '../functions/api/pique.js';
+import {summarize,CESAR_COLUMNS,MARIA_COLUMNS} from '../functions/_lib/rivalry.js';
+import {F,e1rm,sessions,progression,marks,recordsFor,suggestion,weeklySets,summary,alternatives,weightAt,exerciseName,knownParts,nameParts,sameExercise,findExercise,groupByExercise,WALK,walkOf,walkNote,muscleOf,defaultMeasure,sessionMeasures,standardFor,standardAt,percentile,strengthByMuscle,muscleHistory,yearReview,splitName,pastSelf,liftPercentile,muscleOf as muscleOfName,TESTS,standardFor as stdFor} from '../control/training-model.js';
 
 const row=(fecha,ej,serie,reps,kg,rpe='',origen='app',musc='Pecho')=>[fecha,1,ej,musc,serie,reps,kg,rpe,'',origen,`${fecha}${ej}${serie}`];
 const owner={user:{username:'CesarVapor'},csrfToken:'test-token'};
@@ -151,12 +153,15 @@ test('Session measures: best e1RM, mean load and mean load by mean reps',()=>{
   const [s]=sessionMeasures([row('2026-01-01','A',1,10,100,10),row('2026-01-01','A',2,8,90,10)],'A');
   assert.equal(s.rm,100*(1+10/30));assert.equal(s.medio,95);assert.equal(s.volumen,95*9);
 });
-test('Strength standards: interpolated by body weight, flattering variants left out, per-side machines doubled',()=>{
+test('Strength standards: interpolated by body weight, every variant counted with its factor',()=>{
   assert.deepEqual(standardAt('bench',85),[60.5,80,103.5,130.5,158]);
-  assert.equal(standardFor('Sentadilla · Poco recorrido'),null);
-  assert.equal(standardFor('Leg Extension · HS · Unilateral'),null);
-  assert.deepEqual(standardFor('Remo Medio · TG'),{std:'machineRow',factor:2});
-  assert.deepEqual(standardFor('St Leg Curl · TGD'),{std:'standingCurl',factor:1});
+  assert.deepEqual(standardFor('Sentadilla · Poco recorrido'),{std:'squat',factor:0.8,note:'recorrido parcial ×0,8'});
+  assert.deepEqual(standardFor('Leg Extension · HS · Unilateral'),{std:'legExt',factor:1.8,note:'a un lado ×1,8'});
+  assert.equal(standardFor('Lateral Raise Dumbbells · Unilateral').factor,1,'dumbbell standards are already per side');
+  assert.equal(standardFor('Hacka · Goma morada o roja'),null);
+  assert.equal(standardFor('Tríceps Polea X').std,'pushdown');
+  assert.deepEqual(standardFor('Remo Medio · TG'),{std:'machineRow',factor:2,note:'apuntado por lado ×2'});
+  assert.equal(standardFor('St Leg Curl · TGD').factor,1);
   assert.deepEqual(percentile(103.5,standardAt('bench',85)),{level:2,pct:50});
   assert.equal(percentile(30,standardAt('bench',85)).level,-1);
   const rows=[row('2026-06-01','Bench Press',1,1,103.5),row('2026-06-01','Pecho Máquina · HS',1,1,500),row('2026-06-01','Bench Press Inclinado',1,1,10)];
@@ -197,5 +202,50 @@ test('API rename: owner only through CSRF, validated, and sent to the Sheet in o
     assert.equal(ok.status,200);assert.deepEqual(await ok.json(),{ok:true,rows:1});
     const body=JSON.parse(sent.at(-1).body);
     assert.equal(body.k,'secret-key');assert.equal(body.ops[0].fila.ejercicio,'B · TG');assert.equal(body.ops[0].fila.origen,'Excel');
+  } finally { globalThis.fetch=real; }
+});
+
+test('Every strength test is a standardised lift of its own muscle',()=>{
+  for(const t of TESTS){assert.ok(stdFor(t.ejercicio),t.ejercicio);assert.equal(muscleOfName(t.ejercicio),t.group,t.ejercicio);}
+});
+test('Past self: the session near three months ago, or the muscle on a machine never used before',()=>{
+  const rows=[row('2026-08-10','Bench Press',1,5,100),row('2026-10-30','Bench Press',1,5,110),row('2026-08-10','Pecho Máquina · HS',1,5,100)];
+  const p=pastSelf(rows,'Bench Press','2026-11-09',85);assert.equal(p.kind,'exercise');assert.equal(p.fecha,'2026-08-10');
+  const m=pastSelf(rows,'Chest Press · Impulse · Vivagym','2026-11-09',85);assert.equal(m.kind,'muscle');assert.equal(m.name,'Pecho');
+  assert.equal(liftPercentile('Bench Press',103.5,85).pct,50);assert.equal(liftPercentile('Step Down',100,85),null);
+});
+test('Rivalry summary: days this week, today, records against your own past and treadmill km',()=>{
+  const c=(fecha,ej,reps,kg,origen='app',nota='')=>[fecha,1,ej,'X',1,reps,kg,'',nota,origen,fecha+ej];
+  const rows=[c('2026-10-01','Bench Press',5,100,'Excel'),c('2026-11-03','Bench Press',6,100),c('2026-11-09','Squat',5,100),c('2026-11-02','Squat',5,90),c('2026-11-09','Caminadora',30,'','app','6 km/h, 0°'),c('2026-11-04','Abs',5,500,'Excel')];
+  const s=summarize(rows,CESAR_COLUMNS,'2026-11-09');
+  assert.equal(s.week,1);assert.equal(s.lastWeek,3);assert.equal(s.trainedToday,true);assert.equal(s.walkedToday,true);assert.equal(s.walkWeek,3);
+  assert.deepEqual(s.records.map(r=>r.ejercicio),['Bench Press'],'a record needs an earlier mark and an app row');
+  assert.equal(s.records[0].mejora,2.9);
+  const m=summarize([['2026-11-09',1,'Hip thrust','Glúteos',1,8,100,'','app','x']],MARIA_COLUMNS,'2026-11-09');assert.equal(m.trainedToday,true);
+});
+test('Pique endpoint: only with the key of María, CORS for her app, and only the summary',async()=>{
+  const real=globalThis.fetch,purl='https://example.test/api/pique';
+  const env={CONTROL_DB:db({'maria-lab':{sheet:{url:'https://script.google.com/macros/s/m/exec',key:'maria-key-123456'}},'training-lab':{sheet:{url:'https://script.google.com/macros/s/c/exec',key:'cesar-key'}}})};
+  try {
+    globalThis.fetch=async()=>new Response(JSON.stringify({rutina:[],alternativas:[],filas:[['2026-11-09',1,'Bench Press','Pecho',1,5,100,'','secret note','app','a']]}));
+    assert.equal((await pique({request:new Request(purl),env})).status,401);
+    assert.equal((await pique({request:new Request(purl,{headers:{'x-pique':'wrong'}}),env})).status,401);
+    const pre=await pique({request:new Request(purl,{method:'OPTIONS',headers:{origin:'https://cesarsgz.github.io'}}),env});
+    assert.equal(pre.status,204);assert.equal(pre.headers.get('access-control-allow-origin'),'https://cesarsgz.github.io');
+    assert.equal((await pique({request:new Request(purl,{method:'OPTIONS',headers:{origin:'https://evil.test'}}),env})).headers.get('access-control-allow-origin'),null);
+    const ok=await pique({request:new Request(purl,{headers:{'x-pique':'maria-key-123456',origin:'https://cesarsgz.github.io'}}),env});
+    assert.equal(ok.status,200);const text=await ok.text();
+    assert.ok(!text.includes('secret note')&&!text.includes('cesar-key'));assert.ok(JSON.parse(text).rival.year>=0);
+  } finally { globalThis.fetch=real; }
+});
+
+test('Rival connection: owner only, validated against her Sheet, stored apart from his own',async()=>{
+  const real=globalThis.fetch,post=body=>new Request(url,{method:'POST',headers:{'x-csrf-token':'test-token'},body:JSON.stringify(body)});
+  const store=db({'training-lab':{sheet:{url:'https://script.google.com/macros/s/x/exec',key:'secret-key'},bodyWeight:[]}}),env={CONTROL_DB:store};
+  try {
+    globalThis.fetch=async()=>new Response(JSON.stringify({rutina:[],filas:[]}));
+    assert.equal((await onRequest({request:post({action:'connect-rival',code:'nope'}),data:{session:owner},env})).status,400);
+    const ok=await onRequest({request:post({action:'connect-rival',code:'https://script.google.com/macros/s/m/exec#abcdefabcdefabcdef'}),data:{session:owner},env});
+    assert.equal(ok.status,200);assert.equal(store.saved.args[0],'maria-lab');assert.ok(!(await ok.text()).includes('abcdef'));
   } finally { globalThis.fetch=real; }
 });

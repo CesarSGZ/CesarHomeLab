@@ -1,5 +1,6 @@
 import { userCan, validCsrf } from '../../../_lib/auth.js';
 import { json, methodNotAllowed } from '../../../_lib/http.js';
+import { CESAR_COLUMNS, MARIA_COLUMNS, madridToday, summarize } from '../../../_lib/rivalry.js';
 
 const DATASET = 'training-lab';
 const CODE = /^(https:\/\/script\.google\.com\/macros\/s\/[\w-]+\/exec)#(\w{16,})$/;
@@ -14,6 +15,16 @@ async function readLab(env) {
 async function oldBodyWeight(env) {
   const row = await env.CONTROL_DB.prepare('SELECT payload FROM personal_datasets WHERE name = ?').bind('training').first();
   return row ? JSON.parse(row.payload).bodyWeight?.measurements || [] : [];
+}
+
+// María's week, for the rivalry: only her summary leaves this function, never her rows.
+async function rivalSummary(env) {
+  try {
+    const maria = await env.CONTROL_DB.prepare('SELECT payload FROM personal_datasets WHERE name = ?').bind('maria-lab').first();
+    if (!maria) return null;
+    const sheet = await readSheet(JSON.parse(maria.payload).sheet);
+    return Array.isArray(sheet.filas) ? summarize(sheet.filas, MARIA_COLUMNS, madridToday()) : null;
+  } catch { return null; }
 }
 
 async function readSheet({ url, key }) {
@@ -58,8 +69,9 @@ export async function onRequest({ request, env, data }) {
     const lab = await readLab(env);
     if (request.method === 'GET') {
       if (!lab?.sheet) return json({ ok: true, connected: false });
-      const sheet = await readSheet(lab.sheet);
-      return json({ ok: true, connected: true, ...sheet, bodyWeight: lab.bodyWeight || [] });
+      const [sheet, rival] = await Promise.all([readSheet(lab.sheet), rivalSummary(env)]);
+      const me = rival && Array.isArray(sheet.filas) ? summarize(sheet.filas, CESAR_COLUMNS, madridToday()) : null;
+      return json({ ok: true, connected: true, ...sheet, bodyWeight: lab.bodyWeight || [], rival, me });
     }
     const body = await request.text();
     if (body.length > MAX_BODY) return json({ ok: false, error: 'request_too_large' }, { status: 413 });
@@ -73,6 +85,18 @@ export async function onRequest({ request, env, data }) {
       const payload = JSON.stringify({ sheet, bodyWeight: lab?.bodyWeight || await oldBodyWeight(env) });
       await env.CONTROL_DB.prepare('INSERT INTO personal_datasets(name,payload,updated_at) VALUES(?,?,?) ON CONFLICT(name) DO UPDATE SET payload=excluded.payload,updated_at=excluded.updated_at')
         .bind(DATASET, payload, new Date().toISOString()).run();
+      return json({ ok: true });
+    }
+    // The rivalry: the owner pastes María's code once. It is checked against her Sheet before it is stored,
+    // and from then on only her summary is read with it, never shown back.
+    if (action?.action === 'connect-rival') {
+      const match = String(action.code || '').trim().match(CODE);
+      if (!match) return json({ ok: false, error: 'invalid_code' }, { status: 400 });
+      const sheet = { url: match[1], key: match[2] };
+      const data = await readSheet(sheet);
+      if (!Array.isArray(data.filas)) throw new Error('sheet_unavailable');
+      await env.CONTROL_DB.prepare('INSERT INTO personal_datasets(name,payload,updated_at) VALUES(?,?,?) ON CONFLICT(name) DO UPDATE SET payload=excluded.payload,updated_at=excluded.updated_at')
+        .bind('maria-lab', JSON.stringify({ sheet }), new Date().toISOString()).run();
       return json({ ok: true });
     }
     if (action?.action === 'ops') {
