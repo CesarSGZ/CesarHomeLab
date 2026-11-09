@@ -259,25 +259,34 @@ export const STANDARDS = {
   machineTriceps: [[31, 50, 73, 102, 133], [35, 55, 79, 109, 141]],
   cableCrunch: [[26, 44, 68, 97, 130], [29, 48, 73, 103, 136]]
 };
-// St Leg Curl is the standing, one-leg curl: its standard is already per leg, so it is not doubled.
-// [name test, standard, factor]. Partial range, bands and one-leg variants are left out: they would flatter the number.
-// The factor turns what is logged into what the standard measures: 2 when a machine is logged per side, or a cable per arm.
+// Every way of doing a lift should count, so changing machine, gym or variant never resets the comparison.
+// [name test, standard, factor]: the factor turns what is logged into what the standard measures.
+// One arm or one leg at a time: ×1.8, both sides minus the usual ~10 % one-side advantage, except dumbbell standards,
+// which are already per dumbbell. Partial range: ×0.8. Bands change the load along the lift, so they are left out.
+// St Leg Curl is the standing, one-leg curl: its standard is already per leg.
+const PER_SIDE = new Set(['inclineDb', 'dbShoulder', 'dbLateral', 'frontRaise', 'dbRow', 'inclineCurl', 'dbTriceps', 'standingCurl']);
 const STANDARD_OF = [
-  [/unilateral|individual|parcial|poco recorrido|goma/i, null],
+  [/goma/i, null],
   [/^bench press inclinado/i, 'incline'], [/^bench press/i, 'bench'], [/^dumbbell chest press inclinado/i, 'inclineDb'], [/^(chest press|pecho m[aá]quina)/i, 'chestPress'],
   [/^overhead press mancuernas/i, 'dbShoulder'], [/^overhead press/i, 'ohp'], [/^aperturas frontales$/i, 'frontRaise'],
   [/^lateral raise dumbbells/i, 'dbLateral'], [/^lateral raise polea/i, 'cableLateral'], [/^(lateral raise|delts)/i, 'machineLateral'], [/face pull/i, 'facePull'],
   [/^lat pulldown/i, 'pulldown'], [/^barbell row/i, 'bentRow'], [/dumbbell row/i, 'dbRow'], [/^remo t\b/i, 'tbar'], [/^remo bajo polea/i, 'cableRow'],
   [/^remo medio · tg/i, 'machineRow', 2], [/^(remo|vertical row)/i, 'machineRow'],
-  [/^sentadilla$/i, 'squat'], [/^hacka$/i, 'hack'], [/^leg extension/i, 'legExt'], [/^deadlift/i, 'deadlift'], [/^romanian/i, 'rdl'],
+  [/^sentadilla/i, 'squat'], [/^hacka/i, 'hack'], [/^leg extension/i, 'legExt'], [/^deadlift/i, 'deadlift'], [/^romanian/i, 'rdl'],
   [/^st leg curl/i, 'standingCurl'], [/^leg curl/i, 'lyingCurl'], [/^hip thrust/i, 'hipThrust'], [/^gemelos/i, 'calf'],
-  [/^b[ií]ceps curl barra/i, 'barbellCurl'], [/^b[ií]ceps (curl scott|predicador)/i, 'preacher'], [/^b[ií]ceps curl polea/i, 'cableCurl'], [/^b[ií]ceps dumbbells/i, 'inclineCurl'],
-  [/^tr[ií]ceps polea cuerda alta/i, 'ropePushdown'], [/^tr[ií]ceps extensi[oó]n polea individual/i, 'pushdown', 2], [/^tr[ií]ceps dumbbell extension/i, 'dbTriceps'],
-  [/^french press/i, 'lyingTriceps'], [/^tr[ií]ceps m[aá]quina/i, 'machineTriceps'], [/^(weighted crunch|abs de pie polea)/i, 'cableCrunch']
+  [/^b[ií]ceps curl barra/i, 'barbellCurl'], [/^b[ií]ceps (curl scott|predicador)/i, 'preacher'], [/^(b[ií]ceps curl polea|ballesyan)/i, 'cableCurl'], [/^b[ií]ceps dumbbells/i, 'inclineCurl'],
+  [/^tr[ií]ceps polea cuerda alta/i, 'ropePushdown'], [/^(tr[ií]ceps extensi[oó]n polea|tr[ií]ceps polea x|cable extension)/i, 'pushdown'], [/^tr[ií]ceps dumbbell extension/i, 'dbTriceps'],
+  [/^french press/i, 'lyingTriceps'], [/^tr[ií]ceps (m[aá]quina|extensi[oó]n barra|press sentado)/i, 'machineTriceps'], [/^(weighted crunch|abs de pie polea)/i, 'cableCrunch']
 ];
 export function standardFor(name) {
   const hit = STANDARD_OF.find(([test]) => test.test(name));
-  return hit && hit[1] ? { std: hit[1], factor: hit[2] || 1 } : null;
+  if (!hit || !hit[1]) return null;
+  let factor = hit[2] || 1;
+  const notes = [];
+  if (/unilateral|individual/i.test(name) && !PER_SIDE.has(hit[1])) { factor *= 1.8; notes.push('a un lado ×1,8'); }
+  if (/parcial|poco recorrido/i.test(name)) { factor *= 0.8; notes.push('recorrido parcial ×0,8'); }
+  if (hit[2]) notes.push('apuntado por lado ×2');
+  return { std: hit[1], factor, note: notes.join(', ') };
 }
 export function standardAt(std, bodyWeight) {
   const [a, b] = STANDARDS[std], t = Math.min(1.5, Math.max(-0.5, (bodyWeight - 80) / 10));
@@ -365,4 +374,71 @@ export function yearReview(rows, today, bodyWeight) {
     return a && b ? { name, before: a.pct, now: b.pct, lifts: [...shared] } : null;
   }).filter(Boolean);
   return { changes: changes.sort((a, b) => b.change - a.change), muscles: muscles.sort((a, b) => (b.now - b.before) - (a.now - a.before)), year: totals(ago, today), previous: totals(shiftDays(ago, -365), ago) };
+}
+
+// ---------- You against yourself, whatever the machine ----------
+// Where a single set stands against other men, or null when its exercise has no standard.
+export function liftPercentile(name, value, bodyWeight) {
+  const s = standardFor(name);
+  return s && value ? { ...percentile(value * s.factor, standardAt(s.std, bodyWeight)), std: s.std } : null;
+}
+// The best single lift of a muscle in a window, as a share of men beaten: the mark a new machine has to beat.
+export function bestOfMuscle(rows, group, bodyWeight, from, to) {
+  const lifts = bestLifts(rows, group, from, to).map(l => ({ ...l, ...percentile(l.value, standardAt(l.std, bodyWeight)) }));
+  return lifts.length ? lifts.reduce((a, b) => (b.pct > a.pct ? b : a)) : null;
+}
+export const muscleRecord = (rows, group, bodyWeight, today) => bestOfMuscle(rows, group, bodyWeight, shiftDays(today, -365), shiftDays(today, -1));
+
+// The rival is your own session closest to three months ago, never one less than four weeks old.
+// A new machine or gym has no such session: then the rival is the muscle three months ago, as a share of men beaten.
+export function pastSelf(rows, exercise, today, bodyWeight) {
+  const t = Date.parse(`${today}T12:00:00Z`), target = t - 91 * 864e5;
+  const old = sessions(rows, exercise).filter(s => t - Date.parse(`${s.fecha}T12:00:00Z`) >= 28 * 864e5)
+    .map(s => { const top = s.series.reduce((a, b) => ((rowE1rm(b) || 0) > (rowE1rm(a) || 0) ? b : a)); return { fecha: s.fecha, value: rowE1rm(top) || 0, row: top }; })
+    .filter(s => s.value);
+  if (old.length) {
+    const near = old.reduce((a, b) => (Math.abs(Date.parse(b.fecha) - target) < Math.abs(Date.parse(a.fecha) - target) ? b : a));
+    return { kind: 'exercise', fecha: near.fecha, value: near.value, kg: num(near.row[F.KG]), reps: num(near.row[F.REPS]) };
+  }
+  const group = muscleOf(exercise);
+  if (!group || !standardFor(exercise)) return null;
+  const then = rate(bestLifts(rows, group, shiftDays(today, -136), shiftDays(today, -46)), bodyWeight);
+  return then ? { kind: 'muscle', group, name: MUSCLES.find(m => m.id === group).name, pct: then.pct } : null;
+}
+// The muscle's level now (median of its lifts in the last year, before today): a set above it is a good day.
+export const muscleLevel = (rows, group, bodyWeight, today) => rate(bestLifts(rows, group, shiftDays(today, -365), shiftDays(today, -1)), bodyWeight);
+export const bestToday = (rows, exercise, today, extra = 0) => Math.max(extra || 0, ...rows.filter(r => r[F.EJ] === exercise && r[F.FECHA] === today).map(r => rowE1rm(r) || 0));
+
+// ---------- Strength tests: lifts measured the same way in any gym, to see where a muscle really stands ----------
+export const TESTS = [
+  { group: 'pecho', ejercicio: 'Bench Press', musculo: 'Pecho', how: 'Press banca con barra libre, bajando hasta el pecho.' },
+  { group: 'pecho', ejercicio: 'Dumbbell Chest Press Inclinado 30º', musculo: 'Pecho', how: 'Press inclinado con mancuernas: apunta el peso de una.' },
+  { group: 'deltAnt', ejercicio: 'Overhead Press', musculo: 'Hombros', how: 'Press militar de pie con barra.' },
+  { group: 'deltAnt', ejercicio: 'Overhead Press Mancuernas 45°', musculo: 'Hombros', how: 'Press con mancuernas sentado: apunta el peso de una.' },
+  { group: 'deltLat', ejercicio: 'Lateral Raise Dumbbells', musculo: 'Hombros', how: 'Elevaciones laterales con mancuernas: apunta el peso de una.' },
+  { group: 'deltPost', ejercicio: 'Rope Face Pull', musculo: 'Hombros', how: 'Face pull en polea con cuerda.' },
+  { group: 'dorsal', ejercicio: 'Lat Pulldown', musculo: 'Espalda', how: 'Jalón al pecho en polea con barra.' },
+  { group: 'espalda', ejercicio: 'Barbell Row', musculo: 'Espalda', how: 'Remo con barra inclinado.' },
+  { group: 'espalda', ejercicio: 'Remo Bajo Polea', musculo: 'Espalda', how: 'Remo sentado en polea baja.' },
+  { group: 'biceps', ejercicio: 'Bíceps Curl Barra', musculo: 'Bíceps', how: 'Curl de pie con barra, sin balanceo.' },
+  { group: 'biceps', ejercicio: 'Bíceps Curl Polea Cuerda / Agarre', musculo: 'Bíceps', how: 'Curl en polea baja.' },
+  { group: 'triceps', ejercicio: 'Tríceps Polea Cuerda Alta', musculo: 'Tríceps', how: 'Extensión en polea alta con cuerda.' },
+  { group: 'triceps', ejercicio: 'French Press', musculo: 'Tríceps', how: 'Press francés tumbado con barra.' },
+  { group: 'cuadriceps', ejercicio: 'Sentadilla', musculo: 'Cuádriceps', how: 'Sentadilla con barra, al menos hasta paralelo.' },
+  { group: 'cuadriceps', ejercicio: 'Leg Extension', musculo: 'Cuádriceps', how: 'Extensión de cuádriceps con las dos piernas.' },
+  { group: 'femoral', ejercicio: 'Romanian Deadlift', musculo: 'Isquios', how: 'Peso muerto rumano con barra.' },
+  { group: 'femoral', ejercicio: 'Leg Curl Tumbado', musculo: 'Isquios', how: 'Curl femoral tumbado, las dos piernas.' },
+  { group: 'cadena', ejercicio: 'Deadlift', musculo: 'Isquios', how: 'Peso muerto convencional con barra.' },
+  { group: 'gluteo', ejercicio: 'Hip Thrust', musculo: 'Glúteos', how: 'Hip thrust con barra apoyado en banco.' },
+  { group: 'gemelo', ejercicio: 'Gemelos Máquina', musculo: 'Gemelos', how: 'Gemelos de pie en máquina, hasta 15 repes.' },
+  { group: 'abdomen', ejercicio: 'Abs de pie Polea', musculo: 'Abdominales', how: 'Crunch en polea alta con cuerda.' }
+];
+
+// One line from the last year to open the Evolution tab: changes with the day so it does not repeat.
+export function yearHighlight(review, today) {
+  const options = [
+    ...review.muscles.filter(m => m.now > m.before).map(m => ({ kind: 'muscle', ...m })),
+    ...review.changes.filter(c => c.change >= 0.04).map(c => ({ kind: 'exercise', ...c }))
+  ];
+  return options.length ? options[Math.floor(Date.parse(today) / 864e5) % options.length] : null;
 }
