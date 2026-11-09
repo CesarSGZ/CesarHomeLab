@@ -190,7 +190,7 @@
       else cells.push(`<button type="button" data-choose="${i}">Serie ${i}</button>`);
     }
     return `<section class="tl-focus">
-      <div class="tl-focus-head"><div><small>${E(r.musculo)}${r.referencia ? ` · Referencia ${E(r.referencia)}` : ''}</small><h3>${E(r.ejercicio)}</h3>${r.ejercicio !== r.original ? `<small>Hoy en lugar de ${E(r.original)}</small>` : ''}</div><button type="button" class="tl-chip" data-act="swap">Cambiar</button></div>
+      <div class="tl-focus-head"><div><small>${E(r.musculo)}${r.referencia ? ` · Referencia ${E(r.referencia)}` : ''}</small><h3>${E(r.ejercicio)}</h3>${r.ejercicio !== r.original ? `<small>Hoy en lugar de ${E(r.original)}</small>` : ''}<button type="button" class="tl-link tl-rename" data-rename="${E(r.ejercicio)}">Corregir nombre</button></div><button type="button" class="tl-chip" data-act="swap">Cambiar</button></div>
       ${paintPrevious(r)}
       <div class="tl-under"><span>${mark.bestE1rm ? `Mejor e1RM ${N0(mark.bestE1rm)} kg · Máximo ${N(mark.bestKg)} kg` : ''}</span>${model.sessions(S.filas, r.ejercicio, today()).length > 2 ? `<button type="button" class="tl-link" data-act="more">${S.more ? 'Ver menos' : 'Ver más'}</button>` : ''}</div>
       ${hint ? `<button type="button" class="tl-hint" data-hint-kg="${hint.kg}" data-hint-reps="${hint.reps}">${E(hint.text)}</button>` : ''}
@@ -239,7 +239,7 @@
 
   // ---------- Layers ----------
   function showLayer(html) { const layer = $('#tl-layer'); layer.innerHTML = html; layer.hidden = false; }
-  function closeLayer() { const layer = $('#tl-layer'); if (layer) { layer.hidden = true; layer.innerHTML = ''; } S.editing = null; }
+  function closeLayer() { const layer = $('#tl-layer'); if (layer) { layer.hidden = true; layer.innerHTML = ''; } S.editing = null; S.renaming = null; }
   function layerOrder() {
     const list = exercises(S.dia);
     showLayer(`<div class="tl-card plain" role="dialog" aria-label="Cambiar orden"><h3>Orden de hoy</h3><ol class="tl-order">${list.map((x, i) => `<li><span>${E(x.ejercicio)}</span><button type="button" data-move="${i}" data-v="-1" ${i ? '' : 'disabled'} aria-label="Subir">↑</button><button type="button" data-move="${i}" data-v="1" ${i < list.length - 1 ? '' : 'disabled'} aria-label="Bajar">↓</button></li>`).join('')}</ol><button type="button" class="tl-primary" data-act="close-order">Listo</button></div>`);
@@ -305,6 +305,60 @@
     if (value === r.original) delete p.cambios[slot]; else p.cambios[slot] = value;
     savePlan(); S.ejercicio = value; closeLayer(); paint();
   }
+  // ---------- Fixing a name: rewrites its rows, the routine and the alternatives in the Sheet ----------
+  function layerRename(name) {
+    const parts = model.splitName(name), { bases, machines, gyms, variants } = model.knownParts(allNames());
+    const list = (id, items) => `<datalist id="${id}">${items.map(b => `<option value="${E(b)}"></option>`).join('')}</datalist>`;
+    S.renaming = name;
+    showLayer(`<div class="tl-card plain" role="dialog" aria-label="Corregir nombre"><h3>Corregir nombre</h3><p class="tl-note">${E(name)}</p>
+      <label class="tl-field" for="tl-rn-base">Ejercicio</label><input class="tl-text tl-rn" id="tl-rn-base" list="tl-rn-bases" value="${E(parts.base)}" autocomplete="off">${list('tl-rn-bases', bases)}
+      <label class="tl-field" for="tl-rn-machine">Máquina o marca</label><input class="tl-text tl-rn" id="tl-rn-machine" list="tl-rn-machines" value="${E(parts.machine)}" placeholder="TGD, HS, Impulse..." autocomplete="off">${list('tl-rn-machines', machines)}
+      <label class="tl-field" for="tl-rn-gym">Gimnasio</label><input class="tl-text tl-rn" id="tl-rn-gym" list="tl-rn-gyms" value="${E(parts.gym)}" placeholder="Vivagym, Basic Fit Getafe..." autocomplete="off">${list('tl-rn-gyms', gyms)}
+      <label class="tl-field" for="tl-rn-variant">Modalidad</label><input class="tl-text tl-rn" id="tl-rn-variant" list="tl-rn-variants" value="${E(parts.variant)}" placeholder="Unilateral, Poco recorrido..." autocomplete="off">${list('tl-rn-variants', variants)}
+      <p class="tl-new-name" id="tl-rn-name" role="status"></p>
+      <button type="button" class="tl-primary" data-act="rename-save">Cambiar el nombre</button><button type="button" class="tl-link center" data-act="close">Cancelar</button></div>`);
+    previewRename();
+  }
+  const renameTarget = () => {
+    const name = model.exerciseName(...['base', 'machine', 'gym', 'variant'].map(k => document.getElementById(`tl-rn-${k}`).value));
+    return model.findExercise([...allNames()].filter(n => n !== S.renaming), name) || name;
+  };
+  function previewRename(message) {
+    const node = document.getElementById('tl-rn-name');
+    if (!node) return;
+    const to = renameTarget(), rows = S.filas.filter(f => f[F.EJ] === S.renaming).length, merged = S.filas.filter(f => f[F.EJ] === to).length;
+    const exists = to !== S.renaming && allNames().has(to);
+    node.innerHTML = message ? `<span class="tl-error">${E(message)}</span>` : !document.getElementById('tl-rn-base').value.trim() ? 'Escribe el nombre del ejercicio.'
+      : to === S.renaming ? 'Es el mismo nombre.'
+        : `<b>${E(to)}</b>. ${rows === 1 ? 'Cambia 1 registro' : `Cambian sus ${N0(rows)} registros`}, la rutina y las alternativas.${exists ? ` Ya existe${merged ? `, con ${N0(merged)} registros` : ''}: se juntarán los dos historiales.` : ''}`;
+  }
+  async function saveRename(button) {
+    const from = S.renaming, to = renameTarget();
+    if (!document.getElementById('tl-rn-base').value.trim() || to === from) return previewRename();
+    button.disabled = true; button.textContent = 'Cambiando en el Sheet…';
+    await flush();
+    if (S.queue.length) { button.disabled = false; button.textContent = 'Cambiar el nombre'; return previewRename('Hay series sin subir y sin conexión no puedo cambiar el nombre. Prueba cuando vuelva la red.'); }
+    try { await call('POST', { action: 'rename', from, to }); }
+    catch { button.disabled = false; button.textContent = 'Cambiar el nombre'; return previewRename('El Sheet no ha respondido. No se ha cambiado nada; vuelve a intentarlo.'); }
+    // The same change here, so the screen is right before the Sheet is read again.
+    const swap = n => (n === from ? to : n);
+    S.filas.forEach(f => { f[F.EJ] = swap(f[F.EJ]); });
+    S.rutina = S.rutina.map(r => ({ ...r, ejercicio: swap(r.ejercicio) }));
+    S.alternativas = S.alternativas.map(a => ({ ...a, ejercicio: swap(a.ejercicio) })).filter((a, i, l) => l.findIndex(b => b.ejercicio === a.ejercicio) === i);
+    const p = plan();
+    p.cambios = Object.fromEntries(Object.entries(p.cambios).map(([k, v]) => [k.replace(`|${from}`, `|${to}`), swap(v)]));
+    Object.values(p.extras).forEach(list => list.forEach(x => { x.ejercicio = swap(x.ejercicio); }));
+    Object.keys(p.orden).forEach(d => { p.orden[d] = p.orden[d].map(swap); });
+    savePlan();
+    if (S.measures[from]) { S.measures[to] ||= S.measures[from]; delete S.measures[from]; write('measures', S.measures); }
+    if (S.draft[from]) { S.draft[to] = S.draft[from]; delete S.draft[from]; }
+    S.ejercicio = swap(S.ejercicio); S.chart = swap(S.chart);
+    write('cache', { rutina: S.rutina, alternativas: S.alternativas, filas: S.filas, bodyWeight: S.bodyWeight });
+    closeLayer(); paint();
+    try { await load(); paint(); } catch { /* the local copy already has the new name */ }
+    return undefined;
+  }
+
   function layerEdit(id) {
     const f = S.filas.find(x => x[F.ID] === id);
     if (!f) return;
@@ -448,6 +502,7 @@
     const all = model.sessionMeasures(rows, S.chart, S.bodyWeight), points = all.filter(s => s[measure] > 0).map(s => ({ fecha: s.fecha, value: s[measure], detail: setsText(s.series) }));
     const M = model.MEASURES[measure];
     drawChart(points, S.chart, M.unit, M.text);
+    $('#tl-chart-box h3').insertAdjacentHTML('afterend', `<button type="button" class="tl-link tl-rename" data-rename="${E(S.chart)}">Corregir nombre</button>`);
     const log = all.slice(-12).reverse();
     $('#tl-log').innerHTML = log.length ? `<div class="tl-log"><table><caption>Últimas sesiones</caption><tbody>${log.map(s => `<tr><td>${dateLabel(s.fecha)}</td><td>${s.series.map(f => `${f[F.REPS] === '' ? '?' : f[F.REPS]}×${f[F.KG] === '' ? '?' : N(+f[F.KG])}${f[F.RPE] !== '' ? ` @${N(+f[F.RPE])}` : ''}`).join(', ')}</td><td>${s[measure] ? `${fmtUnit(s[measure], M.unit)}` : ''}</td><td>${E(s.series.find(f => f[F.NOTA])?.[F.NOTA] || '')}</td></tr>`).join('')}</tbody></table></div>` : '';
     return undefined;
@@ -567,11 +622,13 @@
     if (d.measure) { S.measures[S.chart] = d.measure; write('measures', S.measures); return paint(); }
     if (d.strength) { S.strength = S.strength === d.strength ? null : d.strength; return paint(); }
     if (d.walk) return layerWalk(d.walk);
+    if (d.rename) { keepDraft(); return layerRename(d.rename); }
     if (d.wstep) { const node = document.getElementById(d.wstep); node.value = N(Math.max(0, Math.round((readNumber(d.wstep, 0) + +d.v) * 10) / 10)); return walkKm(); }
     switch (d.act) {
       case 'set': return doSet();
       case 'walk': keepDraft(); return layerWalk();
       case 'walk-save': return saveWalk();
+      case 'rename-save': return saveRename(b);
       case 'all-ex': S.allEx = !S.allEx; return paint();
       case 'recent-more': S.recentMore = !S.recentMore; return paint();
       case 'skip': { keepDraft(); const r = exercises(S.dia).find(x => x.ejercicio === S.ejercicio), slot = `${S.dia}|${r.ejercicio}`, p = plan(); p.saltos[slot] = (p.saltos[slot] || []).concat(setState(r).active); savePlan(); delete S.chosen[r.ejercicio]; advance(r); return paint(); }
@@ -600,7 +657,7 @@
   };
   app.addEventListener('click', onClick);
   portal.addEventListener('click', onClick);
-  portal.addEventListener('input', event => { if (!event.target.closest('.tl-card')) return; if (event.target.matches('#tl-wvel, #tl-wmin')) walkKm(); else previewNew(); });
+  portal.addEventListener('input', event => { if (!event.target.closest('.tl-card')) return; if (event.target.matches('#tl-wvel, #tl-wmin')) walkKm(); else if (event.target.matches('.tl-rn')) previewRename(); else previewNew(); });
   portal.addEventListener('focusin', event => { if (event.target.matches('.tl-input input')) event.target.select(); });
   app.addEventListener('focusin', event => { if (event.target.matches('.tl-input input')) event.target.select(); });
   app.addEventListener('input', event => {
@@ -617,7 +674,7 @@
   window.TrainingLab = { async initialise(token) {
     csrf = token;
     try {
-      model = await import('./training-model.js?v=20261109evo'); F = model.F;
+      model = await import('./training-model.js?v=20261109name'); F = model.F;
       S.queue = read('queue', []); S.plan = read('plan', null); S.measures = read('measures', {});
       const cache = read('cache', null);
       if (cache) { Object.assign(S, cache); S.connected = true; paint(); }

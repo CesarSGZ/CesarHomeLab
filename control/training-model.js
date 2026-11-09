@@ -131,6 +131,12 @@ export function knownParts(names) {
   }
   return { bases: byName(bases), machines: byName(machines), gyms: byName(gyms), variants: byName(variants) };
 }
+// The other way round, to edit a name: each tag goes back to the field it would have been typed in.
+export function splitName(name) {
+  const { base, tags } = nameParts(name), machine = [], gym = [], variant = [];
+  for (const tag of tags) (GYM.test(tag) ? gym : VARIANT.test(tag) ? variant : machine).push(tag);
+  return { base, machine: machine.join(SEPARATOR), gym: gym.join(SEPARATOR), variant: variant.join(SEPARATOR) };
+}
 // Accents, capitals and the order of the tags must not create a second history.
 const plain = value => clean(value).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 export function sameExercise(a, b) {
