@@ -629,11 +629,17 @@
   function paintHero(rows, first) {
     const weeks = Math.max(1, Math.round((Date.parse(today()) - Date.parse(first)) / 6048e5));
     const tonnes = rows.reduce((t, f) => t + (model.num(f[F.KG]) || 0) * (model.num(f[F.REPS]) || 0), 0) / 1000;
-    const h = model.yearHighlight(model.yearReview(S.filas, today(), bw()), today());
-    const card = !h ? '' : h.kind === 'muscle'
-      ? `<div class="tl-ago">Hace un año superabas al ${h.before} % de los hombres en ${E(h.name.toLowerCase())}.<strong>Ahora, al ${h.now} %.</strong></div>`
-      : `<div class="tl-ago">Hace un año, en ${E(h.name)}, tu ${model.MEASURES[h.measure].name} era ${fmtUnit(h.before, model.MEASURES[h.measure].unit)}.<strong>Ahora, ${fmtUnit(h.now, model.MEASURES[h.measure].unit)}.</strong></div>`;
-    return `<p class="tl-hero"><b>${N0(weeks)} semanas</b> entrenando, <b>${N0(rows.length)} registros</b> y más de <b>${N0(tonnes)} toneladas</b> movidas.</p>${card}`;
+    S.agoList = model.yearHighlights(model.yearReview(S.filas, today(), bw()), today());
+    return `<p class="tl-hero"><b>${N0(weeks)} semanas</b> entrenando, <b>${N0(rows.length)} registros</b> y más de <b>${N0(tonnes)} toneladas</b> movidas.</p>${agoCard()}`;
+  }
+  function agoCard() {
+    const list = S.agoList || [];
+    if (!list.length) return '';
+    const i = (S.agoIndex || 0) % list.length, h = list[i];
+    const body = h.kind === 'muscle'
+      ? `Hace un año superabas al ${h.before} % de los hombres en ${E(h.name.toLowerCase())}.<strong>Ahora, al ${h.now} %.</strong>`
+      : `Hace un año, en ${E(h.name)}, tu ${model.MEASURES[h.measure].name} era ${fmtUnit(h.before, model.MEASURES[h.measure].unit)}.<strong>Ahora, ${fmtUnit(h.now, model.MEASURES[h.measure].unit)}.</strong>`;
+    return `<button type="button" class="tl-ago" data-act="ago"${list.length > 1 ? ' aria-label="Ver otra mejora"' : ''}>${body}${list.length > 1 ? `<small>Toca para ver otra · ${i + 1} de ${list.length}</small>` : ''}</button>`;
   }
   function paintYear() {
     const now = bodyNow(), y = model.yearReview(S.filas, today(), now?.kg || 85);
@@ -751,6 +757,7 @@
       case 'set': return doSet();
       case 'walk': keepDraft(); return layerWalk();
       case 'tests': return layerTests();
+      case 'ago': { S.agoIndex = (S.agoIndex || 0) + 1; const node = app.querySelector('.tl-ago'); if (node) node.outerHTML = agoCard(); return undefined; }
       case 'rival-connect': return layerRival();
       case 'rival-save': return saveRival(b);
       case 'rival-hide': write('rivalHidden', true); return paint();
@@ -802,7 +809,7 @@
   window.TrainingLab = { async initialise(token) {
     csrf = token;
     try {
-      model = await import('./training-model.js?v=20261109pique'); F = model.F;
+      model = await import('./training-model.js?v=20261109ago'); F = model.F;
       S.queue = read('queue', []); S.plan = read('plan', null); S.measures = read('measures', {});
       const cache = read('cache', null);
       if (cache) { Object.assign(S, cache); S.connected = true; paint(); }

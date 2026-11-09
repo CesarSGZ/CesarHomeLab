@@ -227,6 +227,8 @@ select.tl-text{appearance:auto}
 .tl-hero b{color:var(--tl-ink)}
 .tl-ago{margin:0 0 16px;padding:14px 16px;border-radius:14px;background:var(--tl-accent);color:var(--tl-accent-ink);font-weight:600}
 .tl-ago strong{display:block;font-size:24px;letter-spacing:-.02em;margin-top:2px}
+.training-view .tl-ago{display:block;width:100%;text-align:left}
+.tl-ago small{display:block;margin-top:6px;font-size:12.5px;opacity:.75}
 
 @keyframes tl-rise{from{transform:translateY(14px);opacity:0}}
 @media(max-width:980px){.tl-layout{grid-template-columns:1fr}.tl-kpis{grid-template-columns:1fr 1fr}}
