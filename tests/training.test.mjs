@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 import {accessForUser} from '../functions/_lib/auth.js';
-import {onRequest} from '../functions/control/api/training/status.js';
-import {F,e1rm,sessions,progression,marks,recordsFor,suggestion,weeklySets,summary,alternatives,weightAt,exerciseName,knownParts,nameParts,sameExercise,findExercise,groupByExercise,WALK,walkOf,walkNote,muscleOf,defaultMeasure,sessionMeasures,standardFor,standardAt,percentile,strengthByMuscle,muscleHistory,yearReview} from '../control/training-model.js';
+import {onRequest,renamePlan} from '../functions/control/api/training/status.js';
+import {F,e1rm,sessions,progression,marks,recordsFor,suggestion,weeklySets,summary,alternatives,weightAt,exerciseName,knownParts,nameParts,sameExercise,findExercise,groupByExercise,WALK,walkOf,walkNote,muscleOf,defaultMeasure,sessionMeasures,standardFor,standardAt,percentile,strengthByMuscle,muscleHistory,yearReview,splitName} from '../control/training-model.js';
 
 const row=(fecha,ej,serie,reps,kg,rpe='',origen='app',musc='Pecho')=>[fecha,1,ej,musc,serie,reps,kg,rpe,'',origen,`${fecha}${ej}${serie}`];
 const owner={user:{username:'CesarVapor'},csrfToken:'test-token'};
@@ -172,4 +172,30 @@ test('Year review compares the same exercise and ignores jumps that are a change
   const y=yearReview(rows,'2026-11-09',85);
   assert.deepEqual(y.changes.map(c=>[c.name,Math.round(c.change*100)]),[['Bench Press',10]]);
   assert.equal(y.muscles[0].name,'Pecho');assert.ok(y.muscles[0].now>y.muscles[0].before);
+});
+
+test('Renaming moves rows with their origin, fixes the routine and merges alternatives without duplicates',()=>{
+  const sheet={filas:[['2024-01-01','','Curl','Bíceps',1,8,40,'','8x40','Excel','x1'],['2026-01-01',1,'Curl · TG','Bíceps',1,7,50,9,'','app','x2']],
+    rutina:[{dia:1,nombre:'Brazo',orden:1,ejercicio:'Curl · TG',musculo:'Bíceps',series:4,reps:7,referencia:'7x50',salto:2.5}],
+    alternativas:[{musculo:'Bíceps',ejercicio:'Curl · TGD',referencia:''},{musculo:'Bíceps',ejercicio:'Curl · TG',referencia:'7x50'}]};
+  const plan=renamePlan(sheet,'Curl · TG','Curl · TGD');
+  assert.deepEqual(plan.ops.map(o=>[o.fila.id,o.fila.ejercicio,o.fila.origen,o.fila.rpe]),[['x2','Curl · TGD','app',9]]);
+  assert.equal(plan.rutina[0][3],'Curl · TGD');
+  assert.deepEqual(plan.alternativas,[['Bíceps','Curl · TGD','']]);
+  assert.equal(renamePlan(sheet,'Nope','X').found,0);
+  assert.deepEqual(splitName('Leg Extension · TGD · Basic Fit Getafe · Unilateral parcial'),{base:'Leg Extension',machine:'TGD',gym:'Basic Fit Getafe',variant:'Unilateral parcial'});
+});
+test('API rename: owner only through CSRF, validated, and sent to the Sheet in one request',async()=>{
+  const real=globalThis.fetch,post=body=>new Request(url,{method:'POST',headers:{'x-csrf-token':'test-token'},body:JSON.stringify(body)});
+  const env={CONTROL_DB:db({'training-lab':{sheet:{url:'https://script.google.com/macros/s/x/exec',key:'secret-key'},bodyWeight:[]}})};
+  try {
+    const sent=[];
+    globalThis.fetch=async(target,init)=>{sent.push(init);return new Response(JSON.stringify(init?.method==='POST'?{ok:true}:{rutina:[],alternativas:[],filas:[['2024-01-01','','A','Pecho',1,5,100,'','','Excel','r1']]}));};
+    assert.equal((await onRequest({request:post({action:'rename',from:'A',to:'A'}),data:{session:owner},env})).status,400);
+    assert.equal((await onRequest({request:post({action:'rename',from:'Z',to:'B'}),data:{session:owner},env})).status,404);
+    const ok=await onRequest({request:post({action:'rename',from:' A ',to:'B  · TG'}),data:{session:owner},env});
+    assert.equal(ok.status,200);assert.deepEqual(await ok.json(),{ok:true,rows:1});
+    const body=JSON.parse(sent.at(-1).body);
+    assert.equal(body.k,'secret-key');assert.equal(body.ops[0].fila.ejercicio,'B · TG');assert.equal(body.ops[0].fila.origen,'Excel');
+  } finally { globalThis.fetch=real; }
 });

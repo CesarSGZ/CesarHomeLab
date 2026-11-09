@@ -24,13 +24,29 @@ async function readSheet({ url, key }) {
   return data;
 }
 
+const clean = value => String(value ?? '').replace(/\s+/g, ' ').trim();
+// Renames an exercise everywhere: its rows keep their origin and ID, so the history moves with the name.
+// Renaming onto an existing name merges both histories, which is how a wrongly named exercise is fixed.
+export function renamePlan(sheet, from, to) {
+  const ops = sheet.filas.filter(r => r[2] === from).map(r => ({ tipo: 'guardar', fila: { fecha: r[0], dia: r[1], ejercicio: to, musculo: r[3], serie: r[4], reps: r[5], kg: r[6], rpe: r[7], nota: r[8], origen: r[9], id: r[10] } }));
+  const rutina = sheet.rutina.map(r => [r.dia, r.nombre, r.orden, r.ejercicio === from ? to : r.ejercicio, r.musculo, r.series, r.reps, r.referencia, r.salto]);
+  const seen = new Set(), alternativas = [];
+  for (const a of sheet.alternativas) {
+    const name = a.ejercicio === from ? to : a.ejercicio;
+    if (seen.has(name)) continue;
+    seen.add(name); alternativas.push([a.musculo, name, a.referencia]);
+  }
+  const found = ops.length + sheet.rutina.filter(r => r.ejercicio === from).length + sheet.alternativas.filter(a => a.ejercicio === from).length;
+  return { ops, rutina, alternativas, found };
+}
+
 function validOp(op) {
   if (op?.tipo === 'borrar') return typeof op.id === 'string' && op.id.length < 80;
   if (op?.tipo === 'alternativa') return typeof op.ejercicio === 'string' && op.ejercicio.trim().length > 0 && op.ejercicio.length < 120 && String(op.musculo || '').length < 40 && String(op.referencia || '').length < 200;
   if (op?.tipo !== 'guardar' || !op.fila || typeof op.fila !== 'object') return false;
   const f = op.fila;
   return typeof f.id === 'string' && f.id.length < 80 && /^\d{4}-\d{2}-\d{2}$/.test(f.fecha) && typeof f.ejercicio === 'string' && f.ejercicio.length < 120
-    && Number.isFinite(f.serie) && [f.reps, f.kg, f.rpe].every(v => v === null || v === undefined || Number.isFinite(v)) && String(f.nota || '').length < 500;
+    && Number.isFinite(f.serie) && [f.reps, f.kg, f.rpe].every(v => v === null || v === undefined || Number.isFinite(v)) && String(f.nota || '').length < 500 && String(f.origen || '').length < 40;
 }
 
 export async function onRequest({ request, env, data }) {
@@ -67,6 +83,17 @@ export async function onRequest({ request, env, data }) {
       const result = await response.json();
       if (!result.ok) throw new Error('sheet_unavailable');
       return json({ ok: true });
+    }
+    if (action?.action === 'rename') {
+      if (!lab?.sheet) return json({ ok: false, error: 'not_connected' }, { status: 409 });
+      const from = clean(action.from), to = clean(action.to);
+      if (!from || !to || from === to || from.length >= 120 || to.length >= 120) return json({ ok: false, error: 'invalid_name' }, { status: 400 });
+      const plan = renamePlan(await readSheet(lab.sheet), from, to);
+      if (!plan.found) return json({ ok: false, error: 'not_found' }, { status: 404 });
+      const response = await fetch(lab.sheet.url, { method: 'POST', redirect: 'follow', signal: AbortSignal.timeout(25_000), headers: { 'content-type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ k: lab.sheet.key, rutina: plan.rutina, alternativas: plan.alternativas, ops: plan.ops }) });
+      const result = await response.json();
+      if (!result.ok) throw new Error('sheet_unavailable');
+      return json({ ok: true, rows: plan.ops.length });
     }
     return json({ ok: false, error: 'unknown_action' }, { status: 400 });
   } catch (error) {
