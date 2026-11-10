@@ -361,7 +361,7 @@
     const groups = model.groupByExercise(model.alternatives(S.alternativas, S.filas, r, used), current);
     showLayer(`<div class="tl-card plain" role="dialog" aria-label="Cambiar ejercicio"><h3>Cambiar por</h3><p class="tl-note">Solo hoy. Lo que apuntes se guarda en el ejercicio que elijas.</p>${r.ejercicio !== r.original ? `<div class="tl-options"><button type="button" class="back" data-swap="${E(r.original)}">Volver a ${E(r.original)}</button></div>` : ''}
       ${groups.map(g => `<section class="tl-option-group"><div class="tl-option-head"><h4>${E(g.base)}</h4><button type="button" class="tl-link" data-new-base="${E(g.base)}">Otra máquina o gimnasio</button></div>
-        ${g.items.length ? `<div class="tl-options">${g.items.map(a => `<button type="button" data-swap="${E(a.ejercicio)}"><b>${E(a.tags.join(' · ') || 'Sin máquina')}</b>${a.referencia ? `<small>${E(a.referencia)}</small>` : ''}</button>`).join('')}</div>` : ''}</section>`).join('')}
+        ${g.items.length ? `<div class="tl-options">${g.items.map(a => `<button type="button" data-swap="${E(a.ejercicio)}"><b>${E(a.tags.join(' · ') || (/dumbbell|mancuerna|barra|barbell/i.test(g.base) ? 'Peso libre' : 'Sin máquina'))}</b>${a.referencia ? `<small>${E(a.referencia)}</small>` : ''}</button>`).join('')}</div>` : ''}</section>`).join('')}
       <button type="button" class="tl-primary" data-act="new">Crear ejercicio nuevo</button><button type="button" class="tl-link center" data-act="close">Cancelar</button></div>`);
   }
   // A new gym or machine: the name decides the history, so each combination starts its own.
@@ -584,7 +584,7 @@
     if (!list.length) { $('#tl-body').innerHTML = '<p class="tl-note">Todavía no hay series con peso.</p>'; return; }
     const first = rows.reduce((m, f) => (f[F.FECHA] < m ? f[F.FECHA] : m), today());
     const logged = rows.filter(f => f[F.ORIGEN] === 'app').length;
-    const lifts = ['Bench Press', 'Overhead Press', 'Deadlift · TG', 'Sentadilla · Poco recorrido', 'Lat Pulldown · TGD · Dreamfit'].filter(n => usable.has(n)).map(n => { const p = model.progression(rows, n); return p.length ? { n, a: p[0].value, b: Math.max(...p.map(x => x.value)) } : null; }).filter(Boolean);
+    const lifts = ['Bench Press · Barra Olímpica 20kg', 'Overhead Press · Barra Olímpica 20kg', 'Deadlift · TG · Dreamfit', 'Sentadilla · Barra Olímpica 20kg · Poco recorrido', 'Lat Pulldown · TGD · Dreamfit'].filter(n => usable.has(n)).map(n => { const p = model.progression(rows, n); return p.length ? { n, a: p[0].value, b: Math.max(...p.map(x => x.value)) } : null; }).filter(Boolean);
     const groups = model.MUSCLES.filter(m => list.some(e => e.group === m.id));
     const extra = [...(S.filas.some(model.isWalk) ? [['walk', 'Caminadora']] : []), ...(S.bodyWeight.length ? [['weight', 'Peso corporal']] : [])];
     if (!groups.some(g => g.id === S.muscle) && !extra.some(([id]) => id === S.muscle)) S.muscle = usable.get(S.chart)?.group || (groups.some(g => g.id === 'pecho') ? 'pecho' : groups[0].id);
@@ -810,7 +810,7 @@
   window.TrainingLab = { async initialise(token) {
     csrf = token;
     try {
-      model = await import('./training-model.js?v=20261110dreamfit'); F = model.F;
+      model = await import('./training-model.js?v=20261110barra'); F = model.F;
       S.queue = read('queue', []); S.plan = read('plan', null); S.measures = read('measures', {});
       const cache = read('cache', null);
       if (cache) { Object.assign(S, cache); S.connected = true; paint(); }
