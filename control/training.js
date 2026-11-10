@@ -10,7 +10,7 @@
   };
   let model, F, csrf = '', S = {
     connected: null, rutina: [], alternativas: [], filas: [], bodyWeight: [], tab: 'hoy', dia: null, ejercicio: null, draft: {}, chosen: {},
-    muscle: null, chart: null, measures: {}, strength: null, allEx: false, recentMore: false, more: false, editing: null, rest: null, restSeconds: 150, busy: false, error: '', hello: '', queue: [], plan: null
+    muscle: null, chart: null, measures: {}, strength: null, allEx: false, recentMore: false, more: false, editing: null, rest: null, restSeconds: 150, busy: false, error: '', hello: '', queue: [], plan: null, swaps: {}
   };
   const read = (k, d) => { try { const v = localStorage.getItem('training.' + k); return v === null ? d : JSON.parse(v); } catch { return d; } };
   const write = (k, v) => { try { localStorage.setItem('training.' + k, JSON.stringify(v)); } catch { /* memory only */ } };
@@ -27,7 +27,8 @@
   const today = () => { const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 10); };
   const shortDate = iso => { const [y, m, d] = iso.split('-'); const label = `${+d} ${['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'][m - 1]}`; return y === today().slice(0, 4) ? label : `${label} ${y.slice(2)}`; };
 
-  // ---------- Today's plan: skips, order and swaps that expire with the date ----------
+  // ---------- Today's plan: skips, order and extras expire with the date; a swapped exercise stays until changed back ----------
+  const saveSwaps = () => write('cambios', S.swaps);
   function plan() {
     if (!S.plan || S.plan.fecha !== today()) S.plan = { fecha: today(), saltos: {}, orden: {}, cambios: {}, extras: {} };
     S.plan.extras ||= {};
@@ -38,7 +39,7 @@
   function exercises(dia) {
     const p = plan();
     const list = S.rutina.filter(r => r.dia === dia && r.ejercicio).sort((a, b) => a.orden - b.orden).map(r => {
-      const swap = p.cambios[`${dia}|${r.ejercicio}`];
+      const swap = S.swaps[`${dia}|${r.ejercicio}`];
       if (!swap) return { ...r, original: r.ejercicio };
       const alt = S.alternativas.find(a => a.ejercicio === swap);
       return { ...r, original: r.ejercicio, ejercicio: swap, referencia: alt?.referencia || '', musculo: alt?.musculo || r.musculo };
@@ -293,7 +294,7 @@
       else cells.push(`<button type="button" data-choose="${i}">Serie ${i}</button>`);
     }
     return `<section class="tl-focus">
-      <div class="tl-focus-head"><div><small>${E(r.musculo)}${r.referencia ? ` · Referencia ${E(r.referencia)}` : ''}</small><h3>${E(r.ejercicio)}</h3>${r.ejercicio !== r.original ? `<small>Hoy en lugar de ${E(r.original)}</small>` : ''}<button type="button" class="tl-link tl-rename" data-rename="${E(r.ejercicio)}">Corregir nombre</button></div><button type="button" class="tl-chip" data-act="swap">Cambiar</button></div>
+      <div class="tl-focus-head"><div><small>${E(r.musculo)}${r.referencia ? ` · Referencia ${E(r.referencia)}` : ''}</small><h3>${E(r.ejercicio)}</h3>${r.ejercicio !== r.original ? `<small>En lugar de ${E(r.original)}</small>` : ''}<button type="button" class="tl-link tl-rename" data-rename="${E(r.ejercicio)}">Corregir nombre</button></div><button type="button" class="tl-chip" data-act="swap">Cambiar</button></div>
       ${testBanner(r)}${paintPrevious(r)}
       <div class="tl-under"><span>${mark.bestE1rm ? `Mejor e1RM ${N0(mark.bestE1rm)} kg · Máximo ${N(mark.bestKg)} kg` : ''}</span>${model.sessions(S.filas, r.ejercicio, today()).length > 2 ? `<button type="button" class="tl-link" data-act="more">${S.more ? 'Ver menos' : 'Ver más'}</button>` : ''}</div>
       ${paintDuel(r)}
@@ -338,11 +339,19 @@
     S.filas.push(toRow(fila));
     enqueue({ tipo: 'guardar', fila });
     delete S.chosen[r.ejercicio];
-    const testDone = r.test && setState(r).complete && testResult(r);
+    const finished = setState(r).complete, testDone = r.test && finished && testResult(r);
+    const from = document.querySelector('#training-app [data-act="set"]')?.getBoundingClientRect();
     advance(r);
     S.rest = { end: Date.now() + S.restSeconds * 1000, phrase: pick(PHRASES.rest), warned: false };
     wakeLock();
     paint();
+    // The reward: the new set pops in; a finished exercise lights up in the list and gets a longer chime.
+    const big = records.length || muscleBest;
+    chime(big ? 'record' : finished ? 'exercise' : 'set');
+    buzz(big || finished ? [18, 50, 28] : 14);
+    sparks(from, big ? 18 : finished ? 14 : 8);
+    pop($(`.tl-sets [data-edit="${CSS.escape(fila.id)}"]`));
+    if (finished) pop($(`.tl-list [data-ex="${CSS.escape(r.ejercicio)}"]`)?.closest('li'));
     const muscleText = muscleBest ? `<p>Tu mejor ${E(muscleName(group).toLowerCase())} del año frente a otros: superas al ${muscleBest.now} %, antes ${muscleBest.before.pct} % con ${E(muscleBest.before.name)}.</p>` : '';
     if (testDone) showLayer(testDone.replace('<p>Ya cuenta', `${muscleText}<p>Ya cuenta`));
     else if (records.length || muscleBest) showLayer(`<div class="tl-card" role="dialog" aria-label="Récord"><small>${records.length ? `RÉCORD DE ${records.map(x => x.toUpperCase()).join(' Y ')}` : `RÉCORD DE ${E(muscleName(group).toUpperCase())}`}</small><strong>${N(kg)} kg × ${reps}</strong><p>${E(r.ejercicio)}${d.rpe ? ` @${N(d.rpe)}` : ''}</p>${muscleText}<p>${E(pick(PHRASES.record))}</p><button type="button" class="tl-primary" data-act="close">Seguir</button></div>`);
@@ -359,7 +368,7 @@
     const r = exercises(S.dia).find(x => x.ejercicio === S.ejercicio), used = new Set(exercises(S.dia).map(x => x.ejercicio));
     const current = model.nameParts(r.ejercicio).base;
     const groups = model.groupByExercise(model.alternatives(S.alternativas, S.filas, r, used), current);
-    showLayer(`<div class="tl-card plain" role="dialog" aria-label="Cambiar ejercicio"><h3>Cambiar por</h3><p class="tl-note">Solo hoy. Lo que apuntes se guarda en el ejercicio que elijas.</p>${r.ejercicio !== r.original ? `<div class="tl-options"><button type="button" class="back" data-swap="${E(r.original)}">Volver a ${E(r.original)}</button></div>` : ''}
+    showLayer(`<div class="tl-card plain" role="dialog" aria-label="Cambiar ejercicio"><h3>Cambiar por</h3><p class="tl-note">Se queda en este día hasta que lo vuelvas a cambiar. Lo que apuntes se guarda en el ejercicio que elijas.</p>${r.ejercicio !== r.original ? `<div class="tl-options"><button type="button" class="back" data-swap="${E(r.original)}">Volver a ${E(r.original)}</button></div>` : ''}
       ${groups.map(g => `<section class="tl-option-group"><div class="tl-option-head"><h4>${E(g.base)}</h4><button type="button" class="tl-link" data-new-base="${E(g.base)}">Otra máquina o gimnasio</button></div>
         ${g.items.length ? `<div class="tl-options">${g.items.map(a => `<button type="button" data-swap="${E(a.ejercicio)}"><b>${E(a.tags.join(' · ') || (/dumbbell|mancuerna|barra|barbell/i.test(g.base) ? 'Peso libre' : 'Sin máquina'))}</b>${a.referencia ? `<small>${E(a.referencia)}</small>` : ''}</button>`).join('')}</div>` : ''}</section>`).join('')}
       <button type="button" class="tl-primary" data-act="new">Crear ejercicio nuevo</button><button type="button" class="tl-link center" data-act="close">Cancelar</button></div>`);
@@ -413,8 +422,9 @@
     const value = name.trim();
     if (!value) return;
     const r = exercises(S.dia).find(x => x.ejercicio === S.ejercicio), p = plan(), slot = `${S.dia}|${r.original}`;
-    if (value === r.original) delete p.cambios[slot]; else p.cambios[slot] = value;
-    savePlan(); S.ejercicio = value; closeLayer(); paint();
+    if (value === r.original) delete S.swaps[slot]; else S.swaps[slot] = value;
+    delete p.cambios[slot];
+    savePlan(); saveSwaps(); S.ejercicio = value; closeLayer(); paint();
   }
   // ---------- Fixing a name: rewrites its rows, the routine and the alternatives in the Sheet ----------
   function layerRename(name) {
@@ -458,7 +468,8 @@
     S.rutina = S.rutina.map(r => ({ ...r, ejercicio: swap(r.ejercicio) }));
     S.alternativas = S.alternativas.map(a => ({ ...a, ejercicio: swap(a.ejercicio) })).filter((a, i, l) => l.findIndex(b => b.ejercicio === a.ejercicio) === i);
     const p = plan();
-    p.cambios = Object.fromEntries(Object.entries(p.cambios).map(([k, v]) => [k.replace(`|${from}`, `|${to}`), swap(v)]));
+    S.swaps = Object.fromEntries(Object.entries(S.swaps).map(([k, v]) => [k.replace(`|${from}`, `|${to}`), swap(v)]).filter(([k, v]) => !k.endsWith(`|${v}`)));
+    saveSwaps();
     Object.values(p.extras).forEach(list => list.forEach(x => { x.ejercicio = swap(x.ejercicio); }));
     Object.keys(p.orden).forEach(d => { p.orden[d] = p.orden[d].map(swap); });
     savePlan();
@@ -497,11 +508,29 @@
     S.draft = {}; closeLayer(); paint();
   }
   const walkLine = () => { const w = walksToday().map(model.walkOf); if (!w.length) return ''; const min = w.reduce((a, x) => a + x.min, 0), km = w.reduce((a, x) => a + x.km, 0); return `<p>Y ${N(min)} min de caminadora, ${N(Math.round(km * 100) / 100)} km.</p>`; };
+  // The summary: the big number, a few facts, then what went better than before.
   function finish() {
-    const sum = model.summary(S.filas, today());
+    const rep = model.workoutReport(S.filas, today()), me = mine();
+    const ahead = [...new Set(S.filas.filter(f => f[F.FECHA] === today() && !model.isWalk(f)).map(f => f[F.EJ]))]
+      .filter(n => { const past = model.pastSelf(S.filas, n, today(), bw()); return past?.kind === 'exercise' && model.bestToday(S.filas, n, today()) > past.value; }).length;
+    const change = rep.previous ? rep.tonnes / rep.previous.tonnes - 1 : null;
+    const wins = [
+      ...rep.records.slice(0, 3).map(x => `<li class="win"><b>Récord</b> ${E(x.name)}: +${N0(x.gain)} kg de e1RM</li>`),
+      ...(rep.records.length > 3 ? [`<li class="win"><b>+${rep.records.length - 3}</b> récords más</li>`] : []),
+      // Above double, the last time was usually a half-logged day: not a fair comparison.
+      ...(change !== null && Math.abs(change) >= .03 && change <= 1 ? [`<li class="${change > 0 ? 'win' : ''}"><b>${change > 0 ? '+' : '−'}${N0(Math.abs(change) * 100)} %</b> de volumen frente al Día ${E(S.dia)} del ${shortDate(rep.previous.fecha)}</li>`] : []),
+      ...(ahead ? [`<li class="win"><b>${ahead}</b> ${ahead === 1 ? 'ejercicio' : 'ejercicios'} por delante de tu yo de hace tres meses</li>`] : []),
+      ...(rep.muscles.length ? [`<li><b>Trabajado</b> ${E(rep.muscles.join(', ').toLowerCase())}</li>`] : [])
+    ];
+    const lead = rep.records.length ? `${rep.records.length === 1 ? 'Un récord' : `${rep.records.length} récords`} hoy. Así se hace.` : change > .03 && change <= 1 ? 'Más volumen que la última vez. Sube la cuesta.' : ahead ? 'Hoy le has ganado a tu yo del pasado.' : pick(PHRASES.done);
     S.rest = null; releaseLock();
-    showLayer(`<div class="tl-card" role="dialog" aria-label="Entreno terminado"><small>SESIÓN CERRADA</small><strong>${N(Math.round(sum.tonnes * 10) / 10)} t</strong><p>${sum.sets} ${sum.sets === 1 ? 'serie' : 'series'} en ${sum.exercises} ${sum.exercises === 1 ? 'ejercicio' : 'ejercicios'}${sum.rpe ? `, RPE medio ${N(Math.round(sum.rpe * 10) / 10)}` : ''}.</p>${walkLine()}${S.rival && S.rival.today === today() ? `<p>Esta semana: tú ${veces(mine().week)}, Marialópoda ${veces(S.rival.week)}.</p>` : ''}<p>${E(pick(PHRASES.done))}</p><button type="button" class="tl-primary" data-act="close-finish">Hecho</button></div>`);
+    showLayer(`<div class="tl-card tl-finish" role="dialog" aria-label="Entreno terminado"><small>SESIÓN CERRADA</small><strong>${N(Math.round(rep.tonnes * 10) / 10)} t</strong><p class="tl-finish-lead">${E(lead)}</p>
+      <div class="tl-finish-stats"><span><b>${rep.sets}</b>series</span><span><b>${rep.exercises}</b>${rep.exercises === 1 ? 'ejercicio' : 'ejercicios'}</span>${rep.minutes ? `<span><b>${rep.minutes}</b>min</span>` : ''}${rep.rpe ? `<span><b>${N(Math.round(rep.rpe * 10) / 10)}</b>RPE medio</span>` : ''}</div>
+      ${wins.length ? `<ul class="tl-finish-wins">${wins.join('')}</ul>` : ''}
+      ${walkLine()}<p>Esta semana llevas ${veces(me.week)}${S.rival && S.rival.today === today() ? `; Marialópoda, ${veces(S.rival.week)}` : ''}.</p>
+      <button type="button" class="tl-primary" data-act="close-finish">Hecho</button></div>`);
     paintRest();
+    chime('finish'); buzz([20, 60, 20, 60, 40]); confetti();
   }
 
   // ---------- Treadmill: any day, without touching the routine ----------
@@ -558,6 +587,58 @@
       [0, .18].forEach(t => { const o = audio.createOscillator(), g = audio.createGain(); o.frequency.value = 880; g.gain.setValueAtTime(.15, audio.currentTime + t); g.gain.exponentialRampToValueAtTime(.001, audio.currentTime + t + .15); o.connect(g).connect(audio.destination); o.start(audio.currentTime + t); o.stop(audio.currentTime + t + .16); });
     } catch { /* the visual cue remains */ }
   }
+  // ---------- Small rewards: a soft chime, a tap and a spark; bigger when an exercise or the session is done ----------
+  const NOTES = {
+    set: [[784, 0], [1175, .07]],
+    exercise: [[659, 0], [831, .08], [988, .16], [1319, .25]],
+    record: [[784, 0], [988, .08], [1175, .16], [1568, .26], [1976, .36]],
+    finish: [[523, 0], [659, .13], [784, .26], [1047, .4], [784, .56], [1047, .7]]
+  };
+  function chime(kind) {
+    try {
+      audio ||= new (window.AudioContext || window.webkitAudioContext)();
+      if (audio.state === 'suspended') audio.resume();
+      const now = audio.currentTime, long = kind === 'finish' ? .5 : .3;
+      for (const [freq, at] of NOTES[kind]) {
+        const o = audio.createOscillator(), g = audio.createGain();
+        o.type = 'triangle'; o.frequency.value = freq;
+        g.gain.setValueAtTime(.0001, now + at); g.gain.exponentialRampToValueAtTime(.13, now + at + .012); g.gain.exponentialRampToValueAtTime(.0001, now + at + long);
+        o.connect(g).connect(audio.destination); o.start(now + at); o.stop(now + at + long + .02);
+      }
+    } catch { /* silent phone: the visual reward stays */ }
+  }
+  const buzz = pattern => { try { navigator.vibrate?.(pattern); } catch { /* not on iOS */ } };
+  const still = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function pop(node) {
+    if (!node || still()) return;
+    node.classList.remove('tl-pop'); void node.offsetWidth; node.classList.add('tl-pop');
+    node.addEventListener('animationend', () => node.classList.remove('tl-pop'), { once: true });
+  }
+  function sparks(rect, count) {
+    if (!rect || still()) return;
+    const x = rect.left + rect.width / 2, y = rect.top + rect.height / 2;
+    for (let i = 0; i < count; i++) {
+      const s = document.createElement('i'), a = (i / count) * Math.PI * 2 + Math.random() * .4, d = 34 + Math.random() * 30;
+      s.className = 'tl-spark'; s.style.left = `${x}px`; s.style.top = `${y}px`;
+      s.style.setProperty('--dx', `${Math.cos(a) * d}px`); s.style.setProperty('--dy', `${Math.sin(a) * d}px`);
+      if (i % 3 === 0) s.style.background = 'var(--tl-hot)';
+      s.addEventListener('animationend', () => s.remove());
+      portal.append(s);
+    }
+  }
+  function confetti() {
+    if (still()) return;
+    const colors = ['var(--tl-accent)', 'var(--tl-hot)', 'var(--tl-ink)', '#7fc8ff'];
+    for (let i = 0; i < 42; i++) {
+      const c = document.createElement('i');
+      c.className = 'tl-confetti';
+      c.style.left = `${Math.random() * 100}vw`; c.style.background = colors[i % colors.length];
+      c.style.setProperty('--dx', `${(Math.random() - .5) * 120}px`); c.style.setProperty('--r', `${(Math.random() - .5) * 900}deg`);
+      c.style.setProperty('--t', `${1.6 + Math.random() * 1.2}s`); c.style.setProperty('--d', `${Math.random() * .35}s`);
+      c.addEventListener('animationend', () => c.remove());
+      portal.append(c);
+    }
+  }
   async function wakeLock() { try { if ('wakeLock' in navigator && !lock) { lock = await navigator.wakeLock.request('screen'); lock.addEventListener('release', () => { lock = null; }); } } catch { /* optional */ } }
   function releaseLock() { lock?.release(); lock = null; }
 
@@ -595,6 +676,7 @@
     const isGroup = groups.some(g => g.id === S.muscle), measure = S.chart === '*' ? null : measureOf(S.chart);
     $('#tl-body').innerHTML = `<div class="tl-kpis"><article><small>DESDE</small><strong>${first.slice(0, 4)}</strong><span>${N0(rows.length)} registros, ${N0(logged)} apuntados aquí</span></article>${lifts.slice(0, 3).map(l => `<article><small>${E(l.n.split(' · ')[0].toUpperCase())}</small><strong>${N0(l.b)}</strong><span>e1RM, desde ${N0(l.a)} kg</span></article>`).join('')}</div>
       ${paintHero(rows, first)}
+      ${paintStale()}
       ${paintYear()}
       <h3 class="tl-section">Por músculo, desde el principio</h3>
       <div class="tl-chips" role="group" aria-label="Músculo">${groups.map(g => `<button type="button" data-muscle="${g.id}" aria-pressed="${g.id === S.muscle}">${E(g.name)}</button>`).join('')}${extra.map(([id, label]) => `<button type="button" data-muscle="${id}" aria-pressed="${S.muscle === id}">${label}</button>`).join('')}</div>
@@ -641,6 +723,14 @@
       ? `Hace un año superabas al ${h.before} % de los hombres en ${E(h.name.toLowerCase())}.<strong>Ahora, al ${h.now} %.</strong>`
       : `Hace un año, en ${E(h.name)}, tu ${model.MEASURES[h.measure].name} era ${fmtUnit(h.before, model.MEASURES[h.measure].unit)}.<strong>Ahora, ${fmtUnit(h.now, model.MEASURES[h.measure].unit)}.</strong>`;
     return `<button type="button" class="tl-ago" data-act="ago"${list.length > 1 ? ' aria-label="Ver otra mejora"' : ''}>${body}${list.length > 1 ? `<small>Toca para ver otra · ${i + 1} de ${list.length}</small>` : ''}</button>`;
+  }
+  // Which muscles have waited longest: tap one to open its chart below.
+  function paintStale() {
+    const list = model.staleMuscles(S.filas, today()).slice(0, 6);
+    if (!list.length) return '';
+    const when = d => (d === 0 ? 'hoy' : d === 1 ? 'ayer' : `hace ${d} días`);
+    return `<section class="tl-stale"><h3 class="tl-section">Lo que más tiempo llevas sin entrenar</h3>
+      <div class="tl-stale-list">${list.map(m => `<button type="button" class="${m.days >= 14 ? 'hot' : m.days >= 7 ? 'warm' : ''}" data-muscle="${m.id}"><b>${m.days}</b><span>${E(m.name)}<small>${when(m.days)}</small></span></button>`).join('')}</div></section>`;
   }
   function paintYear() {
     const now = bodyNow(), y = model.yearReview(S.filas, today(), now?.kg || 85);
@@ -745,7 +835,7 @@
     if (d.swap) return doSwap(d.swap);
     if (d.newBase) { keepDraft(); return layerNew(d.newBase); }
     if (d.variant !== undefined) { S.newVariant = d.variant; document.getElementById('tl-new-variant').value = ''; portal.querySelectorAll('[data-variant]').forEach(x => x.setAttribute('aria-pressed', String(x === b))); return previewNew(); }
-    if (d.muscle) { S.muscle = d.muscle; S.chart = '*'; S.allEx = false; return paint(); }
+    if (d.muscle) { const fromStale = b.closest('.tl-stale'); S.muscle = d.muscle; S.chart = '*'; S.allEx = false; paint(); if (fromStale) $('#tl-chart-box')?.scrollIntoView({ behavior: still() ? 'auto' : 'smooth', block: 'center' }); return undefined; }
     if (d.chart) { S.chart = d.chart; return paint(); }
     if (d.measure) { S.measures[S.chart] = d.measure; write('measures', S.measures); return paint(); }
     if (d.strength) { S.strength = S.strength === d.strength ? null : d.strength; return paint(); }
@@ -810,8 +900,10 @@
   window.TrainingLab = { async initialise(token) {
     csrf = token;
     try {
-      model = await import('./training-model.js?v=20261110f4a'); F = model.F;
-      S.queue = read('queue', []); S.plan = read('plan', null); S.measures = read('measures', {});
+      model = await import('./training-model.js?v=20261110premio'); F = model.F;
+      S.queue = read('queue', []); S.plan = read('plan', null); S.measures = read('measures', {}); S.swaps = read('cambios', {});
+      // Swaps used to last one day: today's carry on.
+      if (S.plan?.fecha === today() && Object.keys(S.plan.cambios || {}).length) { S.swaps = { ...S.plan.cambios, ...S.swaps }; S.plan.cambios = {}; saveSwaps(); savePlan(); }
       const cache = read('cache', null);
       if (cache) { Object.assign(S, cache); S.connected = true; paint(); }
       await flush();

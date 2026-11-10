@@ -96,6 +96,37 @@ export function summary(rows, fecha) {
     tonnes: today.reduce((total, r) => total + (num(r[F.KG]) || 0) * (num(r[F.REPS]) || 0), 0) / 1000,
     rpe: rpes.length ? rpes.reduce((a, b) => a + b) / rpes.length : null };
 }
+const tonnesOf = list => list.reduce((total, r) => total + (num(r[F.KG]) || 0) * (num(r[F.REPS]) || 0), 0) / 1000;
+// App ids are "a" + Date.now() in base 36 + 5 random characters: the first and last set give the session's length.
+const loggedAt = id => (/^a[0-9a-z]{6,}$/.test(String(id)) ? parseInt(String(id).slice(1, -5), 36) : null);
+// What to celebrate at the end: records, against the last time this routine day was done, muscles worked.
+export function workoutReport(rows, fecha) {
+  const today = rows.filter(r => r[F.FECHA] === fecha && r[F.EJ] !== 'Caminadora');
+  const names = [...new Set(today.map(r => r[F.EJ]))];
+  const records = names.map(name => {
+    const best = Math.max(0, ...today.filter(r => r[F.EJ] === name).map(r => rowE1rm(r) || 0)), before = marks(rows, name, fecha).bestE1rm;
+    return before && best > before ? { name, gain: best - before } : null;
+  }).filter(Boolean).sort((a, b) => b.gain - a.gain);
+  const dia = today.find(r => r[F.DIA] !== '')?.[F.DIA];
+  const lastDate = dia === undefined ? null : rows.filter(r => r[F.FECHA] < fecha && String(r[F.DIA]) === String(dia) && r[F.EJ] !== 'Caminadora').reduce((m, r) => (r[F.FECHA] > m ? r[F.FECHA] : m), '');
+  const previous = lastDate ? { fecha: lastDate, tonnes: tonnesOf(rows.filter(r => r[F.FECHA] === lastDate && String(r[F.DIA]) === String(dia) && r[F.EJ] !== 'Caminadora')) } : null;
+  const times = today.map(r => loggedAt(r[F.ID])).filter(Boolean).sort((a, b) => a - b);
+  const minutes = times.length >= 2 ? Math.round((times.at(-1) - times[0]) / 6e4) + 2 : null;
+  const muscles = [...new Set(names.map(n => muscleOf(n, today.find(r => r[F.EJ] === n)[F.MUSC])).filter(Boolean))].map(id => MUSCLES.find(m => m.id === id).name);
+  return { ...summary(rows, fecha), records, previous: previous?.tonnes ? previous : null, minutes: minutes && minutes <= 300 ? minutes : null, muscles };
+}
+// Muscles trained in the last half year, the longest without a session first.
+export function staleMuscles(rows, today, horizon = 182) {
+  const last = new Map();
+  for (const r of rows) {
+    if (r[F.EJ] === 'Caminadora' || r[F.FECHA] > today) continue;
+    const id = muscleOf(r[F.EJ], r[F.MUSC]);
+    if (id && (!last.has(id) || r[F.FECHA] > last.get(id))) last.set(id, r[F.FECHA]);
+  }
+  const days = iso => Math.round((Date.parse(`${today}T12:00:00Z`) - Date.parse(`${iso}T12:00:00Z`)) / 864e5);
+  return MUSCLES.filter(m => last.has(m.id) && days(last.get(m.id)) <= horizon).map(m => ({ id: m.id, name: m.name, last: last.get(m.id), days: days(last.get(m.id)) }))
+    .sort((a, b) => b.days - a.days);
+}
 
 // Exact name first, then the same first word, then the rest of the muscle.
 export function alternatives(list, rows, current, used) {
