@@ -122,7 +122,7 @@ const GYM = /vivagym|basic ?fit|dreamfit/i;
 // Machines that only exist in one gym: typing the machine is enough.
 const MACHINE_GYM = { tgd: 'Dreamfit' };
 export const gymFor = (machine, gym) => clean(gym) || MACHINE_GYM[clean(machine).toLowerCase()] || '';
-const VARIANT = /unilateral|individual|parcial|parada|neutro|recorrido|alta|suelo|goma|regulable/i;
+const VARIANT = /unilateral|individual|parcial|parada|neutro|recorrido|alta|baja|fija|suelo|banco|sentado|goma|regulable/i;
 const byName = list => [...list].sort((a, b) => a.localeCompare(b, 'es'));
 // Parts already used, sorted into the field where they belong.
 export function knownParts(names) {
@@ -414,27 +414,27 @@ export const bestToday = (rows, exercise, today, extra = 0) => Math.max(extra ||
 
 // ---------- Strength tests: lifts measured the same way in any gym, to see where a muscle really stands ----------
 export const TESTS = [
-  { group: 'pecho', ejercicio: 'Bench Press', musculo: 'Pecho', how: 'Press banca con barra libre, bajando hasta el pecho.' },
-  { group: 'pecho', ejercicio: 'Dumbbell Chest Press Inclinado 30º', musculo: 'Pecho', how: 'Press inclinado con mancuernas: apunta el peso de una.' },
-  { group: 'deltAnt', ejercicio: 'Overhead Press', musculo: 'Hombros', how: 'Press militar de pie con barra.' },
+  { group: 'pecho', ejercicio: 'Bench Press · Barra Olímpica 20kg', musculo: 'Pecho', how: 'Press banca con barra libre, bajando hasta el pecho.' },
+  { group: 'pecho', ejercicio: 'Dumbbell Chest Press Inclinado 30°', musculo: 'Pecho', how: 'Press inclinado con mancuernas: apunta el peso de una.' },
+  { group: 'deltAnt', ejercicio: 'Overhead Press · Barra Olímpica 20kg', musculo: 'Hombros', how: 'Press militar de pie con barra.' },
   { group: 'deltAnt', ejercicio: 'Overhead Press Mancuernas 45°', musculo: 'Hombros', how: 'Press con mancuernas sentado: apunta el peso de una.' },
   { group: 'deltLat', ejercicio: 'Lateral Raise Dumbbells', musculo: 'Hombros', how: 'Elevaciones laterales con mancuernas: apunta el peso de una.' },
-  { group: 'deltPost', ejercicio: 'Rope Face Pull', musculo: 'Hombros', how: 'Face pull en polea con cuerda.' },
-  { group: 'dorsal', ejercicio: 'Lat Pulldown', musculo: 'Espalda', how: 'Jalón al pecho en polea con barra.' },
-  { group: 'espalda', ejercicio: 'Barbell Row', musculo: 'Espalda', how: 'Remo con barra inclinado.' },
-  { group: 'espalda', ejercicio: 'Remo Bajo Polea', musculo: 'Espalda', how: 'Remo sentado en polea baja.' },
-  { group: 'biceps', ejercicio: 'Bíceps Curl Barra', musculo: 'Bíceps', how: 'Curl de pie con barra, sin balanceo.' },
-  { group: 'biceps', ejercicio: 'Bíceps Curl Polea Cuerda / Agarre', musculo: 'Bíceps', how: 'Curl en polea baja.' },
-  { group: 'triceps', ejercicio: 'Tríceps Polea Cuerda Alta', musculo: 'Tríceps', how: 'Extensión en polea alta con cuerda.' },
-  { group: 'triceps', ejercicio: 'French Press', musculo: 'Tríceps', how: 'Press francés tumbado con barra.' },
-  { group: 'cuadriceps', ejercicio: 'Sentadilla', musculo: 'Cuádriceps', how: 'Sentadilla con barra, al menos hasta paralelo.' },
-  { group: 'cuadriceps', ejercicio: 'Leg Extension', musculo: 'Cuádriceps', how: 'Extensión de cuádriceps con las dos piernas.' },
-  { group: 'femoral', ejercicio: 'Romanian Deadlift', musculo: 'Isquios', how: 'Peso muerto rumano con barra.' },
-  { group: 'femoral', ejercicio: 'Leg Curl Tumbado', musculo: 'Isquios', how: 'Curl femoral tumbado, las dos piernas.' },
-  { group: 'cadena', ejercicio: 'Deadlift', musculo: 'Isquios', how: 'Peso muerto convencional con barra.' },
-  { group: 'gluteo', ejercicio: 'Hip Thrust', musculo: 'Glúteos', how: 'Hip thrust con barra apoyado en banco.' },
-  { group: 'gemelo', ejercicio: 'Gemelos Máquina', musculo: 'Gemelos', how: 'Gemelos de pie en máquina, hasta 15 repes.' },
-  { group: 'abdomen', ejercicio: 'Abs de pie Polea', musculo: 'Abdominales', how: 'Crunch en polea alta con cuerda.' }
+  { group: 'deltPost', ejercicio: 'Rope Face Pull · Dreamfit · Polea regulable', musculo: 'Hombros', how: 'Face pull en polea con cuerda.' },
+  { group: 'dorsal', ejercicio: 'Lat Pulldown · TGD · Dreamfit', musculo: 'Espalda', how: 'Jalón al pecho en polea con barra.' },
+  { group: 'espalda', ejercicio: 'Barbell Row · Barra Olímpica 20kg', musculo: 'Espalda', how: 'Remo con barra inclinado.' },
+  { group: 'espalda', ejercicio: 'Remo Bajo Polea · Dreamfit', musculo: 'Espalda', how: 'Remo sentado en polea baja.' },
+  { group: 'biceps', ejercicio: 'Bíceps Curl Barra · Barra Olímpica 20kg', musculo: 'Bíceps', how: 'Curl de pie con barra, sin balanceo.' },
+  { group: 'biceps', ejercicio: 'Bíceps Curl Polea Cuerda / Agarre · Dreamfit · Polea regulable', musculo: 'Bíceps', how: 'Curl en polea baja.' },
+  { group: 'triceps', ejercicio: 'Tríceps Polea Cuerda Alta · Dreamfit · Polea regulable', musculo: 'Tríceps', how: 'Extensión en polea alta con cuerda.' },
+  { group: 'triceps', ejercicio: 'French Press · Banco', musculo: 'Tríceps', how: 'Press francés tumbado con barra.' },
+  { group: 'cuadriceps', ejercicio: 'Sentadilla · Barra Olímpica 20kg', musculo: 'Cuádriceps', how: 'Sentadilla con barra, al menos hasta paralelo.' },
+  { group: 'cuadriceps', ejercicio: 'Leg Extension · TGD · Dreamfit', musculo: 'Cuádriceps', how: 'Extensión de cuádriceps con las dos piernas.' },
+  { group: 'femoral', ejercicio: 'Romanian Deadlift · Barra Olímpica 20kg', musculo: 'Isquios', how: 'Peso muerto rumano con barra.' },
+  { group: 'femoral', ejercicio: 'Leg Curl Tumbado · TGD · Dreamfit', musculo: 'Isquios', how: 'Curl femoral tumbado, las dos piernas.' },
+  { group: 'cadena', ejercicio: 'Deadlift · Barra Olímpica 20kg', musculo: 'Isquios', how: 'Peso muerto convencional con barra.' },
+  { group: 'gluteo', ejercicio: 'Hip Thrust · TGD · Dreamfit', musculo: 'Glúteos', how: 'Hip thrust con barra apoyado en banco.' },
+  { group: 'gemelo', ejercicio: 'Gemelos Máquina · Dreamfit', musculo: 'Gemelos', how: 'Gemelos de pie en máquina, hasta 15 repes.' },
+  { group: 'abdomen', ejercicio: 'Abs de pie Polea · Dreamfit · Polea regulable', musculo: 'Abdominales', how: 'Crunch en polea alta con cuerda.' }
 ];
 
 // One line from the last year to open the Evolution tab: changes with the day so it does not repeat.
