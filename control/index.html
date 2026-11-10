@@ -14,7 +14,7 @@
   <link rel="stylesheet" href="control.css?v=20261031thermal">
   <link rel="stylesheet" href="auth-overrides.css?v=20260728a">
   <link rel="stylesheet" href="refinement.css?v=20260909chat">
-  <link rel="stylesheet" href="github-galaxy.css?v=20260928atlas">
+  <link rel="stylesheet" href="github-galaxy.css?v=20261110mapa">
   <link rel="stylesheet" href="training.css?v=20261109ago">
   <link rel="stylesheet" href="doors.css?v=20261031a">
   <link rel="stylesheet" href="backtest.css?v=20261012n">
@@ -57,7 +57,7 @@
       </div>
       <div class="status-strip"><span><i></i> SYSTEM READY</span><span id="access-summary">PERSONAL VIEW</span><span id="system-time">--:--:-- CET</span></div>
       <div class="dashboard-grid">
-        <article class="module module-wide doors-summary" data-requires="doors:play" data-accent="violet">
+        <article class="module module-wide doors-summary" data-requires-view="doors" data-accent="violet">
           <header><span>JUEGO DE LAS PUERTAS</span><small>PLAY TOGETHER / 07</small></header>
           <div class="thermal-summary-body"><div class="doors-mini-mark" aria-hidden="true">◇</div><div><p>ROLES SECRETOS / DECISIONES COMPARTIDAS</p><strong>Un arma. Una puerta. Ninguna garantía.</strong><small>Crea una sala y juega con otros usuarios del HomeLab. De 3 a 12 jugadores.</small></div><button class="module-action" data-open="doors">Entrar al juego →</button></div>
         </article>
@@ -77,8 +77,8 @@
           <header><span>GITHUB GALAXY</span><small>CODE / 02</small></header>
           <div class="github-summary-body">
             <div class="github-mark" aria-hidden="true"><i></i><i></i><b>GH</b></div>
-            <div><p><span></span> LIVE REPOSITORY MAP</p><strong>Your website, connected.</strong><small>Explore how the website is built, with current source and deployment data.</small></div>
-            <button class="module-action" data-open="github">Explore galaxy →</button>
+            <div><p><span></span> MAPA DE TODO</p><strong>Todo lo que tienes montado.</strong><small>Dónde vive cada pieza, qué se ejecuta solo y cuándo, y cómo se conectan.</small></div>
+            <button class="module-action" data-open="github">Ver el mapa →</button>
           </div>
         </article>
         <article class="module module-wide training-summary" data-requires="training:read" data-accent="acid">
@@ -171,38 +171,23 @@
       </article>
     </section>
 
-    <section class="view github-view" id="github" data-title="GitHub Galaxy" data-code="03">
-      <div class="galaxy-heading"><div><p class="eyebrow"><span></span> GitHub Galaxy / Architecture explorer</p><h2>Your website.<br><em>Decoded.</em></h2></div><p>Not a wall of files. A living map of what each part does, how it connects, and how a change becomes something real.</p></div>
+    <section class="view github-view" id="github" data-title="GitHub Galaxy" data-code="03" lang="es">
+      <div class="galaxy-heading"><div><p class="eyebrow"><span></span> GitHub Galaxy / Mapa de todo</p><h2>Todo lo que tienes montado.<br><em>En un mapa.</em></h2></div><p>Dónde vive cada pieza, qué se ejecuta solo y cuándo, y cómo hablan entre ellas. Toca cualquier cosa para ver el detalle.</p></div>
       <div class="galaxy-syncbar">
-        <div><span class="galaxy-signal" id="galaxy-signal"></span><strong id="github-account-label">CesarHomeLab / main</strong><small id="github-sync-label">Waiting for source data</small></div>
-        <button id="github-refresh" type="button"><span aria-hidden="true">↻</span> Refresh from GitHub</button>
+        <div><span class="galaxy-signal" id="galaxy-signal"></span><strong id="github-account-label">CesarHomeLab / main</strong><small id="github-sync-label">Esperando datos de GitHub</small></div>
+        <button id="github-refresh" type="button"><span aria-hidden="true">↻</span> Actualizar desde GitHub</button>
       </div>
-      <div class="galaxy-journeys" id="galaxy-journeys" role="group" aria-label="Guided explanations"></div>
-      <div class="galaxy-workspace">
-        <div class="galaxy-map" id="galaxy-map" aria-label="Interactive architecture of CesarHomeLab">
-          <div class="galaxy-map-top"><span>THE CURRENT SYSTEM</span><button type="button" id="galaxy-reset">Explore freely ↗</button></div>
-          <div class="galaxy-map-legend"><span>BUILD</span><span>DELIVER</span><span>EXPERIENCE</span></div>
-          <svg class="galaxy-links" id="galaxy-links" aria-hidden="true"><defs><linearGradient id="galaxy-wire"><stop stop-color="#bba8f1"/><stop offset=".5" stop-color="#83d7ed"/><stop offset="1" stop-color="#d5e99a"/></linearGradient></defs><g id="galaxy-paths"></g></svg>
-          <div class="galaxy-map-nodes" id="galaxy-map-nodes"></div>
-          <div class="galaxy-map-foot"><span><i></i> Select a node. Follow the connections.</span><button type="button" id="galaxy-motion" aria-pressed="false">Pause motion Ⅱ</button></div>
-        </div>
-        <aside class="galaxy-inspector" id="galaxy-inspector" aria-label="What this component does">
-          <div class="galaxy-inspector-top"><span id="galaxy-node-tag">THE PUBLIC FRONT DOOR</span><span id="galaxy-node-number">03</span></div>
-          <h3 id="galaxy-node-title">Cloudflare Pages</h3><p class="galaxy-node-summary" id="galaxy-node-summary"></p><p id="galaxy-node-explanation"></p>
-          <div class="galaxy-io"><div><small>RECEIVES</small><p id="galaxy-node-input"></p></div><span aria-hidden="true">↓</span><div><small>PROVIDES</small><p id="galaxy-node-output"></p></div></div>
-          <div class="galaxy-neighbours"><small>CONNECTED TO</small><div id="galaxy-neighbours"></div></div>
-          <button type="button" id="galaxy-show-files">Inspect its source files ↓</button>
-        </aside>
-      </div>
-      <div class="galaxy-guide" id="galaxy-guide" hidden>
-        <div class="galaxy-guide-progress" id="galaxy-guide-progress"></div><div><span id="galaxy-guide-kicker"></span><h3 id="galaxy-guide-title"></h3><p id="galaxy-guide-copy"></p></div>
-        <div class="galaxy-guide-controls"><button type="button" id="galaxy-previous" aria-label="Previous step">←</button><button type="button" id="galaxy-next">Next step →</button><button type="button" id="galaxy-close" aria-label="Close guided explanation">×</button></div>
-      </div>
-      <div class="galaxy-facts"><div><small>CURRENT BRANCH</small><strong id="galaxy-branch">main</strong></div><div><small>ACTIVE SOURCE FILES</small><strong id="galaxy-file-count">—</strong></div><div><small>LATEST COMMIT</small><a id="galaxy-commit" target="_blank" rel="noreferrer">—</a></div><div><small>LAST DEPLOY WORKFLOW</small><a id="galaxy-deploy" target="_blank" rel="noreferrer">Not checked yet</a></div></div>
-      <div class="galaxy-bottom">
-        <section class="galaxy-files" id="galaxy-files"><header><div><small>GO ONE LEVEL DEEPER</small><h3 id="galaxy-files-title">Source files</h3></div><span id="galaxy-file-total">0</span></header><label class="galaxy-search"><span aria-hidden="true">⌕</span><input id="galaxy-file-search" type="search" placeholder="Find a source file…" aria-label="Find a source file"></label><div id="galaxy-file-list"></div><p class="galaxy-file-note">Current main only. Removed features and historical migrations are not shown as active services.</p></section>
-        <section class="galaxy-activity"><header><small>THE LATEST CHANGES</small><h3>From idea to commit.</h3></header><div id="galaxy-activity-list"></div><p>Source and deployment data, not a live health monitor.</p></section>
-      </div>
+      <h3 class="gx-section">Lo que se ejecuta solo</h3>
+      <p class="gx-sub">Los agentes y las tareas programadas, con su última ejecución en GitHub.</p>
+      <div class="galaxy-auto" id="galaxy-auto"></div>
+      <h3 class="gx-section">El mapa</h3>
+      <p class="gx-sub">Cada columna es un sitio donde se ejecutan cosas. Al elegir una pieza se resaltan las que hablan con ella.</p>
+      <div class="galaxy-workspace"><div class="galaxy-lanes" id="galaxy-lanes"></div><aside class="galaxy-inspector" id="galaxy-inspector" aria-live="polite"></aside></div>
+      <h3 class="gx-section">Cómo funciona, paso a paso</h3>
+      <div id="galaxy-processes"></div>
+      <div class="galaxy-facts"><div><small>Ficheros activos</small><strong id="galaxy-file-count">—</strong></div><div><small>Último commit</small><a id="galaxy-commit" target="_blank" rel="noreferrer">—</a></div><div><small>Rama</small><strong>main</strong></div></div>
+      <h3 class="gx-section">Últimos cambios</h3>
+      <div id="galaxy-activity-list"></div>
       <p class="github-feedback" id="github-feedback" role="status" aria-live="polite"></p>
     </section>
 
@@ -402,7 +387,7 @@
   <script src="doors.js?v=20261031a"></script>
   <script src="training.js?v=20261109ago"></script>
   <script type="module" src="backtest.js?v=20261012m"></script>
-  <script src="github-galaxy.js?v=20260928atlas"></script>
+  <script src="github-galaxy.js?v=20261110mapa"></script>
   <script src="control.js?v=20261031cfd"></script>
   <script src="servercesar.js?v=20261020wake" defer></script>
   <script src="flight-control.js?v=20261014a" defer></script>

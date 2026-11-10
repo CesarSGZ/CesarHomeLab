@@ -51,11 +51,15 @@ export function normaliseUsername(value) {
   return String(value || "").trim().toLowerCase();
 }
 
+// The doors game is hidden: its code and API stay, but no account sees it in the menu or the overview.
+// Set to true to bring it back.
+export const DOORS_VISIBLE = false;
+
 export function accessForUser(user) {
   const configured = USER_ACCESS[normaliseUsername(user?.username)] || STANDARD_ACCESS;
   return {
     profile: configured.profile,
-    views: [...configured.views, "doors"],
+    views: [...configured.views, ...(DOORS_VISIBLE ? ["doors"] : [])],
     capabilities: [...configured.capabilities, "doors:play"],
   };
 }
