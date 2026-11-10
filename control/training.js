@@ -361,7 +361,7 @@
     const groups = model.groupByExercise(model.alternatives(S.alternativas, S.filas, r, used), current);
     showLayer(`<div class="tl-card plain" role="dialog" aria-label="Cambiar ejercicio"><h3>Cambiar por</h3><p class="tl-note">Solo hoy. Lo que apuntes se guarda en el ejercicio que elijas.</p>${r.ejercicio !== r.original ? `<div class="tl-options"><button type="button" class="back" data-swap="${E(r.original)}">Volver a ${E(r.original)}</button></div>` : ''}
       ${groups.map(g => `<section class="tl-option-group"><div class="tl-option-head"><h4>${E(g.base)}</h4><button type="button" class="tl-link" data-new-base="${E(g.base)}">Otra máquina o gimnasio</button></div>
-        ${g.items.length ? `<div class="tl-options">${g.items.map(a => `<button type="button" data-swap="${E(a.ejercicio)}"><b>${E(a.tags.join(' · ') || 'Normal')}</b>${a.referencia ? `<small>${E(a.referencia)}</small>` : ''}</button>`).join('')}</div>` : ''}</section>`).join('')}
+        ${g.items.length ? `<div class="tl-options">${g.items.map(a => `<button type="button" data-swap="${E(a.ejercicio)}"><b>${E(a.tags.join(' · ') || 'Sin máquina')}</b>${a.referencia ? `<small>${E(a.referencia)}</small>` : ''}</button>`).join('')}</div>` : ''}</section>`).join('')}
       <button type="button" class="tl-primary" data-act="new">Crear ejercicio nuevo</button><button type="button" class="tl-link center" data-act="close">Cancelar</button></div>`);
   }
   // A new gym or machine: the name decides the history, so each combination starts its own.
@@ -373,10 +373,10 @@
     const base = chosenBase || model.nameParts(current?.ejercicio || '').base;
     const muscle = S.alternativas.find(a => model.nameParts(a.ejercicio).base === base)?.musculo || current?.musculo;
     S.newVariant = '';
-    showLayer(`<div class="tl-card plain" role="dialog" aria-label="Ejercicio nuevo"><h3>Ejercicio nuevo</h3><p class="tl-note">Cada máquina, gimnasio o modalidad lleva sus propios pesos e historial. TG es Technogym, TGD Technogym Discos y HS Hammer Strength.</p>
+    showLayer(`<div class="tl-card plain" role="dialog" aria-label="Ejercicio nuevo"><h3>Ejercicio nuevo</h3><p class="tl-note">Cada máquina, gimnasio o modalidad lleva sus propios pesos e historial. TG es Technogym, TGD Technogym Discos (en Dreamfit) y HS Hammer Strength.</p>
       <label class="tl-field" for="tl-new-base">Ejercicio</label><input class="tl-text" id="tl-new-base" list="tl-new-bases" value="${E(base)}" autocomplete="off"><datalist id="tl-new-bases">${bases.map(b => `<option value="${E(b)}"></option>`).join('')}</datalist>
       <label class="tl-field" for="tl-new-machine">Máquina o marca</label><input class="tl-text" id="tl-new-machine" list="tl-new-machines" placeholder="TGD, HS, Impulse..." autocomplete="off"><datalist id="tl-new-machines">${machines.map(b => `<option value="${E(b)}"></option>`).join('')}</datalist>
-      <label class="tl-field" for="tl-new-gym">Gimnasio</label><input class="tl-text" id="tl-new-gym" list="tl-new-gyms" placeholder="Vivagym, Basic Fit Getafe..." autocomplete="off"><datalist id="tl-new-gyms">${gyms.map(b => `<option value="${E(b)}"></option>`).join('')}</datalist>
+      <label class="tl-field" for="tl-new-gym">Gimnasio</label><input class="tl-text" id="tl-new-gym" list="tl-new-gyms" placeholder="Dreamfit, Vivagym Lluc, Basic Fit Getafe..." autocomplete="off"><datalist id="tl-new-gyms">${gyms.map(b => `<option value="${E(b)}"></option>`).join('')}</datalist>
       <span class="tl-field">Modalidad</span><div class="tl-chips tl-new-variants" role="group" aria-label="Modalidad">${['Normal', 'Unilateral', 'Poco recorrido', 'Con parada', 'Agarre neutro'].map(v => `<button type="button" data-variant="${v === 'Normal' ? '' : v}" aria-pressed="${v === 'Normal'}">${v}</button>`).join('')}</div>
       <input class="tl-text" id="tl-new-variant" placeholder="U otra: altura 5, goma roja..." autocomplete="off" aria-label="Otra modalidad">
       <label class="tl-field" for="tl-new-muscle">Músculo</label><select class="tl-text" id="tl-new-muscle">${muscles.map(m => `<option${m === muscle ? ' selected' : ''}>${E(m)}</option>`).join('')}</select>
@@ -387,7 +387,7 @@
   }
   // Written with other accents or capitals, it is still the exercise that already exists.
   const newName = () => {
-    const name = model.exerciseName(document.getElementById('tl-new-base').value, document.getElementById('tl-new-machine').value, document.getElementById('tl-new-gym').value, document.getElementById('tl-new-variant').value || S.newVariant);
+    const name = model.exerciseName(document.getElementById('tl-new-base').value, document.getElementById('tl-new-machine').value, model.gymFor(document.getElementById('tl-new-machine').value, document.getElementById('tl-new-gym').value), document.getElementById('tl-new-variant').value || S.newVariant);
     return model.findExercise(allNames(), name) || name;
   };
   function previewNew() {
@@ -424,14 +424,15 @@
     showLayer(`<div class="tl-card plain" role="dialog" aria-label="Corregir nombre"><h3>Corregir nombre</h3><p class="tl-note">${E(name)}</p>
       <label class="tl-field" for="tl-rn-base">Ejercicio</label><input class="tl-text tl-rn" id="tl-rn-base" list="tl-rn-bases" value="${E(parts.base)}" autocomplete="off">${list('tl-rn-bases', bases)}
       <label class="tl-field" for="tl-rn-machine">Máquina o marca</label><input class="tl-text tl-rn" id="tl-rn-machine" list="tl-rn-machines" value="${E(parts.machine)}" placeholder="TGD, HS, Impulse..." autocomplete="off">${list('tl-rn-machines', machines)}
-      <label class="tl-field" for="tl-rn-gym">Gimnasio</label><input class="tl-text tl-rn" id="tl-rn-gym" list="tl-rn-gyms" value="${E(parts.gym)}" placeholder="Vivagym, Basic Fit Getafe..." autocomplete="off">${list('tl-rn-gyms', gyms)}
+      <label class="tl-field" for="tl-rn-gym">Gimnasio</label><input class="tl-text tl-rn" id="tl-rn-gym" list="tl-rn-gyms" value="${E(parts.gym)}" placeholder="Dreamfit, Vivagym Lluc, Basic Fit Getafe..." autocomplete="off">${list('tl-rn-gyms', gyms)}
       <label class="tl-field" for="tl-rn-variant">Modalidad</label><input class="tl-text tl-rn" id="tl-rn-variant" list="tl-rn-variants" value="${E(parts.variant)}" placeholder="Unilateral, Poco recorrido..." autocomplete="off">${list('tl-rn-variants', variants)}
       <p class="tl-new-name" id="tl-rn-name" role="status"></p>
       <button type="button" class="tl-primary" data-act="rename-save">Cambiar el nombre</button><button type="button" class="tl-link center" data-act="close">Cancelar</button></div>`);
     previewRename();
   }
   const renameTarget = () => {
-    const name = model.exerciseName(...['base', 'machine', 'gym', 'variant'].map(k => document.getElementById(`tl-rn-${k}`).value));
+    const [base, machine, gym, variant] = ['base', 'machine', 'gym', 'variant'].map(k => document.getElementById(`tl-rn-${k}`).value);
+    const name = model.exerciseName(base, machine, model.gymFor(machine, gym), variant);
     return model.findExercise([...allNames()].filter(n => n !== S.renaming), name) || name;
   };
   function previewRename(message) {
@@ -583,7 +584,7 @@
     if (!list.length) { $('#tl-body').innerHTML = '<p class="tl-note">Todavía no hay series con peso.</p>'; return; }
     const first = rows.reduce((m, f) => (f[F.FECHA] < m ? f[F.FECHA] : m), today());
     const logged = rows.filter(f => f[F.ORIGEN] === 'app').length;
-    const lifts = ['Bench Press', 'Overhead Press', 'Deadlift · TG', 'Sentadilla · Poco recorrido', 'Lat Pulldown · TGD'].filter(n => usable.has(n)).map(n => { const p = model.progression(rows, n); return p.length ? { n, a: p[0].value, b: Math.max(...p.map(x => x.value)) } : null; }).filter(Boolean);
+    const lifts = ['Bench Press', 'Overhead Press', 'Deadlift · TG', 'Sentadilla · Poco recorrido', 'Lat Pulldown · TGD · Dreamfit'].filter(n => usable.has(n)).map(n => { const p = model.progression(rows, n); return p.length ? { n, a: p[0].value, b: Math.max(...p.map(x => x.value)) } : null; }).filter(Boolean);
     const groups = model.MUSCLES.filter(m => list.some(e => e.group === m.id));
     const extra = [...(S.filas.some(model.isWalk) ? [['walk', 'Caminadora']] : []), ...(S.bodyWeight.length ? [['weight', 'Peso corporal']] : [])];
     if (!groups.some(g => g.id === S.muscle) && !extra.some(([id]) => id === S.muscle)) S.muscle = usable.get(S.chart)?.group || (groups.some(g => g.id === 'pecho') ? 'pecho' : groups[0].id);
@@ -809,7 +810,7 @@
   window.TrainingLab = { async initialise(token) {
     csrf = token;
     try {
-      model = await import('./training-model.js?v=20261109ago'); F = model.F;
+      model = await import('./training-model.js?v=20261110dreamfit'); F = model.F;
       S.queue = read('queue', []); S.plan = read('plan', null); S.measures = read('measures', {});
       const cache = read('cache', null);
       if (cache) { Object.assign(S, cache); S.connected = true; paint(); }
