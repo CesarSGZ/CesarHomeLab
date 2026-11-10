@@ -6,7 +6,7 @@ import {accessForUser} from '../functions/_lib/auth.js';
 import {onRequest,renamePlan} from '../functions/control/api/training/status.js';
 import {onRequest as pique} from '../functions/api/pique.js';
 import {summarize,CESAR_COLUMNS,MARIA_COLUMNS} from '../functions/_lib/rivalry.js';
-import {F,e1rm,sessions,progression,marks,recordsFor,suggestion,weeklySets,summary,alternatives,weightAt,exerciseName,knownParts,nameParts,sameExercise,findExercise,groupByExercise,WALK,walkOf,walkNote,muscleOf,defaultMeasure,sessionMeasures,standardFor,standardAt,percentile,strengthByMuscle,muscleHistory,yearReview,splitName,gymFor,pastSelf,liftPercentile,muscleOf as muscleOfName,TESTS,standardFor as stdFor} from '../control/training-model.js';
+import {F,e1rm,sessions,progression,marks,recordsFor,suggestion,weeklySets,summary,alternatives,weightAt,exerciseName,knownParts,nameParts,sameExercise,findExercise,groupByExercise,WALK,walkOf,walkNote,muscleOf,defaultMeasure,sessionMeasures,standardFor,standardAt,percentile,strengthByMuscle,muscleHistory,yearReview,splitName,gymFor,pastSelf,workoutReport,staleMuscles,liftPercentile,muscleOf as muscleOfName,TESTS,standardFor as stdFor} from '../control/training-model.js';
 
 const row=(fecha,ej,serie,reps,kg,rpe='',origen='app',musc='Pecho')=>[fecha,1,ej,musc,serie,reps,kg,rpe,'',origen,`${fecha}${ej}${serie}`];
 const owner={user:{username:'CesarVapor'},csrfToken:'test-token'};
@@ -254,4 +254,21 @@ test('Rival connection: owner only, validated against her Sheet, stored apart fr
     const ok=await onRequest({request:post({action:'connect-rival',code:'https://script.google.com/macros/s/m/exec#abcdefabcdefabcdef'}),data:{session:owner},env});
     assert.equal(ok.status,200);assert.equal(store.saved.args[0],'maria-lab');assert.ok(!(await ok.text()).includes('abcdef'));
   } finally { globalThis.fetch=real; }
+});
+
+test('workout report: records, last same day, minutes and muscles', () => {
+  const t0=Date.parse('2026-11-10T10:00:00Z'), id=m=>'a'+(t0+m*6e4).toString(36)+'xxxxx';
+  const rows=[
+    ['2026-11-03',1,'Bench Press · Barra Olímpica 20kg','Pecho',1,5,100,'','','app','b1'],
+    ['2026-11-03',1,'Bench Press · Barra Olímpica 20kg','Pecho',2,5,100,'','','app','b2'],
+    ['2026-11-10',1,'Bench Press · Barra Olímpica 20kg','Pecho',1,5,105,'','','app',id(0)],
+    ['2026-11-10',1,'Bench Press · Barra Olímpica 20kg','Pecho',2,5,105,'','','app',id(40)],
+    ['2026-11-10',1,'Caminadora','Cardio',1,20,'','','6,5 km/h, 0°','app',id(50)]];
+  const r=workoutReport(rows,'2026-11-10');
+  assert.equal(r.sets,2);assert.equal(r.records.length,1);assert.equal(r.previous.fecha,'2026-11-03');assert.equal(r.previous.tonnes,1);
+  assert.equal(r.minutes,42);assert.deepEqual(r.muscles,['Pecho']);
+});
+test('stale muscles: the longest without training first, only the last half year', () => {
+  const rows=[['2026-11-09',1,'Bench Press','Pecho',1,5,100,'','','app','x'],['2026-10-20',2,'Gemelos · TGD · Dreamfit','Gemelos',1,10,90,'','','app','y'],['2025-01-01',2,'Hip Thrust · TGD · Dreamfit','Glúteos',1,8,100,'','','app','z']];
+  assert.deepEqual(staleMuscles(rows,'2026-11-10').map(m=>[m.id,m.days]),[['gemelo',21],['pecho',1]]);
 });
