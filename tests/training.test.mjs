@@ -6,7 +6,7 @@ import {accessForUser} from '../functions/_lib/auth.js';
 import {onRequest,renamePlan} from '../functions/control/api/training/status.js';
 import {onRequest as pique} from '../functions/api/pique.js';
 import {summarize,CESAR_COLUMNS,MARIA_COLUMNS} from '../functions/_lib/rivalry.js';
-import {F,e1rm,sessions,progression,marks,recordsFor,suggestion,weeklySets,summary,alternatives,weightAt,exerciseName,knownParts,nameParts,sameExercise,findExercise,groupByExercise,WALK,walkOf,walkNote,muscleOf,defaultMeasure,sessionMeasures,standardFor,standardAt,percentile,strengthByMuscle,muscleHistory,yearReview,splitName,pastSelf,liftPercentile,muscleOf as muscleOfName,TESTS,standardFor as stdFor} from '../control/training-model.js';
+import {F,e1rm,sessions,progression,marks,recordsFor,suggestion,weeklySets,summary,alternatives,weightAt,exerciseName,knownParts,nameParts,sameExercise,findExercise,groupByExercise,WALK,walkOf,walkNote,muscleOf,defaultMeasure,sessionMeasures,standardFor,standardAt,percentile,strengthByMuscle,muscleHistory,yearReview,splitName,gymFor,pastSelf,liftPercentile,muscleOf as muscleOfName,TESTS,standardFor as stdFor} from '../control/training-model.js';
 
 const row=(fecha,ej,serie,reps,kg,rpe='',origen='app',musc='Pecho')=>[fecha,1,ej,musc,serie,reps,kg,rpe,'',origen,`${fecha}${ej}${serie}`];
 const owner={user:{username:'CesarVapor'},csrfToken:'test-token'};
@@ -75,6 +75,8 @@ test('New exercises get a distinct name per gym and variant',()=>{
 test('The same exercise is recognised through accents, capitals and tag order',()=>{
   assert.ok(sameExercise('Bíceps Curl Scott · TG','biceps curl scott · tg'));
   assert.ok(sameExercise('Leg Extension · TGD · Unilateral','leg extension · unilateral · TGD'));
+  assert.deepEqual(splitName('Lat Pulldown · TGD · Dreamfit'),{base:'Lat Pulldown',machine:'TGD',gym:'Dreamfit',variant:''});
+  assert.equal(gymFor('tgd',''),'Dreamfit');assert.equal(gymFor('TGD','Vivagym'),'Vivagym');assert.equal(gymFor('HS',''),'');
   assert.ok(!sameExercise('Deadlift','Deadlift · TG'));
   assert.equal(findExercise(['Deadlift · TG','Deadlift'],'deadlift · tg'),'Deadlift · TG');
   assert.equal(findExercise(['Deadlift'],'Deadlift · TG'),null);

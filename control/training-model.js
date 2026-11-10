@@ -118,7 +118,10 @@ export function nameParts(name) {
   const [base = '', ...tags] = String(name).split(SEPARATOR);
   return { base, tags };
 }
-const GYM = /vivagym|basic ?fit/i;
+const GYM = /vivagym|basic ?fit|dreamfit/i;
+// Machines that only exist in one gym: typing the machine is enough.
+const MACHINE_GYM = { tgd: 'Dreamfit' };
+export const gymFor = (machine, gym) => clean(gym) || MACHINE_GYM[clean(machine).toLowerCase()] || '';
 const VARIANT = /unilateral|individual|parcial|parada|neutro|recorrido|alta|suelo|goma|regulable/i;
 const byName = list => [...list].sort((a, b) => a.localeCompare(b, 'es'));
 // Parts already used, sorted into the field where they belong.
