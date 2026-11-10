@@ -115,17 +115,20 @@ export function workoutReport(rows, fecha) {
   const muscles = [...new Set(names.map(n => muscleOf(n, today.find(r => r[F.EJ] === n)[F.MUSC])).filter(Boolean))].map(id => MUSCLES.find(m => m.id === id).name);
   return { ...summary(rows, fecha), records, previous: previous?.tonnes ? previous : null, minutes: minutes && minutes <= 300 ? minutes : null, muscles };
 }
-// Muscles trained in the last half year, the longest without a session first.
+// Muscle groups as the Sheet names them (Pecho, Hombros, Espalda...), trained in the last half year, the longest without a session first.
+// `open` is the group's most trained fine muscle, so a tap can show its chart.
 export function staleMuscles(rows, today, horizon = 182) {
-  const last = new Map();
+  const last = new Map(), fine = new Map();
   for (const r of rows) {
-    if (r[F.EJ] === 'Caminadora' || r[F.FECHA] > today) continue;
+    const group = clean(r[F.MUSC]);
+    if (!group || group === 'Cardio' || r[F.EJ] === 'Caminadora' || r[F.FECHA] > today) continue;
+    if (!last.has(group) || r[F.FECHA] > last.get(group)) last.set(group, r[F.FECHA]);
     const id = muscleOf(r[F.EJ], r[F.MUSC]);
-    if (id && (!last.has(id) || r[F.FECHA] > last.get(id))) last.set(id, r[F.FECHA]);
+    if (id) { const counts = fine.get(group) || new Map(); counts.set(id, (counts.get(id) || 0) + 1); fine.set(group, counts); }
   }
   const days = iso => Math.round((Date.parse(`${today}T12:00:00Z`) - Date.parse(`${iso}T12:00:00Z`)) / 864e5);
-  return MUSCLES.filter(m => last.has(m.id) && days(last.get(m.id)) <= horizon).map(m => ({ id: m.id, name: m.name, last: last.get(m.id), days: days(last.get(m.id)) }))
-    .sort((a, b) => b.days - a.days);
+  return [...last].map(([name, iso]) => ({ name, last: iso, days: days(iso), open: [...(fine.get(name) || [])].sort((a, b) => b[1] - a[1])[0]?.[0] || null }))
+    .filter(g => g.days <= horizon).sort((a, b) => b.days - a.days || a.name.localeCompare(b.name, 'es'));
 }
 
 // Exact name first, then the same first word, then the rest of the muscle.

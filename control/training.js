@@ -731,7 +731,7 @@
     if (!list.length) return '';
     const when = d => (d === 0 ? 'hoy' : d === 1 ? 'ayer' : `hace ${d} días`);
     return `<section class="tl-stale"><h3 class="tl-section">Lo que más tiempo llevas sin entrenar</h3>
-      <div class="tl-stale-list">${list.map(m => `<button type="button" class="${m.days >= 14 ? 'hot' : m.days >= 7 ? 'warm' : ''}" data-muscle="${m.id}"><b>${m.days}</b><span>${E(m.name)}<small>${when(m.days)}</small></span></button>`).join('')}</div></section>`;
+      <div class="tl-stale-list">${list.map(m => `<button type="button" class="${m.days >= 14 ? 'hot' : m.days >= 7 ? 'warm' : ''}"${m.open ? ` data-muscle="${m.open}"` : ' disabled'}><b>${m.days}</b><span>${E(m.name)}<small>${when(m.days)}</small></span></button>`).join('')}</div></section>`;
   }
   function paintYear() {
     const now = bodyNow(), y = model.yearReview(S.filas, today(), now?.kg || 85);
@@ -901,7 +901,7 @@
   window.TrainingLab = { async initialise(token) {
     csrf = token;
     try {
-      model = await import('./training-model.js?v=20261110premio2'); F = model.F;
+      model = await import('./training-model.js?v=20261110grupos'); F = model.F;
       S.queue = read('queue', []); S.plan = read('plan', null); S.measures = read('measures', {}); S.swaps = read('cambios', {});
       // Swaps used to last one day: today's carry on.
       if (S.plan?.fecha === today() && Object.keys(S.plan.cambios || {}).length) { S.swaps = { ...S.plan.cambios, ...S.swaps }; S.plan.cambios = {}; saveSwaps(); savePlan(); }

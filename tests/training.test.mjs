@@ -270,5 +270,5 @@ test('workout report: records, last same day, minutes and muscles', () => {
 });
 test('stale muscles: the longest without training first, only the last half year', () => {
   const rows=[['2026-11-09',1,'Bench Press','Pecho',1,5,100,'','','app','x'],['2026-10-20',2,'Gemelos · TGD · Dreamfit','Gemelos',1,10,90,'','','app','y'],['2025-01-01',2,'Hip Thrust · TGD · Dreamfit','Glúteos',1,8,100,'','','app','z']];
-  assert.deepEqual(staleMuscles(rows,'2026-11-10').map(m=>[m.id,m.days]),[['gemelo',21],['pecho',1]]);
+  assert.deepEqual(staleMuscles(rows,'2026-11-10').map(m=>[m.name,m.days,m.open]),[['Gemelos',21,'gemelo'],['Pecho',1,'pecho']]);
 });
