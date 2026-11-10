@@ -83,6 +83,7 @@ function applyAccess(data){
   views.forEach(view=>{view.hidden=!allowedViews.has(view.id)});
   document.querySelectorAll('[data-owner-only]').forEach(element=>{element.hidden=!owner});
   document.querySelectorAll('[data-standard-only]').forEach(element=>{element.hidden=owner});
+  document.querySelectorAll('[data-requires-view]').forEach(element=>{element.hidden=!allowedViews.has(element.dataset.requiresView)});
   document.querySelectorAll('[data-requires]').forEach(element=>{
     element.hidden=!hasCapability(element.dataset.requires);
   });
@@ -372,7 +373,7 @@ async function initialiseControl(){
     return;
   }
   applyAccess(session);
-  if(hasCapability('doors:play'))window.DoorsGame?.initialise(csrfToken,session.user);
+  if(allowedViews.has('doors'))window.DoorsGame?.initialise(csrfToken,session.user);
   showView(location.hash.slice(1)||'overview',false);
   if(hasCapability('github:read'))window.GitHubGalaxy?.initialise();
   if(hasCapability('training:read'))window.TrainingLab?.initialise(csrfToken);

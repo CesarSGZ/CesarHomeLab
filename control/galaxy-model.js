@@ -1,4 +1,5 @@
-// Shared by the deployment snapshot, authenticated endpoint, and visual explorer.
+// Shared by the deployment snapshot, the authenticated endpoint and the map.
+// The map describes what exists today, where it lives, what runs by itself and how the pieces talk.
 export const REPOSITORY = 'CesarSGZ/CesarHomeLab';
 export const BRANCH = 'main';
 export const RETIRED_PATH = /(^|\/)(ebay|bigbuy|marketplace|pdf-tools|chatgpt-remote|remote-browser)([\/.-]|$)|^migrations\/000[3-7]_|^constellation\.css$/i;
@@ -6,72 +7,134 @@ export function activeFiles(files) {
   return [...new Set(files.map(file => typeof file === 'string' ? file : file.path))]
     .filter(path => path && !RETIRED_PATH.test(path)).sort();
 }
-export const SYSTEMS = [
-  {id:'source',number:'01',name:'GitHub',tag:'SOURCE OF TRUTH',colour:'#bba8f1',icon:'git',x:15,y:16,
-    summary:'The blueprint. Every change starts here.',
-    explanation:'CesarHomeLab stores the website code, server-agent scripts and deployment configuration. The main branch is the version used for production. GitHub stores the instructions; it does not run anything on ServerCesar.',
-    input:'Code changes committed to main.',output:'Versioned source code for the deployment workflow.',
-    matches:path=>path.startsWith('.github/')||path==='README.md'||path.startsWith('docs/')},
-  {id:'deploy',number:'02',name:'GitHub Actions',tag:'AUTOMATIC DEPLOYMENT',colour:'#bba8f1',icon:'rocket',x:15,y:43,
-    summary:'Turns a saved change into a published website.',
-    explanation:'The deploy workflow checks out main, builds the Galaxy snapshot, and uses Wrangler to upload the site and its Functions to Cloudflare Pages. It runs on pushes and on the configured schedule. A successful GitHub workflow is deployment evidence, not a health check for every service.',
-    input:'A push, a scheduled run, or a manual workflow run.',output:'A new Cloudflare Pages deployment.',
-    matches:path=>path.startsWith('.github/workflows/')||path.startsWith('scripts/')||path==='wrangler.jsonc'},
-  {id:'edge',number:'03',name:'Cloudflare Pages',tag:'THE PUBLIC FRONT DOOR',colour:'#83d7ed',icon:'cloud',x:46,y:30,
-    summary:'One address. The public website and private portal.',
-    explanation:'cesar-solla.pages.dev serves the portfolio and Mission Control. Static HTML, styles, JavaScript and images are delivered here; requests under /control/ and /api/agent/ are routed through Pages Functions. Public browsing does not require CesarPC to be switched on.',
-    input:'An HTTPS request from a visitor’s browser.',output:'Website assets or a request handled by a Function.',
-    matches:path=>['_routes.json','_headers','wrangler.jsonc'].includes(path)},
-  {id:'portfolio',number:'04',name:'Public portfolio',tag:'OPEN TO EVERYONE',colour:'#d5e99a',icon:'person',x:81,y:13,
-    summary:'The CV, trajectory and interactive capabilities.',
-    explanation:'The public page runs in the visitor’s browser. It presents the CV, the three capability disciplines and credentials. Career durations are calculated from the current date; the 3D gallery loads only when it approaches the screen.',
-    input:'Public HTML, CSS, JavaScript and local artwork.',output:'An interactive CV, without a login.',
-    matches:path=>!path.includes('/')&&/\.(html|css|js)$/.test(path)||path.startsWith('assets/')},
-  {id:'portal',number:'05',name:'Mission Control',tag:'PRIVATE WORKSPACE',colour:'#d5e99a',icon:'dashboard',x:81,y:43,
-    summary:'A personal workspace with user-specific access.',
-    explanation:'Mission Control is the authenticated interface. The session determines which sections each user sees. CesarVapor can access GitHub Galaxy, Infrastructure, Thermal Lab, Training and Backtest Lab. Other accounts only see the overview.',
-    input:'A valid user session and its allowed capabilities.',output:'The sections and read-only information available to that user.',
-    matches:path=>path.startsWith('control/')&&!path.startsWith('control/vendor/')&&!path.startsWith('control/data/')},
-  {id:'api',number:'06',name:'Pages Functions',tag:'PERMISSIONS & LOGIC',colour:'#83d7ed',icon:'code',x:49,y:64,
-    summary:'Checks access before doing anything sensitive.',
-    explanation:'Server-side Functions validate sessions and permissions. They handle sign-in, read server status, queue authorised restart requests and serve the read-only GitHub snapshot. A hidden button is not a security boundary: the API checks permission again.',
-    input:'Authenticated browser requests or authenticated agent messages.',output:'Validated responses and controlled database updates.',
-    matches:path=>path.startsWith('functions/')},
-  {id:'database',number:'07',name:'Cloudflare D1',tag:'SHARED APPLICATION STATE',colour:'#83d7ed',icon:'database',x:81,y:82,
-    summary:'Remembers sessions, server signals and queued commands.',
-    explanation:'D1 is the database used by the Functions. The active application stores users, expiring sessions, the ServerCesar agent report and its queue of power commands. This node describes the storage architecture; Galaxy does not read or expose database contents, passwords or tokens.',
-    input:'Validated reads and writes from Pages Functions.',output:'Persistent application state and queued commands.',
-    matches:path=>/^migrations\/000[128]_/.test(path)||path==='wrangler.jsonc'},
-  {id:'server',number:'08',name:'ServerCesar',tag:'HOME PC AGENT',colour:'#efbe8c',icon:'server',x:15,y:82,
-    summary:'The home PC, watched and controlled by its agent.',
-    explanation:'The PowerShell agent on ServerCesar contacts Cloudflare using outbound HTTPS. It reports system and app status, picks up authorised reboot or shutdown commands and reports the result. Galaxy only illustrates this flow: exploring this node never touches the PC.',
-    input:'A restricted command obtained by the authenticated agent.',output:'PC status and command completion sent back to Cloudflare.',
-    matches:path=>path.startsWith('server-agent/')}
+
+// Where things run. One column each on a wide screen, one block each on a phone.
+export const ZONES = [
+  { id: 'casa', name: 'En tu casa', note: 'Tu PC servidor y Claude, que programa', colour: '#efbe8c' },
+  { id: 'github', name: 'En GitHub', note: 'El código y las tareas que se ejecutan solas', colour: '#bba8f1' },
+  { id: 'cloudflare', name: 'En Cloudflare', note: 'La web, sus APIs y la base de datos', colour: '#83d7ed' },
+  { id: 'fuera', name: 'Servicios de fuera', note: 'Google, el bróker y los datos de bolsa', colour: '#d5e99a' }
 ];
-export const CONNECTIONS = [
-  {from:'source',to:'deploy',label:'push to main'},
-  {from:'deploy',to:'edge',label:'deploy with Wrangler'},
-  {from:'edge',to:'portfolio',label:'public assets'},
-  {from:'edge',to:'portal',label:'protected route'},
-  {from:'portal',to:'api',label:'session + request'},
-  {from:'api',to:'database',label:'read / write state'},
-  {from:'server',to:'api',label:'outbound HTTPS polling'}
+export const KINDS = { agente: 'Agente', tarea: 'Tarea automática', web: 'Web', codigo: 'Código', datos: 'Datos', servicio: 'Servicio externo' };
+
+// Cron times are UTC in GitHub; the page shows them in Madrid time for today's date.
+export const NODES = [
+  { id: 'servercesar', zone: 'casa', kind: 'agente', name: 'ServerCesar',
+    what: 'El PC de casa. Dos programas lo vigilan y avisan a la web de cómo está.',
+    detail: 'El agente arranca con Windows y cada 2 minutos manda a Cloudflare el estado del PC y de sus apps, y recoge las órdenes de reiniciar o apagar que hayas dado desde Infraestructura. El guardián, al iniciar sesión, comprueba cada 20 segundos que Claude, ChatGPT, Parsec y Tailscale siguen abiertos y los vuelve a abrir si se cierran. Solo hacen conexiones de salida: no hay ningún puerto abierto en casa. Para encenderlo, un enchufe Shelly corta y devuelve la corriente.',
+    where: ['server-agent/servercesar/ en el repo', 'C:\\ProgramData\\ServerCesar (registros y token cifrado)'],
+    when: 'Agente cada 2 min · guardián cada 20 s', links: ['apis', 'shelly'],
+    matches: path => path.startsWith('server-agent/') },
+  { id: 'claude', zone: 'casa', kind: 'agente', name: 'Claude Code',
+    what: 'El que programa: cambia el código, lo prueba y abre las PR.',
+    detail: 'Funciona en la app de Claude de tu PC. Trabaja sobre los repositorios, prueba los cambios en un navegador simulado y los sube a GitHub con una PR que tú fusionas. Lo que genera fuera del código (datos, vídeos, documentos, pruebas) va a la carpeta Claude del escritorio.',
+    where: ['Escritorio\\Claude', 'Los repositorios CesarHomeLab y marialopoda'],
+    when: 'Cuando se lo pides', links: ['repo', 'marialopoda'], matches: path => path === 'CLAUDE.md' },
+  { id: 'repo', zone: 'github', kind: 'codigo', name: 'CesarHomeLab',
+    what: 'Todo el código de la web, las APIs, el Backtest Lab y el agente del server.',
+    detail: 'Es la fuente de la verdad: lo que está en la rama main es lo que se publica. Aquí viven la web pública, Mission Control, las APIs, los scripts de Python del Backtest Lab y del robot, y los scripts del PC. GitHub guarda el código y ejecuta las tareas automáticas; no ejecuta nada en tu casa.',
+    where: ['github.com/CesarSGZ/CesarHomeLab, rama main'], when: 'Cambia con cada PR que fusionas', links: ['deploy', 'backtest', 'robot', 'manual', 'claude'],
+    matches: path => path === 'README.md' || path.startsWith('docs/') || path === '.gitignore' },
+  { id: 'marialopoda', zone: 'github', kind: 'web', name: 'Marialópoda',
+    what: 'La app de entreno de María. GitHub Pages la sirve tal cual.',
+    detail: 'Es otro repositorio. La app funciona en el móvil de María aunque no haya cobertura y escribe directamente en su Sheet con su propio código de conexión. Para el pique pide tu resumen a la API de Cloudflare, enseñando su clave; nunca recibe tus series.',
+    where: ['github.com/CesarSGZ/marialopoda', 'cesarsgz.github.io/marialopoda'], when: 'Se publica sola al subir a main', links: ['sheetMaria', 'apis', 'claude'], matches: () => false },
+  { id: 'deploy', zone: 'github', kind: 'tarea', name: 'Publicar la web', workflow: 'deploy.yml',
+    what: 'Pasa los tests y sube la web y las APIs a Cloudflare.',
+    detail: 'Cada vez que algo entra en main, esta tarea descarga el código, pasa todos los tests, prepara la foto del repositorio que usa este mapa y sube el resultado a Cloudflare Pages con Wrangler. Si un test falla, no se publica nada.',
+    where: ['.github/workflows/deploy.yml'], when: 'Cada vez que algo entra en main', links: ['repo', 'pages'],
+    matches: path => path === '.github/workflows/deploy.yml' || /^scripts\/build-/.test(path) || path === 'wrangler.jsonc' || path.startsWith('tests/') },
+  { id: 'backtest', zone: 'github', kind: 'tarea', name: 'Backtest Lab', workflow: 'backtest-lab.yml',
+    what: 'Descarga datos de bolsa y prueba estrategias en Python.',
+    detail: 'Cada 10 minutos mira en la base de datos si has pedido un backtest desde Mission Control; si lo hay, lo marca como en marcha, descarga los precios, ejecuta el motor en Python y publica el informe en la base de datos. Los sábados recalcula todo con los parámetros por defecto y los datos completos. Solo simula: no toca ningún bróker.',
+    where: ['backtest-lab/', '.github/workflows/backtest-lab.yml', 'scripts/backtest-lab.mjs'],
+    when: { text: 'Cada 10 min mira si hay petición · sábados {05:17} recalcula todo' }, links: ['d1', 'datos'],
+    matches: path => (path.startsWith('backtest-lab/') && !/ibkr/i.test(path)) || /backtest-lab\.(yml|mjs)$/.test(path) || /tiingo/.test(path) },
+  { id: 'robot', zone: 'github', kind: 'tarea', name: 'Robot IBKR (paper)', workflow: 'ibkr-paper-robot.yml',
+    what: 'Opera la cuenta de prueba de Interactive Brokers sin tu PC.',
+    detail: 'Arranca IB Gateway en un contenedor con las credenciales de la cuenta paper guardadas como secretos de GitHub. Los lunes aplica la cartera objetivo de la semana enviando órdenes; de lunes a viernes, al cierre de Wall Street, solo saca una foto de la cuenta para Mission Control. Al acabar apaga el contenedor.',
+    where: ['backtest-lab/ibkr_paper.py', '.github/workflows/ibkr-paper-robot.yml', 'scripts/ibkr-paper-*.mjs'],
+    when: { text: 'Lunes {07:40} órdenes · lunes a viernes {20:45} foto' }, links: ['ibkr', 'd1'],
+    matches: path => /ibkr/i.test(path) },
+  { id: 'manual', zone: 'github', kind: 'tarea', name: 'Tareas a mano', workflow: ['ibkr-paper-foto.yml', 'tiingo.yml', 'servercesar-secrets.yml', 'servercesar-wake-test.yml'],
+    what: 'Foto de IBKR, precios de Tiingo, claves del server y prueba de encendido.',
+    detail: 'Cuatro tareas que solo se ejecutan cuando las lanzas desde GitHub: sacar una foto de la cuenta paper, descargar precios de empresas que ya no cotizan (Tiingo), copiar el token del agente a Cloudflare y probar el encendido remoto de ServerCesar.',
+    where: ['.github/workflows/'], when: 'Solo cuando las lanzas', links: ['repo', 'servercesar'],
+    matches: path => /servercesar-(secrets|wake-test)\.yml$|ibkr-paper-foto\.yml$|tiingo\.yml$/.test(path) },
+  { id: 'pages', zone: 'cloudflare', kind: 'web', name: 'Web y Mission Control',
+    what: 'cesar-solla.pages.dev: tu CV público y este panel privado.',
+    detail: 'La parte pública es tu CV y funciona sin iniciar sesión. Mission Control, debajo de /control, pide sesión, y cada cuenta ve solo sus secciones: tú ves Galaxy, Infraestructura, Thermal Lab, Training y Backtest Lab. No depende de que tu PC esté encendido.',
+    where: ['cesar-solla.pages.dev', 'control/ en el repo'], when: 'Siempre encendida', links: ['deploy', 'apis'],
+    matches: path => (!path.includes('/') && /\.(html|css|js)$/.test(path)) || path.startsWith('assets/') || (path.startsWith('control/') && !path.startsWith('control/vendor/') && !path.startsWith('control/data/')) || ['_routes.json', '_headers'].includes(path) },
+  { id: 'apis', zone: 'cloudflare', kind: 'codigo', name: 'APIs (Functions)',
+    what: 'Comprueban quién eres antes de leer o escribir nada.',
+    detail: 'Pequeños programas en Cloudflare. Sesión e inicio de sesión; Training (tu Sheet, renombrar ejercicios y el pique); Backtest (pedir y leer backtests); ServerCesar (estado, encender con el enchufe, reiniciar y apagar); este mapa; el puente con la base de datos para las tareas de GitHub; la entrada del agente del server, y /api/pique, que da tu resumen a la app de María si enseña su clave. El juego de las puertas sigue aquí, oculto.',
+    where: ['functions/'], when: 'Cuando alguien las llama', links: ['pages', 'd1', 'sheetCesar', 'sheetMaria', 'shelly', 'servercesar', 'marialopoda'],
+    matches: path => path.startsWith('functions/') },
+  { id: 'd1', zone: 'cloudflare', kind: 'datos', name: 'Base de datos D1',
+    what: 'Sesiones, el estado del server, las colas y las conexiones a los Sheets.',
+    detail: 'Guarda usuarios y sesiones, el último informe y las órdenes pendientes de ServerCesar, las peticiones y resultados del Backtest Lab, el libro del robot de IBKR y las conexiones a tu Sheet y al de María. Este mapa explica qué hay, pero nunca lee ni enseña su contenido.',
+    where: ['cesar-mission-control (Cloudflare D1)', 'migrations/ en el repo'], when: 'Siempre disponible', links: ['apis', 'backtest', 'robot'],
+    matches: path => path.startsWith('migrations/') },
+  { id: 'sheetCesar', zone: 'fuera', kind: 'datos', name: 'Tu Sheet de entreno',
+    what: 'Rutina, alternativas y registro de series desde 2018.',
+    detail: 'Un Google Sheet con un Apps Script que hace de puerta: la API de Training le habla con la clave guardada en la base de datos. Lo que apuntas en la app se escribe aquí, y si editas la rutina en el Sheet, la app la lee al abrirse.',
+    where: ['Google Sheets', 'training-backend/Code.gs'], when: 'Cada vez que abres o apuntas', links: ['apis'],
+    matches: path => path.startsWith('training-backend/') },
+  { id: 'sheetMaria', zone: 'fuera', kind: 'datos', name: 'Sheet de María',
+    what: 'Lo mismo para Marialópoda: su app le escribe directamente.',
+    detail: 'Su propio Google Sheet con su Apps Script. Su app lo lee y escribe sin pasar por Cloudflare. Tu panel solo lee de él el resumen del pique, con el código que conectaste una vez.',
+    where: ['Google Sheets', 'marialopoda/backend/Code.gs'], when: 'Cada vez que María abre o apunta', links: ['marialopoda', 'apis'], matches: () => false },
+  { id: 'ibkr', zone: 'fuera', kind: 'servicio', name: 'Interactive Brokers',
+    what: 'Cuenta paper: dinero ficticio con órdenes de verdad en el simulador.',
+    detail: 'El robot se conecta a la cuenta de prueba a través de IB Gateway solo mientras dura su tarea. No hay ninguna cuenta real conectada.',
+    where: ['Cuenta paper de IBKR'], when: 'Solo durante el robot', links: ['robot'], matches: () => false },
+  { id: 'datos', zone: 'fuera', kind: 'servicio', name: 'Datos de bolsa',
+    what: 'Yahoo Finance, SEC, 13F, Tiingo y CNMV.',
+    detail: 'Fuentes gratuitas de precios, cuentas de empresas y carteras de fondos que descarga el Backtest Lab. Se guardan en la caché de GitHub Actions para no descargarlo todo cada vez.',
+    where: ['Caché de GitHub Actions'], when: 'Durante cada backtest', links: ['backtest'], matches: () => false },
+  { id: 'shelly', zone: 'fuera', kind: 'servicio', name: 'Enchufe Shelly',
+    what: 'Enciende ServerCesar cortando y devolviendo la corriente.',
+    detail: 'La BIOS del PC está configurada para encenderse al volver la corriente. Mission Control pide al enchufe, a través de Shelly Cloud, que haga ese corte cuando el PC está apagado.',
+    where: ['Shelly Cloud'], when: 'Cuando pulsas encender', links: ['apis', 'servercesar'],
+    matches: path => /shelly/i.test(path) }
 ];
-export const JOURNEYS = [
-  {id:'publish',label:'Publish a change',description:'From a commit to the page a visitor sees.',steps:[
-    ['source','Save the change','A change is committed to main. The source now has a new version.'],
-    ['deploy','Build and deploy','GitHub Actions prepares the snapshot and uploads the website with Wrangler.'],
-    ['edge','Serve the new version','Cloudflare Pages receives the deployment and serves it at the usual address.'],
-    ['portfolio','See it in the browser','The visitor loads the updated portfolio. Mission Control uses the same deployment.']]},
-  {id:'visit',label:'Open Mission Control',description:'Why sign-in and permissions are separate checks.',steps:[
-    ['edge','Arrive at the front door','The browser asks Cloudflare for /control/.'],
-    ['api','Check the session','The middleware validates the session before serving the protected page.'],
-    ['database','Read session state','D1 provides the session and user record; capabilities are assigned by the application.'],
-    ['portal','Show the right workspace','The portal shows the permitted sections. Sensitive API requests are checked again.']]},
-  {id:'restart',label:'Understand a restart',description:'An explanation only. No commands will be sent.',steps:[
-    ['portal','Request an action','An authorised operator can ask for a restart in Infrastructure. This tour does not send that request.'],
-    ['api','Validate the request','The API checks the session, restart capability and request protections.'],
-    ['database','Queue the command','The approved command is stored for the server agent to collect.'],
-    ['server','Execute on ServerCesar','The agent polls over HTTPS, runs the local restart script and reports completion.'],
-    ['api','Report the result','The status endpoint supplies the latest agent signal to Infrastructure.']]}
+// Each pair once, whichever side names it.
+const pairs = new Map();
+NODES.forEach(n => n.links.forEach(to => pairs.set([n.id, to].sort().join('|'), { from: n.id, to })));
+export const LINKS = [...pairs.values()];
+export const neighboursOf = id => [...new Set(LINKS.filter(l => l.from === id || l.to === id).map(l => (l.from === id ? l.to : l.from)))];
+
+// What happens, step by step: [node, title, explanation].
+export const PROCESSES = [
+  { id: 'publicar', name: 'Publicar un cambio', steps: [
+    ['claude', 'Claude hace el cambio', 'Cambia el código, lo prueba y abre una PR.'],
+    ['repo', 'Lo fusionas en main', 'Desde ese momento es la versión oficial.'],
+    ['deploy', 'GitHub lo comprueba', 'Pasa todos los tests; si uno falla, se para aquí.'],
+    ['pages', 'Cloudflare lo sirve', 'En uno o dos minutos ya está en cesar-solla.pages.dev.']] },
+  { id: 'serie', name: 'Apuntar una serie', steps: [
+    ['pages', 'Pulsas «Serie hecha»', 'La app la guarda en el móvil al instante, por si no hay cobertura.'],
+    ['apis', 'La API comprueba que eres tú', 'Sesión, permiso y protección contra peticiones falsas.'],
+    ['sheetCesar', 'Se escribe en tu Sheet', 'El Apps Script la añade al Registro con su ID, sin duplicados.']] },
+  { id: 'pique', name: 'El pique con María', steps: [
+    ['marialopoda', 'María abre su app', 'Su app pide tu resumen enseñando su clave.'],
+    ['apis', 'La API la reconoce', 'Compara su clave con la guardada y lee tu Sheet.'],
+    ['sheetCesar', 'Solo sale el resumen', 'Días entrenados, marcas superadas y caminadora. Nada de series ni notas.'],
+    ['sheetMaria', 'Y al revés', 'Tu panel lee el resumen de María desde su Sheet.']] },
+  { id: 'backtest', name: 'Un backtest', steps: [
+    ['pages', 'Lo pides en Backtest Lab', 'Eliges los parámetros y pulsas ejecutar.'],
+    ['d1', 'Queda en cola', 'La petición se guarda en la base de datos.'],
+    ['backtest', 'GitHub la recoge', 'En menos de 10 minutos, descarga datos y ejecuta el motor.'],
+    ['datos', 'Usa datos gratuitos', 'Yahoo, SEC y compañía, con caché.'],
+    ['d1', 'Publica el informe', 'Y Mission Control lo dibuja.']] },
+  { id: 'robot', name: 'El robot de IBKR', steps: [
+    ['robot', 'Se despierta solo', 'Los lunes por la mañana, o cada tarde para la foto.'],
+    ['d1', 'Lee su libro', 'Qué cartera toca y qué hizo la última vez.'],
+    ['ibkr', 'Opera la cuenta paper', 'Envía las órdenes de la semana o solo mira la cuenta.'],
+    ['pages', 'Lo ves en Mission Control', 'La foto queda guardada para el panel.']] },
+  { id: 'server', name: 'Encender o apagar el server', steps: [
+    ['pages', 'Pulsas en Infraestructura', 'Encender, reiniciar o apagar.'],
+    ['apis', 'Se comprueba el permiso', 'Solo tu cuenta puede hacerlo.'],
+    ['shelly', 'Para encender, el enchufe', 'Corta y devuelve la corriente; el PC arranca solo.'],
+    ['servercesar', 'Para apagar, el agente', 'Recoge la orden en su siguiente aviso, la ejecuta y lo cuenta.']] }
 ];

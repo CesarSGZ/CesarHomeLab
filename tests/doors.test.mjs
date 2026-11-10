@@ -42,13 +42,13 @@ function allVote(room, votes) {
   voters.forEach((id, i) => action(room, Number(id.slice(1)), { action: 'vote', yes: votes[i % votes.length] }));
 }
 
-test('All current and future accounts get only the shared game capability', () => {
+test('The doors game is hidden from every menu while its capability stays for the API', () => {
   for (const username of ['CesarVapor', 'SuperSanti86', 'future-account']) {
     const access = accessForUser({ username });
-    assert.ok(access.views.includes('doors')); assert.ok(access.capabilities.includes('doors:play'));
+    assert.ok(!access.views.includes('doors')); assert.ok(access.capabilities.includes('doors:play'));
   }
   const access = accessForUser({ username: 'future-account', role: 'operator' });
-  assert.deepEqual(access.views, ['overview', 'doors']);
+  assert.deepEqual(access.views, ['overview']);
   assert.deepEqual(access.capabilities, ['doors:play']);
 });
 test('Scalable roles always include a mortal and rewards really change with player count', () => {
