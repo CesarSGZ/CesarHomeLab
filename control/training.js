@@ -810,7 +810,7 @@
   window.TrainingLab = { async initialise(token) {
     csrf = token;
     try {
-      model = await import('./training-model.js?v=20261110barra'); F = model.F;
+      model = await import('./training-model.js?v=20261110f4a'); F = model.F;
       S.queue = read('queue', []); S.plan = read('plan', null); S.measures = read('measures', {});
       const cache = read('cache', null);
       if (cache) { Object.assign(S, cache); S.connected = true; paint(); }

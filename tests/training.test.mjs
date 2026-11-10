@@ -78,6 +78,8 @@ test('The same exercise is recognised through accents, capitals and tag order',(
   assert.deepEqual(splitName('Lat Pulldown · TGD · Dreamfit'),{base:'Lat Pulldown',machine:'TGD',gym:'Dreamfit',variant:''});
   assert.deepEqual(splitName('Tríceps Dumbbell Extension · Mancuerna · Sentado en banco · Unilateral'),{base:'Tríceps Dumbbell Extension',machine:'Mancuerna',gym:'',variant:'Sentado en banco · Unilateral'});
   assert.ok(TESTS.every(t=>!/Vivagym$|º/.test(t.ejercicio)&&standardFor(t.ejercicio)),'every test lift has a standard');
+  assert.equal(splitName('Hombro Anterior · Matrix · Fitness4All').gym,'Fitness4All');
+  assert.equal(standardFor('Aperturas Frontales · Máquina Poleas · Dreamfit').std,'frontRaise');assert.equal(standardFor('Aperturas Frontales · Basic Fit Getafe'),null);
   assert.equal(gymFor('tgd',''),'Dreamfit');assert.equal(gymFor('TGD','Vivagym'),'Vivagym');assert.equal(gymFor('HS',''),'');
   assert.ok(!sameExercise('Deadlift','Deadlift · TG'));
   assert.equal(findExercise(['Deadlift · TG','Deadlift'],'deadlift · tg'),'Deadlift · TG');
