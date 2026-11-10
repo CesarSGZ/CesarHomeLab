@@ -518,7 +518,8 @@
       ...rep.records.slice(0, 3).map(x => `<li class="win"><b>Récord</b> ${E(x.name)}: +${N0(x.gain)} kg de e1RM</li>`),
       ...(rep.records.length > 3 ? [`<li class="win"><b>+${rep.records.length - 3}</b> récords más</li>`] : []),
       // Above double, the last time was usually a half-logged day: not a fair comparison.
-      ...(change !== null && Math.abs(change) >= .03 && change <= 1 ? [`<li class="${change > 0 ? 'win' : ''}"><b>${change > 0 ? '+' : '−'}${N0(Math.abs(change) * 100)} %</b> de volumen frente al Día ${E(S.dia)} del ${shortDate(rep.previous.fecha)}</li>`] : []),
+      // Only a rise: a short day should not sour the card.
+      ...(change !== null && change >= .03 && change <= 1 ? [`<li class="win"><b>+${N0(change * 100)} %</b> de volumen frente al Día ${E(S.dia)} del ${shortDate(rep.previous.fecha)}</li>`] : []),
       ...(ahead ? [`<li class="win"><b>${ahead}</b> ${ahead === 1 ? 'ejercicio' : 'ejercicios'} por delante de tu yo de hace tres meses</li>`] : []),
       ...(rep.muscles.length ? [`<li><b>Trabajado</b> ${E(rep.muscles.join(', ').toLowerCase())}</li>`] : [])
     ];
@@ -900,7 +901,7 @@
   window.TrainingLab = { async initialise(token) {
     csrf = token;
     try {
-      model = await import('./training-model.js?v=20261110premio'); F = model.F;
+      model = await import('./training-model.js?v=20261110premio2'); F = model.F;
       S.queue = read('queue', []); S.plan = read('plan', null); S.measures = read('measures', {}); S.swaps = read('cambios', {});
       // Swaps used to last one day: today's carry on.
       if (S.plan?.fecha === today() && Object.keys(S.plan.cambios || {}).length) { S.swaps = { ...S.plan.cambios, ...S.swaps }; S.plan.cambios = {}; saveSwaps(); savePlan(); }
