@@ -1,6 +1,6 @@
 {
-  "schema_version": "1.3.0",
-  "generated_at": "2026-10-31T16:00:00+00:00",
+  "schema_version": "1.4.0",
+  "generated_at": "2026-11-10T12:00:00+00:00",
   "project": {
     "id": "terra-powerplant-lab",
     "title": "Terra Powerplant Lab",
@@ -636,7 +636,11 @@
       "evidence_confidence": "medium",
       "hypothesis": "Reduces inlet pressure loss directly in front of the three GPU fans.",
       "main_risk": "Fan-on-fan coupling may add noise and reduce rather than increase flow.",
-      "status": "screening interval; requires A/B validation"
+      "status": "screening interval; requires A/B validation",
+      "plain_es": {
+        "title": "Ventilador extra frente a la GPU",
+        "detail": "Un ventilador con separador soplando aire fresco directo a la tarjeta gráfica."
+      }
     },
     {
       "configuration_id": "CFG-090",
@@ -648,7 +652,11 @@
       "evidence_confidence": "medium",
       "hypothesis": "Forces the GPU to ingest outside air and limits lateral leakage.",
       "main_risk": "A guide placed too close to the fans may restrict flow and increase tonal noise.",
-      "status": "screening interval; requires A/B validation"
+      "status": "screening interval; requires A/B validation",
+      "plain_es": {
+        "title": "Conducto sellado para la GPU",
+        "detail": "Una guía que obliga a la gráfica a coger aire de fuera y no el caliente de dentro."
+      }
     },
     {
       "configuration_id": "CFG-020",
@@ -660,7 +668,11 @@
       "evidence_confidence": "medium",
       "hypothesis": "Attempts to reduce hot-air residence time inside the case.",
       "main_risk": "Without spacing and sealing they may draw air from the surrounding exterior.",
-      "status": "screening interval; requires A/B validation"
+      "status": "screening interval; requires A/B validation",
+      "plain_es": {
+        "title": "Dos ventiladores extra arriba",
+        "detail": "Sacar más rápido el aire caliente por la parte de arriba."
+      }
     },
     {
       "configuration_id": "CFG-030",
@@ -672,7 +684,11 @@
       "evidence_confidence": "medium-low",
       "hypothesis": "Increases the cool make-up air available from below.",
       "main_risk": "The narrow desk gap may restrict flow or cause recirculation.",
-      "status": "screening interval; requires A/B validation"
+      "status": "screening interval; requires A/B validation",
+      "plain_es": {
+        "title": "Dos ventiladores extra abajo",
+        "detail": "Meter más aire fresco desde abajo."
+      }
     },
     {
       "configuration_id": "CFG-080",
@@ -684,7 +700,11 @@
       "evidence_confidence": "medium-low",
       "hypothesis": "Reduces the porous obstruction around the PSU and central transfer path.",
       "main_risk": "The change may be smaller than normal run-to-run variation.",
-      "status": "screening interval; requires A/B validation"
+      "status": "screening interval; requires A/B validation",
+      "plain_es": {
+        "title": "Ordenar y acortar cables",
+        "detail": "Quitar estorbos al paso del aire."
+      }
     },
     {
       "configuration_id": "CFG-010",
@@ -696,7 +716,11 @@
       "evidence_confidence": "medium",
       "hypothesis": "Tests whether a deliberate bottom-to-top path feeds the enclosure more effectively.",
       "main_risk": "May recirculate hot air or fight the other fans.",
-      "status": "screening interval; requires A/B validation"
+      "status": "screening interval; requires A/B validation",
+      "plain_es": {
+        "title": "Girar el ventilador de abajo",
+        "detail": "Que meta aire en vez de sacarlo."
+      }
     },
     {
       "configuration_id": "CFG-050",
@@ -708,7 +732,11 @@
       "evidence_confidence": "low for GPU; useful CPU experiment",
       "hypothesis": "Improves CPU-cooler inlet conditions; its GPU effect is secondary.",
       "main_risk": "May disturb the PSU and GPU flow paths.",
-      "status": "screening interval; requires A/B validation"
+      "status": "screening interval; requires A/B validation",
+      "plain_es": {
+        "title": "Ventilador extra para la CPU",
+        "detail": "Ayuda al procesador; a la gráfica casi no le afecta."
+      }
     },
     {
       "configuration_id": "CFG-000",
@@ -720,7 +748,11 @@
       "evidence_confidence": "reference",
       "hypothesis": "Reference configuration used to compare every proposed change.",
       "main_risk": "No physical modification.",
-      "status": "screening interval; requires A/B validation"
+      "status": "screening interval; requires A/B validation",
+      "plain_es": {
+        "title": "Hoy (sin cambios)",
+        "detail": "La referencia con la que se compara todo."
+      }
     }
   ],
   "experimental_campaign": [
@@ -867,7 +899,13 @@
       "validation_plot": null,
       "verification": "Stable state-space system; uniform 1 s resampling; calibration and validation files kept separate.",
       "decision": "SUPERSEDED",
-      "authority": "Useful learning baseline; replaced by the grey-box GPU network."
+      "authority": "Useful learning baseline; replaced by the grey-box GPU network.",
+      "plain_es": {
+        "title": "Primer modelo de la gráfica",
+        "verdict": "Sustituido",
+        "tone": "old",
+        "why": "Funcionaba, pero era una curva sin física dentro. El modelo físico le ganó en todo."
+      }
     },
     {
       "id": "MDL-GPU-PHY-02",
@@ -891,7 +929,13 @@
       "validation_plot": "/control/assets/thermal/gpu_physical_two_node_validation.png",
       "verification": "Positive bounded R/C parameters and independent simulation; Jacobian condition 4.01×10⁹ flags weak internal identifiability.",
       "decision": "ACCEPTED FOR SCREENING",
-      "authority": "May screen effective heat-rejection changes; cannot yet assign a conductance change to a specific fan geometry."
+      "authority": "May screen effective heat-rejection changes; cannot yet assign a conductance change to a specific fan geometry.",
+      "plain_es": {
+        "title": "Modelo de la gráfica",
+        "verdict": "Aprobado",
+        "tone": "ok",
+        "why": "Adivinó una prueba que no había visto con unos 3 °C de error. Sirve para comparar ideas."
+      }
     },
     {
       "id": "MDL-CPU-PHY-02",
@@ -915,7 +959,13 @@
       "validation_plot": "/control/assets/thermal/cpu_physical_two_node_validation.png",
       "verification": "Positive bounded R/C parameters; validation run excluded from optimisation; full-load mean residual −3.02 °C.",
       "decision": "REJECTED FOR PREDICTION",
-      "authority": "Diagnostic only; it demonstrates missing shared-air/control observability."
+      "authority": "Diagnostic only; it demonstrates missing shared-air/control observability.",
+      "plain_es": {
+        "title": "Modelo del procesador",
+        "verdict": "Suspenso",
+        "tone": "no",
+        "why": "Acierta con la CPU sola, pero falla cuando la gráfica también calienta el aire de dentro."
+      }
     },
     {
       "id": "MDL-SYS-MIMO-02",
@@ -945,7 +995,13 @@
       "validation_plot": "/control/assets/thermal/coupled_cpu_gpu_validation.png",
       "verification": "Reduced power-only version is stable; RPM-input version was rejected as unstable because of feedback and collinearity.",
       "decision": "REJECTED FOR PREDICTION",
-      "authority": "Negative but useful result: defines the independent excitation and shared-air measurements required next."
+      "authority": "Negative but useful result: defines the independent excitation and shared-air measurements required next.",
+      "plain_es": {
+        "title": "Modelo de los dos juntos",
+        "verdict": "Suspenso",
+        "tone": "no",
+        "why": "En las pruebas las dos cargas subían a la vez y no puede separar quién calienta qué."
+      }
     }
   ],
   "model_quality": {
@@ -1054,5 +1110,305 @@
       "ZOTAC and Corsair do not publish flow for the GPU and PSU fans.",
       "The slotted panels also let air in and out passively, so fan exhaust is not the only outlet."
     ]
+  },
+  "story": {
+    "updated": "2026-11-10",
+    "limits": {
+      "cpu_C": 95,
+      "cpu_basis": "temperatura máxima que AMD fija para el Ryzen 7 9800X3D"
+    },
+    "update_rule": "Cada cambio del Thermal Lab añade una línea a timeline, revisa next_steps, cfd_gate y conclusions y sube updated y generated_at. La página y la presentación se pintan solas desde aquí.",
+    "question_es": "¿Cuánto se calienta un PC del tamaño de una caja de zapatos, y qué lo enfriaría de verdad?",
+    "one_liner_es": "Medir el calor de un PC muy pequeño, entender por qué se calienta y comprobar qué cambios lo enfrían antes de comprar o fabricar nada.",
+    "phases": [
+      {
+        "id": "measure",
+        "status": "done",
+        "title": {
+          "es": "Medir",
+          "en": "Measure"
+        },
+        "detail": {
+          "es": "Pruebas de carga apuntando temperatura, consumo y ventiladores.",
+          "en": "Load tests logging temperature, power and fan speed."
+        }
+      },
+      {
+        "id": "model",
+        "status": "done",
+        "title": {
+          "es": "Entender",
+          "en": "Model"
+        },
+        "detail": {
+          "es": "Un modelo de calor que se pone a prueba con datos que no ha visto.",
+          "en": "Fit a heat model, then test it on data it never saw."
+        }
+      },
+      {
+        "id": "rank",
+        "status": "done",
+        "title": {
+          "es": "Ordenar ideas",
+          "en": "Rank ideas"
+        },
+        "detail": {
+          "es": "Calcular cuánto ayudaría cada cambio de ventilación.",
+          "en": "Predict how much each airflow change could help."
+        }
+      },
+      {
+        "id": "prove",
+        "status": "next",
+        "title": {
+          "es": "Comprobarlo",
+          "en": "Prove it"
+        },
+        "detail": {
+          "es": "Montar la mejor idea y medir antes y después en el PC real.",
+          "en": "Build the best idea and A/B test it on the real PC."
+        }
+      },
+      {
+        "id": "cfd",
+        "status": "todo",
+        "title": {
+          "es": "Simular el aire",
+          "en": "CFD"
+        },
+        "detail": {
+          "es": "Simulación del flujo de aire cuando los datos sean fiables.",
+          "en": "Simulate the airflow once the inputs are trustworthy."
+        }
+      }
+    ],
+    "timeline": [
+      {
+        "date": "2026-08-04",
+        "kind": "build",
+        "title": "Arranca el laboratorio",
+        "detail": "El PC queda fijado en una configuración de referencia y se dibuja en 3D con sus medidas reales."
+      },
+      {
+        "date": "2026-08-04",
+        "kind": "test",
+        "title": "7 pruebas de carga",
+        "detail": "CPU sola, gráfica sola y las dos a la vez: reposo, esfuerzo y enfriado, apuntando cada segundo."
+      },
+      {
+        "date": "2026-08-05",
+        "kind": "model",
+        "title": "4 modelos de calor",
+        "detail": "Uno aprobado (la gráfica), uno sustituido y dos suspendidos que dicen qué medida falta."
+      },
+      {
+        "date": "2026-08-05",
+        "kind": "rank",
+        "title": "7 ideas ordenadas",
+        "detail": "El modelo de la gráfica estima cuántos grados podría bajar cada cambio de ventilación."
+      },
+      {
+        "date": "2026-10-31",
+        "kind": "page",
+        "title": "La página, más clara",
+        "detail": "De un informe técnico largo a seis bloques visuales."
+      },
+      {
+        "date": "2026-10-31",
+        "kind": "parts",
+        "title": "Todas las piezas identificadas",
+        "detail": "Cada pieza sale de las facturas; ya están los datos de partida para simular el aire."
+      },
+      {
+        "date": "2026-11-10",
+        "kind": "page",
+        "title": "Presentación para todos",
+        "detail": "Esta presentación, que se rehace sola cada vez que cambian los datos."
+      }
+    ],
+    "next_steps": [
+      {
+        "status": "done",
+        "date": "2026-10-31",
+        "title": {
+          "es": "Cerrar las incógnitas",
+          "en": "Close the unknowns"
+        },
+        "detail": {
+          "es": "Todas las piezas identificadas y los huecos clave calculados. Siguen estimados: el mazo de cables, la posición del ventilador de arriba, el área abierta de los paneles y hacia dónde sopla la fuente.",
+          "en": "Done 31 Oct: every part identified and the key gaps derived. Still estimated: cable bundle, top-fan position, panel open area, PSU exhaust direction."
+        }
+      },
+      {
+        "status": "next",
+        "title": {
+          "es": "Repetir la prueba base 3 veces",
+          "en": "Repeat the baseline 3×"
+        },
+        "detail": {
+          "es": "Mismo reposo, carga y enfriado cada vez, para saber cuánto varía de por sí entre una prueba y otra.",
+          "en": "Same idle, load and cool-down each time, to learn the normal run-to-run scatter."
+        }
+      },
+      {
+        "status": "todo",
+        "title": {
+          "es": "Probar la mejor idea (antes / después)",
+          "en": "A/B test the best idea"
+        },
+        "detail": {
+          "es": "Base → cambio → base, tres veces cada una, con un sensor de temperatura del aire dentro de la caja.",
+          "en": "Baseline → modification → baseline, three runs each. Add one air-temperature sensor inside the case."
+        }
+      },
+      {
+        "status": "todo",
+        "title": {
+          "es": "Ver si la predicción acertó",
+          "en": "Check the prediction"
+        },
+        "detail": {
+          "es": "¿El cambio medido cae dentro del rango que dijo el modelo? Si sí, se gana confianza; si no, se corrige el modelo.",
+          "en": "Did the measured change land inside the predicted range? Re-fit without the test data and decide."
+        }
+      },
+      {
+        "status": "later",
+        "title": {
+          "es": "Simular el aire (CFD)",
+          "en": "Run the CFD"
+        },
+        "detail": {
+          "es": "Cuando se cumplan las condiciones de la lista: ver dónde se queda atrapado el aire caliente y qué distribución de ventiladores merece la pena.",
+          "en": "Once the gate is met: where hot air recirculates and which fan layout deserves a rebuild."
+        }
+      }
+    ],
+    "cfd_gate": [
+      {
+        "done": true,
+        "es": "Piezas, ventiladores y huecos documentados",
+        "en": "Parts, fan specs and key gaps documented"
+      },
+      {
+        "done": false,
+        "es": "Área abierta de los paneles y pérdida en las rejillas",
+        "en": "Panel open area and grille pressure loss"
+      },
+      {
+        "done": false,
+        "es": "Pruebas repetidas que coinciden en ±1 °C",
+        "en": "Repeated peaks agree within ±1 °C"
+      },
+      {
+        "done": false,
+        "es": "Modelo de la gráfica con menos de 2 °C de error",
+        "en": "GPU model error below 2 °C"
+      },
+      {
+        "done": false,
+        "es": "Modelo del procesador aprobado (< 3 °C)",
+        "en": "CPU model passes on CPU-only and combined load (< 3 °C)"
+      }
+    ],
+    "conclusions": [
+      {
+        "tone": "ok",
+        "title": "Va bien, pero justo",
+        "detail": "Nada se pasa de su límite, pero la CPU se queda a pocos grados del suyo con carga máxima.",
+        "metric": "cpu_margin"
+      },
+      {
+        "tone": "ok",
+        "title": "La gráfica es predecible",
+        "detail": "Un modelo de solo cuatro números acierta su temperatura con unos 3 °C de error.",
+        "metric": "gpu_error"
+      },
+      {
+        "tone": "warn",
+        "title": "El aire de dentro es compartido",
+        "detail": "Cuando trabajan las dos a la vez, el procesador respira el aire que calienta la gráfica. Hace falta medir ese aire.",
+        "metric": "shared_air"
+      },
+      {
+        "tone": "info",
+        "title": "No hay milagros",
+        "detail": "La mejor idea baja solo un par de grados. Comprar ventiladores a ciegas no compensa.",
+        "metric": "best_saving"
+      },
+      {
+        "tone": "info",
+        "title": "Manda el aire, no el ventilador",
+        "detail": "Hay que sacar unos 400 W por rejillas pequeñas: el límite es cuánto aire cabe por ellas.",
+        "metric": "air_rise"
+      },
+      {
+        "tone": "ok",
+        "title": "Un «no» también vale",
+        "detail": "Los modelos suspendidos dicen exactamente qué medida falta, en vez de dar números falsos.",
+        "metric": "models_rejected"
+      }
+    ],
+    "uses": [
+      {
+        "icon": "pc",
+        "who": "Para este PC",
+        "title": "Cambiar solo lo que funciona",
+        "detail": "Saber cuántos grados vale cada mejora antes de comprar, cortar o imprimir nada."
+      },
+      {
+        "icon": "fan",
+        "who": "Software",
+        "title": "Ventiladores que se adelantan",
+        "detail": "El modelo prevé el calor unos segundos antes: los ventiladores suben a tiempo y el resto del rato van más silenciosos."
+      },
+      {
+        "icon": "print",
+        "who": "Impresión 3D",
+        "title": "Piezas probadas para la Terra",
+        "detail": "Si el conducto o el separador funcionan, publicar el diseño con datos medidos. En la comunidad de PCs pequeños eso es raro y se valora."
+      },
+      {
+        "icon": "calc",
+        "who": "Herramienta web",
+        "title": "Calculadora de cajas pequeñas",
+        "detail": "Metes vatios y ventiladores y te dice cuánto se calentará el aire. Útil para cualquiera que monte un PC compacto."
+      },
+      {
+        "icon": "job",
+        "who": "Carrera",
+        "title": "Portafolio de ingeniería",
+        "detail": "Es el mismo proceso que la integración térmica de un compartimento de motor: medir, modelar, validar y simular solo donde aporta."
+      },
+      {
+        "icon": "teach",
+        "who": "Divulgación",
+        "title": "Un ejemplo para enseñar",
+        "detail": "Transferencia de calor e identificación de sistemas con un objeto que todo el mundo tiene en casa."
+      }
+    ],
+    "research": {
+      "verdict": "Tal como está da para un buen TFM o un artículo de congreso. Para una tesis doctoral falta una aportación general: que el método sirva para muchos equipos, no solo para uno.",
+      "angles": [
+        {
+          "title": "Gemelos térmicos sin sondas",
+          "detail": "Modelos de calor calibrados solo con los sensores que el PC ya trae, probados en muchos equipos distintos con datos de la comunidad."
+        },
+        {
+          "title": "Control predictivo de ventiladores",
+          "detail": "Usar el modelo para equilibrar temperatura y ruido, midiendo el ruido con un sonómetro."
+        },
+        {
+          "title": "Modelos rápidos + simulación",
+          "detail": "Pocas simulaciones de aire para corregir el modelo rápido en recintos compactos; aplicable a electrónica de coches, aviones y motores."
+        }
+      ],
+      "path": [
+        "Terminar la prueba antes / después y validar",
+        "Escribir un artículo corto (congresos de gestión térmica como ITherm o SEMI-THERM)",
+        "Buscar un grupo universitario de ingeniería térmica o de control que dirija la tesis",
+        "Escalar a varios equipos y publicar los datos"
+      ]
+    }
   }
 }
