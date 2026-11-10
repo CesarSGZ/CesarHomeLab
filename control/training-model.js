@@ -118,11 +118,11 @@ export function nameParts(name) {
   const [base = '', ...tags] = String(name).split(SEPARATOR);
   return { base, tags };
 }
-const GYM = /vivagym|basic ?fit|dreamfit/i;
+const GYM = /vivagym|basic ?fit|dreamfit|fitness ?4 ?all/i;
 // Machines that only exist in one gym: typing the machine is enough.
 const MACHINE_GYM = { tgd: 'Dreamfit' };
 export const gymFor = (machine, gym) => clean(gym) || MACHINE_GYM[clean(machine).toLowerCase()] || '';
-const VARIANT = /unilateral|individual|parcial|parada|neutro|recorrido|alta|baja|fija|suelo|banco|sentado|goma|regulable/i;
+const VARIANT = /unilateral|individual|parcial|parada|neutro|recorrido|alta|baja|fija|suelo|banco|sentado|rodillas|goma|regulable/i;
 const byName = list => [...list].sort((a, b) => a.localeCompare(b, 'es'));
 // Parts already used, sorted into the field where they belong.
 export function knownParts(names) {
@@ -271,7 +271,7 @@ const PER_SIDE = new Set(['inclineDb', 'dbShoulder', 'dbLateral', 'frontRaise', 
 const STANDARD_OF = [
   [/goma/i, null],
   [/^bench press inclinado/i, 'incline'], [/^bench press/i, 'bench'], [/^dumbbell chest press inclinado/i, 'inclineDb'], [/^(chest press|pecho m[aá]quina)/i, 'chestPress'],
-  [/^overhead press mancuernas/i, 'dbShoulder'], [/^overhead press/i, 'ohp'], [/^aperturas frontales$/i, 'frontRaise'],
+  [/^overhead press mancuernas/i, 'dbShoulder'], [/^overhead press/i, 'ohp'], [/^aperturas frontales · m[aá]quina poleas/i, 'frontRaise'],
   [/^lateral raise dumbbells/i, 'dbLateral'], [/^lateral raise polea/i, 'cableLateral'], [/^(lateral raise|delts)/i, 'machineLateral'], [/face pull/i, 'facePull'],
   [/^lat pulldown/i, 'pulldown'], [/^barbell row/i, 'bentRow'], [/dumbbell row/i, 'dbRow'], [/^remo t\b/i, 'tbar'], [/^remo bajo polea/i, 'cableRow'],
   [/^remo medio · tg/i, 'machineRow', 2], [/^(remo|vertical row)/i, 'machineRow'],
