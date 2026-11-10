@@ -1,6 +1,6 @@
 /* Thermal Lab (Mission Control 04) · simple version: progress, machine, model, trust, ranking, next steps */
-.thermal-view{--tl-bg:#1f2a31;--tl-soft:#28343d;--tl-track:#33434f;--tl-ink:#edf0f2;--tl-muted:#aab9c3;--tl-line:#4a5d6a88;--tl-hot:#ff8f66;--tl-cool:#52d9ff;--tl-ok:#9be27a;--tl-no:#ff8a80;--tl-amber:#f2c14e;color:var(--tl-ink)}
-html[data-theme=day] .thermal-view{--tl-bg:#f9fbfd;--tl-soft:#e9f0f5;--tl-track:#dbe6ee;--tl-ink:#17303f;--tl-muted:#557083;--tl-line:#c4d5e1;--tl-hot:#c2410c;--tl-cool:#1d6f9a;--tl-ok:#2f7d32;--tl-no:#b3261e;--tl-amber:#946b07}
+.thermal-view,.tl-deck{--tl-bg:#1f2a31;--tl-soft:#28343d;--tl-track:#33434f;--tl-ink:#edf0f2;--tl-muted:#aab9c3;--tl-line:#4a5d6a88;--tl-hot:#ff8f66;--tl-cool:#52d9ff;--tl-ok:#9be27a;--tl-no:#ff8a80;--tl-amber:#f2c14e;color:var(--tl-ink)}
+html[data-theme=day] :is(.thermal-view,.tl-deck){--tl-bg:#f9fbfd;--tl-soft:#e9f0f5;--tl-track:#dbe6ee;--tl-ink:#17303f;--tl-muted:#557083;--tl-line:#c4d5e1;--tl-hot:#c2410c;--tl-cool:#1d6f9a;--tl-ok:#2f7d32;--tl-no:#b3261e;--tl-amber:#946b07}
 .thermal-view :is(h3,h4){font-family:var(--fc-display,Archivo),sans-serif;font-stretch:90%;letter-spacing:-.02em;margin:0}
 .thermal-view small{font-family:"DM Mono",monospace;letter-spacing:.08em}
 .tl-loading{color:var(--tl-muted);font-size:13px}

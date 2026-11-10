@@ -342,11 +342,12 @@ function renderThermalLab(data){
   renderThermalRanking(data.configuration_screening||[]);
   renderThermalLedger(data.experimental_campaign||[]);
   if(data.cfd_inputs)renderThermalCfd(data.cfd_inputs,data.configuration.fans);
+  window.ThermalDeck?.render(data);
 }
 
 async function loadThermalLab(){
   try{
-    const response=await fetch('/control/data/terra-thermal-summary.json?v=20261031b',{credentials:'same-origin',headers:{accept:'application/json'}});
+    const response=await fetch('/control/data/terra-thermal-summary.json',{cache:'no-cache',credentials:'same-origin',headers:{accept:'application/json'}});
     if(!response.ok)throw new Error('thermal_data_unavailable');
     renderThermalLab(await response.json());
   }catch{

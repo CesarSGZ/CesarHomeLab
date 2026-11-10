@@ -20,7 +20,8 @@
   <link rel="stylesheet" href="backtest.css?v=20261012n">
   <link rel="stylesheet" href="/theme.css?v=20261001contrast">
   <link rel="stylesheet" href="flight-control.css?v=20261014agent">
-  <link rel="stylesheet" href="thermal.css?v=20261031b">
+  <link rel="stylesheet" href="thermal.css?v=20261110deck">
+  <link rel="stylesheet" href="thermal-deck.css?v=20261110deck">
 </head>
 <body class="access-pending" data-workspace>
   <canvas id="control-grid" aria-hidden="true"></canvas>
@@ -204,13 +205,24 @@
         </ul>
       </header>
 
-      <ol class="tl-steps" aria-label="Project progress">
+      <ol class="tl-steps" id="tl-steps" aria-label="Project progress">
         <li class="done"><i aria-hidden="true">✓</i><strong>Measure</strong><p>Load tests logging temperature, power and fan speed.</p></li>
         <li class="done"><i aria-hidden="true">✓</i><strong>Model</strong><p>Fit a heat model, then test it on data it never saw.</p></li>
         <li class="done"><i aria-hidden="true">✓</i><strong>Rank ideas</strong><p>Predict how much each airflow change could help.</p></li>
         <li class="next"><i aria-hidden="true">4</i><strong>Prove it</strong><p>Build the best idea and A/B test it on the real PC.</p></li>
         <li><i aria-hidden="true">5</i><strong>CFD</strong><p>Simulate the airflow once the inputs are trustworthy.</p></li>
       </ol>
+
+      <aside class="tl-deck-launch" lang="es" aria-labelledby="tl-deck-title">
+        <span class="tl-deck-thumb" aria-hidden="true">▶</span>
+        <div>
+          <small>Presentación · para todo el mundo</small>
+          <strong id="tl-deck-title">El Thermal Lab explicado en 5 minutos</strong>
+          <p id="tl-deck-updated">Qué hemos hecho, qué hemos aprendido y para qué sirve.</p>
+          <p>Siguiente paso: <b id="tl-deck-next">—</b></p>
+        </div>
+        <button type="button" data-open-deck="0" disabled>Ver la presentación</button>
+      </aside>
 
       <section class="tl-block" aria-labelledby="tl-machine-title">
         <header class="tl-block-head"><span>01</span><div><h3 id="tl-machine-title">The machine and what was measured</h3><p>Compact case, two big heat sources, seven fans. Every test starts at idle, applies a fixed load, then lets the PC cool down.</p></div></header>
@@ -338,7 +350,7 @@
       <section class="tl-block" aria-labelledby="tl-next-title">
         <header class="tl-block-head"><span>06</span><div><h3 id="tl-next-title">Next steps</h3><p>From a validated GPU model to a proven hardware change, then CFD.</p></div></header>
         <div class="tl-next">
-          <ol class="tl-roadmap">
+          <ol class="tl-roadmap" id="tl-roadmap">
             <li class="done"><b>✓</b><div><strong>Close the unknowns</strong><p>Done 31 Oct: every part identified and the key gaps derived. Still estimated: cable bundle, top-fan position, panel open area, PSU exhaust direction.</p></div></li>
             <li><b>2</b><div><strong>Repeat the baseline 3×</strong><p>Same idle, load and cool-down each time, to learn the normal run-to-run scatter.</p></div></li>
             <li><b>3</b><div><strong>A/B test the best idea</strong><p>Baseline → modification → baseline, three runs each. Add one air-temperature sensor inside the case.</p></div></li>
@@ -346,7 +358,7 @@
           </ol>
           <aside class="tl-gate" aria-labelledby="tl-gate-title">
             <h4 id="tl-gate-title">Ready for CFD when…</h4>
-            <ul>
+            <ul id="tl-gate-list">
               <li class="done">Parts, fan specs and key gaps documented</li>
               <li>Panel open area and grille pressure loss</li>
               <li>Repeated peaks agree within ±1 °C</li>
@@ -372,6 +384,8 @@
         <div class="tl-table-wrap"><table id="tl-ledger"><thead><tr><th>#</th><th>Test</th><th>Profile</th><th>Used for</th><th>Result</th></tr></thead><tbody></tbody></table></div>
         <p class="tl-note">Raw sensor logs stay the authoritative source. One fan channel (System 2) was rejected as implausible; no external temperature probes were used.</p>
       </details>
+
+      <dialog class="tl-deck" id="tl-deck" lang="es" aria-label="Thermal Lab: presentación"></dialog>
     </section>
 
     <section class="view training-view" id="training" data-title="Training" data-code="05" lang="es">
@@ -388,7 +402,8 @@
   <script src="training.js?v=20261109ago"></script>
   <script type="module" src="backtest.js?v=20261012m"></script>
   <script src="github-galaxy.js?v=20261110mapa"></script>
-  <script src="control.js?v=20261031cfd"></script>
+  <script src="thermal-deck.js?v=20261110deck"></script>
+  <script src="control.js?v=20261110deck"></script>
   <script src="servercesar.js?v=20261020wake" defer></script>
   <script src="flight-control.js?v=20261014a" defer></script>
   <script src="thermal-viewer.bundle.js?v=20261031b"></script>
