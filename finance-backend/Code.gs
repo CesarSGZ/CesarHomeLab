@@ -5,7 +5,7 @@
 var LIBRO_ID = '';
 function libro_() { return LIBRO_ID ? SpreadsheetApp.openById(LIBRO_ID) : SpreadsheetApp.getActive(); }
 
-var COLS_MOVIMIENTOS = ['Fecha', 'Tipo', 'Importe', 'Categoría', 'Concepto', 'Cuenta', 'Origen', 'ID'];
+var COLS_MOVIMIENTOS = ['Fecha', 'Tipo', 'Importe', 'Categoría', 'Concepto', 'Cuenta', 'Origen', 'ID', 'Hora'];
 var COLS_RECURRENTES = ['ID', 'Tipo', 'Importe', 'Categoría', 'Concepto', 'Frecuencia', 'Día', 'Mes', 'Desde', 'Hasta', 'Activo'];
 var COLS_CATEGORIAS = ['Tipo', 'Categoría', 'Presupuesto mensual'];
 var TABLAS = { Movimientos: COLS_MOVIMIENTOS, Recurrentes: COLS_RECURRENTES, Categorias: COLS_CATEGORIAS };
@@ -19,13 +19,23 @@ var CATEGORIAS_INICIALES = [
 function instalar() {
   var libro = libro_();
   Object.keys(TABLAS).forEach(function (t) {
-    if (libro.getSheetByName(HOJA[t])) return;
+    if (libro.getSheetByName(HOJA[t])) return cabecera_(t);
     var hoja = libro.insertSheet(HOJA[t]);
     hoja.getRange(1, 1, 1, TABLAS[t].length).setValues([TABLAS[t]]).setFontWeight('bold');
     hoja.setFrozenRows(1);
     if (t === 'Categorias') hoja.getRange(2, 1, CATEGORIAS_INICIALES.length, 3).setValues(CATEGORIAS_INICIALES);
   });
   Logger.log('Listo. Añade esto a la URL de la implementación que acaba en /exec: #' + clave_());
+}
+
+// Columnas nuevas al final: un Sheet antiguo recibe la cabecera que le falte y la Hora queda como texto (HH:MM o vacía si no se sabe).
+function cabecera_(t) {
+  var hoja = libro_().getSheetByName(HOJA[t]), cols = TABLAS[t];
+  if (!hoja) return hoja;
+  var actual = hoja.getRange(1, 1, 1, cols.length).getValues()[0];
+  for (var j = 0; j < cols.length; j++) if (actual[j] === '') hoja.getRange(1, j + 1).setValue(cols[j]).setFontWeight('bold');
+  if (t === 'Movimientos') hoja.getRange(1, cols.indexOf('Hora') + 1, hoja.getMaxRows(), 1).setNumberFormat('@');
+  return hoja;
 }
 
 function clave_() {
@@ -46,7 +56,11 @@ function leer_(t) {
   var hoja = libro_().getSheetByName(HOJA[t]);
   if (!hoja || hoja.getLastRow() < 2) return [];
   return hoja.getRange(2, 1, hoja.getLastRow() - 1, TABLAS[t].length).getValues().map(function (r) {
-    return r.map(function (v) { return v instanceof Date ? Utilities.formatDate(v, 'Europe/Madrid', 'yyyy-MM-dd') : v; });
+    return r.map(function (v) {
+      if (!(v instanceof Date)) return v;
+      // Una hora escrita a mano que Sheets ha convertido en fecha de 1899 vuelve como HH:MM.
+      return Utilities.formatDate(v, 'Europe/Madrid', v.getFullYear() < 1901 ? 'HH:mm' : 'yyyy-MM-dd');
+    });
   }).filter(function (r) { return r.join('') !== ''; });
 }
 
@@ -79,7 +93,7 @@ function reemplazar_(t, filas) {
 // Guarda por ID: si ya existe se sobrescribe, así una operación repetida (o un cargo recurrente) nunca se duplica.
 function aplicar_(op) {
   var t = op.tabla === 'Recurrentes' ? 'Recurrentes' : 'Movimientos';
-  var hoja = libro_().getSheetByName(HOJA[t]), cols = TABLAS[t];
+  var hoja = cabecera_(t), cols = TABLAS[t];
   var colId = cols.indexOf('ID'), datos = hoja.getDataRange().getValues(), fila = -1;
   var id = op.tipo === 'borrar' ? op.id : op.fila[colId];
   for (var i = 1; i < datos.length; i++) if (String(datos[i][colId]) === String(id)) { fila = i + 1; break; }
