@@ -1,5 +1,10 @@
 const SESSION_COOKIE = "mc_session";
 const SESSION_TTL_MS = 12 * 60 * 60 * 1000;
+// "Keep me signed in": 90 days that start again with every visit, so a phone or PC used weekly never asks again.
+// The cookie itself lives 400 days (the browsers' ceiling); the server decides when it really ends.
+export const REMEMBER_TTL_MS = 90 * 24 * 60 * 60 * 1000;
+const REMEMBER_COOKIE_S = 400 * 24 * 60 * 60;
+export const MAX_SESSIONS_PER_USER = 10;
 const PBKDF2_ITERATIONS = 100_000;
 
 const encoder = new TextEncoder();
@@ -109,24 +114,28 @@ export function passwordIsAcceptable(password, username) {
   );
 }
 
-export async function createSession(env, userId) {
+export async function createSession(env, userId, remember = false) {
   const rawToken = randomToken();
   const sessionHash = await sha256(rawToken);
   const csrfToken = randomToken(24);
   const now = Date.now();
+  const expiresAt = now + (remember ? REMEMBER_TTL_MS : SESSION_TTL_MS);
   await env.CONTROL_DB.prepare(
     "INSERT INTO sessions (session_hash, user_id, csrf_token, created_at, expires_at, last_seen) VALUES (?, ?, ?, ?, ?, ?)",
   )
-    .bind(sessionHash, userId, csrfToken, now, now + SESSION_TTL_MS, now)
+    .bind(sessionHash, userId, csrfToken, now, expiresAt, now)
     .run();
-  return { rawToken, csrfToken, expiresAt: now + SESSION_TTL_MS };
+  return { rawToken, csrfToken, expiresAt };
 }
 
-export function sessionCookie(rawToken) {
-  return `${SESSION_COOKIE}=${rawToken}; Path=/control; Max-Age=${Math.floor(
+export function sessionCookie(rawToken, remember = false) {
+  return `${SESSION_COOKIE}=${rawToken}; Path=/control; Max-Age=${remember ? REMEMBER_COOKIE_S : Math.floor(
     SESSION_TTL_MS / 1000,
   )}; HttpOnly; Secure; SameSite=Strict`;
 }
+
+// A remembered session is one created with more than the short lifetime.
+export const isRemembered = (createdAt, expiresAt) => Number(expiresAt) - Number(createdAt) > SESSION_TTL_MS;
 
 export function clearSessionCookie() {
   return `${SESSION_COOKIE}=; Path=/control; Max-Age=0; HttpOnly; Secure; SameSite=Strict`;
@@ -139,7 +148,7 @@ export async function currentSession(request, env) {
   const now = Date.now();
   const row = await env.CONTROL_DB.prepare(
     `SELECT
-       s.session_hash, s.csrf_token, s.expires_at, s.last_seen,
+       s.session_hash, s.csrf_token, s.created_at, s.expires_at, s.last_seen,
        u.id AS user_id, u.username, u.role, u.must_change_password
      FROM sessions s
      JOIN users u ON u.id = s.user_id
@@ -150,18 +159,21 @@ export async function currentSession(request, env) {
     .first();
   if (!row) return null;
 
+  let expiresAt = Number(row.expires_at);
   if (now - Number(row.last_seen) > 5 * 60 * 1000) {
+    // Every visit restarts a remembered session's 90 days.
+    if (isRemembered(row.created_at, row.expires_at)) expiresAt = now + REMEMBER_TTL_MS;
     await env.CONTROL_DB.prepare(
-      "UPDATE sessions SET last_seen = ? WHERE session_hash = ?",
+      "UPDATE sessions SET last_seen = ?, expires_at = ? WHERE session_hash = ?",
     )
-      .bind(now, sessionHash)
+      .bind(now, expiresAt, sessionHash)
       .run();
   }
 
   return {
     sessionHash,
     csrfToken: row.csrf_token,
-    expiresAt: Number(row.expires_at),
+    expiresAt,
     user: {
       id: row.user_id,
       username: row.username,

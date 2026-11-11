@@ -1,0 +1,13 @@
+{
+  "name": "Cesar HomeLab",
+  "short_name": "HomeLab",
+  "start_url": "/control/",
+  "scope": "/control/",
+  "display": "standalone",
+  "background_color": "#071015",
+  "theme_color": "#071015",
+  "icons": [
+    { "src": "/assets/mission-control-180.png", "sizes": "180x180", "type": "image/png" },
+    { "src": "/assets/mission-control-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
