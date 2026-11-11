@@ -16,8 +16,8 @@ const STANDARD_ACCESS = Object.freeze({
 const USER_ACCESS = Object.freeze({
   cesarvapor: Object.freeze({
     profile: "owner",
-    views: ["overview", "infrastructure", "github", "thermal", "training", "backtest"],
-    capabilities: ["servercesar:read", "servercesar:wake", "github:read", "thermal:read", "training:read", "backtest:read", "backtest:run"],
+    views: ["overview", "infrastructure", "github", "thermal", "training", "finance", "backtest"],
+    capabilities: ["servercesar:read", "servercesar:wake", "github:read", "thermal:read", "training:read", "finance:read", "backtest:read", "backtest:run"],
   }),
 });
 

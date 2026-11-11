@@ -22,6 +22,7 @@
   <link rel="stylesheet" href="refinement.css?v=20260909chat">
   <link rel="stylesheet" href="github-galaxy.css?v=20261110mapa">
   <link rel="stylesheet" href="training.css?v=20261111fiable">
+<link rel="stylesheet" href="finance.css?v=20261111gastos">
   <link rel="stylesheet" href="doors.css?v=20261031a">
   <link rel="stylesheet" href="backtest.css?v=20261012n">
   <link rel="stylesheet" href="/theme.css?v=20261001contrast">
@@ -44,6 +45,7 @@
       <button class="nav-item" data-view="github"><span>03</span>GitHub Galaxy</button>
       <button class="nav-item" data-view="thermal"><span>04</span>Thermal Lab</button>
       <button class="nav-item" data-view="training"><span>05</span>Training</button>
+      <button class="nav-item" data-view="finance"><span>06</span>Gastos</button>
       <button class="nav-item" data-view="doors"><span>07</span>Juego de las Puertas</button>
       <button class="nav-item" data-view="backtest"><span>08</span>Backtest Lab</button>
     </nav>
@@ -86,6 +88,14 @@
             <div class="github-mark" aria-hidden="true"><i></i><i></i><b>GH</b></div>
             <div><p><span></span> MAPA DE TODO</p><strong>Todo lo que tienes montado.</strong><small>Dónde vive cada pieza, qué se ejecuta solo y cuándo, y cómo se conectan.</small></div>
             <button class="module-action" data-open="github">Ver el mapa →</button>
+          </div>
+        </article>
+        <article class="module module-wide training-summary" data-requires="finance:read" data-accent="violet">
+          <header><span>GASTOS</span><small>PERSONAL / 06</small></header>
+          <div class="thermal-summary-body">
+            <div class="thermal-mark" aria-hidden="true"><b>€</b></div>
+            <div><p>GASTOS / INGRESOS</p><strong>Tu dinero, mes a mes.</strong><small>Apunta un gasto en dos toques, deja los fijos programados y mira en qué se va.</small></div>
+            <button class="module-action" data-open="finance">Abrir gastos →</button>
           </div>
         </article>
         <article class="module module-wide training-summary" data-requires="training:read" data-accent="acid">
@@ -397,6 +407,9 @@
     <section class="view training-view" id="training" data-title="Training" data-code="05" lang="es">
       <div id="training-app" aria-live="polite"><p class="eyebrow"><span></span> TRAINING LAB</p><h2>Preparando tu entrenamiento.</h2></div>
     </section>
+    <section class="view training-view finance-view" id="finance" data-title="Gastos" data-code="06" lang="es">
+      <div id="finance-app" aria-live="polite"><p class="eyebrow"><span></span> GASTOS</p><h2>Leyendo tus cuentas.</h2></div>
+    </section>
     <section class="view backtest-view" id="backtest" data-title="Backtest Lab" data-code="08" lang="es">
       <div id="backtest-app" aria-live="polite"><p class="eyebrow"><span></span> BACKTEST LAB</p><h2>Cargando el último backtest.</h2></div>
     </section>
@@ -405,6 +418,7 @@
     </section>
   </main>
   <script src="doors.js?v=20261031a"></script>
+  <script src="finance.js?v=20261111gastos"></script>
   <script src="training.js?v=20261111fiable"></script>
   <script type="module" src="backtest.js?v=20261012m"></script>
   <script src="github-galaxy.js?v=20261110mapa"></script>
