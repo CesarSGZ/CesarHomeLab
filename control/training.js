@@ -10,7 +10,7 @@
   };
   let model, F, csrf = '', S = {
     connected: null, rutina: [], alternativas: [], filas: [], bodyWeight: [], tab: 'hoy', dia: null, ejercicio: null, draft: {}, chosen: {},
-    muscle: null, chart: null, measures: {}, strength: null, allEx: false, recentMore: false, more: false, editing: null, rest: null, restSeconds: 150, busy: false, error: '', hello: '', queue: [], plan: null, swaps: {}
+    muscle: null, chart: null, measures: {}, strength: null, allEx: false, recentMore: false, more: false, editing: null, rest: null, restSeconds: 150, busy: false, error: '', hello: '', queue: [], plan: null, swaps: {}, kind: {}
   };
   const read = (k, d) => { try { const v = localStorage.getItem('training.' + k); return v === null ? d : JSON.parse(v); } catch { return d; } };
   const write = (k, v) => { try { localStorage.setItem('training.' + k, JSON.stringify(v)); } catch { /* memory only */ } };
@@ -126,15 +126,17 @@
       const win = best > rival.value;
       return `<p class="tl-duel${win ? ' win' : ''}">${win ? `Vas por delante de tu yo del ${shortDate(rival.fecha)} (${rival.reps} × ${N(rival.kg)} kg)` : `Tu yo del ${shortDate(rival.fecha)} hizo ${rival.reps} × ${N(rival.kg)} kg. Hoy, a por él.`}</p>`;
     }
-    const now = model.liftPercentile(r.ejercicio, best, bw()), win = now && now.pct > rival.pct;
+    const now = model.liftPercentile(r.ejercicio, best, bw(), S.filas, today()), win = now && !now.provisional && now.pct > rival.pct;
     return `<p class="tl-duel${win ? ' win' : ''}">${win ? `En esta máquina tu ${rival.name.toLowerCase()} ya supera al de hace tres meses: ${now.pct} % de los hombres frente a ${rival.pct} %.` : `Máquina nueva, mismo rival: hace tres meses tu ${rival.name.toLowerCase()} superaba al ${rival.pct} % de los hombres. Iguálalo aquí.`}</p>`;
   }
   // Against other men, so any machine or variant tells you how good the set is.
   function standing(name, value) {
-    const p = model.liftPercentile(name, value, bw());
+    const p = model.liftPercentile(name, value, bw(), S.filas, today());
     if (!p) return '';
+    // A machine still being calibrated is worth the muscle's level: no promise of a jump until it has two sessions.
+    if (p.provisional) return ` · máquina nueva: cuenta como tu nivel actual (${p.pct} %) hasta tener dos sesiones`;
     const group = model.muscleOf(name), level = group && model.muscleLevel(S.filas, group, bw(), today());
-    return ` · superas al ${p.pct} %${level && p.pct > level.pct ? ` <em>por encima de tu nivel de ${E(muscleName(group).toLowerCase())} (${level.pct} %)</em>` : ''}`;
+    return ` · superas al ${p.reliability === 'alta' ? '' : '≈'}${p.pct} %${level && p.pct > level.pct ? ` <em>por encima de tu nivel de ${E(muscleName(group).toLowerCase())} (${level.pct} %)</em>` : ''}`;
   }
 
   function layerRival(message) {
@@ -154,15 +156,15 @@
   }
 
   // ---------- Strength tests ----------
-  function layerTests(only) {
+  function layerTests(only, reliable) {
     const strength = model.strengthByMuscle(S.filas, bw(), today());
     const groups = model.MUSCLES.filter(m => model.TESTS.some(t => t.group === m.id) && (!only || m.id === only))
       .map(m => ({ ...m, s: strength.find(x => x.id === m.id) }))
       .sort((a, b) => (!a.s.rated || a.s.stale ? 0 : 1) - (!b.s.rated || b.s.stale ? 0 : 1));
     showLayer(`<div class="tl-card plain" role="dialog" aria-label="Test de fuerza"><h3>Test de fuerza</h3>
-      <p class="tl-note">Las máquinas pesan distinto en cada gimnasio, así que la comparación fiable sale de ejercicios que se miden igual en todas partes: barra, mancuernas o polea. Elige uno y se añade a tu entreno de hoy con 4 series. Calienta en las dos primeras y en las dos últimas busca tu tope para 3 a 6 repes. Con tu mejor serie calculo tu 1RM y a cuántos hombres de tu peso superas.</p>
+      <p class="tl-note">${reliable ? 'Para que este músculo sea más fiable hace falta un ejercicio que pese igual en cualquier gimnasio: barra o mancuernas. Las máquinas y las poleas se calibran con ellos.' : 'Las máquinas pesan distinto en cada gimnasio, así que la comparación fiable sale de barra y mancuernas; las máquinas y poleas se calibran con el resto del músculo.'} Elige uno y se añade a tu entreno de hoy con 4 series. Calienta en las dos primeras y en las dos últimas busca tu tope para 3 a 6 repes. Con tu mejor serie calculo tu 1RM y a cuántos hombres de tu peso superas.</p>
       ${groups.map(g => `<section class="tl-option-group"><div class="tl-option-head"><h4>${E(g.name)}</h4><small class="tl-test-state">${!g.s.rated ? 'sin datos' : g.s.stale ? `último dato ${shortDate(g.s.stale)}` : `superas al ${g.s.rated.pct} %`}</small></div>
-        <div class="tl-options">${model.TESTS.filter(t => t.group === g.id).map(t => `<button type="button" data-test="${E(t.ejercicio)}"><b>${E(t.ejercicio)}</b><small>${E(t.how)}</small></button>`).join('')}</div></section>`).join('')}
+        <div class="tl-options">${model.TESTS.filter(t => t.group === g.id).sort((a, b) => model.isFreeWeight(b.ejercicio) - model.isFreeWeight(a.ejercicio)).map(t => `<button type="button" data-test="${E(t.ejercicio)}"><b>${E(t.ejercicio)}</b><small>${model.isFreeWeight(t.ejercicio) ? 'Peso libre, fiabilidad alta. ' : 'Calibrada. '}${E(t.how)}</small></button>`).join('')}</div></section>`).join('')}
       <button type="button" class="tl-link center" data-act="close">Cancelar</button></div>`);
   }
   function startTest(name) {
@@ -173,10 +175,10 @@
   }
   const testBanner = r => (r.test ? `<div class="tl-test"><b>Test de fuerza</b><span>${E(r.how || '')} Series 1 y 2: calentamiento, unas 10 y 5 repes ligeras. Series 3 y 4: tu tope para 3 a 6 repes (RPE 9 o 10). Cuenta la mejor.</span></div>` : '');
   function testResult(r) {
-    const best = model.bestToday(S.filas, r.ejercicio, today()), p = model.liftPercentile(r.ejercicio, best, bw()), group = model.muscleOf(r.ejercicio);
+    const best = model.bestToday(S.filas, r.ejercicio, today()), p = model.liftPercentile(r.ejercicio, best, bw(), S.filas, today()), group = model.muscleOf(r.ejercicio);
     if (!p) return '';
     return `<div class="tl-card" role="dialog" aria-label="Resultado del test"><small>TEST DE ${E(muscleName(group).toUpperCase())}</small><strong>${p.pct} %</strong>
-      <p>Superas al ${p.pct} % de los hombres de tu peso en ${E(r.ejercicio)}: 1RM estimado de ${N0(best)} kg, nivel ${p.level < 0 ? 'por debajo de principiante' : model.LEVELS[p.level].toLowerCase()}.</p><p>Ya cuenta en tu mapa de fuerza.</p><button type="button" class="tl-primary" data-act="close">Seguir</button></div>`;
+      <p>Superas al ${p.pct} % de los hombres de tu peso en ${E(r.ejercicio)}: 1RM estimado de ${N0(best)} kg, nivel ${p.level < 0 ? 'por debajo de principiante' : model.LEVELS[p.level].toLowerCase()}.</p><p>${p.reliability === 'alta' ? 'Peso libre: es la medida más fiable y ya cuenta en tu mapa de fuerza.' : p.provisional ? 'Es una máquina nueva: hasta su segunda sesión vale lo mismo que tu nivel actual.' : 'Máquina calibrada con el resto del músculo: ya cuenta en tu mapa de fuerza.'}</p><button type="button" class="tl-primary" data-act="close">Seguir</button></div>`;
   }
 
   // ---------- Network ----------
@@ -270,15 +272,16 @@
     const top = Math.max(...visible.flatMap(s => s.series.map(f => model.num(f[F.KG]) || 0)), 1);
     const cols = Math.max(r.series, ...visible.map(s => s.series.length));
     return `<div class="tl-prev">${visible.map((s, i) => {
-      const note = s.series.find(f => f[F.ORIGEN] !== 'app')?.[F.NOTA];
+      const note = s.series.find(f => f[F.ORIGEN] !== 'app')?.[F.NOTA], roles = model.setRoles(s.series), work = roles.filter(x => x === 'work').length;
       const cells = [];
       for (let c = 0; c < cols; c++) {
         const f = s.series[c];
         if (!f) { cells.push(note && c === s.series.length ? `<span class="tl-prev-note" style="grid-column:span ${cols - c}">${E(note)}</span>` : note ? '' : '<span class="tl-cell empty"></span>'); if (note && c === s.series.length) break; continue; }
         const kg = model.num(f[F.KG]), reps = model.num(f[F.REPS]), rpe = model.num(f[F.RPE]);
-        cells.push(`<span class="tl-cell" style="--h:${Math.round((kg || 0) / top * 100)}%"><b>${kg === null ? '—' : N(kg)}</b><small>${reps === null ? 'sin repes' : `×${reps}`}${rpe ? ` @${N(rpe)}` : ''}</small></span>`);
+        const role = roles[c] === 'drop' ? ' drop' : roles[c] === 'warmup' ? ' warm' : '';
+        cells.push(`<span class="tl-cell${role}" style="--h:${Math.round((kg || 0) / top * 100)}%"${role ? ` title="${roles[c] === 'drop' ? 'Dropset' : 'Calentamiento'}"` : ''}><b>${kg === null ? '—' : N(kg)}</b><small>${reps === null ? 'sin repes' : `×${reps}`}${rpe ? ` @${N(rpe)}` : ''}${roles[c] === 'drop' ? ' drop' : ''}</small></span>`);
       }
-      return `<div class="tl-prev-row${i ? '' : ' last'}" style="--cols:${cols}"><span class="tl-date">${s.fecha === today() ? 'Hoy' : shortDate(s.fecha)}</span>${cells.join('')}</div>`;
+      return `<div class="tl-prev-row${i ? '' : ' last'}" style="--cols:${cols}"><span class="tl-date">${s.fecha === today() ? 'Hoy' : shortDate(s.fecha)}${s.fecha !== today() && note === undefined && work < r.series - 1 ? '<small>corta</small>' : ''}</span>${cells.join('')}</div>`;
     }).join('')}</div>`;
   }
   function paintFocus(r) {
@@ -305,9 +308,10 @@
       </div>
       <fieldset class="tl-rpe"><legend>RPE <span>10 = última repe posible</span></legend><div>${model.RPES.map(v => `<button type="button" data-rpe="${v}" aria-pressed="${d.rpe === v}" style="--heat:${(v - 6) / 4}">${N(v)}</button>`).join('')}</div></fieldset>
       <p class="tl-readout" id="tl-readout">${paintReadout(live, mark)}</p>
-      <button type="button" class="tl-primary" data-act="set">Serie ${s.active} hecha</button>
+      ${s.complete ? `<div class="tl-kind" role="group" aria-label="Qué es esta serie"><button type="button" data-kind="extra" aria-pressed="${S.kind[r.ejercicio] !== 'drop'}">Serie extra</button><button type="button" data-kind="drop" aria-pressed="${S.kind[r.ejercicio] === 'drop'}">Dropset</button></div>` : ''}
+      <button type="button" class="tl-primary" data-act="set">${s.complete && S.kind[r.ejercicio] === 'drop' ? 'Dropset hecho' : `Serie ${s.active} hecha`}</button>
       <div class="tl-sets">${cells.join('')}</div>
-      ${s.complete ? '<p class="tl-note">Ejercicio terminado. Si queda una más, adelante.</p>' : `<button type="button" class="tl-link center" data-act="skip">Saltar serie ${s.active}</button>`}
+      ${s.complete ? `<p class="tl-note">${s.done.length > r.series ? `Llevas ${s.done.length} series, ${s.done.length - r.series} más de lo previsto: volumen que suma.` : 'Ejercicio terminado.'} ¿Otra? Márcala como serie extra o como dropset: el dropset no baja tu media ni cuenta como bajón.</p>` : `<button type="button" class="tl-link center" data-act="skip">Saltar serie ${s.active}</button>`}
     </section>`;
   }
   function paintReadout(value, mark) {
@@ -330,15 +334,15 @@
   function doSet() {
     const r = exercises(S.dia).find(x => x.ejercicio === S.ejercicio), d = draftFor(r);
     const kg = readNumber('tl-kg', d.kg), reps = readNumber('tl-reps', d.reps), mark = model.marks(S.filas, r.ejercicio);
-    const fila = { id: 'a' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7), fecha: today(), dia: S.dia, ejercicio: r.ejercicio, musculo: r.musculo, serie: d.serie, reps, kg, rpe: d.rpe, nota: '' };
+    const fila = { id: 'a' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7), fecha: today(), dia: S.dia, ejercicio: r.ejercicio, musculo: r.musculo, serie: d.serie, reps, kg, rpe: d.rpe, nota: setState(r).complete && S.kind[r.ejercicio] === 'drop' ? 'Dropset' : '' };
     const records = model.recordsFor({ kg, reps, rpe: d.rpe }, mark);
-    const group = model.muscleOf(r.ejercicio), set = model.liftPercentile(r.ejercicio, model.e1rm(kg, reps, d.rpe), bw());
+    const group = model.muscleOf(r.ejercicio), lift = model.liftPercentile(r.ejercicio, model.e1rm(kg, reps, d.rpe), bw(), S.filas, today()), set = lift && !lift.provisional ? lift : null;
     // The year's best before today; today's own earlier sets only raise the bar, so a warm-up is never "the record to beat".
     const before = set && group ? model.muscleRecord(S.filas, group, bw(), today()) : null, earlier = set && group ? model.bestOfMuscle(S.filas, group, bw(), today(), today()) : null;
     const muscleBest = set && before && set.pct > before.pct && (!earlier || set.pct > earlier.pct) ? { group, now: set.pct, before } : null;
     S.filas.push(toRow(fila));
     enqueue({ tipo: 'guardar', fila });
-    delete S.chosen[r.ejercicio];
+    delete S.chosen[r.ejercicio]; delete S.kind[r.ejercicio];
     const finished = setState(r).complete, testDone = r.test && finished && testResult(r);
     const from = document.querySelector('#training-app [data-act="set"]')?.getBoundingClientRect();
     advance(r);
@@ -510,7 +514,8 @@
   const walkLine = () => { const w = walksToday().map(model.walkOf); if (!w.length) return ''; const min = w.reduce((a, x) => a + x.min, 0), km = w.reduce((a, x) => a + x.km, 0); return `<p>Y ${N(min)} min de caminadora, ${N(Math.round(km * 100) / 100)} km.</p>`; };
   // The summary: the big number, a few facts, then what went better than before.
   function finish() {
-    const rep = model.workoutReport(S.filas, today()), me = mine();
+    const planned = Object.fromEntries(exercises(S.dia).map(x => [x.ejercicio, x.series]));
+    const rep = model.workoutReport(S.filas, today(), planned), me = mine();
     const ahead = [...new Set(S.filas.filter(f => f[F.FECHA] === today() && !model.isWalk(f)).map(f => f[F.EJ]))]
       .filter(n => { const past = model.pastSelf(S.filas, n, today(), bw()); return past?.kind === 'exercise' && model.bestToday(S.filas, n, today()) > past.value; }).length;
     const change = rep.previous ? rep.tonnes / rep.previous.tonnes - 1 : null;
@@ -521,6 +526,9 @@
       // Only a rise: a short day should not sour the card.
       ...(change !== null && change >= .03 && change <= 1 ? [`<li class="win"><b>+${N0(change * 100)} %</b> de volumen frente al Día ${E(S.dia)} del ${shortDate(rep.previous.fecha)}</li>`] : []),
       ...(ahead ? [`<li class="win"><b>${ahead}</b> ${ahead === 1 ? 'ejercicio' : 'ejercicios'} por delante de tu yo de hace tres meses</li>`] : []),
+      ...rep.extra.slice(0, 2).map(x => `<li class="win"><b>+${x.work - x.planned}</b> ${x.work - x.planned === 1 ? 'serie extra' : 'series extra'} en ${E(x.name)}: volumen que suma</li>`),
+      ...rep.drops.slice(0, 2).map(x => `<li class="win"><b>Dropset</b> en ${E(x.name)}: buen remate, sin bajar tu media</li>`),
+      ...rep.short.slice(0, 2).map(x => `<li><b>${x.work} de ${x.planned}</b> series en ${E(x.name)}: no cuenta como bajón. La próxima, a por todas</li>`),
       ...(rep.muscles.length ? [`<li><b>Trabajado</b> ${E(rep.muscles.join(', ').toLowerCase())}</li>`] : [])
     ];
     const lead = rep.records.length ? `${rep.records.length === 1 ? 'Un récord' : `${rep.records.length} récords`} hoy. Así se hace.` : change > .03 && change <= 1 ? 'Más volumen que la última vez. Sube la cuesta.' : ahead ? 'Hoy le has ganado a tu yo del pasado.' : pick(PHRASES.done);
@@ -678,6 +686,7 @@
     $('#tl-body').innerHTML = `<div class="tl-kpis"><article><small>DESDE</small><strong>${first.slice(0, 4)}</strong><span>${N0(rows.length)} registros, ${N0(logged)} apuntados aquí</span></article>${lifts.slice(0, 3).map(l => `<article><small>${E(l.n.split(' · ')[0].toUpperCase())}</small><strong>${N0(l.b)}</strong><span>e1RM, desde ${N0(l.a)} kg</span></article>`).join('')}</div>
       ${paintHero(rows, first)}
       ${paintStale()}
+      ${paintHabits()}
       ${paintYear()}
       <h3 class="tl-section">Por músculo, desde el principio</h3>
       <div class="tl-chips" role="group" aria-label="Músculo">${groups.map(g => `<button type="button" data-muscle="${g.id}" aria-pressed="${g.id === S.muscle}">${E(g.name)}</button>`).join('')}${extra.map(([id, label]) => `<button type="button" data-muscle="${id}" aria-pressed="${S.muscle === id}">${label}</button>`).join('')}</div>
@@ -695,7 +704,8 @@
       $('#tl-log').innerHTML = points.length ? '' : `<p class="tl-note">Ninguno de sus ejercicios tiene baremo: elige uno arriba para ver su evolución.</p>`;
       return undefined;
     }
-    const all = model.sessionMeasures(rows, S.chart, S.bodyWeight), points = all.filter(s => s[measure] > 0).map(s => ({ fecha: s.fecha, value: s[measure], detail: setsText(s.series) }));
+    // A short session is left out of averages and volume: fewer sets is not a weaker day.
+    const all = model.sessionMeasures(rows, S.chart, S.bodyWeight), points = all.filter(s => s[measure] > 0 && !(s.short && measure !== 'rm' && measure !== 'relative')).map(s => ({ fecha: s.fecha, value: s[measure], detail: `${setsText(s.series)}${s.drops ? ` · ${s.drops === 1 ? 'dropset' : `${s.drops} drops`}` : ''}${s.short ? ' · sesión corta' : s.extra ? ' · series extra' : ''}` }));
     const M = model.MEASURES[measure];
     drawChart(points, S.chart, M.unit, M.text);
     $('#tl-chart-box h3').insertAdjacentHTML('afterend', `<button type="button" class="tl-link tl-rename" data-rename="${E(S.chart)}">Corregir nombre</button>`);
@@ -724,6 +734,22 @@
       ? `Hace un año superabas al ${h.before} % de los hombres en ${E(h.name.toLowerCase())}.<strong>Ahora, al ${h.now} %.</strong>`
       : `Hace un año, en ${E(h.name)}, tu ${model.MEASURES[h.measure].name} era ${fmtUnit(h.before, model.MEASURES[h.measure].unit)}.<strong>Ahora, ${fmtUnit(h.now, model.MEASURES[h.measure].unit)}.</strong>`;
     return `<button type="button" class="tl-ago" data-act="ago"${list.length > 1 ? ' aria-label="Ver otra mejora"' : ''}>${body}${list.length > 1 ? `<small>Toca para ver otra · ${i + 1} de ${list.length}</small>` : ''}</button>`;
+  }
+  // How complete the last four weeks were against the routine, with a comment instead of a verdict.
+  function paintHabits() {
+    const planned = {};
+    for (const r of S.rutina) if (r.ejercicio) { planned[r.ejercicio] = r.series; const swap = S.swaps[`${r.dia}|${r.ejercicio}`]; if (swap) planned[swap] = r.series; }
+    const h = model.setHabits(S.filas, today(), planned);
+    if (h.sessions < 4) return '';
+    const share = Math.round(h.full / h.sessions * 100), names = list => [...new Set(list.map(x => x.name.split(' · ')[0]))];
+    const repeated = Object.entries(h.short.reduce((m, x) => ({ ...m, [x.name]: (m[x.name] || 0) + 1 }), {})).filter(([, n]) => n >= 2).map(([n]) => n.split(' · ')[0]);
+    const lines = [
+      share >= 85 ? `Has completado el ${share} % de los ejercicios con todas sus series. Constancia de manual.` : share >= 65 ? `Has completado el ${share} % de los ejercicios con todas sus series. Bien, con margen.` : `Solo el ${share} % de los ejercicios llegó a todas sus series. No pasa nada por un día flojo, pero si se repite, quizá la rutina pide menos series o más descanso.`,
+      ...(repeated.length ? [`Se quedan cortos a menudo: ${E(repeated.slice(0, 3).join(', '))}. Si es pereza, empieza por ellos; si no llegas, baja un poco el peso.`] : []),
+      ...(h.extra.length ? [`Series extra en ${E(names(h.extra).slice(0, 3).join(', '))}: buena señal si llegas fresco.`] : []),
+      ...(h.drops.length ? [`${h.drops.length === 1 ? 'Un dropset' : `${h.drops.length} dropsets`} este mes: no bajan tu media ni cuentan como bajón.`] : [])
+    ];
+    return `<section class="tl-habits"><h3 class="tl-section">Tus series, últimas 4 semanas</h3><div class="tl-habits-bar"><i style="width:${share}%"></i></div><ul>${lines.map(l => `<li>${l}</li>`).join('')}</ul></section>`;
   }
   // Which muscles have waited longest: tap one to open its chart below.
   function paintStale() {
@@ -758,11 +784,11 @@
     return `<section class="tl-strength"><div class="tl-section-head"><h3 class="tl-section">Frente a otros hombres</h3><button type="button" class="tl-chip" data-act="tests">Hacer un test</button></div>
       <p class="tl-note">Cada músculo, por lo mejor del último año. Comparado con los hombres de ${now ? `tu peso (${N(Math.round(kg * 10) / 10)} kg en Libra)` : 'unos 85 kg'} que registran sus marcas en Strength Level.</p>
       <ul class="tl-str">${rated.map(m => `<li class="${S.strength === m.id ? 'open' : ''}"><button type="button" data-strength="${m.id}" aria-expanded="${S.strength === m.id}">
-        <span class="tl-str-name">${E(m.name)}${m.stale ? `<small>Último dato: ${shortDate(m.stale)}</small>` : ''}</span><span class="tl-str-level lv${m.rated.level + 1}">${level(m.rated.level)}</span><b>${pct(m.rated.pct)}</b>
+        <span class="tl-str-name">${E(m.name)}<small class="tl-rel ${m.rated.reliability}">${model.RELIABILITY[m.rated.reliability]}${m.stale ? ` · último dato ${shortDate(m.stale)}` : ''}</small></span><span class="tl-str-level lv${m.rated.level + 1}">${level(m.rated.level)}</span><b>${pct(m.rated.pct)}</b>
         <span class="tl-str-bar" aria-hidden="true"><i class="lv${m.rated.level + 1}" style="width:${m.rated.pct}%"></i>${model.TIERS.map(t => `<em style="left:${t}%"></em>`).join('')}</span></button>
-        ${S.strength === m.id ? `<ul class="tl-str-detail">${m.rated.tests.map(t => { const note = model.standardFor(t.name)?.note; return `<li><span>${E(t.name)}</span><span>${N0(t.logged)} kg e1RM${note ? ` (${note}: ${N0(t.value)})` : ''}, ${shortDate(t.fecha)}</span><b>${pct(t.pct)}</b></li>`; }).join('')}${model.TESTS.some(t => t.group === m.id) ? `<li class="tl-str-test"><button type="button" class="tl-link" data-test-group="${m.id}">Hacer un test de ${E(m.name.toLowerCase())}</button></li>` : ''}</ul>` : ''}</li>`).join('')}</ul>
+        ${S.strength === m.id ? `<ul class="tl-str-detail">${m.rated.tests.map(t => { const note = model.standardFor(t.name)?.note; const kind = t.reliability === 'alta' ? 'peso libre' : t.provisional ? 'máquina nueva: vale tu nivel hasta la 2.ª sesión' : t.reliability === 'media' ? 'máquina calibrada' : 'máquina sin nada con qué compararla'; return `<li><span>${E(t.name)}<small class="tl-rel ${t.reliability}">${kind}</small></span><span>${N0(t.logged)} kg e1RM${note ? ` (${note})` : ''}, ${shortDate(t.fecha)}</span><b>${pct(t.pct)}</b></li>`; }).join('')}${model.TESTS.some(t => t.group === m.id) ? `<li class="tl-str-test">${m.rated.reliability !== 'alta' && model.TESTS.some(t => t.group === m.id && model.isFreeWeight(t.ejercicio)) ? `<button type="button" class="tl-chip" data-test-reliable="${m.id}">Aumentar fiabilidad</button>` : ''}<button type="button" class="tl-link" data-test-group="${m.id}">Hacer un test de ${E(m.name.toLowerCase())}</button></li>` : ''}</ul>` : ''}</li>`).join('')}</ul>
       ${none.length ? `<p class="tl-note">Sin datos todavía: ${none.map(m => E(m.name)).join(', ')}.${none.some(m => model.TESTS.some(t => t.group === m.id)) ? ' Un test lo arregla.' : ''}</p>` : ''}
-      <p class="tl-method">Las marcas del baremo dividen principiante, novato, intermedio, avanzado y élite: más fuerte que el 5, 20, 50, 80 y 95 % de esos hombres, no de toda la población. Cada músculo es la mediana de sus ejercicios, porque las máquinas de cada gimnasio pesan distinto. Cuenta cualquier máquina, gimnasio o modalidad: lo unilateral se multiplica por 1,8 y el recorrido parcial por 0,8; lo hecho con goma no cuenta. Toca un músculo para ver sus ejercicios.</p></section>`;
+      <p class="tl-method">Las marcas del baremo dividen principiante, novato, intermedio, avanzado y élite: más fuerte que el 5, 20, 50, 80 y 95 % de esos hombres, no de toda la población. Cada músculo es la mediana de sus ejercicios, y la barra y las mancuernas cuentan doble porque pesan igual en todas partes. Las máquinas y poleas pesan distinto en cada gimnasio: se calibran con el resto del músculo en los trimestres que compartís, y una máquina nueva vale tu nivel actual hasta su segunda sesión. Fiabilidad alta: hay peso libre en el último año; media: solo máquinas calibradas; baja: máquinas sin nada con qué compararlas. Cuenta cualquier máquina, gimnasio o modalidad: lo unilateral se multiplica por 1,8 y el recorrido parcial por 0,8; lo hecho con goma no cuenta. Toca un músculo para ver sus ejercicios.</p></section>`;
   }
 
   function paintRecent() {
@@ -829,6 +855,13 @@
     if (d.rpe) { keepDraft(); const v = +d.rpe, draft = S.draft[S.ejercicio]; draft.rpe = draft.rpe === v ? null : v; app.querySelectorAll('[data-rpe]').forEach(x => x.setAttribute('aria-pressed', String(+x.dataset.rpe === draft.rpe))); $('#tl-readout').innerHTML = paintReadout(model.e1rm(draft.kg, draft.reps, draft.rpe), model.marks(S.filas, S.ejercicio, today())); return undefined; }
     if (d.step) { const draft = S.draft[S.ejercicio]; keepDraft(); draft[d.step] = Math.max(0, Math.round((draft[d.step] + +d.v) * 100) / 100); return paint(); }
     if (d.hintKg) { const draft = S.draft[S.ejercicio]; draft.kg = +d.hintKg; draft.reps = +d.hintReps; return paint(); }
+    if (d.kind) {
+      keepDraft(); S.kind[S.ejercicio] = d.kind;
+      // A dropset starts about a quarter lighter than the last set, rounded to the machine's step.
+      const r = exercises(S.dia).find(x => x.ejercicio === S.ejercicio), draft = S.draft[S.ejercicio], last = todayRows(S.dia, S.ejercicio).at(-1);
+      if (d.kind === 'drop' && last && draft) { const step = r.salto || 2.5; draft.kg = Math.max(step, Math.round(model.num(last[F.KG]) * 0.75 / step) * step); }
+      return paint();
+    }
     if (d.choose) { keepDraft(); S.chosen[S.ejercicio] = +d.choose; return paint(); }
     if (d.unskip) { const slot = `${S.dia}|${S.ejercicio}`, p = plan(); p.saltos[slot] = (p.saltos[slot] || []).filter(n => n !== +d.unskip); S.chosen[S.ejercicio] = +d.unskip; savePlan(); return paint(); }
     if (d.edit) return layerEdit(d.edit);
@@ -843,6 +876,7 @@
     if (d.walk) return layerWalk(d.walk);
     if (d.test) return startTest(d.test);
     if (d.testGroup) return layerTests(d.testGroup);
+    if (d.testReliable) return layerTests(d.testReliable, true);
     if (d.rename) { keepDraft(); return layerRename(d.rename); }
     if (d.wstep) { const node = document.getElementById(d.wstep); node.value = N(Math.max(0, Math.round((readNumber(d.wstep, 0) + +d.v) * 10) / 10)); return walkKm(); }
     switch (d.act) {
@@ -901,7 +935,7 @@
   window.TrainingLab = { async initialise(token) {
     csrf = token;
     try {
-      model = await import('./training-model.js?v=20261110grupos'); F = model.F;
+      model = await import('./training-model.js?v=20261111fiable'); F = model.F;
       S.queue = read('queue', []); S.plan = read('plan', null); S.measures = read('measures', {}); S.swaps = read('cambios', {});
       // Swaps used to last one day: today's carry on.
       if (S.plan?.fecha === today() && Object.keys(S.plan.cambios || {}).length) { S.swaps = { ...S.plan.cambios, ...S.swaps }; S.plan.cambios = {}; saveSwaps(); savePlan(); }

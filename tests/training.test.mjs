@@ -6,7 +6,7 @@ import {accessForUser} from '../functions/_lib/auth.js';
 import {onRequest,renamePlan} from '../functions/control/api/training/status.js';
 import {onRequest as pique} from '../functions/api/pique.js';
 import {summarize,CESAR_COLUMNS,MARIA_COLUMNS} from '../functions/_lib/rivalry.js';
-import {F,e1rm,sessions,progression,marks,recordsFor,suggestion,weeklySets,summary,alternatives,weightAt,exerciseName,knownParts,nameParts,sameExercise,findExercise,groupByExercise,WALK,walkOf,walkNote,muscleOf,defaultMeasure,sessionMeasures,standardFor,standardAt,percentile,strengthByMuscle,muscleHistory,yearReview,splitName,gymFor,pastSelf,workoutReport,staleMuscles,liftPercentile,muscleOf as muscleOfName,TESTS,standardFor as stdFor} from '../control/training-model.js';
+import {F,e1rm,sessions,progression,marks,recordsFor,suggestion,weeklySets,summary,alternatives,weightAt,exerciseName,knownParts,nameParts,sameExercise,findExercise,groupByExercise,WALK,walkOf,walkNote,muscleOf,defaultMeasure,sessionMeasures,standardFor,standardAt,percentile,strengthByMuscle,muscleHistory,yearReview,splitName,gymFor,pastSelf,workoutReport,staleMuscles,setRoles,setHabits,valueAtPct,isFreeWeight,liftPercentile,muscleOf as muscleOfName,TESTS,standardFor as stdFor} from '../control/training-model.js';
 
 const row=(fecha,ej,serie,reps,kg,rpe='',origen='app',musc='Pecho')=>[fecha,1,ej,musc,serie,reps,kg,rpe,'',origen,`${fecha}${ej}${serie}`];
 const owner={user:{username:'CesarVapor'},csrfToken:'test-token'};
@@ -271,4 +271,25 @@ test('workout report: records, last same day, minutes and muscles', () => {
 test('stale muscles: the longest without training first, only the last half year', () => {
   const rows=[['2026-11-09',1,'Bench Press','Pecho',1,5,100,'','','app','x'],['2026-10-20',2,'Gemelos · TGD · Dreamfit','Gemelos',1,10,90,'','','app','y'],['2025-01-01',2,'Hip Thrust · TGD · Dreamfit','Glúteos',1,8,100,'','','app','z']];
   assert.deepEqual(staleMuscles(rows,'2026-11-10').map(m=>[m.name,m.days,m.open]),[['Gemelos',21,'gemelo'],['Pecho',1,'pecho']]);
+});
+
+test('set roles: warm-ups before the working sets, drops after them or when noted', () => {
+  const row=(kg,nota='')=>['2026-11-10',1,'Sentadilla · Barra Olímpica 20kg','Cuádriceps',1,5,kg,'',nota,'app','x'];
+  assert.deepEqual(setRoles([row(60),row(100),row(100),row(70),row(95,'Dropset')]),['warmup','work','work','drop','drop']);
+});
+test('a short session is flagged, an extra one too', () => {
+  const rows=[];let d=1;
+  const add=(n,kg)=>{const f=`2026-10-${String(d++).padStart(2,'0')}`;for(let i=1;i<=n;i++)rows.push([f,1,'Curl','Bíceps',i,8,kg,'','','app','x'+f+i]);};
+  add(4,20);add(4,20);add(4,20);add(1,20);add(6,20);
+  const out=sessionMeasures(rows,'Curl');
+  assert.equal(out[3].short,true);assert.equal(out[4].extra,true);
+  const h=setHabits(rows,'2026-10-06',{Curl:4});assert.equal(h.sessions,5);assert.equal(h.short.length,1);assert.equal(h.extra.length,1);
+});
+test('a new machine is worth the muscle level until its second session; free weights are the reference', () => {
+  const rows=[['2026-10-01',1,'French Press · Banco','Tríceps',1,8,40,'','','app','f1'],['2026-11-10',1,'Tríceps Polea Cuerda Alta · Gimnasio Nuevo','Tríceps',1,8,100,'','','app','n1']];
+  const raw=liftPercentile('Tríceps Polea Cuerda Alta · Gimnasio Nuevo',e1rm(100,8),85), cal=liftPercentile('Tríceps Polea Cuerda Alta · Gimnasio Nuevo',e1rm(100,8),85,rows,'2026-11-10');
+  const french=liftPercentile('French Press · Banco',e1rm(40,8),85);
+  assert.ok(raw.pct>cal.pct);assert.equal(cal.pct,french.pct);assert.equal(cal.provisional,true);
+  assert.ok(isFreeWeight('French Press · Banco'));assert.ok(!isFreeWeight('Tríceps Polea Cuerda Alta · Dreamfit'));
+  assert.equal(percentile(valueAtPct(35,[50,60,70,80,90]),[50,60,70,80,90]).pct,35);
 });

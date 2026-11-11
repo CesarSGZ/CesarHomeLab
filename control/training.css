@@ -260,3 +260,21 @@ select.tl-text{appearance:auto}
 .training-view .tl-stale-list .hot{border-color:var(--tl-hot);background:color-mix(in srgb,var(--tl-hot) 12%,var(--tl-bg))}
 .training-view .tl-stale-list .hot b{color:var(--tl-hot)}
 @media(prefers-reduced-motion:reduce){.tl-pop,.tl-spark,.tl-confetti{animation:none}}
+/* Reliability of a muscle or a lift: free weights are the reference, machines are calibrated */
+.tl-rel{display:block;font:500 11.5px 'DM Mono',monospace;letter-spacing:.02em;color:var(--tl-muted)}
+.tl-rel.alta{color:var(--tl-accent)}
+.tl-rel.baja{color:var(--tl-hot)}
+.tl-str-detail li span small.tl-rel{font-weight:500}
+.training-view .tl-str-detail .tl-str-test{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;padding-top:10px}
+/* Extra sets and dropsets */
+.tl-kind{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:0 0 8px}
+.training-view .tl-kind button{min-height:42px;border-radius:9px;border:1px solid var(--tl-line);font-weight:700;font-size:14px;color:var(--tl-muted)}
+.training-view .tl-kind button[aria-pressed=true]{background:var(--tl-soft);border-color:var(--tl-accent);color:var(--tl-ink)}
+.tl-cell.drop,.tl-cell.warm{opacity:.62}
+.tl-cell.drop small{color:var(--tl-hot)}
+.tl-date small{display:block;font-size:11px;color:var(--tl-hot)}
+.tl-habits{margin:0 0 22px}
+.tl-habits-bar{height:8px;border-radius:99px;background:var(--tl-soft);overflow:hidden;margin:4px 0 10px}
+.tl-habits-bar i{display:block;height:100%;border-radius:99px;background:var(--tl-accent)}
+.tl-habits ul{margin:0;padding-left:18px;color:var(--tl-muted);font-size:14px;line-height:1.45}
+.tl-habits li+li{margin-top:4px}
