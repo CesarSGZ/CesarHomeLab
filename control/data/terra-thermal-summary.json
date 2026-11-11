@@ -1,6 +1,6 @@
 {
   "schema_version": "1.4.0",
-  "generated_at": "2026-11-10T12:00:00+00:00",
+  "generated_at": "2026-11-11T20:30:00+00:00",
   "project": {
     "id": "terra-powerplant-lab",
     "title": "Terra Powerplant Lab",
@@ -875,6 +875,21 @@
         "Coupled CPU–GPU MIMO",
         "Coupling uncertainty bound"
       ]
+    },
+    {
+      "id": "EXP-20261110-BASE-S01-S03",
+      "profile": "300 s idle → 720 s GPU → 600 s cool → 720 s CPU → 600 s cool → 720 s CPU+GPU → 600 s cool (×3)",
+      "instrumentation": "MATLAB workload + nvidia-smi 1 Hz + HWiNFO shared memory",
+      "measured_channels": [
+        "GPU temperature, power and fan",
+        "CPU Tctl/Tdie and PPT",
+        "fan RPM"
+      ],
+      "role": "Repeatability baseline before the printed-duct A/B tests",
+      "key_result": "GPU steady 77.9 °C at 300 W; CPU steady 86.1 °C at ~85 W; spread ≤ 0.13 °C (ambient 20 °C)",
+      "used_by": [
+        "Printed-duct A/B campaign"
+      ]
     }
   ],
   "model_lineage": [
@@ -1112,7 +1127,7 @@
     ]
   },
   "story": {
-    "updated": "2026-11-10",
+    "updated": "2026-11-11",
     "limits": {
       "cpu_C": 95,
       "cpu_basis": "temperatura máxima que AMD fija para el Ryzen 7 9800X3D"
@@ -1224,6 +1239,18 @@
         "kind": "page",
         "title": "Presentación para todos",
         "detail": "Esta presentación, que se rehace sola cada vez que cambian los datos."
+      },
+      {
+        "date": "2026-11-10",
+        "kind": "test",
+        "title": "La prueba base, tres veces",
+        "detail": "Tres sesiones de 71 minutos con el PC tal cual. La gráfica se queda en 77,9 °C y el procesador en 86,1 °C, y entre una sesión y otra cambian menos de 0,2 °C."
+      },
+      {
+        "date": "2026-11-11",
+        "kind": "build",
+        "title": "Canales impresos en 3D",
+        "detail": "Dos piezas de PLA diseñadas con medidas reales: tres aros que llevan aire de fuera a los ventiladores de la gráfica y un tubo que sustituye a la gomaespuma del procesador. Se sujetan a la rejilla con bridas."
       }
     ],
     "next_steps": [
@@ -1240,25 +1267,26 @@
         }
       },
       {
-        "status": "next",
+        "status": "done",
         "title": {
           "es": "Repetir la prueba base 3 veces",
           "en": "Repeat the baseline 3×"
         },
         "detail": {
-          "es": "Mismo reposo, carga y enfriado cada vez, para saber cuánto varía de por sí entre una prueba y otra.",
-          "en": "Same idle, load and cool-down each time, to learn the normal run-to-run scatter."
-        }
+          "es": "Hecho el 10 nov: tres sesiones iguales; las temperaturas estables se repiten con menos de 0,2 °C de diferencia, así que un cambio de medio grado ya se puede ver.",
+          "en": "Done 10 Nov: three identical sessions; steady temperatures repeat within 0.2 °C, so a half-degree change is now visible."
+        },
+        "date": "2026-11-10"
       },
       {
-        "status": "todo",
+        "status": "next",
         "title": {
-          "es": "Probar la mejor idea (antes / después)",
-          "en": "A/B test the best idea"
+          "es": "Probar los canales impresos (antes / después)",
+          "en": "A/B test the printed ducts"
         },
         "detail": {
-          "es": "Base → cambio → base, tres veces cada una, con un sensor de temperatura del aire dentro de la caja.",
-          "en": "Baseline → modification → baseline, three runs each. Add one air-temperature sensor inside the case."
+          "es": "Sesiones de 71 minutos con cada montaje: canal de la gráfica, canal del procesador y los dos juntos, alternando con el PC sin cambios para descartar que haya cambiado otra cosa.",
+          "en": "71-minute sessions per setup: GPU duct, CPU duct and both, alternated with the stock PC to rule out drift."
         }
       },
       {
@@ -1296,7 +1324,7 @@
         "en": "Panel open area and grille pressure loss"
       },
       {
-        "done": false,
+        "done": true,
         "es": "Pruebas repetidas que coinciden en ±1 °C",
         "en": "Repeated peaks agree within ±1 °C"
       },
