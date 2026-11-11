@@ -1,5 +1,5 @@
 // Pure money logic for Gastos. Rows arrive as the Sheet's columns.
-export const M = { FECHA: 0, TIPO: 1, IMPORTE: 2, CAT: 3, CONCEPTO: 4, CUENTA: 5, ORIGEN: 6, ID: 7 };
+export const M = { FECHA: 0, TIPO: 1, IMPORTE: 2, CAT: 3, CONCEPTO: 4, CUENTA: 5, ORIGEN: 6, ID: 7, HORA: 8 };
 export const R = { ID: 0, TIPO: 1, IMPORTE: 2, CAT: 3, CONCEPTO: 4, FREQ: 5, DIA: 6, MES: 7, DESDE: 8, HASTA: 9, ACTIVO: 10 };
 export const MONTHS = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
 export const WEEKDAYS = ['lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado', 'domingo'];
@@ -43,7 +43,7 @@ export function dueRecurring(recs, movs, today) {
   const out = [];
   for (const rec of recs) for (const date of occurrences(rec, shiftDays(today, -62), today)) {
     const id = recurringId(rec, date);
-    if (!have.has(id)) out.push([date, rec[R.TIPO], num(rec[R.IMPORTE]), rec[R.CAT], rec[R.CONCEPTO], '', 'recurrente', id]);
+    if (!have.has(id)) out.push([date, rec[R.TIPO], num(rec[R.IMPORTE]), rec[R.CAT], rec[R.CONCEPTO], '', 'recurrente', id, '']);
   }
   return out;
 }
@@ -93,7 +93,46 @@ export function budgets(categorias, totals) {
 }
 // Cells as the app writes them back: text where text is expected, numbers where numbers are.
 const str = v => String(v ?? '');
-export const normMov = m => [str(m[0]).slice(0, 10), m[1] === 'Ingreso' ? 'Ingreso' : 'Gasto', num(m[2]), str(m[3]), str(m[4]), str(m[5]), str(m[6]), str(m[7])];
+export const normTime = v => { const x = /^(\d{1,2}):(\d{2})/.exec(str(v).trim()); return x && +x[1] < 24 && +x[2] < 60 ? `${x[1].padStart(2, '0')}:${x[2]}` : ''; };
+export const normMov = m => [str(m[0]).slice(0, 10), m[1] === 'Ingreso' ? 'Ingreso' : 'Gasto', num(m[2]), str(m[3]), str(m[4]), str(m[5]), str(m[6]), str(m[7]), normTime(m[8])];
 export const normRec = r => [str(r[0]), r[1] === 'Ingreso' ? 'Ingreso' : 'Gasto', num(r[2]), str(r[3]), str(r[4]), ['anual', 'semanal'].includes(r[5]) ? r[5] : 'mensual',
   Math.round(num(r[6])) || 1, r[7] === '' || r[7] === null || r[7] === undefined ? '' : Math.round(num(r[7])) || 1, str(r[8]).slice(0, 10), str(r[9]).slice(0, 10), !(r[10] === false || String(r[10]).toLowerCase() === 'false')];
 export const newId = () => 'm' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+
+// ---------- Statistics: when and on what the money goes ----------
+// Only spending typed in by hand counts: automatic recurring charges say nothing about habits.
+export function habitRows(movs, from, to) {
+  return movs.filter(m => m[M.TIPO] === 'Gasto' && m[M.ORIGEN] !== 'recurrente' && (!from || m[M.FECHA] >= from) && (!to || m[M.FECHA] <= to));
+}
+// Spend per hour of the day (0-23). Rows without a known time are counted apart, not guessed.
+export function byHour(rows) {
+  const hours = Array.from({ length: 24 }, (_, h) => ({ h, total: 0, count: 0 }));
+  let unknown = 0;
+  for (const m of rows) {
+    const t = normTime(m[M.HORA]);
+    if (!t) { unknown++; continue; }
+    const b = hours[+t.slice(0, 2)]; b.total += num(m[M.IMPORTE]); b.count++;
+  }
+  return { hours, unknown, known: rows.length - unknown };
+}
+// Spend per weekday (index 0 = Monday).
+export function byWeekday(rows) {
+  const days = Array.from({ length: 7 }, (_, d) => ({ d, total: 0, count: 0 }));
+  for (const m of rows) { const b = days[(utc(m[M.FECHA]).getUTCDay() + 6) % 7]; b.total += num(m[M.IMPORTE]); b.count++; }
+  return days;
+}
+// Parts of the day, for a one-line reading of the hour chart.
+export const DAYPARTS = [['madrugada', 0, 6], ['mañana', 6, 12], ['mediodía', 12, 16], ['tarde', 16, 21], ['noche', 21, 24]];
+export function dayparts(hours) {
+  return DAYPARTS.map(([name, a, b]) => ({ name, total: hours.slice(a, b).reduce((t, x) => t + x.total, 0), count: hours.slice(a, b).reduce((t, x) => t + x.count, 0) }));
+}
+export function categoryStats(rows) {
+  const cats = new Map();
+  for (const m of rows) { const c = m[M.CAT] || 'Otros', x = cats.get(c) || { cat: c, total: 0, count: 0 }; x.total += num(m[M.IMPORTE]); x.count++; cats.set(c, x); }
+  return [...cats.values()].map(x => ({ ...x, ticket: x.total / x.count })).sort((a, b) => b.total - a.total);
+}
+// Monthly spend per category for the last n months, for the evolution chart.
+export function categorySeries(movs, month, cats, n = 6) {
+  const months = Array.from({ length: n }, (_, i) => shiftMonth(month, i - n + 1));
+  return cats.map(cat => ({ cat, values: months.map(mo => movs.filter(m => m[M.TIPO] === 'Gasto' && (m[M.CAT] || 'Otros') === cat && monthOf(m[M.FECHA]) === mo).reduce((t, m) => t + num(m[M.IMPORTE]), 0)), months }));
+}

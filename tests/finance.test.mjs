@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {occurrences, dueRecurring, upcoming, monthTotals, usualSpend, pace, fixedPerMonth, monthlySeries, budgets, normRec, shiftMonth} from '../control/finance-model.js';
+import {occurrences, dueRecurring, upcoming, monthTotals, usualSpend, pace, fixedPerMonth, monthlySeries, budgets, normRec, normMov, normTime, shiftMonth, habitRows, byHour, byWeekday, dayparts, categoryStats, categorySeries} from '../control/finance-model.js';
 import {onRequest, validOp} from '../functions/control/api/finance/status.js';
 import {accessForUser} from '../functions/_lib/auth.js';
 
@@ -20,6 +20,7 @@ test('due charges are written once, never before the start, and at most two mont
   // Started in August, but only the last 62 days are filled in: 5 September is older than that.
   assert.deepEqual(due.map(r => r[0]), ['2026-10-05', '2026-11-05']);
   assert.equal(due[0][7], 'r-netflix-2026-10-05');
+  assert.equal(due[0].length, 9); assert.equal(due[0][8], '');
   assert.deepEqual(dueRecurring(recs, due, '2026-11-11'), []);
   assert.equal(upcoming(recs, '2026-11-11')[0].fecha, '2026-12-05');
 });
@@ -40,9 +41,12 @@ test('month totals, usual spend, pace, fixed costs and budgets', () => {
 });
 
 test('the API only accepts well-formed rows and only for the owner', async () => {
-  assert.ok(validOp({tipo: 'guardar', tabla: 'Movimientos', fila: ['2026-11-11', 'Gasto', 12.5, 'Comida', 'Menú', '', 'app', 'm1']}));
-  assert.ok(!validOp({tipo: 'guardar', tabla: 'Movimientos', fila: ['11/11/2026', 'Gasto', 12.5, 'Comida', '', '', 'app', 'm1']}));
-  assert.ok(!validOp({tipo: 'guardar', tabla: 'Movimientos', fila: ['2026-11-11', 'Robo', 12.5, 'Comida', '', '', 'app', 'm1']}));
+  assert.ok(validOp({tipo: 'guardar', tabla: 'Movimientos', fila: ['2026-11-11', 'Gasto', 12.5, 'Comida', 'Menú', '', 'app', 'm1', '13:45']}));
+  assert.ok(validOp({tipo: 'guardar', tabla: 'Movimientos', fila: ['2026-11-11', 'Gasto', 12.5, 'Comida', 'Menú', '', 'app', 'm1', '']}));
+  assert.ok(!validOp({tipo: 'guardar', tabla: 'Movimientos', fila: ['2026-11-11', 'Gasto', 12.5, 'Comida', 'Menú', '', 'app', 'm1', '25:00']}));
+  assert.ok(!validOp({tipo: 'guardar', tabla: 'Movimientos', fila: ['2026-11-11', 'Gasto', 12.5, 'Comida', 'Menú', '', 'app', 'm1']}));
+  assert.ok(!validOp({tipo: 'guardar', tabla: 'Movimientos', fila: ['11/11/2026', 'Gasto', 12.5, 'Comida', '', '', 'app', 'm1', '']}));
+  assert.ok(!validOp({tipo: 'guardar', tabla: 'Movimientos', fila: ['2026-11-11', 'Robo', 12.5, 'Comida', '', '', 'app', 'm1', '']}));
   assert.ok(validOp({tipo: 'guardar', tabla: 'Recurrentes', fila: rec('r', 'anual', 5, {mes: 3})}));
   assert.ok(validOp({tipo: 'borrar', tabla: 'Recurrentes', id: 'r'}));
   assert.ok(!validOp({tipo: 'borrar', tabla: 'Usuarios', id: 'r'}));
@@ -54,4 +58,26 @@ test('the API only accepts well-formed rows and only for the owner', async () =>
   const db = {prepare: () => ({bind: () => ({first: async () => null})})};
   const none = await onRequest({request: new Request(url), data: {session: {user: {username: 'CesarVapor'}, csrfToken: 'c'}}, env: {CONTROL_DB: db}});
   assert.deepEqual(await none.json(), {ok: true, connected: false});
+});
+
+test('times: kept as HH:MM, empty when unknown, old rows gain the column', () => {
+  assert.equal(normTime('9:05'), '09:05'); assert.equal(normTime('23:59:00'), '23:59'); assert.equal(normTime(''), ''); assert.equal(normTime('24:00'), ''); assert.equal(normTime('desconocida'), '');
+  assert.deepEqual(normMov(['2026-11-11', 'Gasto', '3', 'Comida', '', '', 'app', 'a']), ['2026-11-11', 'Gasto', 3, 'Comida', '', '', 'app', 'a', '']);
+});
+
+test('habit statistics: by hour without guessing unknown times, by weekday, by category, without recurring charges', () => {
+  const movs = [
+    ['2026-11-02', 'Gasto', 10, 'Comida', '', '', 'app', '1', '09:15'], ['2026-11-02', 'Gasto', 30, 'Ocio', '', '', 'app', '2', '22:40'],
+    ['2026-11-07', 'Gasto', 20, 'Comida', '', '', 'app', '3', ''], ['2026-11-01', 'Gasto', 650, 'Casa', 'Alquiler', '', 'recurrente', 'r-x-2026-11-01', ''],
+    ['2026-11-03', 'Ingreso', 2000, 'Nómina', '', '', 'app', '5', '08:00'], ['2026-10-02', 'Gasto', 40, 'Comida', '', '', 'app', '6', '13:00']];
+  const rows = habitRows(movs, '2026-11-01', '2026-11-30');
+  assert.deepEqual(rows.map(r => r[7]), ['1', '2', '3']);
+  const h = byHour(rows);
+  assert.equal(h.known, 2); assert.equal(h.unknown, 1); assert.equal(h.hours[9].total, 10); assert.equal(h.hours[22].total, 30);
+  assert.deepEqual(dayparts(h.hours).map(p => p.total), [0, 10, 0, 0, 30]);
+  const w = byWeekday(rows);
+  assert.equal(w[0].total, 40); assert.equal(w[5].total, 20); // Monday 2 Nov, Saturday 7 Nov
+  assert.deepEqual(categoryStats(rows).map(c => [c.cat, c.total, c.ticket]), [['Comida', 30, 15], ['Ocio', 30, 30]]);
+  const evo = categorySeries(movs, '2026-11', ['Comida'], 2);
+  assert.deepEqual(evo[0].values, [40, 30]); assert.deepEqual(evo[0].months, ['2026-10', '2026-11']);
 });

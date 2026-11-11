@@ -6,7 +6,7 @@ const DATASET = 'finance-lab';
 const CODE = /^(https:\/\/script\.google\.com\/macros\/s\/[\w-]+\/exec)#(\w{16,})$/;
 const MAX_BODY = 100_000, MAX_OPS = 200;
 const TYPES = new Set(['Gasto', 'Ingreso']), FREQUENCIES = new Set(['mensual', 'anual', 'semanal']);
-const DATE = /^\d{4}-\d{2}-\d{2}$/;
+const DATE = /^\d{4}-\d{2}-\d{2}$/, TIME = /^([01]\d|2[0-3]):[0-5]\d$/;
 
 async function readLab(env) {
   const row = await env.CONTROL_DB.prepare('SELECT payload FROM personal_datasets WHERE name = ?').bind(DATASET).first();
@@ -29,8 +29,8 @@ export function validOp(op) {
   if (op?.tipo !== 'guardar' || !Array.isArray(op.fila)) return false;
   const f = op.fila;
   if (op.tabla === 'Movimientos') {
-    // Fecha, Tipo, Importe, Categoría, Concepto, Cuenta, Origen, ID
-    return f.length === 8 && DATE.test(f[0]) && TYPES.has(f[1]) && amount(f[2]) && text(f[3], 60) && text(f[4], 200) && text(f[5], 60) && text(f[6], 30) && text(f[7], 80) && f[7].length > 0;
+    // Fecha, Tipo, Importe, Categoría, Concepto, Cuenta, Origen, ID, Hora (HH:MM, or empty when it is not known)
+    return f.length === 9 && (f[8] === '' || TIME.test(f[8])) && DATE.test(f[0]) && TYPES.has(f[1]) && amount(f[2]) && text(f[3], 60) && text(f[4], 200) && text(f[5], 60) && text(f[6], 30) && text(f[7], 80) && f[7].length > 0;
   }
   if (op.tabla === 'Recurrentes') {
     // ID, Tipo, Importe, Categoría, Concepto, Frecuencia, Día, Mes, Desde, Hasta, Activo
