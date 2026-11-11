@@ -1,6 +1,10 @@
 // Gastos: conecta Mission Control con las pestañas Movimientos, Recurrentes y Categorías de este Sheet.
 // La clave vive en las propiedades del script, no en este código. Se instala una vez con instalar().
 
+// Si el script no está dentro del Sheet (proyecto suelto de script.google.com), pon aquí el ID del Sheet.
+var LIBRO_ID = '';
+function libro_() { return LIBRO_ID ? SpreadsheetApp.openById(LIBRO_ID) : SpreadsheetApp.getActive(); }
+
 var COLS_MOVIMIENTOS = ['Fecha', 'Tipo', 'Importe', 'Categoría', 'Concepto', 'Cuenta', 'Origen', 'ID'];
 var COLS_RECURRENTES = ['ID', 'Tipo', 'Importe', 'Categoría', 'Concepto', 'Frecuencia', 'Día', 'Mes', 'Desde', 'Hasta', 'Activo'];
 var COLS_CATEGORIAS = ['Tipo', 'Categoría', 'Presupuesto mensual'];
@@ -13,7 +17,7 @@ var CATEGORIAS_INICIALES = [
 ];
 
 function instalar() {
-  var libro = SpreadsheetApp.getActive();
+  var libro = libro_();
   Object.keys(TABLAS).forEach(function (t) {
     if (libro.getSheetByName(HOJA[t])) return;
     var hoja = libro.insertSheet(HOJA[t]);
@@ -39,7 +43,7 @@ function responder_(obj) {
 }
 
 function leer_(t) {
-  var hoja = SpreadsheetApp.getActive().getSheetByName(HOJA[t]);
+  var hoja = libro_().getSheetByName(HOJA[t]);
   if (!hoja || hoja.getLastRow() < 2) return [];
   return hoja.getRange(2, 1, hoja.getLastRow() - 1, TABLAS[t].length).getValues().map(function (r) {
     return r.map(function (v) { return v instanceof Date ? Utilities.formatDate(v, 'Europe/Madrid', 'yyyy-MM-dd') : v; });
@@ -67,7 +71,7 @@ function doPost(e) {
 }
 
 function reemplazar_(t, filas) {
-  var hoja = SpreadsheetApp.getActive().getSheetByName(HOJA[t]), n = TABLAS[t].length;
+  var hoja = libro_().getSheetByName(HOJA[t]), n = TABLAS[t].length;
   if (hoja.getLastRow() > 1) hoja.getRange(2, 1, hoja.getLastRow() - 1, n).clearContent();
   if (filas.length) hoja.getRange(2, 1, filas.length, n).setValues(filas);
 }
@@ -75,7 +79,7 @@ function reemplazar_(t, filas) {
 // Guarda por ID: si ya existe se sobrescribe, así una operación repetida (o un cargo recurrente) nunca se duplica.
 function aplicar_(op) {
   var t = op.tabla === 'Recurrentes' ? 'Recurrentes' : 'Movimientos';
-  var hoja = SpreadsheetApp.getActive().getSheetByName(HOJA[t]), cols = TABLAS[t];
+  var hoja = libro_().getSheetByName(HOJA[t]), cols = TABLAS[t];
   var colId = cols.indexOf('ID'), datos = hoja.getDataRange().getValues(), fila = -1;
   var id = op.tipo === 'borrar' ? op.id : op.fila[colId];
   for (var i = 1; i < datos.length; i++) if (String(datos[i][colId]) === String(id)) { fila = i + 1; break; }
