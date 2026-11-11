@@ -10,6 +10,8 @@ const PUBLIC_PATHS = new Set([
   "/control/flight-login.css",
   "/control/login.js",
   "/control/api/auth/login",
+  // The home-screen icon: the phone reads them without the session cookie.
+  "/control/manifest.webmanifest",
 ]);
 
 export async function onRequest(context) {
