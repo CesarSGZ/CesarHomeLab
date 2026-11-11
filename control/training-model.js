@@ -66,7 +66,7 @@ export function recordsFor(set, mark) {
 // Next load from the last session's real effort. A suggestion: the lifter decides.
 export function suggestion(last, target = {}) {
   if (!last?.series.length) return null;
-  const sets = last.series.filter(r => num(r[F.KG]));
+  const roles = setRoles(last.series), sets = last.series.filter((r, i) => num(r[F.KG]) && roles[i] === 'work');
   if (!sets.length) return null;
   const top = sets.reduce((a, b) => (num(b[F.KG]) > num(a[F.KG]) ? b : a));
   const rpes = sets.map(r => num(r[F.RPE])).filter(Boolean);
@@ -100,7 +100,7 @@ const tonnesOf = list => list.reduce((total, r) => total + (num(r[F.KG]) || 0) *
 // App ids are "a" + Date.now() in base 36 + 5 random characters: the first and last set give the session's length.
 const loggedAt = id => (/^a[0-9a-z]{6,}$/.test(String(id)) ? parseInt(String(id).slice(1, -5), 36) : null);
 // What to celebrate at the end: records, against the last time this routine day was done, muscles worked.
-export function workoutReport(rows, fecha) {
+export function workoutReport(rows, fecha, planned = {}) {
   const today = rows.filter(r => r[F.FECHA] === fecha && r[F.EJ] !== 'Caminadora');
   const names = [...new Set(today.map(r => r[F.EJ]))];
   const records = names.map(name => {
@@ -113,7 +113,12 @@ export function workoutReport(rows, fecha) {
   const times = today.map(r => loggedAt(r[F.ID])).filter(Boolean).sort((a, b) => a - b);
   const minutes = times.length >= 2 ? Math.round((times.at(-1) - times[0]) / 6e4) + 2 : null;
   const muscles = [...new Set(names.map(n => muscleOf(n, today.find(r => r[F.EJ] === n)[F.MUSC])).filter(Boolean))].map(id => MUSCLES.find(m => m.id === id).name);
-  return { ...summary(rows, fecha), records, previous: previous?.tonnes ? previous : null, minutes: minutes && minutes <= 300 ? minutes : null, muscles };
+  const sets = names.map(name => {
+    const series = today.filter(r => r[F.EJ] === name).sort((a, b) => a[F.SERIE] - b[F.SERIE]), roles = setRoles(series);
+    return { name, work: roles.filter(r => r === 'work').length, drops: roles.filter(r => r === 'drop').length, planned: planned[name] || null };
+  });
+  return { ...summary(rows, fecha), records, previous: previous?.tonnes ? previous : null, minutes: minutes && minutes <= 300 ? minutes : null, muscles,
+    extra: sets.filter(x => x.planned && x.work > x.planned), short: sets.filter(x => x.planned && x.work < x.planned - 1), drops: sets.filter(x => x.drops) };
 }
 // Muscle groups as the Sheet names them (Pecho, Hombros, Espalda...), trained in the last half year, the longest without a session first.
 // `open` is the group's most trained fine muscle, so a tap can show its chart.
@@ -243,16 +248,52 @@ const ISOLATION = /raise|aperturas|face pull|delts|curl|b[ií]ceps|tr[ií]ceps|e
 export const defaultMeasure = name => (ISOLATION.test(nameParts(name).base) ? 'volumen' : 'rm');
 const mean = list => list.reduce((a, b) => a + b, 0) / list.length;
 
-// One entry per date, oldest first.
+// ---------- Which sets count ----------
+// Within a session the working sets are those at 80 % or more of its top load. Lighter sets before them are warm-ups;
+// lighter sets after them, or any set noted "dropset", are drops: extra work that must not pull the session's average down.
+export function setRoles(series) {
+  const top = Math.max(0, ...series.map(r => num(r[F.KG]) || 0));
+  let working = false;
+  return series.map(r => {
+    const kg = num(r[F.KG]) || 0;
+    if (/drop/i.test(String(r[F.NOTA] || ''))) return 'drop';
+    if (!top || kg >= top * 0.8) { working = true; return 'work'; }
+    return working ? 'drop' : 'warmup';
+  });
+}
+// One entry per date, oldest first. Averages use the working sets only. A session is short when it has clearly fewer
+// working sets than usual for that exercise (the median of the previous eight), and extra when it has more.
 export function sessionMeasures(rows, exercise, bodyWeight = []) {
-  return sessions(rows, exercise).reverse().map(({ fecha, series }) => {
-    const kgs = series.map(r => num(r[F.KG])).filter(v => v > 0);
-    const reps = series.map(r => num(r[F.REPS])).filter(v => v >= 1 && v <= 30);
+  const list = sessions(rows, exercise).reverse().map(({ fecha, series }) => {
+    const roles = setRoles(series), work = series.filter((r, i) => roles[i] === 'work');
+    const kgs = work.map(r => num(r[F.KG])).filter(v => v > 0);
+    const reps = work.map(r => num(r[F.REPS])).filter(v => v >= 1 && v <= 30);
     const rms = series.map(rowE1rm).filter(Boolean);
     const rm = rms.length ? Math.max(...rms) : 0, medio = kgs.length ? mean(kgs) : 0;
     const mass = rm ? weightAt(bodyWeight, fecha) : null;
-    return { fecha, series, rm, medio, volumen: medio && reps.length ? medio * mean(reps) : 0, relative: mass ? rm / mass : 0 };
+    return { fecha, series, roles, work: work.length, drops: roles.filter(r => r === 'drop').length, rm, medio, volumen: medio && reps.length ? medio * mean(reps) : 0, relative: mass ? rm / mass : 0 };
   });
+  list.forEach((s, i) => {
+    const before = list.slice(Math.max(0, i - 8), i).map(x => x.work);
+    const usual = before.length >= 3 ? before.sort((a, b) => a - b)[before.length >> 1] : null;
+    s.usual = usual; s.short = usual !== null && usual >= 3 && s.work <= usual - 2; s.extra = usual !== null && s.work > usual;
+  });
+  return list;
+}
+// How complete the sessions were over the last weeks, against the routine's planned sets.
+export function setHabits(rows, today, planned, days = 28) {
+  const from = shiftDays(today, -days), out = { sessions: 0, full: 0, short: [], extra: [], drops: [] };
+  for (const name of Object.keys(planned)) {
+    for (const s of sessions(rows, name).filter(x => x.fecha > from && x.fecha <= today)) {
+      const roles = setRoles(s.series), work = roles.filter(r => r === 'work').length, drops = roles.filter(r => r === 'drop').length;
+      out.sessions++;
+      if (work >= planned[name]) out.full++;
+      if (work < planned[name] - 1) out.short.push({ name, fecha: s.fecha, work, planned: planned[name] });
+      if (work > planned[name]) out.extra.push({ name, fecha: s.fecha, work, planned: planned[name] });
+      if (drops) out.drops.push({ name, fecha: s.fecha, drops });
+    }
+  }
+  return out;
 }
 
 // ---------- Strength against other men ----------
@@ -342,33 +383,100 @@ export function percentile(value, marks) {
 const levelOf = pct => (pct < TIERS[0] ? -1 : TIERS.reduce((n, t, i) => (pct >= t ? i : n), 0));
 const shiftDays = (iso, days) => new Date(Date.parse(`${iso}T12:00:00Z`) + days * 864e5).toISOString().slice(0, 10);
 
-// Best e1RM of each standardised exercise in [from, to], already converted to what the standard measures.
-function bestLifts(rows, group, from, to) {
-  const best = new Map();
+// ---------- Reliability: free weights weigh the same in every gym; a machine or a cable does not ----------
+// A machine is calibrated once, against the level its muscle already had in the half year before it was first used:
+// its first two sessions are worth that level, and only what it gains afterwards moves the percentage.
+// A free weight is the reference and needs no calibration.
+const FREE = /barra ol[ií]mpica|barra z|mancuerna|dumbbell|french press|pjr/i;
+export const isFreeWeight = name => FREE.test(String(name));
+export const RELIABILITY = { alta: 'Fiabilidad alta', media: 'Fiabilidad media', baja: 'Fiabilidad baja' };
+const RANK = { alta: 3, media: 2, baja: 1 };
+// The inverse of percentile(): the 1RM that beats that share of men.
+export function valueAtPct(pct, marks) {
+  if (pct < TIERS[0]) return marks[0] * pct / TIERS[0];
+  if (pct >= TIERS[4]) return marks[4] * (1 + (pct - 95) / 20);
+  let i = 0;
+  while (i < 3 && pct >= TIERS[i + 1]) i++;
+  return marks[i] + (pct - TIERS[i]) / (TIERS[i + 1] - TIERS[i]) * (marks[i + 1] - marks[i]);
+}
+let calCache = { rows: null, key: '', map: new Map() };
+export function calibrations(rows, bodyWeight) {
+  const key = `${rows.length}|${rows[rows.length - 1]?.[F.ID]}|${Math.round(bodyWeight || 0)}`;
+  if (calCache.rows === rows && calCache.key === key) return calCache.map;
+  const byName = new Map();
+  for (const row of rows) {
+    const s = standardFor(row[F.EJ]), v = s && rowE1rm(row);
+    if (!v) continue;
+    if (!byName.has(row[F.EJ])) byName.set(row[F.EJ], new Map());
+    const dates = byName.get(row[F.EJ]);
+    dates.set(row[F.FECHA], Math.max(dates.get(row[F.FECHA]) || 0, v));
+  }
+  const list = [...byName].map(([name, dates]) => {
+    const sorted = [...dates].sort((a, b) => (a[0] < b[0] ? -1 : 1));
+    return { name, first: sorted[0][0], sessions: sorted.length, base: Math.max(...sorted.slice(0, 2).map(d => d[1])), dates: sorted };
+  }).sort((a, b) => (a.first < b.first ? -1 : a.first > b.first ? 1 : 0));
+  const map = new Map();
+  for (const e of list) {
+    if (isFreeWeight(e.name)) { map.set(e.name, { factor: 1, reliability: 'alta' }); continue; }
+    const s = standardFor(e.name), group = muscleOf(e.name);
+    const anchor = rate(bestLifts(rows, group, shiftDays(e.first, -182), shiftDays(e.first, -1), bodyWeight, map).filter(l => l.name !== e.name), bodyWeight);
+    if (!anchor) { map.set(e.name, { factor: 1, reliability: 'baja', since: e.first }); continue; }
+    // Clamped: beyond these a machine is mislabelled, not calibrated.
+    const factor = Math.min(2.5, Math.max(0.4, valueAtPct(anchor.pct, standardAt(s.std, bodyWeight)) / (e.base * s.factor)));
+    map.set(e.name, { factor, reliability: e.sessions >= 2 ? 'media' : 'baja', provisional: e.sessions < 2, anchorPct: anchor.pct, since: e.first });
+  }
+  // Second pass, with every other lift already placed: a machine is worth what the rest of its muscle was worth in each
+  // quarter they share, taking the median. So the learning of the first sessions does not turn into fake progress.
+  const final = new Map(map);
+  for (const e of list) {
+    if (isFreeWeight(e.name) || e.sessions < 2) continue;
+    const s = standardFor(e.name), group = muscleOf(e.name), marks = standardAt(s.std, bodyWeight), ratios = [];
+    const quarters = new Map();
+    for (const [fecha, v] of e.dates) { const [y, mo] = fecha.split('-'), q = `${y}-${Math.floor((mo - 1) / 3)}`; quarters.set(q, { fecha, v: Math.max(quarters.get(q)?.v || 0, v) }); }
+    for (const { fecha, v } of quarters.values()) {
+      const others = bestLifts(rows, group, shiftDays(fecha, -60), shiftDays(fecha, 60), bodyWeight, map).filter(l => l.name !== e.name);
+      const trusted = others.filter(l => l.reliability !== 'baja'), level = rate(trusted.length ? trusted : others, bodyWeight);
+      if (level) ratios.push(valueAtPct(level.pct, marks) / (v * s.factor));
+    }
+    if (!ratios.length) continue;
+    const factor = Math.min(2.5, Math.max(0.4, median(ratios)));
+    final.set(e.name, { ...map.get(e.name), factor, reliability: 'media', provisional: false, quarters: ratios.length });
+  }
+  calCache = { rows, key, map: final };
+  return final;
+}
+// Best e1RM of each standardised exercise in [from, to], converted to what the standard measures and calibrated.
+// `cal` is passed while the calibrations themselves are being built; exercises not in it yet count as they are.
+function bestLifts(rows, group, from, to, bodyWeight = 85, cal = null) {
+  const map = cal || calibrations(rows, bodyWeight), best = new Map();
   for (const row of rows) {
     if (row[F.FECHA] < from || row[F.FECHA] > to || muscleOf(row[F.EJ], row[F.MUSC]) !== group) continue;
     const s = standardFor(row[F.EJ]), v = s && rowE1rm(row);
     if (!v) continue;
-    const prev = best.get(row[F.EJ]);
-    if (!prev || v * s.factor > prev.value) best.set(row[F.EJ], { name: row[F.EJ], std: s.std, value: v * s.factor, logged: v, fecha: row[F.FECHA] });
+    if (cal && !map.has(row[F.EJ]) && !isFreeWeight(row[F.EJ])) continue;
+    const c = map.get(row[F.EJ]) || { factor: 1, reliability: isFreeWeight(row[F.EJ]) ? 'alta' : 'baja' };
+    const prev = best.get(row[F.EJ]), value = v * s.factor * c.factor;
+    if (!prev || value > prev.value) best.set(row[F.EJ], { name: row[F.EJ], std: s.std, value, logged: v, fecha: row[F.FECHA], reliability: c.reliability, calibrated: c.factor !== 1, provisional: Boolean(c.provisional) });
   }
   return [...best.values()];
 }
-// The median of its lifts: machine stacks differ between gyms, and one generous or stingy machine must not decide the muscle.
+// The median of its lifts, free weights counting double: machine stacks differ between gyms, so one generous
+// or stingy machine must not decide the muscle.
 const median = list => { const s = [...list].sort((a, b) => a - b), m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; };
 function rate(lifts, bodyWeight) {
   if (!lifts.length) return null;
   const tests = lifts.map(l => ({ ...l, ...percentile(l.value, standardAt(l.std, bodyWeight)) })).sort((a, b) => b.pct - a.pct);
-  const pct = Math.round(median(tests.map(t => t.pct)));
-  return { pct, level: levelOf(pct), tests };
+  const pct = Math.round(median(tests.flatMap(t => (t.reliability === 'alta' ? [t.pct, t.pct] : [t.pct]))));
+  const reliability = tests.reduce((r, t) => (RANK[t.reliability || 'baja'] > RANK[r] ? t.reliability : r), 'baja');
+  return { pct, level: levelOf(pct), tests, reliability };
 }
 // The last 12 months; a muscle not trained in that time uses its last 12 months with data and says until when.
 export function strengthByMuscle(rows, bodyWeight, today) {
   return MUSCLES.map(({ id, name }) => {
-    let lifts = bestLifts(rows, id, shiftDays(today, -365), today), stale = null;
+    let lifts = bestLifts(rows, id, shiftDays(today, -365), today, bodyWeight), stale = null;
     if (!lifts.length) {
       const last = rows.filter(r => r[F.FECHA] <= today && muscleOf(r[F.EJ], r[F.MUSC]) === id && standardFor(r[F.EJ]) && rowE1rm(r)).reduce((a, r) => (r[F.FECHA] > a ? r[F.FECHA] : a), '');
-      if (last) { lifts = bestLifts(rows, id, shiftDays(last, -365), last); stale = last; }
+      if (last) { lifts = bestLifts(rows, id, shiftDays(last, -365), last, bodyWeight); stale = last; }
     }
     return { id, name, rated: rate(lifts, bodyWeight), stale };
   });
@@ -382,7 +490,7 @@ export function muscleHistory(rows, group, bodyWeight, fallbackWeight) {
     quarters.add(`${y}-${String(Math.floor((mo - 1) / 3) * 3 + 2).padStart(2, '0')}-15`);
   }
   return [...quarters].sort().map(mid => {
-    const rated = rate(bestLifts(rows, group, shiftDays(mid, -46), shiftDays(mid, 46)), weightAt(bodyWeight, mid) || fallbackWeight);
+    const rated = rate(bestLifts(rows, group, shiftDays(mid, -46), shiftDays(mid, 46), fallbackWeight), weightAt(bodyWeight, mid) || fallbackWeight);
     return rated ? { fecha: mid, value: rated.pct, rated } : null;
   }).filter(Boolean);
 }
@@ -405,7 +513,7 @@ export function yearReview(rows, today, bodyWeight) {
   };
   // A muscle compares only the exercises done in both years: a new machine is not progress.
   const muscles = MUSCLES.map(({ id, name }) => {
-    const before = bestLifts(rows, id, shiftDays(ago, -365), ago), after = bestLifts(rows, id, shiftDays(today, -365), today);
+    const before = bestLifts(rows, id, shiftDays(ago, -365), ago, bodyWeight), after = bestLifts(rows, id, shiftDays(today, -365), today, bodyWeight);
     const shared = new Set(before.map(l => l.name).filter(n => after.some(l => l.name === n)));
     const a = rate(before.filter(l => shared.has(l.name)), bodyWeight), b = rate(after.filter(l => shared.has(l.name)), bodyWeight);
     return a && b ? { name, before: a.pct, now: b.pct, lifts: [...shared] } : null;
@@ -415,13 +523,22 @@ export function yearReview(rows, today, bodyWeight) {
 
 // ---------- You against yourself, whatever the machine ----------
 // Where a single set stands against other men, or null when its exercise has no standard.
-export function liftPercentile(name, value, bodyWeight) {
+// With the rows, a machine uses its calibration; a machine never used before is worth its muscle's level
+// until it has two sessions, so a light stack or a new gym never makes a set look better than it is.
+export function liftPercentile(name, value, bodyWeight, rows = null, today = null) {
   const s = standardFor(name);
-  return s && value ? { ...percentile(value * s.factor, standardAt(s.std, bodyWeight)), std: s.std } : null;
+  if (!s || !value) return null;
+  const raw = { ...percentile(value * s.factor, standardAt(s.std, bodyWeight)), std: s.std, reliability: isFreeWeight(name) ? 'alta' : 'baja' };
+  if (!rows || isFreeWeight(name)) return raw;
+  const c = calibrations(rows, bodyWeight).get(name);
+  if (c && !c.provisional) return { ...percentile(value * s.factor * c.factor, standardAt(s.std, bodyWeight)), std: s.std, reliability: c.reliability, calibrated: c.factor !== 1 };
+  const group = muscleOf(name), day = today || rows.reduce((m, r) => (r[F.FECHA] > m ? r[F.FECHA] : m), '');
+  const level = group && rate(bestLifts(rows, group, shiftDays(day, -182), day, bodyWeight).filter(l => l.name !== name), bodyWeight);
+  return level ? { pct: level.pct, level: level.level, std: s.std, reliability: 'baja', provisional: true } : raw;
 }
 // The best single lift of a muscle in a window, as a share of men beaten: the mark a new machine has to beat.
 export function bestOfMuscle(rows, group, bodyWeight, from, to) {
-  const lifts = bestLifts(rows, group, from, to).map(l => ({ ...l, ...percentile(l.value, standardAt(l.std, bodyWeight)) }));
+  const lifts = bestLifts(rows, group, from, to, bodyWeight).map(l => ({ ...l, ...percentile(l.value, standardAt(l.std, bodyWeight)) }));
   return lifts.length ? lifts.reduce((a, b) => (b.pct > a.pct ? b : a)) : null;
 }
 export const muscleRecord = (rows, group, bodyWeight, today) => bestOfMuscle(rows, group, bodyWeight, shiftDays(today, -365), shiftDays(today, -1));
@@ -439,11 +556,11 @@ export function pastSelf(rows, exercise, today, bodyWeight) {
   }
   const group = muscleOf(exercise);
   if (!group || !standardFor(exercise)) return null;
-  const then = rate(bestLifts(rows, group, shiftDays(today, -136), shiftDays(today, -46)), bodyWeight);
+  const then = rate(bestLifts(rows, group, shiftDays(today, -136), shiftDays(today, -46), bodyWeight), bodyWeight);
   return then ? { kind: 'muscle', group, name: MUSCLES.find(m => m.id === group).name, pct: then.pct } : null;
 }
 // The muscle's level now (median of its lifts in the last year, before today): a set above it is a good day.
-export const muscleLevel = (rows, group, bodyWeight, today) => rate(bestLifts(rows, group, shiftDays(today, -365), shiftDays(today, -1)), bodyWeight);
+export const muscleLevel = (rows, group, bodyWeight, today) => rate(bestLifts(rows, group, shiftDays(today, -365), shiftDays(today, -1), bodyWeight), bodyWeight);
 export const bestToday = (rows, exercise, today, extra = 0) => Math.max(extra || 0, ...rows.filter(r => r[F.EJ] === exercise && r[F.FECHA] === today).map(r => rowE1rm(r) || 0));
 
 // ---------- Strength tests: lifts measured the same way in any gym, to see where a muscle really stands ----------
