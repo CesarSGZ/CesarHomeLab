@@ -12,6 +12,9 @@ Igual que Training: un Google Sheet tuyo guarda los datos y Mission Control los 
    Copia la URL, que acaba en `/exec`.
 5. En Mission Control → **Gastos**, pega `URL#clave` (la URL, `#` y la clave del paso 3) y pulsa Conectar.
 
+Si en el paso 2 no puedes abrir Apps Script desde el Sheet, crea el proyecto suelto en script.google.com, pega `Code.gs`
+y pon el ID del Sheet (lo que va entre `/d/` y `/edit` en su URL) en `LIBRO_ID`. El resto es igual.
+
 La clave no está en el código: vive en las propiedades del script. Sin ella el script no responde nada.
 
 ## Pestañas
