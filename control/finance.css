@@ -1,0 +1,48 @@
+/* Gastos: built on the Training tokens and components (.tl-*), with its own pieces here. */
+.finance-view .fin-add{padding:16px;border:1px solid var(--tl-line);border-radius:14px;background:var(--tl-bg);margin-bottom:16px;transition:box-shadow .3s}
+.finance-view .fin-add.saved{box-shadow:0 0 0 3px color-mix(in srgb,var(--tl-accent) 60%,transparent)}
+.fin-amount{display:flex;align-items:center;gap:8px;margin:4px 0 12px;padding:6px 14px;border-radius:12px;background:var(--tl-soft)}
+.fin-amount span{font:500 26px 'DM Mono',monospace;color:var(--tl-muted)}
+.fin-amount input{flex:1;min-width:0;border:0;background:none;font:500 36px/1.2 'DM Mono',monospace;color:var(--tl-ink);outline:none}
+.fin-row{display:grid;grid-template-columns:1fr auto;gap:8px;margin:10px 0}
+.fin-row label{display:block}
+.finance-view .tl-chips .more{border-style:dashed}
+.finance-view .tl-kpis strong{font-size:26px}
+.finance-view .tl-kpis strong.up{color:var(--tl-accent)}
+.finance-view .tl-kpis strong.down{color:var(--tl-hot)}
+.finance-view .tl-kpis.two{grid-template-columns:repeat(2,minmax(0,1fr))}
+.fin-next,.fin-cats,.fin-list{list-style:none;margin:0 0 18px;padding:0}
+.fin-next li{display:grid;grid-template-columns:56px 1fr auto;gap:10px;align-items:center;padding:9px 0;border-bottom:1px solid var(--tl-line);font-size:14.5px}
+.fin-next span{font:500 12.5px 'DM Mono',monospace;color:var(--tl-muted)}
+.fin-next em,.fin-list b{font-style:normal;font:500 15px 'DM Mono',monospace}
+.fin-next em.in,.fin-list b.in{color:var(--tl-accent)}
+.fin-cats li{position:relative;display:flex;justify-content:space-between;gap:10px;padding:10px 12px;margin-bottom:6px;border-radius:10px;background:var(--tl-soft);overflow:hidden}
+.fin-cats li i{position:absolute;inset:auto auto 0 0;height:3px;background:var(--tl-accent)}
+.fin-cats li i.over{background:var(--tl-hot)}
+.fin-cats span{font-weight:700;font-size:14.5px}
+.fin-cats small{display:block;font-weight:500;font-size:12px;color:var(--tl-muted)}
+.fin-cats b{font:500 15px 'DM Mono',monospace}
+.fin-chart{margin:0 0 14px}
+.fin-chart svg{width:100%;height:auto;display:block}
+.fin-chart rect.in{fill:var(--tl-accent)}
+.fin-chart rect.out{fill:var(--tl-hot)}
+.fin-chart text{fill:var(--tl-muted);font:500 11px 'DM Mono',monospace}
+.fin-chart figcaption{display:flex;gap:14px;align-items:center;font-size:12.5px;color:var(--tl-muted)}
+.fin-chart figcaption i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:-8px}
+.fin-chart figcaption i.in{background:var(--tl-accent)}
+.fin-chart figcaption i.out{background:var(--tl-hot)}
+.fin-month{display:flex;align-items:center;justify-content:space-between;margin:0 0 10px}
+.fin-month b{font-size:17px}
+.fin-day{margin:14px 0 4px;font:500 12px 'DM Mono',monospace;color:var(--tl-muted);letter-spacing:.04em;text-transform:uppercase}
+.finance-view .fin-list button{display:flex;width:100%;justify-content:space-between;align-items:center;gap:12px;min-height:54px;padding:8px 2px;border-bottom:1px solid var(--tl-line);text-align:left}
+.fin-list span{display:flex;flex-direction:column;font-weight:700;font-size:14.5px;line-height:1.25}
+.fin-list small{font-weight:500;font-size:12.5px;color:var(--tl-muted)}
+.fin-list li.paused{opacity:.55}
+.fin-layer{position:fixed;z-index:40;inset:0;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(4,10,16,.72)}
+.fin-layer[hidden]{display:none}
+.finance-view .fin-layer .tl-field{display:block;margin:12px 0 6px}
+@media(max-width:620px){.finance-view .tl-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.fin-amount input{font-size:30px}}
+.finance-view .tl-kind{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:0 0 8px}
+.finance-view .tl-kind button{min-height:42px;border-radius:9px;border:1px solid var(--tl-line);font-weight:700;font-size:14px;color:var(--tl-muted)}
+.finance-view .tl-kind button[aria-pressed=true]{background:var(--tl-soft);border-color:var(--tl-accent);color:var(--tl-ink)}
+@media(max-width:620px){.finance-view .tl-head{flex-direction:column;align-items:stretch}.finance-view .tl-head-side{width:100%}.finance-view .tl-tabs{width:100%}.finance-view .tl-tabs button{flex:1;padding:0 8px}}
