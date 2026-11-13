@@ -1,6 +1,6 @@
 {
   "schema_version": "1.4.0",
-  "generated_at": "2026-11-11T20:30:00+00:00",
+  "generated_at": "2026-11-13T12:00:00+00:00",
   "project": {
     "id": "terra-powerplant-lab",
     "title": "Terra Powerplant Lab",
@@ -890,6 +890,21 @@
       "used_by": [
         "Printed-duct A/B campaign"
       ]
+    },
+    {
+      "id": "EXP-20261113-S04-SIN",
+      "profile": "Standard 71-minute session (idle, GPU, CPU, combined with cool-downs)",
+      "instrumentation": "MATLAB workload + nvidia-smi 1 Hz + HWiNFO shared memory",
+      "measured_channels": [
+        "GPU temperature, power and fan",
+        "CPU Tctl/Tdie and PPT",
+        "fan RPM"
+      ],
+      "role": "Reference without the CPU foam duct, before the printed ducts",
+      "key_result": "CPU 96 W at 86.5 °C vs 85 W with the foam (Rth 0.70 vs 0.78 °C/W); GPU unchanged at 77.9 °C, fan 59 % (ambient 19 °C)",
+      "used_by": [
+        "Printed-duct A/B campaign"
+      ]
     }
   ],
   "model_lineage": [
@@ -1127,7 +1142,7 @@
     ]
   },
   "story": {
-    "updated": "2026-11-11",
+    "updated": "2026-11-13",
     "limits": {
       "cpu_C": 95,
       "cpu_basis": "temperatura máxima que AMD fija para el Ryzen 7 9800X3D"
@@ -1251,6 +1266,12 @@
         "kind": "build",
         "title": "Canales impresos en 3D",
         "detail": "Dos piezas de PLA diseñadas con medidas reales: tres aros que llevan aire de fuera a los ventiladores de la gráfica y un tubo que sustituye a la gomaespuma del procesador. Se sujetan a la rejilla con bridas."
+      },
+      {
+        "date": "2026-11-13",
+        "kind": "test",
+        "title": "Sin la gomaespuma, el procesador rinde más",
+        "detail": "Primera prueba sin nada en el ventilador del procesador. Se queda en los mismos 86 °C pero aguanta 96 W en vez de 85 W: la gomaespuma frenaba el aire. La gráfica no cambia."
       }
     ],
     "next_steps": [
@@ -1285,8 +1306,8 @@
           "en": "A/B test the printed ducts"
         },
         "detail": {
-          "es": "Sesiones de 71 minutos con cada montaje: canal de la gráfica, canal del procesador y los dos juntos, alternando con el PC sin cambios para descartar que haya cambiado otra cosa.",
-          "en": "71-minute sessions per setup: GPU duct, CPU duct and both, alternated with the stock PC to rule out drift."
+          "es": "Sesiones de 71 minutos, cambiando una cosa cada vez: sin nada (hecha), sin paneles, con el canal del procesador y con los dos canales.",
+          "en": "71-minute sessions changing one thing at a time: nothing fitted (done), panels off, CPU duct, both ducts."
         }
       },
       {
@@ -1344,6 +1365,12 @@
         "tone": "ok",
         "title": "Va bien, pero justo",
         "detail": "Nada se pasa de su límite, pero la CPU se queda a pocos grados del suyo con carga máxima.",
+        "metric": "cpu_margin"
+      },
+      {
+        "tone": "info",
+        "title": "La temperatura no basta",
+        "detail": "El procesador sube de potencia hasta unos 86 °C y la gráfica mueve su ventilador hasta unos 78 °C. Para ver si algo enfría mejor hay que mirar los vatios y el ventilador, no los grados.",
         "metric": "cpu_margin"
       },
       {
