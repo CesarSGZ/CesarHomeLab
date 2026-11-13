@@ -905,6 +905,21 @@
       "used_by": [
         "Printed-duct A/B campaign"
       ]
+    },
+    {
+      "id": "EXP-20261113-S05-ABIERTO",
+      "profile": "Standard 71-minute session (idle, GPU, CPU, combined with cool-downs)",
+      "instrumentation": "MATLAB workload + nvidia-smi 1 Hz + HWiNFO shared memory",
+      "measured_channels": [
+        "GPU temperature, power and fan",
+        "CPU Tctl/Tdie and PPT",
+        "fan RPM"
+      ],
+      "role": "Upper bound: both side panels removed, no ducts",
+      "key_result": "CPU 98 W alone (+2 %) and 94 W combined (+7 %, Rth 0.70 vs 0.77 °C/W) vs closed panels; GPU 77.9 °C, at most 1 °C better (ambient 20.5 °C)",
+      "used_by": [
+        "Printed-duct A/B campaign"
+      ]
     }
   ],
   "model_lineage": [
@@ -1272,6 +1287,12 @@
         "kind": "test",
         "title": "Sin la gomaespuma, el procesador rinde más",
         "detail": "Primera prueba sin nada en el ventilador del procesador. Se queda en los mismos 86 °C pero aguanta 96 W en vez de 85 W: la gomaespuma frenaba el aire. La gráfica no cambia."
+      },
+      {
+        "date": "2026-11-13",
+        "kind": "test",
+        "title": "Sin paneles: el techo de mejora",
+        "detail": "Con la caja abierta el procesador gana un 7 % cuando trabajan los dos a la vez y casi nada cuando trabaja solo; la gráfica, como mucho 1 °C. La rejilla frena poco: lo que se puede ganar es el aire caliente que comparten."
       }
     ],
     "next_steps": [
