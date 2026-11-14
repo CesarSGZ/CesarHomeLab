@@ -338,10 +338,10 @@ geometry = {
         {"what": "Chapa de la columna central", "how": "regla", "why": "calculada a 81,6 mm del panel del procesador (10,6 mm libres detrás de la gráfica)"},
         {"what": "Altura del centro del ventilador del procesador", "how": "regla", "why": "calculada a 122 mm del suelo de la caja"},
         {"what": "Curvas presión-caudal de los ventiladores", "how": "fichas de Noctua", "why": "las de la gráfica y la fuente no se publican: habrá que estimarlas"},
-        {"what": "Repetir la lista de ideas con el ventilador de abajo metiendo aire", "how": "volver a ajustar el modelo", "why": "las predicciones de agosto suponían que sacaba aire; la idea CFG-010 (darle la vuelta) ya es el montaje actual"},
         {"what": "Cuánto frenan cables, aletas y rejillas", "how": "ajustar con las pruebas S04-S07", "why": "son las zonas porosas del modelo"},
     ],
     "resolved": [
+        "Lista de ideas revisada con lo medido en S04-S07 (story.ideas_next), con el ventilador de abajo metiendo aire.",
         "Panel de arriba: 36 filas de ranuras, medido en la foto desde arriba (14 nov).",
         "Ventilador de arriba: delante, justo encima de la salida de la fuente.",
         "Fuente: toma aire del panel del procesador y lo suelta hacia arriba (César y foto).",

@@ -24,7 +24,7 @@
     const cfd=data.cfd_inputs||{heat_sources:[],air:{density_kg_m3:1.16,cp_J_kgK:1005},grille_derating:.6};
     const fans=data.configuration.fans||[];
     const baseline=screening.find(row=>row.configuration_id==='CFG-000');
-    const ideas=screening.filter(row=>row.configuration_id!=='CFG-000'&&row.gpu_peak_model_low_C!=null&&row.stage!=='measured')
+    const ideas=screening.filter(row=>row.configuration_id!=='CFG-000'&&row.gpu_peak_model_low_C!=null&&row.stage!=='measured'&&row.stage!=='current')
       .map(row=>({...row,mid:(row.gpu_peak_model_low_C+row.gpu_peak_model_high_C)/2}))
       .sort((a,b)=>a.mid-b.mid);
     const best=ideas[0];
@@ -125,23 +125,30 @@
   function abChart(ab,lang='es'){
     if(!ab||!ab.rows?.length)return '';
     const es=lang==='es';
-    const T=es?{alone:'solo',both:'con la gráfica',fan:'ventilador gráfica',pending:'pendiente',room:'cuarto',ref:'referencia',power:'Potencia que aguanta el procesador (W, más = mejor)',fanHead:'vent. gráfica'}
-             :{alone:'alone',both:'with GPU load',fan:'GPU fan',pending:'pending',room:'room',ref:'reference',power:'Power the CPU sustains (W, more = better)',fanHead:'GPU fan'};
+    const T=es?{alone:'solo',both:'con la gráfica',fan:'ventilador',pending:'pendiente',room:'cuarto',ref:'referencia',power:'Calor que saca el disipador de la CPU por cada °C (más = mejor)',fanHead:'gráfica'}
+             :{alone:'alone',both:'with GPU load',fan:'fan',pending:'pending',room:'room',ref:'reference',power:'Heat the CPU cooler removes per °C (more = better)',fanHead:'GPU'};
+    const wpc=ab.metric==='cpu_WpC';
+    const A=r=>wpc?r.cpu_alone_WpC:r.cpu_alone_W, C=r=>wpc?r.cpu_combined_WpC:r.cpu_combined_W, unit=wpc?'W/°C':'W', dgt=wpc?2:0;
     const fmt=(v,dg=0)=>Number(v).toLocaleString(es?'es-ES':'en-GB',{minimumFractionDigits:dg,maximumFractionDigits:dg});
     const done=ab.rows.filter(r=>r.status==='done');
     const ref=ab.rows.find(r=>r.id===ab.reference)||done[0];
-    const max=Math.max(...done.map(r=>Math.max(r.cpu_alone_W,r.cpu_combined_W)))*1.06;
+    const max=Math.max(...done.map(r=>Math.max(A(r),C(r))))*1.06;
     const pct=(v,base)=>{const d=(v/base-1)*100;return Math.abs(d)<0.5?'=':`${d>0?'+':'−'}${fmt(Math.abs(d))} %`};
-    const best=done.reduce((a,b)=>b.cpu_combined_W>a.cpu_combined_W?b:a,done[0]);
+    const best=done.find(r=>r.id===ab.best)||done.reduce((a,b)=>C(b)>C(a)?b:a,done[0]);
     const rows=ab.rows.map(r=>{
       const name=`<span class="ab-name"><b>${esc(es?r.title_es:r.title_en)}</b><small>${esc(r.id)}${r.ambient_C!=null?` · ${T.room} ${fmt(r.ambient_C,r.ambient_C%1?1:0)} °C`:''}${r===ref?` · ${T.ref}`:''}</small></span>`;
       if(r.status!=='done')return `<li class="ab-row todo">${name}<span class="ab-bars"><i class="ab-pending">${T.pending} · ${esc(es?r.detail_es:r.detail_en)}</i></span><span class="ab-fan">—</span></li>`;
-      const bar=(v,cls,label)=>`<span class="ab-bar ${cls}"><i style="width:${(v/max*100).toFixed(1)}%"></i><em>${fmt(v)} W <small>${label}${r!==ref?` · ${pct(v,cls==='alone'?ref.cpu_alone_W:ref.cpu_combined_W)}`:''}</small></em></span>`;
+      const bar=(v,cls,label)=>`<span class="ab-bar ${cls}"><i style="width:${(v/max*100).toFixed(1)}%"></i><em>${fmt(v,dgt)} ${unit} <small>${label}${r!==ref?` · ${pct(v,cls==='alone'?A(ref):C(ref))}`:''}</small></em></span>`;
       const fd=r.gpu_fan_pct-ref.gpu_fan_pct;
-      return `<li class="ab-row${r===best?' best':''}${r===ref?' ref':''}">${name}<span class="ab-bars">${bar(r.cpu_alone_W,'alone',T.alone)}${bar(r.cpu_combined_W,'both',T.both)}</span><span class="ab-fan"><i class="ab-fan-l">${T.fan}</i><b>${fmt(r.gpu_fan_pct)} %</b>${r!==ref&&Math.abs(fd)>=0.5?`<small class="${fd<0?'good':'bad'}">${fd>0?'+':'−'}${fmt(Math.abs(fd),1)}</small>`:''}</span></li>`;
+      const td=(r.gpu_C??0)-(ref.gpu_C??0);
+      return `<li class="ab-row${r===best?' best':''}${r===ref?' ref':''}">${name}<span class="ab-bars">${bar(A(r),'alone',T.alone)}${bar(C(r),'both',T.both)}</span><span class="ab-fan">${r.gpu_C!=null?`<b>${fmt(r.gpu_C,1)} °C${r!==ref&&Math.abs(td)>=0.05?` <small class="${td<0?'good':'bad'}">${td>0?'+':'−'}${fmt(Math.abs(td),1)}</small>`:''}</b>`:''}<span class="ab-fan-sub">${T.fan} ${fmt(r.gpu_fan_pct)} %${r!==ref&&Math.abs(fd)>=0.5?` <small class="${fd<0?'good':'bad'}">${fd>0?'+':'−'}${fmt(Math.abs(fd),1)}</small>`:''}</span></span></li>`;
     }).join('');
-    const gain=(best.cpu_combined_W/ref.cpu_combined_W-1)*100;
-    const callout=es
+    const gain=(C(best)/C(ref)-1)*100;
+    const gpuGain=(ref.gpu_C-best.gpu_C);
+    const callout=wpc?(es
+      ? `<b>${esc(best.title_es)}</b> es lo mejor: frente a no llevar nada, la gráfica va <b>${fmt(gpuGain,1)} °C más fría</b> con el ventilador ${fmt(ref.gpu_fan_pct-best.gpu_fan_pct,1)} puntos más lento, y el disipador de la CPU saca <b>un ${fmt(gain)} % más de calor por grado</b> con las dos trabajando a la vez.`
+      : `<b>${esc(best.title_en)}</b> is the best: against nothing fitted, the GPU runs <b>${fmt(gpuGain,1)} °C cooler</b> with its fan ${fmt(ref.gpu_fan_pct-best.gpu_fan_pct,1)} points slower, and the CPU cooler removes <b>${fmt(gain)} % more heat per degree</b> with both loaded.`)
+      :es
       ? `<b>${esc(best.title_es)}</b> es lo mejor hasta ahora: el procesador aguanta un <b>${fmt(gain)} % más de potencia</b> con la gráfica trabajando a la vez (${fmt(best.cpu_combined_W)} W frente a ${fmt(ref.cpu_combined_W)} W sin nada).`
       : `<b>${esc(best.title_en)}</b> is the best so far: the CPU sustains <b>${fmt(gain)} % more power</b> while the GPU is also loaded (${fmt(best.cpu_combined_W)} W vs ${fmt(ref.cpu_combined_W)} W with nothing fitted).`;
     return `<div class="ab-wrap"><div class="ab">
@@ -151,6 +158,34 @@
       ${best!==ref?`<p class="dk-callout ab-callout">${callout}</p>`:''}
       <p class="dk-muted ab-note">${esc(es?ab.note_es:ab.note_en)}</p>
     </div></div>`;
+  }
+
+  // ---------- Campaign summary pieces (deck and page share them) ----------
+  function lessonsHtml(ab,lang='es'){
+    const es=lang==='es';
+    const rows=(ab?.rows||[]).filter(r=>r.status==='done'&&(es?r.lesson_es:r.lesson_en));
+    if(!rows.length)return '';
+    return `<ol class="tl-lessons">${rows.map(r=>`<li class="${esc(r.lesson_tone||'info')}"><span><b>${esc(r.id)}</b><small>${esc(es?r.title_es:r.title_en)}</small></span><p>${esc(es?r.lesson_es:r.lesson_en)}</p></li>`).join('')}</ol>`;
+  }
+  const VERDICT={es:{try:'Merece la pena',maybe:'Quizá',skip:'No compensa',done:'Ya hecho'},en:{try:'Worth trying',maybe:'Maybe',skip:'Not worth it',done:'Already done'}};
+  function ideasNextHtml(x,lang='es'){
+    if(!x?.items?.length)return '';
+    const es=lang==='es';const V=VERDICT[es?'es':'en'];
+    const order={try:0,maybe:1,done:2,skip:3};
+    const items=[...x.items].sort((a,b)=>(order[a.verdict]??9)-(order[b.verdict]??9));
+    return `<div class="tl-nextideas">${items.map(i=>`<article class="v-${esc(i.verdict)}">
+      <header><span class="tl-verdict">${V[i.verdict]||esc(i.verdict)}</span>${i.id?`<small>${esc(i.id)}</small>`:''}</header>
+      <strong>${esc(es?i.title_es:i.title_en)}</strong>
+      <p class="tl-expect">${esc(es?i.expect_es:i.expect_en)}</p>
+      <p>${esc(es?i.why_es:i.why_en)}</p>
+      ${(es?i.effort_es:i.effort_en)?`<small class="tl-effort">${esc(es?i.effort_es:i.effort_en)}</small>`:''}
+    </article>`).join('')}</div>${(es?x.note_es:x.note_en)?`<p class="tl-note">${esc(es?x.note_es:x.note_en)}</p>`:''}`;
+  }
+  function cfdPlanHtml(x,lang='es'){
+    if(!x?.steps?.length)return '';
+    const es=lang==='es';
+    const tag={done:es?'Hecho':'Done',next:es?'Ahora':'Now',todo:es?'Después':'Later'};
+    return `${(es?x.goal_es:x.goal_en)?`<p class="tl-cfd-goal">${esc(es?x.goal_es:x.goal_en)}</p>`:''}<ol class="tl-cfdplan">${x.steps.map((s,i)=>`<li class="${esc(s.status)}"><b>${s.status==='done'?'✓':i+1}</b><div><small>${tag[s.status]||''}</small><strong>${esc(es?s.title_es:s.title_en)}</strong><p>${esc(es?s.detail_es:s.detail_en)}</p></div></li>`).join('')}</ol>`;
   }
 
   // ---------- Slides ----------
@@ -281,7 +316,7 @@
       <span class="dk-idea-track"><i style="left:${pos(idea.gpu_peak_model_low_C)}%;width:${Math.max(1.5,pos(idea.gpu_peak_model_high_C)-pos(idea.gpu_peak_model_low_C))}%"></i></span>
       <b>${signed(idea.gpu_peak_model_high_C-m.baseline)} a ${signed(idea.gpu_peak_model_low_C-m.baseline)}</b>
     </li>`).join('');
-    add('ideas','Qué cambio vale',`
+    if(!s.ideas_next)add('ideas','Qué cambio vale',`
       <p class="dk-kicker">Ideas ordenadas por el modelo</p>
       <h2 class="dk-h">¿Qué cambio merece la pena?</h2>
       <div class="dk-ideas" style="--base:${pos(m.baseline)}%">
@@ -323,6 +358,23 @@
         <p class="dk-kicker">Pruebas de los canales impresos · ${doneN} de ${s.ab_tests.rows.length} hechas</p>
         <h2 class="dk-h">¿Qué ha funcionado de verdad?</h2>
         ${abChart(s.ab_tests,'es')}`);
+      const lessons=lessonsHtml(s.ab_tests,'es');
+      if(lessons)add('lecciones','Qué enseñó cada prueba',`
+        <p class="dk-kicker">Prueba a prueba</p>
+        <h2 class="dk-h">Qué nos ha enseñado cada prueba</h2>
+        ${lessons}`);
+    }
+    if(s.ideas_next){
+      add('masideas','Qué más probar',`
+        <p class="dk-kicker">Con lo medido hasta hoy</p>
+        <h2 class="dk-h">¿Qué más se podría cambiar?</h2>
+        ${ideasNextHtml(s.ideas_next,'es')}`);
+    }
+    if(s.cfd_plan){
+      add('cfd','El CFD',`
+        <p class="dk-kicker">Simulación del aire (CFD)</p>
+        <h2 class="dk-h">Qué haremos con el CFD</h2>
+        ${cfdPlanHtml(s.cfd_plan,'es')}`);
     }
 
 
@@ -481,6 +533,10 @@
     }
     const abBox=document.getElementById('tl-ab');
     if(abBox&&m.story.ab_tests)abBox.innerHTML=abChart(m.story.ab_tests,'en');
+    const fill=(id,html)=>{const box=document.getElementById(id);if(box)box.innerHTML=html};
+    fill('tl-ab-lessons',lessonsHtml(m.story.ab_tests,'en'));
+    fill('tl-ideas-next',ideasNextHtml(m.story.ideas_next,'en'));
+    fill('tl-cfd-plan',cfdPlanHtml(m.story.cfd_plan,'en'));
     const updated=document.getElementById('tl-deck-updated');
     if(updated)updated.textContent=`Actualizada el ${dateEs(m.updated)} · ${items.length} diapositivas · ${m.current>=0?`fase ${m.current+1} de ${m.phases.length}`:''}`;
     const nextName=document.getElementById('tl-deck-next');

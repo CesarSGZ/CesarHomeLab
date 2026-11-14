@@ -278,3 +278,36 @@ html[data-theme=night] :is(.tl-plot-crop,.tl-curves img){filter:invert(.9) hue-r
 .tl-checklist li strong{display:block}
 .tl-checklist li small{display:inline-block;margin:2px 8px 0 0;padding:1px 7px;border-radius:999px;background:var(--tl-soft);color:var(--tl-ink);font:11px "DM Mono",monospace}
 .tl-checklist li span{color:var(--tl-muted);font-size:13px}
+
+/* Lecciones por prueba, ideas revisadas y plan del CFD */
+.tl-subhead{margin:22px 0 10px;font-size:15px}
+.tl-lessons{margin:0;padding:0;list-style:none;display:grid;gap:8px}
+.tl-lessons li{display:grid;grid-template-columns:minmax(120px,170px) 1fr;gap:14px;padding:12px 14px;border:1px solid var(--tl-line);border-left:4px solid var(--tl-cool);border-radius:12px;background:var(--tl-bg)}
+.tl-lessons li.ok{border-left-color:var(--tl-ok)}
+.tl-lessons li.warn{border-left-color:var(--tl-amber)}
+.tl-lessons li span b{display:block;font:500 13px "DM Mono",monospace}
+.tl-lessons li span small{color:var(--tl-muted);font-size:12.5px}
+.tl-lessons li p{margin:0;font-size:13.5px;line-height:1.5}
+@media (max-width:640px){.tl-lessons li{grid-template-columns:1fr;gap:4px}}
+.tl-nextideas{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px}
+.tl-nextideas article{padding:14px 16px;border:1px solid var(--tl-line);border-radius:14px;background:var(--tl-bg);display:flex;flex-direction:column;gap:6px}
+.tl-nextideas header{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.tl-nextideas header small{text-align:right;color:var(--tl-muted);font:11px "DM Mono",monospace}
+.tl-verdict{white-space:nowrap;padding:2px 9px;border-radius:999px;font-size:11.5px;font-weight:600;background:var(--tl-soft);color:var(--tl-ink)}
+.tl-nextideas .v-try{border-color:color-mix(in srgb,var(--tl-ok) 55%,var(--tl-line))}
+.tl-nextideas .v-try .tl-verdict{background:color-mix(in srgb,var(--tl-ok) 18%,transparent);color:var(--tl-ok)}
+.tl-nextideas .v-maybe .tl-verdict{background:color-mix(in srgb,var(--tl-amber) 18%,transparent);color:var(--tl-amber)}
+.tl-nextideas .v-skip,.tl-nextideas .v-done{opacity:.72}
+.tl-nextideas strong{font-size:14.5px}
+.tl-nextideas p{margin:0;font-size:13px;line-height:1.5;color:var(--tl-muted)}
+.tl-nextideas p.tl-expect{color:var(--tl-ink);font-weight:500}
+.tl-effort{margin-top:auto;color:var(--tl-muted);font:11.5px "DM Mono",monospace}
+.tl-cfd-goal{margin:0 0 12px;font-size:14.5px;line-height:1.55}
+.tl-cfdplan{margin:0;padding:0;list-style:none;display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px}
+.tl-cfdplan li{display:grid;grid-template-columns:auto 1fr;gap:12px;padding:14px;border:1px solid var(--tl-line);border-radius:14px;background:var(--tl-bg)}
+.tl-cfdplan li>b{display:grid;place-items:center;width:28px;height:28px;border-radius:50%;background:var(--tl-soft);color:var(--tl-cool);font:500 13px "DM Mono",monospace}
+.tl-cfdplan li.done>b{background:var(--tl-ok);color:#fff}
+.tl-cfdplan li.next{border-color:var(--tl-cool)}
+.tl-cfdplan small{color:var(--tl-muted);font:11px "DM Mono",monospace;text-transform:uppercase}
+.tl-cfdplan strong{display:block;font-size:14px}
+.tl-cfdplan p{margin:4px 0 0;color:var(--tl-muted);font-size:13px;line-height:1.5}

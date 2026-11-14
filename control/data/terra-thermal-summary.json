@@ -1,6 +1,6 @@
 {
   "schema_version": "1.4.0",
-  "generated_at": "2026-11-14T21:00:00+00:00",
+  "generated_at": "2026-11-14T21:30:00+00:00",
   "project": {
     "id": "terra-powerplant-lab",
     "title": "Terra Powerplant Lab",
@@ -1612,17 +1612,13 @@
         "why": "las de la gráfica y la fuente no se publican: habrá que estimarlas"
       },
       {
-        "what": "Repetir la lista de ideas con el ventilador de abajo metiendo aire",
-        "how": "volver a ajustar el modelo",
-        "why": "las predicciones de agosto suponían que sacaba aire; la idea CFG-010 (darle la vuelta) ya es el montaje actual"
-      },
-      {
         "what": "Cuánto frenan cables, aletas y rejillas",
         "how": "ajustar con las pruebas S04-S07",
         "why": "son las zonas porosas del modelo"
       }
     ],
     "resolved": [
+      "Lista de ideas revisada con lo medido en S04-S07 (story.ideas_next), con el ventilador de abajo metiendo aire.",
       "Panel de arriba: 36 filas de ranuras, medido en la foto desde arriba (14 nov).",
       "Ventilador de arriba: delante, justo encima de la salida de la fuente.",
       "Fuente: toma aire del panel del procesador y lo suelta hacia arriba (César y foto).",
@@ -1727,14 +1723,16 @@
       "evidence_confidence": "measured",
       "hypothesis": "Feeds the CPU fan outside air through a printed PLA ring instead of the foam spacer, so it stops breathing the GPU exhaust.",
       "main_risk": "None seen: the CPU sustains more power and the GPU fan runs slower.",
-      "status": "measured in S06 (13–14 Nov 2026) against S04 (nothing fitted), both at 19 °C",
+      "status": "measured in S06 (13–14 Nov 2026) against S04 (nothing fitted), both at 19 °C: the CPU cooler removes 16 % more heat per degree alone and 21 % with the GPU loaded; the GPU drops 1 °C with a slower fan",
       "measured": {
         "sessions": "S06 vs S04",
         "gpu_delta_C": -1.0,
         "gpu_fan_delta_pct": -1.7,
         "cpu_power_gain_pct": 19,
         "cpu_alone_gain_pct": 12,
-        "date": "2026-11-14"
+        "date": "2026-11-14",
+        "value_note_en": "CPU cooling +21 %",
+        "cpu_cooling_gain_pct": 21
       },
       "plain_es": {
         "title": "Conducto sellado para la CPU (impreso)",
@@ -1765,18 +1763,25 @@
       "gpu_conductance_factor_high": 1.14,
       "gpu_peak_model_low_C": 78.24,
       "gpu_peak_model_high_C": 79.72,
-      "evidence_confidence": "medium",
+      "evidence_confidence": "measured",
       "hypothesis": "Forces the GPU to ingest outside air and limits lateral leakage.",
-      "main_risk": "A guide placed too close to the fans may restrict flow and increase tonal noise.",
-      "status": "printed and fitted on 14 Nov 2026 (canal_gpu.scad v5); A/B test S07 pending",
+      "main_risk": "None seen: the CPU keeps its gain and the rest of the case runs 1–3 °C cooler.",
+      "status": "measured in S07 (14 Nov 2026) against S06, both at 19 °C: GPU 2.1 °C cooler with its fan 1.8 points slower. The model had predicted 0.6–2.1 °C lower peak: the result sits at the optimistic end, with a slower fan on top.",
       "plain_es": {
-        "title": "Conducto sellado para la GPU",
-        "detail": "Una guía que obliga a la gráfica a coger aire de fuera y no el caliente de dentro."
+        "title": "Conducto sellado para la gráfica (impreso)",
+        "detail": "Medido en la S07: la gráfica baja 2,1 °C con el ventilador más lento."
       },
-      "stage": "fitted",
-      "fitted": {
+      "stage": "measured",
+      "measured": {
+        "sessions": "S07 vs S06",
+        "gpu_delta_C": -2.1,
+        "gpu_fan_delta_pct": -1.8,
         "date": "2026-11-14",
-        "test": "S07"
+        "value_note_en": "fan −1.8 pts · CPU unchanged",
+        "predicted_C": [
+          -2.1,
+          -0.6
+        ]
       }
     },
     {
@@ -1840,12 +1845,12 @@
       "evidence_confidence": "medium",
       "hypothesis": "Tests whether a deliberate bottom-to-top path feeds the enclosure more effectively.",
       "main_risk": "May recirculate hot air or fight the other fans.",
-      "status": "premise to recheck: the bottom fan already blows in (César, 14 Nov 2026), so this would mean turning it to exhaust; needs re-screening",
+      "status": "already the current setup: the bottom fan blows in (César, 14 Nov 2026)",
       "plain_es": {
         "title": "Girar el ventilador de abajo",
         "detail": "Que meta aire en vez de sacarlo."
       },
-      "stage": "idea"
+      "stage": "current"
     },
     {
       "configuration_id": "CFG-050",
@@ -2352,19 +2357,19 @@
       },
       {
         "id": "prove",
-        "status": "next",
+        "status": "done",
         "title": {
           "es": "Comprobarlo",
           "en": "Prove it"
         },
         "detail": {
-          "es": "Montar la mejor idea y medir antes y después en el PC real.",
-          "en": "Build the best idea and A/B test it on the real PC."
+          "es": "Los dos canales impresos medidos antes y después en el PC real.",
+          "en": "Both printed ducts A/B tested on the real PC."
         }
       },
       {
         "id": "cfd",
-        "status": "todo",
+        "status": "next",
         "title": {
           "es": "Simular el aire",
           "en": "CFD"
@@ -2501,6 +2506,18 @@
         "kind": "parts",
         "title": "Cables con su recorrido y medidas oficiales",
         "detail": "Los cables salen de la fuente y llegan a donde van: el de la gráfica sube por delante y entra por arriba de la tarjeta, el de 24 pines va junto a la memoria, el EPS por el suelo hasta detrás, el de corriente por el techo hasta la trasera y el riser pasa plano por encima de la columna. Se pueden ocultar con un botón. La memoria, la fuente y la rejilla del ventilador de abajo van con sus medidas oficiales, el botón y los dos USB-C están en el nogal y los dos ventiladores de 92 mm son NF-A9x14."
+      },
+      {
+        "date": "2026-11-14",
+        "kind": "test",
+        "title": "S07: los dos canales",
+        "detail": "Con el canal de la gráfica añadido, la gráfica baja 2,1 °C con el ventilador más lento y todo lo de dentro se enfría 1–3 °C. La CPU dio menos vatios porque Windows puso la carga en menos núcleos; con la temperatura media de los núcleos se ve que conserva su +19 %."
+      },
+      {
+        "date": "2026-11-14",
+        "kind": "page",
+        "title": "Resumen de la campaña en la web",
+        "detail": "Cada prueba con lo que enseñó, las ideas revisadas con lo medido (qué merece la pena y qué no) y el plan del CFD paso a paso."
       }
     ],
     "next_steps": [
@@ -2529,36 +2546,49 @@
         "date": "2026-11-10"
       },
       {
-        "status": "next",
+        "status": "done",
         "title": {
           "es": "Probar los canales impresos (antes / después)",
           "en": "A/B test the printed ducts"
         },
         "detail": {
-          "es": "Sesiones de 71 minutos, cambiando una cosa cada vez: sin nada (hecha), sin paneles (hecha), con el canal del procesador (hecha: +12 % de potencia sola, +19 % combinada) y con los dos canales (falta).",
-          "en": "71-minute sessions changing one thing at a time: nothing fitted (done), panels off (done), CPU duct (done: +12 % power alone, +19 % combined), both ducts (pending)."
-        }
+          "es": "Hecho del 13 al 14 nov: sin nada, sin paneles, con el canal de la CPU y con los dos. Los dos canales: gráfica −3,1 °C con el ventilador más lento y la CPU +19 % de calor sacado por grado.",
+          "en": "Done 13–14 Nov: nothing, panels off, CPU duct and both ducts. Both ducts: GPU −3.1 °C with a slower fan and the CPU removing 19 % more heat per degree."
+        },
+        "date": "2026-11-14"
       },
       {
-        "status": "todo",
+        "status": "done",
         "title": {
           "es": "Ver si la predicción acertó",
           "en": "Check the prediction"
         },
         "detail": {
-          "es": "¿El cambio medido cae dentro del rango que dijo el modelo? Si sí, se gana confianza; si no, se corrige el modelo.",
-          "en": "Did the measured change land inside the predicted range? Re-fit without the test data and decide."
+          "es": "Sí: el modelo daba de 0,6 a 2,1 °C menos para el canal de la gráfica y se midió 2,1 °C menos, además con el ventilador más lento. Acertó, por el lado optimista.",
+          "en": "Yes: the model gave 0.6–2.1 °C lower for the GPU duct and 2.1 °C lower was measured, with a slower fan on top. It was right, on the optimistic side."
+        },
+        "date": "2026-11-14"
+      },
+      {
+        "status": "next",
+        "title": {
+          "es": "Ajustes gratis: curvas y voltajes",
+          "en": "Free tweaks: curves and voltages"
+        },
+        "detail": {
+          "es": "Curva del ventilador de la CPU, Curve Optimizer y límite de la gráfica, cada uno con su sesión de 71 minutos frente a la S07.",
+          "en": "CPU fan curve, Curve Optimizer and GPU power limit, each with its own 71-minute session against S07."
         }
       },
       {
-        "status": "later",
+        "status": "todo",
         "title": {
           "es": "Simular el aire (CFD)",
           "en": "Run the CFD"
         },
         "detail": {
-          "es": "Cuando se cumplan las condiciones de la lista: ver dónde se queda atrapado el aire caliente y qué distribución de ventiladores merece la pena.",
-          "en": "Once the gate is met: where hot air recirculates and which fan layout deserves a rebuild."
+          "es": "Cerrar las comprobaciones, montar el caso base y validarlo contra S04 y S07 antes de usarlo para decidir (plan en la sección 08).",
+          "en": "Close the checklist, set up the base case and validate it on S04 and S07 before using it to decide (plan in section 08)."
         }
       }
     ],
@@ -2577,6 +2607,11 @@
         "done": true,
         "es": "Pruebas repetidas que coinciden en ±1 °C",
         "en": "Repeated peaks agree within ±1 °C"
+      },
+      {
+        "done": true,
+        "es": "Cuatro configuraciones medidas para validar el CFD (S04–S07)",
+        "en": "Four measured configurations to validate the CFD against (S04–S07)"
       },
       {
         "done": false,
@@ -2604,8 +2639,13 @@
       },
       {
         "tone": "ok",
-        "title": "Un canal bien hecho cuenta",
-        "detail": "El canal impreso de la CPU le deja usar un 19 % más de potencia cuando trabajan las dos piezas a la vez. Gana a quitar los paneles: lo que importa es que el ventilador coja aire fresco de fuera."
+        "title": "Los dos canales funcionan",
+        "detail": "Con los dos canales impresos, la gráfica va 3,1 °C más fría con el ventilador 3,5 puntos más lento y el disipador de la CPU saca un 19 % más de calor por grado que sin nada. Ganan a quitar los paneles: lo que importa es que cada ventilador coja aire de fuera."
+      },
+      {
+        "tone": "info",
+        "title": "Los vatios de la CPU engañan",
+        "detail": "A 87 °C el procesador da más o menos vatios según en cuántos núcleos reparta Windows la carga. Para comparar se usa la temperatura media de los núcleos: así las cuentas cuadran en todas las pruebas."
       },
       {
         "tone": "ok",
@@ -2621,8 +2661,8 @@
       },
       {
         "tone": "info",
-        "title": "No hay milagros",
-        "detail": "La mejor idea baja solo un par de grados. Comprar ventiladores a ciegas no compensa.",
+        "title": "Pocos grados, pero reales",
+        "detail": "Ningún cambio de ventiladores daba más de 2–3 °C en el modelo. Los canales los han dado de verdad; lo siguiente más rentable ya es software (curvas y voltajes), no comprar piezas.",
         "metric": "best_saving"
       },
       {
@@ -2700,8 +2740,8 @@
       ]
     },
     "ab_tests": {
-      "note_es": "El procesador se para solo hacia 87 °C y la gráfica hacia 78 °C, así que lo que se compara es cuánta potencia aguanta el procesador a esa temperatura y a qué velocidad tiene que ir el ventilador de la gráfica.",
-      "note_en": "The CPU throttles itself near 87 °C and the GPU fan holds about 78 °C, so the comparison is how much power the CPU sustains and how hard the GPU fan has to work.",
+      "note_es": "El procesador se para solo hacia 87 °C en su núcleo más caliente y la gráfica mueve su ventilador para quedarse hacia 78 °C. Por eso, para el procesador se compara cuánto calor saca su disipador por cada grado que sus núcleos (de media) están por encima de la habitación; los vatios a secas dependen de en cuántos núcleos reparte Windows la carga. Para la gráfica, que siempre gasta 300 W, se mira su temperatura y su ventilador.",
+      "note_en": "The CPU throttles itself when its hottest core reaches about 87 °C, and the GPU fan holds about 78 °C. So for the CPU the comparison is the heat its cooler removes per degree the cores (on average) sit above the room; raw watts depend on how many cores Windows spreads the load over. For the GPU, always at 300 W, it is its temperature and fan speed.",
       "reference": "S04",
       "rows": [
         {
@@ -2716,7 +2756,12 @@
           "cpu_alone_W": 85.0,
           "cpu_combined_W": 83.5,
           "gpu_C": 78.0,
-          "gpu_fan_pct": 61.6
+          "gpu_fan_pct": 61.6,
+          "cpu_alone_WpC": 1.47,
+          "cpu_combined_WpC": 1.422,
+          "lesson_tone": "info",
+          "lesson_es": "La prueba se repite: tres sesiones seguidas dan las mismas temperaturas estables con menos de 0,2 °C de diferencia, así que medio grado ya se ve. Llevaban la espuma de Noctua, que se quitó después.",
+          "lesson_en": "The test repeats: three back-to-back sessions give the same steady temperatures within 0.2 °C, so half a degree is visible. They had the Noctua foam spacer, removed afterwards."
         },
         {
           "id": "S04",
@@ -2730,7 +2775,12 @@
           "cpu_alone_W": 96.3,
           "cpu_combined_W": 87.7,
           "gpu_C": 78.9,
-          "gpu_fan_pct": 59.5
+          "gpu_fan_pct": 59.5,
+          "cpu_alone_WpC": 1.578,
+          "cpu_combined_WpC": 1.443,
+          "lesson_tone": "info",
+          "lesson_es": "La referencia, sin nada. Quitar la espuma ya mejora un 7 % lo que saca el disipador de la CPU: la espuma tapaba parte de la rejilla.",
+          "lesson_en": "The reference, nothing fitted. Removing the foam already lets the CPU cooler remove 7 % more heat per degree: the foam blocked part of the grille."
         },
         {
           "id": "S05",
@@ -2744,7 +2794,12 @@
           "cpu_alone_W": 98.1,
           "cpu_combined_W": 94.2,
           "gpu_C": 77.9,
-          "gpu_fan_pct": 59.9
+          "gpu_fan_pct": 59.9,
+          "cpu_alone_WpC": 1.676,
+          "cpu_combined_WpC": 1.585,
+          "lesson_tone": "warn",
+          "lesson_es": "Quitar los dos paneles solo da +6 % a la CPU (+10 % con la gráfica a la vez) y la gráfica se queda igual. Las rejillas frenan poco: lo que importa es que cada ventilador coja aire de fuera y no el caliente de dentro.",
+          "lesson_en": "Taking both panels off gives the CPU only +6 % (+10 % with the GPU loaded) and the GPU stays the same. The grilles barely restrict: what matters is that each fan breathes outside air, not the hot air inside."
         },
         {
           "id": "S06",
@@ -2758,15 +2813,208 @@
           "cpu_alone_W": 107.4,
           "cpu_combined_W": 104.6,
           "gpu_C": 77.9,
-          "gpu_fan_pct": 57.8
+          "gpu_fan_pct": 57.8,
+          "cpu_alone_WpC": 1.829,
+          "cpu_combined_WpC": 1.749,
+          "lesson_tone": "ok",
+          "lesson_es": "El canal de la CPU gana a quitar los paneles: su disipador saca un 16 % más por grado (21 % con la gráfica). La gráfica también baja 1 °C con el ventilador más lento, porque el procesador deja de calentar el aire de dentro.",
+          "lesson_en": "The CPU duct beats taking the panels off: its cooler removes 16 % more heat per degree (21 % with the GPU loaded). The GPU also drops 1 °C with a slower fan, because the CPU stops heating the air inside."
         },
         {
           "id": "S07",
-          "status": "todo",
+          "status": "done",
           "title_es": "Los dos canales",
           "title_en": "Both ducts",
-          "detail_es": "Se añade el canal de la gráfica.",
-          "detail_en": "The GPU duct is added."
+          "detail_es": "Canal de la CPU y canal de la gráfica montados, paneles puestos.",
+          "detail_en": "CPU duct and GPU duct fitted, panels on.",
+          "date": "2026-11-14",
+          "ambient_C": 19,
+          "cpu_alone_W": 93.6,
+          "cpu_combined_W": 91.6,
+          "gpu_C": 75.8,
+          "gpu_fan_pct": 56.0,
+          "cpu_alone_WpC": 1.871,
+          "cpu_combined_WpC": 1.715,
+          "lesson_tone": "ok",
+          "lesson_es": "El canal de la gráfica la deja 2,1 °C más fría que en la S06 con el ventilador 1,8 puntos más lento (−3,1 °C y −3,5 puntos frente a no llevar nada). La CPU conserva lo ganado (+19 %) y todo lo de dentro (memoria, VRM, placa) baja 1–3 °C. Sus vatios bajaron solo porque Windows puso la carga en menos núcleos.",
+          "lesson_en": "The GPU duct makes it 2.1 °C cooler than in S06 with its fan 1.8 points slower (−3.1 °C and −3.5 points against nothing fitted). The CPU keeps its gain (+19 %) and everything inside (RAM, VRM, board) drops 1–3 °C. Its watts fell only because Windows put the load on fewer cores."
+        }
+      ],
+      "metric": "cpu_WpC",
+      "best": "S07"
+    },
+    "ideas_next": {
+      "updated": "2026-11-14",
+      "note_es": "Revisado con las pruebas S04–S07. Techo medido: quitar los paneles (S05) es lo máximo que puede dar cualquier cambio que solo abra más rejilla.",
+      "note_en": "Re-checked against tests S04–S07. Measured ceiling: taking the panels off (S05) is the most any change that only opens more grille can give.",
+      "items": [
+        {
+          "id": "CPU fan curve",
+          "verdict": "try",
+          "title_es": "Curva del ventilador de la CPU más alegre",
+          "title_en": "Faster CPU fan curve",
+          "expect_es": "Gratis y reversible: más calor fuera por grado sin tocar nada físico.",
+          "expect_en": "Free and reversible: more heat removed per degree with no hardware change.",
+          "why_es": "El NF-A9x14 del disipador va a unas 1.100–1.270 rpm a 87 °C y llega a 2.500. Ahora que respira aire de fuera, girar más rápido le sienta directamente.",
+          "why_en": "The cooler’s NF-A9x14 runs at about 1,100–1,270 rpm at 87 °C and can reach 2,500. Now that it breathes outside air, spinning faster pays off directly.",
+          "effort_es": "BIOS · 10 min · probar con ruido",
+          "effort_en": "BIOS · 10 min · check the noise"
+        },
+        {
+          "id": "CPU undervolt",
+          "verdict": "try",
+          "title_es": "Bajar el voltaje de la CPU (Curve Optimizer)",
+          "title_en": "CPU undervolt (Curve Optimizer)",
+          "expect_es": "Más trabajo por vatio al mismo límite de 87 °C.",
+          "expect_en": "More work per watt at the same 87 °C limit.",
+          "why_es": "El procesador siempre llega a su límite de temperatura, así que cada vatio ahorrado se convierte en rendimiento. Hay que comprobar la estabilidad.",
+          "why_en": "The CPU always reaches its temperature limit, so every watt saved turns into performance. Stability has to be checked.",
+          "effort_es": "BIOS · una tarde de pruebas",
+          "effort_en": "BIOS · an afternoon of testing"
+        },
+        {
+          "id": "GPU power",
+          "verdict": "try",
+          "title_es": "Gráfica a 270–280 W o con menos voltaje",
+          "title_en": "GPU at 270–280 W or undervolted",
+          "expect_es": "Unos 3–4 °C menos o un ventilador más lento, perdiendo poco rendimiento (hay que medirlo).",
+          "expect_en": "About 3–4 °C less or a slower fan, losing little performance (to be measured).",
+          "why_es": "La gráfica pone dos de cada tres vatios de la caja. Con 0,19 °C por vatio medidos, 20–30 W menos se notan más que cualquier cambio de ventiladores.",
+          "why_en": "The GPU puts in two of every three watts in the case. At the measured 0.19 °C per watt, 20–30 W less beats any fan change.",
+          "effort_es": "Software · 15 min",
+          "effort_en": "Software · 15 min"
+        },
+        {
+          "id": "CFG-020",
+          "verdict": "maybe",
+          "title_es": "Más extracción por arriba",
+          "title_en": "More exhaust at the top",
+          "expect_es": "Poco para la CPU y la gráfica (ya respiran de fuera); ayudaría a memoria, VRM, SSD y fuente.",
+          "expect_en": "Little for CPU and GPU (they already breathe outside air); would help RAM, VRM, SSD and PSU.",
+          "why_es": "Con los canales, el calor de la gráfica se queda dentro hasta que sale por arriba y por las ranuras libres. El CFD dirá si se acumula.",
+          "why_en": "With the ducts, the GPU heat stays inside until it leaves through the top and the free slots. The CFD will show whether it builds up.",
+          "effort_es": "Esperar al CFD",
+          "effort_en": "Wait for the CFD"
+        },
+        {
+          "id": "CFG-050",
+          "verdict": "maybe",
+          "title_es": "Segundo ventilador empujando en el canal de la CPU",
+          "title_en": "Second fan pushing into the CPU duct",
+          "expect_es": "Algo más que subir la curva del ventilador actual, con más ruido.",
+          "expect_en": "A little more than raising the current fan curve, with more noise.",
+          "why_es": "Haría “push-pull” en el canal ya sellado. Antes conviene agotar la curva del ventilador que ya está.",
+          "why_en": "It would make a push-pull in the sealed duct. Worth it only after the existing fan’s curve is used up.",
+          "effort_es": "Imprimir soporte + ventilador",
+          "effort_en": "Print a mount + buy a fan"
+        },
+        {
+          "id": "CFG-040",
+          "verdict": "skip",
+          "title_es": "Ventilador extra frente a la gráfica",
+          "title_en": "Booster fan in front of the GPU",
+          "expect_es": "Como mucho ~1 °C, con ruido y choque entre ventiladores.",
+          "expect_en": "About 1 °C at most, with noise and fan-on-fan interference.",
+          "why_es": "Su sitio lo ocupa ahora el canal, que ya lleva aire de fuera a los tres ventiladores. Sin paneles (S05) la gráfica no mejoraba: falta presión, no entrada.",
+          "why_en": "The duct now takes its place and already feeds outside air to all three fans. Without panels (S05) the GPU did not improve: it is not short of inlet.",
+          "effort_es": "—",
+          "effort_en": "—"
+        },
+        {
+          "id": "CFG-030",
+          "verdict": "skip",
+          "title_es": "Más entradas por abajo",
+          "title_en": "More bottom intakes",
+          "expect_es": "Casi nada para la CPU y la gráfica.",
+          "expect_en": "Next to nothing for CPU and GPU.",
+          "why_es": "El de abajo ya mete aire y los dos grandes consumidores ya cogen el suyo de fuera por los canales.",
+          "why_en": "The bottom fan already blows in and both big heat sources already draw their own air from outside through the ducts.",
+          "effort_es": "—",
+          "effort_en": "—"
+        },
+        {
+          "id": "Grille",
+          "verdict": "skip",
+          "title_es": "Más rejilla o cortar los paneles",
+          "title_en": "More grille or cut panels",
+          "expect_es": "Por debajo de lo que dieron los paneles quitados: +6 % en la CPU y nada en la gráfica.",
+          "expect_en": "Less than panels off gave: +6 % for the CPU and nothing for the GPU.",
+          "why_es": "La S05 es el techo de todo lo que solo abre más paso; los canales ya lo superan.",
+          "why_en": "S05 is the ceiling for anything that only opens more area; the ducts already beat it.",
+          "effort_es": "—",
+          "effort_en": "—"
+        },
+        {
+          "id": "CFG-080",
+          "verdict": "skip",
+          "title_es": "Ordenar los cables",
+          "title_en": "Tidy the cables",
+          "expect_es": "Menos de 1 °C según el modelo.",
+          "expect_en": "Under 1 °C according to the model.",
+          "why_es": "Los cables no están en el camino del aire de los canales. Mucho trabajo para casi nada.",
+          "why_en": "The cables are not in the ducted air paths. A lot of work for almost nothing.",
+          "effort_es": "—",
+          "effort_en": "—"
+        },
+        {
+          "id": "CFG-010",
+          "verdict": "done",
+          "title_es": "Ventilador de abajo metiendo aire",
+          "title_en": "Bottom fan as intake",
+          "expect_es": "Ya está así montado.",
+          "expect_en": "Already set up this way.",
+          "why_es": "La idea de agosto era darle la vuelta, pero ya mete aire.",
+          "why_en": "The August idea was to flip it, but it already blows in.",
+          "effort_es": "",
+          "effort_en": ""
+        }
+      ]
+    },
+    "cfd_plan": {
+      "goal_es": "El CFD no sustituye a las pruebas: sirve para ver por dónde va el aire dentro de la caja y probar cambios en el ordenador antes de imprimir o comprar nada. Solo nos fiaremos de él si reproduce lo que ya hemos medido.",
+      "goal_en": "The CFD does not replace the tests: it shows where the air goes inside the case and lets us try changes on the computer before printing or buying anything. It is trusted only if it reproduces what was already measured.",
+      "steps": [
+        {
+          "status": "done",
+          "title_es": "Modelo 3D de la caja",
+          "title_en": "3D model of the case",
+          "detail_es": "Todas las piezas con medidas oficiales o sacadas de las fotos, cables incluidos, exportadas en STL (38 piezas).",
+          "detail_en": "Every part with official or photo-derived dimensions, cables included, exported as STL (38 parts)."
+        },
+        {
+          "status": "done",
+          "title_es": "Casos medidos para comparar",
+          "title_en": "Measured cases to compare against",
+          "detail_es": "S04 (nada), S05 (sin paneles), S06 (canal CPU) y S07 (los dos canales), con vatios, temperaturas y velocidades de los ventiladores.",
+          "detail_en": "S04 (nothing), S05 (panels off), S06 (CPU duct) and S07 (both ducts), with watts, temperatures and fan speeds."
+        },
+        {
+          "status": "next",
+          "title_es": "Cerrar las comprobaciones",
+          "title_en": "Close the checklist",
+          "detail_es": "Foto del suelo, medir la columna central y el centro del ventilador de la CPU, y las curvas de los ventiladores (lista de la sección 05).",
+          "detail_en": "Floor photo, measure the spine and CPU fan centre, and the fan curves (checklist in section 05)."
+        },
+        {
+          "status": "todo",
+          "title_es": "Montar el caso base",
+          "title_en": "Set up the base case",
+          "detail_es": "Malla de la caja (OpenFOAM), ventiladores como discos con su curva presión-caudal, el calor medido en cada pieza y cables, aletas y rejillas como zonas que frenan el aire.",
+          "detail_en": "Mesh the case (OpenFOAM), fans as discs with their pressure-flow curve, the measured heat in each part, and cables, fins and grilles as porous zones."
+        },
+        {
+          "status": "todo",
+          "title_es": "Validarlo con S04 y S07",
+          "title_en": "Validate it on S04 and S07",
+          "detail_es": "Tiene que reproducir el cambio medido entre no llevar nada y los dos canales: la gráfica 3 °C más fría y la CPU sacando un 19 % más por grado.",
+          "detail_en": "It must reproduce the measured change from nothing to both ducts: GPU 3 °C cooler and the CPU removing 19 % more heat per degree."
+        },
+        {
+          "status": "todo",
+          "title_es": "Usarlo para decidir",
+          "title_en": "Use it to decide",
+          "detail_es": "Ver si el aire caliente de la gráfica se queda atrapado, y probar en virtual la extracción de arriba o un segundo ventilador antes de construir nada.",
+          "detail_en": "See whether the GPU’s hot air gets trapped, and try the top exhaust or a second fan virtually before building anything."
         }
       ]
     }
