@@ -339,8 +339,10 @@ function graficoPaper(h, clave, inicial) {
   const conIndice = clave && h.some(x => x.indices?.[clave] !== undefined);
   if (conIndice) h = h.slice(h.findIndex(x => x.indices?.[clave] !== undefined));
   if (h.length < 2) { box.innerHTML = '<p class="bt-note">La gráfica de la estrategia aparecerá con la segunda foto desde que empezó el plan del dinero.</p>'; return; }
-  const base = conIndice ? h[0].indices[clave] : inicial;
-  const valorDe = x => conIndice ? (x.indices?.[clave] ?? null) : clave ? (x.estrategias?.[clave] ?? null) : x.valor;
+  // el índice vale 1 al arrancar el plan (unidades = dinero puesto); la foto de ese primer día se tomó con las órdenes
+  // del arranque a medias y su índice no es fiable, así que la gráfica parte de 1 ese día
+  const base = conIndice ? 1 : inicial;
+  const valorDe = x => conIndice ? (x === h[0] ? 1 : x.indices?.[clave] ?? null) : clave ? (x.estrategias?.[clave] ?? null) : x.valor;
   const v = h.map(x => valorDe(x) === null ? null : valorDe(x) / base), b = h.map(x => x.sp500eur && h[0].sp500eur ? x.sp500eur / h[0].sp500eur : null);
   const all = [...v.filter(x => x !== null), ...b.filter(Boolean), 1], lo = Math.min(...all), hi = Math.max(...all);
   const narrow = box.clientWidth < 600, W = narrow ? 600 : 1000, H = narrow ? 360 : 300, L = 60, R = 12, T = 12, B = 28, n = h.length;
