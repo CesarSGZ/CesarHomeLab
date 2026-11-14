@@ -316,3 +316,11 @@ html[data-theme=day] .dk-heatbar span{color:#fff}
 .dk-gate .dk-checks{margin-top:4px}
 .dk-gate .dk-checks li{font-size:13px;color:var(--tl-muted)}
 .dk-gate .dk-checks li::before{content:"□";margin-right:6px;color:var(--tl-amber)}
+
+/* Diapositivas de lecciones, ideas revisadas y CFD (reutilizan las clases de la página) */
+.tl-deck .tl-lessons li,.tl-deck .tl-nextideas article,.tl-deck .tl-cfdplan li{background:transparent}
+.tl-deck .tl-nextideas{grid-template-columns:repeat(auto-fill,minmax(220px,1fr))}
+.tl-deck .tl-lessons li p,.tl-deck .tl-nextideas p,.tl-deck .tl-cfdplan p{font-size:13px}
+.ab{--ab-fan:150px}
+.ab-fan-sub{display:block;margin-top:3px;color:var(--tl-muted);font:11px "DM Mono",monospace}
+.ab-fan b small{font-weight:500}

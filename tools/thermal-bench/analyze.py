@@ -6,6 +6,7 @@ rise over idle and thermal resistance (steady - ambient) / power. Then the sprea
 between sessions, compared with the CFD-gate target of +/-1 C.
 """
 import argparse
+import re
 import csv
 import json
 import os
@@ -34,7 +35,7 @@ def cpu_series(folder):
     path = folder / 'hwinfo.csv'
     if not path.exists() or path.stat().st_size < 100:
         return []
-    temps, power = {}, {}
+    temps, power, cores = {}, {}, defaultdict(list)
     with open(path, newline='', encoding='utf8') as fh:
         for r in csv.DictReader(fh):
             t = round(float(r['epoch']))
@@ -42,7 +43,15 @@ def cpu_series(folder):
                 temps[t] = float(r['value'])
             elif r['label'] in ('CPU PPT', 'CPU Package Power'):
                 power[t] = float(r['value'])
-    return [(t, temps[t], power.get(t, float('nan')), float('nan')) for t in sorted(temps)]
+            elif CORE_T.match(r['label']):
+                cores[t].append(float(r['value']))
+    # 4th column: mean of the per-core temperatures. Tctl is the hottest spot, so the power the CPU holds
+    # at its 87 C limit depends on how Windows spreads the threads; the core mean does not.
+    return [(t, temps[t], power.get(t, float('nan')), st.mean(cores[t]) if cores.get(t) else float('nan'))
+            for t in sorted(temps)]
+
+
+CORE_T = re.compile(r'Core\d+ \(CCD\d\)$')
 
 
 def window(series, a, b):
@@ -78,6 +87,11 @@ def summarise(sid, ambient):
                 row['fan_pct'] = round(st.mean(r[3] for r in steady), 1)
             if amb is not None and P_ss > 0:
                 row['rth_C_per_W'] = round((T_ss - amb) / P_ss, 4)
+                if chip == 'cpu':
+                    core = [r[3] for r in steady if r[3] == r[3]]
+                    if core:
+                        row['core_mean_C'] = round(st.mean(core), 2)
+                        row['rth_core_C_per_W'] = round((st.mean(core) - amb) / P_ss, 4)
             out['phases'][f'{chip}@{phase}'] = row
         out[f'{chip}_idle_C'] = round(idle_T, 2) if idle_T is not None else None
     return out

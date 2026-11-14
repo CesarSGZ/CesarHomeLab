@@ -193,7 +193,7 @@ function renderThermalRanking(screening){
   const baselinePeak=baseline?baseline.gpu_peak_model_low_C:80.31;
   const measured=screening.filter(item=>item.stage==='measured'&&item.measured);
   const ideas=screening
-    .filter(item=>item.configuration_id!=='CFG-000'&&item.gpu_peak_model_low_C!=null)
+    .filter(item=>item.configuration_id!=='CFG-000'&&item.gpu_peak_model_low_C!=null&&item.stage!=='measured'&&item.stage!=='current')
     .map(item=>({...item,mid:(item.gpu_peak_model_low_C+item.gpu_peak_model_high_C)/2}))
     .sort((a,b)=>(a.stage==='fitted'?-1:0)-(b.stage==='fitted'?-1:0)||a.mid-b.mid);
   const lo=Math.floor(Math.min(...ideas.map(item=>item.gpu_peak_model_low_C)))-.5;
@@ -226,7 +226,7 @@ function renderThermalRanking(screening){
     dot.title=`Measured: ${m.gpu_delta_C} °C on the GPU`;
     track.append(marker,dot);
     const value=makeElement('div','tl-rank-value');
-    value.append(makeElement('strong',null,`GPU ${m.gpu_delta_C>0?'+':'−'}${Math.abs(m.gpu_delta_C).toFixed(1)} °C`),makeElement('small',null,`CPU +${m.cpu_power_gain_pct} % power`));
+    value.append(makeElement('strong',null,`GPU ${m.gpu_delta_C>0?'+':'−'}${Math.abs(m.gpu_delta_C).toFixed(1)} °C`),makeElement('small',null,m.value_note_en||`CPU +${m.cpu_power_gain_pct} % power`));
     summary.append(name,track,value);
     const more=makeElement('div','tl-rank-more');
     [['What',item.hypothesis],['Result',item.status],['Risk',item.main_risk]].forEach(([label,text])=>{
