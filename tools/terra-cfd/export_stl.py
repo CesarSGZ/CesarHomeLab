@@ -187,6 +187,14 @@ def export(out):
             save(mesh, part["id"].lower(), "solid", part, extra)
 
     for panel in g["panels"]:
+        for o in panel.get("openings", []):
+            mesh = Mesh()
+            x = L - t
+            a, b = (o["y"][0], o["z"][0]), (o["y"][1], o["z"][1])
+            mesh.quad((x, a[0], a[1]), (x, b[0], a[1]), (x, b[0], b[1]), (x, a[0], b[1]))
+            save(mesh, o["id"].lower(), "opening", {"id": o["id"], "label": o["note"], "certainty": panel["certainty"]},
+                 {"bc": "patch abierto" if o["porosity"] >= 1 else f"porous baffle, fracción abierta ~{o['porosity']}",
+                  "face": panel["face"], "open_fraction": o["porosity"]})
         gr = panel.get("grille")
         if not gr:
             continue
@@ -198,10 +206,10 @@ def export(out):
                 for z0, z1 in ((gr["slot_z"][0], gap[0]), (gap[1], gr["slot_z"][1])):
                     add_slot(mesh, 1, y, 0, x, z0, z1, 2, gr["slot_w"])
         elif panel["face"] == "z+":
-            xx = gr["x_range"][0]
-            while xx <= gr["x_range"][1] + 1e-6:
-                add_slot(mesh, 2, H - t, 0, xx, gr["y_range"][0], gr["y_range"][1], 1, gr["slot_w"])
-                xx += gr["pitch"]
+            for k, x in enumerate(gr["rows_x"]):
+                gap = gr["gap_y"]["even" if k % 2 == 0 else "odd"]
+                for y0, y1 in ((gr["slot_y"][0], gap[0]), (gap[1], gr["slot_y"][1])):
+                    add_slot(mesh, 2, H - t, 0, x, y0, y1, 1, gr["slot_w"])
         save(mesh, panel["id"].lower() + "_slots", "opening", panel,
              {"bc": "patch de presión total / entrada-salida libre", "face": panel["face"]})
 

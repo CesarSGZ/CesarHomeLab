@@ -262,15 +262,24 @@ function addDesk(root, kase) {
 function addCaseFrame(root) {
   const geometry = new THREE.BoxGeometry(CASE.x * S, CASE.z * S, CASE.y * S);
   root.add(new THREE.LineSegments(new THREE.EdgesGeometry(geometry), new THREE.LineBasicMaterial({ color: 0x9fbf98, transparent: true, opacity: 0.85 })));
-  const walnut = new THREE.Mesh(
-    new THREE.BoxGeometry(0.03, CASE.z * S * 0.98, CASE.y * S * 0.98),
-    new THREE.MeshStandardMaterial({ color: 0x7a4d2a, roughness: 0.7, transparent: true, opacity: 0.6 }),
+  // Frontal: chapa maciza y el listón de nogal abajo (botón y USB-C)
+  const front = new THREE.Mesh(
+    new THREE.PlaneGeometry(CASE.y * S, CASE.z * S),
+    new THREE.MeshStandardMaterial({ color: 0x86a58a, transparent: true, opacity: 0.28, side: THREE.DoubleSide, depthWrite: false }),
   );
-  walnut.position.copy(P(-1.5, CASE.y / 2, CASE.z / 2));
+  front.rotation.y = Math.PI / 2;
+  front.position.copy(P(-0.5, CASE.y / 2, CASE.z / 2));
+  root.add(front);
+  const walnut = new THREE.Mesh(
+    new THREE.BoxGeometry(0.04, 36 * S, CASE.y * S),
+    new THREE.MeshStandardMaterial({ color: 0x7a4d2a, roughness: 0.7 }),
+  );
+  walnut.position.copy(P(-2, CASE.y / 2, -2));
   root.add(walnut);
 }
 
 function addPanel(group, panel) {
+  if (panel.openings) return addRear(group, panel);
   const g = panel.grille;
   if (!g) return;
   const material = new THREE.MeshStandardMaterial({
@@ -293,7 +302,10 @@ function addPanel(group, panel) {
     mesh.position.copy(P(0, panel.face === 'y-' ? -0.5 : CASE.y + 0.5, 0));
   } else if (panel.face === 'z+') {
     const shape = rect(CASE.x, CASE.y);
-    for (let x = g.x_range[0]; x <= g.x_range[1]; x += g.pitch) shape.holes.push(slotPath(x, g.y_range[0], g.y_range[1], g.slot_w));
+    g.rows_x.forEach((x, k) => {
+      const gap = k % 2 === 0 ? g.gap_y.even : g.gap_y.odd;
+      for (const [y0, y1] of [[g.slot_y[0], gap[0]], [gap[1], g.slot_y[1]]]) shape.holes.push(slotPath(x, y0, y1, g.slot_w));
+    });
     mesh = new THREE.Mesh(new THREE.ShapeGeometry(shape, 4), material);
     mesh.rotation.x = Math.PI / 2;
     mesh.position.copy(P(0, 0, CASE.z + 0.5));
@@ -301,6 +313,34 @@ function addPanel(group, panel) {
   if (!mesh) return;
   mesh.scale.setScalar(S);
   group.add(mesh);
+}
+
+// Trasera: chapa con los huecos de la I/O (abiertos del todo o con rejilla)
+function addRear(group, panel) {
+  const sheet = new THREE.Shape();
+  sheet.moveTo(0, 0); sheet.lineTo(CASE.y, 0); sheet.lineTo(CASE.y, CASE.z); sheet.lineTo(0, CASE.z); sheet.lineTo(0, 0);
+  for (const o of panel.openings) {
+    const hole = new THREE.Path();
+    hole.moveTo(o.y[0], o.z[0]); hole.lineTo(o.y[1], o.z[0]); hole.lineTo(o.y[1], o.z[1]); hole.lineTo(o.y[0], o.z[1]); hole.lineTo(o.y[0], o.z[0]);
+    sheet.holes.push(hole);
+  }
+  const material = new THREE.MeshStandardMaterial({ color: 0x86a58a, transparent: true, opacity: 0.22, side: THREE.DoubleSide, depthWrite: false });
+  const mesh = new THREE.Mesh(new THREE.ShapeGeometry(sheet), material);
+  // Plano y-z en x = L: el eje X del shape es y del dato (mundo z), el Y del shape es z (mundo y)
+  mesh.rotation.y = -Math.PI / 2;
+  mesh.scale.setScalar(S);
+  mesh.position.copy(P(CASE.x + 0.5, 0, 0));
+  group.add(mesh);
+  for (const o of panel.openings) {
+    if (o.porosity >= 1) continue;
+    const plate = new THREE.Mesh(
+      new THREE.PlaneGeometry((o.y[1] - o.y[0]) * S, (o.z[1] - o.z[0]) * S),
+      new THREE.MeshStandardMaterial({ color: 0x20262a, transparent: true, opacity: 0.55, side: THREE.DoubleSide, depthWrite: false }),
+    );
+    plate.rotation.y = Math.PI / 2;
+    plate.position.copy(P(CASE.x - 2, (o.y[0] + o.y[1]) / 2, (o.z[0] + o.z[1]) / 2));
+    group.add(plate);
+  }
 }
 
 // Ranura con extremos redondos centrada en x, de a a b (coordenadas del plano del panel)
@@ -364,7 +404,23 @@ function addFan(group, part, mat, pick) {
   const f = part.fan;
   const r = (f.diameter / 2) * S;
   const fanGroup = new THREE.Group();
-  fanGroup.add(pick(new THREE.Mesh(new THREE.TorusGeometry(r, 0.02, 8, 48), mat(part, { opacity: 0.95 })), part));
+  if (f.frame) {
+    // Marco cuadrado oficial con el agujero redondo de las aspas
+    const side = f.frame;
+    const shape = new THREE.Shape();
+    const c = side / 2;
+    shape.moveTo(-c + 4, -c); shape.lineTo(c - 4, -c); shape.quadraticCurveTo(c, -c, c, -c + 4);
+    shape.lineTo(c, c - 4); shape.quadraticCurveTo(c, c, c - 4, c); shape.lineTo(-c + 4, c);
+    shape.quadraticCurveTo(-c, c, -c, c - 4); shape.lineTo(-c, -c + 4); shape.quadraticCurveTo(-c, -c, -c + 4, -c);
+    const hole = new THREE.Path();
+    hole.absarc(0, 0, f.diameter / 2 + 1, 0, Math.PI * 2, true);
+    shape.holes.push(hole);
+    const frame = new THREE.Mesh(new THREE.ExtrudeGeometry(shape, { depth: f.thickness, bevelEnabled: false, curveSegments: 32 }), mat(part, { opacity: 0.55 }));
+    frame.scale.setScalar(S);
+    frame.position.z = -(f.thickness / 2) * S;
+    fanGroup.add(pick(frame, part));
+  }
+  fanGroup.add(pick(new THREE.Mesh(new THREE.TorusGeometry(r, f.frame ? 0.012 : 0.02, 8, 48), mat(part, { opacity: 0.95 })), part));
   fanGroup.add(pick(new THREE.Mesh(new THREE.CircleGeometry(r, 40), mat(part, { opacity: 0.07, side: THREE.DoubleSide })), part));
   const hub = pick(new THREE.Mesh(new THREE.CylinderGeometry(r * f.hub_ratio, r * f.hub_ratio, Math.max(f.thickness * S, 0.03), 20), mat(part, { opacity: 0.85 })), part);
   hub.rotation.x = Math.PI / 2;
@@ -493,6 +549,10 @@ function addCables(group, part, mat, pick) {
 // ---------- Airflow ----------
 function addAirflow(flow, model) {
   for (const part of model.components) {
+    if (part.exhaust?.face === 'z+') {
+      const b = part.box;
+      flow.add(arrow(P(b.min[0] + b.size[0] / 2, b.min[1] + b.size[1] / 2, b.min[2] + b.size[2] + 1), new THREE.Vector3(0, 1, 0), 0.22, AIR_OUT));
+    }
     if (!part.fan) continue;
     const f = part.fan;
     const axis = dataAxis(f.axis);
