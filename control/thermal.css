@@ -259,3 +259,6 @@ html[data-theme=night] :is(.tl-plot-crop,.tl-curves img){filter:invert(.9) hue-r
   .tl-rank-more{grid-template-columns:1fr;gap:8px}
   .tl-bar{grid-template-columns:minmax(84px,auto) 1fr 56px;gap:10px}
 }
+
+/* Visor 3D: segunda fila de botones (capas y colores) */
+.thermal-view-controls.thermal-view-layers{margin-top:-6px}

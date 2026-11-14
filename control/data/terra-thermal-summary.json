@@ -1,6 +1,6 @@
 {
   "schema_version": "1.4.0",
-  "generated_at": "2026-11-14T15:00:00+00:00",
+  "generated_at": "2026-11-14T16:00:00+00:00",
   "project": {
     "id": "terra-powerplant-lab",
     "title": "Terra Powerplant Lab",
@@ -43,7 +43,7 @@
         "fan": "CPU-01 · Thermalright TL-9015R (stock)"
       },
       "thermal_paste": "Noctua NT-H2",
-      "cooler_airflow": "intake from the CPU-side grille through the Noctua NA-FD1 foam duct into the TL-9015R and down through the fin stack"
+      "cooler_airflow": "intake from the CPU-side grille through the printed PLA duct (since 13 Nov 2026) into the TL-9015R and down through the fin stack"
     },
     "gpu": {
       "model": "ZOTAC GAMING GeForce RTX 5070 Ti SOLID SFF OC 16 GB (ZT-B50710J3-10P)",
@@ -216,51 +216,45 @@
     }
   },
   "geometry": {
-    "schema_version": "1.2.0",
+    "schema_version": "2.0.0",
+    "updated": "2026-11-14",
     "coordinate_system": {
-      "origin": "rear-bottom-GPU-side corner of the nominal chassis body",
-      "x": "rear to front",
-      "y": "GPU side to CPU/PSU side",
-      "z": "bottom to top",
+      "origin": "esquina delantera-inferior del lado de la gráfica, sin patas",
+      "x": "de delante (nogal, fuente) hacia atrás (I/O)",
+      "y": "del panel de la gráfica al del procesador",
+      "z": "del suelo de la caja hacia arriba",
       "units": "mm"
     },
     "case": {
       "outer_body_mm": [
-        343,
-        153,
-        198
+        343.0,
+        153.0,
+        198.0
       ],
-      "overall_with_feet_mm": [
-        343,
-        153,
-        218
-      ],
-      "nominal_bottom_plenum_mm": 20,
+      "feet_mm": 20.0,
+      "panel_t_mm": 1.0,
       "volume_L": 10.4,
-      "finish": "jade green",
-      "support_surface": "solid desk",
-      "source_status": "official dimensions; finish, installed panels and desk placement photo-confirmed",
-      "boundary_note": "The slotted top and side panels are porous-resistance boundaries. The feet leave an approximately 20 mm discharge plenum between the chassis body and desk."
+      "finish": "jade, frontal de nogal",
+      "support_surface": "mesa maciza",
+      "certainty": "official"
     },
-    "spine": {
-      "position": 3,
-      "cpu_cooler_clearance_mm": 67,
-      "gpu_thickness_clearance_mm": {
-        "up_to_131_mm_height": 53,
-        "up_to_145_mm_height": 43
-      },
-      "source_status": "official",
-      "note": "The exact sheet-metal plane is simplified; clearance envelopes are authoritative for fit checks."
+    "certainty_levels": {
+      "measured": "Medida por César",
+      "official": "Ficha del fabricante",
+      "photo": "Deducida de las fotos",
+      "assumed": "Supuesta: medir antes del CFD"
     },
     "components": [
       {
         "id": "GPU",
         "label": "ZOTAC RTX 5070 Ti SOLID SFF OC",
+        "role": "heat",
+        "certainty": "measured",
         "box": {
           "min": [
-            8,
-            14.4,
-            42
+            29.6,
+            16.15,
+            42.1
           ],
           "size": [
             304.4,
@@ -268,133 +262,340 @@
             115.8
           ]
         },
-        "status": "official dimensions; ~11 mm fan-to-panel gap derived from the 53 mm position-3 slot",
+        "basis": "Official size; 15.15 mm gap to the panel and 96.4 mm fan pitch measured. The display bracket sits at the rear, next to the board I/O.",
+        "heat_W": 300,
         "uncertainty_mm": [
           3,
-          2,
+          1,
           3
-        ],
-        "basis": "purchase record + ZOTAC spec sheet; spine at y ≈ 56 mm",
-        "cooling_fans": {
-          "count": 3,
-          "nominal_diameter_mm": 90,
-          "arrangement": "horizontal row along the rear-to-front x axis",
-          "axis": "+y intake from the GPU side panel toward the spine",
-          "approximate_centres_local_mm": [
-            [
-              60,
-              0,
-              58
-            ],
-            [
-              152,
-              0,
-              58
-            ],
-            [
-              244,
-              0,
-              58
-            ]
+        ]
+      },
+      {
+        "id": "GPU_FAN_1",
+        "label": "GPU fan 1 (90 mm)",
+        "role": "fan",
+        "certainty": "measured",
+        "parent": "GPU",
+        "fan": {
+          "centre": [
+            85.4,
+            21.15,
+            100.0
           ],
-          "status": "three 90 mm fans; centres simplified"
-        }
+          "axis": [
+            0,
+            1,
+            0
+          ],
+          "diameter": 90,
+          "thickness": 10,
+          "hub_ratio": 0.3,
+          "flow": "intake"
+        },
+        "box": {
+          "min": [
+            40.4,
+            16.15,
+            55.0
+          ],
+          "size": [
+            90,
+            10,
+            90
+          ]
+        },
+        "basis": "Centres 96.4 mm apart (measured); position along the case read from the grille."
+      },
+      {
+        "id": "GPU_FAN_2",
+        "label": "GPU fan 2 (90 mm)",
+        "role": "fan",
+        "certainty": "measured",
+        "parent": "GPU",
+        "fan": {
+          "centre": [
+            181.8,
+            21.15,
+            100.0
+          ],
+          "axis": [
+            0,
+            1,
+            0
+          ],
+          "diameter": 90,
+          "thickness": 10,
+          "hub_ratio": 0.3,
+          "flow": "intake"
+        },
+        "box": {
+          "min": [
+            136.8,
+            16.15,
+            55.0
+          ],
+          "size": [
+            90,
+            10,
+            90
+          ]
+        },
+        "basis": "Centres 96.4 mm apart (measured); position along the case read from the grille."
+      },
+      {
+        "id": "GPU_FAN_3",
+        "label": "GPU fan 3 (90 mm)",
+        "role": "fan",
+        "certainty": "measured",
+        "parent": "GPU",
+        "fan": {
+          "centre": [
+            278.2,
+            21.15,
+            100.0
+          ],
+          "axis": [
+            0,
+            1,
+            0
+          ],
+          "diameter": 90,
+          "thickness": 10,
+          "hub_ratio": 0.3,
+          "flow": "intake"
+        },
+        "box": {
+          "min": [
+            233.2,
+            16.15,
+            55.0
+          ],
+          "size": [
+            90,
+            10,
+            90
+          ]
+        },
+        "basis": "Centres 96.4 mm apart (measured); position along the case read from the grille."
+      },
+      {
+        "id": "GPU_DUCT",
+        "label": "Printed GPU duct (PLA)",
+        "role": "duct",
+        "certainty": "measured",
+        "box": {
+          "min": [
+            34.8,
+            1.0,
+            36.0
+          ],
+          "size": [
+            294.0,
+            15.15,
+            128
+          ]
+        },
+        "shape": {
+          "type": "rings",
+          "axis": "y",
+          "centres_x": [
+            85.4,
+            181.8,
+            278.2
+          ],
+          "centre_z": 100.0,
+          "r_in": 46.5,
+          "r_out": 48.1,
+          "flange_r": 50.6,
+          "flange_t": 1.6,
+          "height": 15.15,
+          "ears_z": [
+            -57,
+            57
+          ]
+        },
+        "basis": "Designed here (canal_gpu.scad v5), fitted on 14 Nov 2026 and zip-tied to the grille.",
+        "installed": "2026-11-14"
+      },
+      {
+        "id": "SPINE",
+        "label": "Spine (position 3)",
+        "role": "structure",
+        "certainty": "assumed",
+        "box": {
+          "min": [
+            0,
+            58.25,
+            0
+          ],
+          "size": [
+            343.0,
+            1.5,
+            198.0
+          ]
+        },
+        "basis": "Sheet with large cut-outs. The spec gives 53 mm for the GPU at position 3, but 15.15 + 41.6 = 56.75 mm measured: its exact plane still has to be measured.",
+        "porosity": 0.5
+      },
+      {
+        "id": "RISER",
+        "label": "PCIe riser cable",
+        "role": "structure",
+        "certainty": "photo",
+        "box": {
+          "min": [
+            120,
+            20.15,
+            4
+          ],
+          "size": [
+            213,
+            30,
+            34
+          ]
+        },
+        "basis": "Visible in the photos below the GPU, along the floor."
       },
       {
         "id": "MOTHERBOARD",
         "label": "Gigabyte B850I AORUS PRO",
+        "role": "structure",
+        "certainty": "official",
         "box": {
           "min": [
             165,
-            75,
+            75.0,
             16
           ],
           "size": [
             170,
-            8,
+            8.0,
             170
           ]
         },
-        "status": "official size, user-corrected placement",
-        "uncertainty_mm": [
-          5,
-          4,
-          5
-        ]
-      },
-      {
-        "id": "CPU_COOLER",
-        "label": "Thermalright AXP90-X47 Full Copper + TL-9015R",
-        "box": {
-          "min": [
-            202.5,
-            83,
-            54.8
-          ],
-          "size": [
-            95,
-            47,
-            94.5
-          ]
-        },
-        "status": "official dimensions; centred on the socket area of the board",
-        "uncertainty_mm": [
-          8,
-          2,
-          8
-        ]
-      },
-      {
-        "id": "CPU_DUCT",
-        "label": "Noctua NA-FD1 duct (fan to side grille)",
-        "box": {
-          "min": [
-            204,
-            130,
-            56
-          ],
-          "size": [
-            92,
-            20,
-            92
-          ]
-        },
-        "status": "model confirmed; ~20 mm stack derived from clearance",
-        "uncertainty_mm": [
-          2,
-          3,
-          2
-        ]
+        "basis": "Mini-ITX, 170 × 170 mm; I/O towards the rear.",
+        "heat_W": 12
       },
       {
         "id": "RAM",
         "label": "Corsair Vengeance DDR5 2 × 16 GB",
+        "role": "heat",
+        "certainty": "photo",
         "box": {
           "min": [
-            190,
-            83,
-            160
+            184.2,
+            83.0,
+            55.5
           ],
           "size": [
-            133,
+            17,
             35,
-            14
+            133
           ]
         },
-        "status": "typical mini-ITX DIMM edge; height approximately 35 mm",
-        "uncertainty_mm": [
-          15,
-          3,
-          15
-        ]
+        "basis": "Upright, just in front of the cooler (to its left seen from the board side). Corrected by César on 14 Nov 2026.",
+        "heat_W": 8
       },
       {
-        "id": "PSU_REFERENCE",
+        "id": "CPU_COOLER",
+        "label": "Thermalright AXP90-X47 Full Copper",
+        "role": "heat",
+        "certainty": "official",
+        "box": {
+          "min": [
+            202.7,
+            84.5,
+            74.5
+          ],
+          "size": [
+            95.0,
+            47.0,
+            95.0
+          ]
+        },
+        "basis": "Fan centre on grille row 7.12 and 122.0 mm above the floor (matches the slot break). 47 mm + 20.5 mm duct = 67.5 (spec: 67).",
+        "heat_W": 107
+      },
+      {
+        "id": "CPU_FAN",
+        "label": "Thermalright TL-9015R (92 mm)",
+        "role": "fan",
+        "certainty": "official",
+        "parent": "CPU_COOLER",
+        "fan": {
+          "centre": [
+            250.2,
+            124.0,
+            122.0
+          ],
+          "axis": [
+            0,
+            -1,
+            0
+          ],
+          "diameter": 92,
+          "thickness": 15,
+          "hub_ratio": 0.3,
+          "flow": "intake"
+        },
+        "box": {
+          "min": [
+            204.2,
+            116.5,
+            76.0
+          ],
+          "size": [
+            92,
+            15,
+            92
+          ]
+        },
+        "basis": "Top-flow cooler: the fan blows down onto the board."
+      },
+      {
+        "id": "CPU_DUCT",
+        "label": "Printed CPU duct (PLA)",
+        "role": "duct",
+        "certainty": "measured",
+        "box": {
+          "min": [
+            183.8,
+            131.5,
+            73.15
+          ],
+          "size": [
+            119.7,
+            20.5,
+            97.7
+          ]
+        },
+        "shape": {
+          "type": "tube",
+          "axis": "y",
+          "centre_x": 250.2,
+          "centre_z": 122.0,
+          "r_in": 44.75,
+          "r_out": 46.35,
+          "flange_r": 48.85,
+          "flange_t": 1.6,
+          "height": 20.5,
+          "ears_x": [
+            -59.4,
+            53.3
+          ]
+        },
+        "basis": "Designed here (canal_cpu.scad v4), fitted on 13 Nov 2026. Replaces the NA-FD1 foam.",
+        "installed": "2026-11-13"
+      },
+      {
+        "id": "PSU",
         "label": "Corsair SF850 (2024) SFX",
+        "role": "heat",
+        "certainty": "photo",
         "box": {
           "min": [
             18,
-            84,
+            84.5,
             48
           ],
           "size": [
@@ -403,17 +604,66 @@
             125
           ]
         },
-        "status": "official SFX dimensions; user-corrected placement",
-        "uncertainty_mm": [
-          8,
-          4,
-          8
-        ],
-        "note": "92 mm intake fan faces the CPU/PSU-side panel."
+        "basis": "Official size; at the front, fan facing the CPU-side panel.",
+        "heat_W": 36
+      },
+      {
+        "id": "PSU_FAN",
+        "label": "PSU fan (92 mm, stops at low load)",
+        "role": "fan",
+        "certainty": "photo",
+        "parent": "PSU",
+        "fan": {
+          "centre": [
+            68,
+            142.0,
+            110.5
+          ],
+          "axis": [
+            0,
+            -1,
+            0
+          ],
+          "diameter": 92,
+          "thickness": 12,
+          "hub_ratio": 0.3,
+          "flow": "intake"
+        },
+        "box": {
+          "min": [
+            22,
+            136.0,
+            64.5
+          ],
+          "size": [
+            92,
+            12,
+            92
+          ]
+        },
+        "basis": "Draws air from the CPU-side panel. Where it releases it inside the case is still to confirm."
       },
       {
         "id": "BOTTOM_FAN",
         "label": "Noctua NF-A12x15 PWM · bottom exhaust",
+        "role": "fan",
+        "certainty": "assumed",
+        "fan": {
+          "centre": [
+            68,
+            77,
+            9.5
+          ],
+          "axis": [
+            0,
+            0,
+            -1
+          ],
+          "diameter": 120,
+          "thickness": 15,
+          "hub_ratio": 0.3,
+          "flow": "exhaust"
+        },
         "box": {
           "min": [
             8,
@@ -426,21 +676,65 @@
             15
           ]
         },
-        "status": "official mount; fan and COYUN wire grille confirmed",
-        "uncertainty_mm": [
-          5,
-          5,
-          3
-        ]
+        "basis": "Official 120 mm floor mount, at the front. Exact position to measure (±10 mm)."
       },
       {
-        "id": "TOP_CUSTOM_FAN",
+        "id": "BOTTOM_GRILLE",
+        "label": "COYUN wire grille over the bottom fan",
+        "role": "porous",
+        "certainty": "photo",
+        "box": {
+          "min": [
+            8,
+            17,
+            17
+          ],
+          "size": [
+            120,
+            120,
+            2
+          ]
+        },
+        "shape": {
+          "type": "disc_grille",
+          "axis": "z",
+          "centre": [
+            68,
+            77,
+            18
+          ],
+          "diameter": 116,
+          "rings": 4
+        },
+        "basis": "On the inner side, so the cables cannot touch the blades.",
+        "porosity": 0.85
+      },
+      {
+        "id": "TOP_FAN",
         "label": "Noctua NF-A9x14 PWM · top exhaust",
+        "role": "fan",
+        "certainty": "assumed",
+        "fan": {
+          "centre": [
+            68,
+            77,
+            190.0
+          ],
+          "axis": [
+            0,
+            0,
+            1
+          ],
+          "diameter": 92,
+          "thickness": 14,
+          "hub_ratio": 0.3,
+          "flow": "exhaust"
+        },
         "box": {
           "min": [
             22,
             31,
-            184
+            183.0
           ],
           "size": [
             92,
@@ -448,103 +742,301 @@
             14
           ]
         },
-        "status": "fan confirmed; cable-tied beneath the top grille, position ±10 mm",
-        "uncertainty_mm": [
-          10,
-          10,
-          3
-        ],
-        "note": "The slotted top panel above the fan adds flow resistance."
+        "basis": "Zip-tied under the top grille, at the front. Position ±10 mm."
       },
       {
-        "id": "CABLE_ZONE",
-        "label": "Cable bundle (24-pin, EPS, 12V-2x6)",
+        "id": "CABLES_GPU",
+        "label": "Cable bundle, GPU side",
+        "role": "porous",
+        "certainty": "photo",
         "box": {
           "min": [
-            112,
-            66,
-            24
+            3,
+            3.0,
+            40
           ],
           "size": [
-            58,
-            72,
-            92
+            27,
+            54.75,
+            152
           ]
         },
-        "status": "estimated porous block",
-        "uncertainty_mm": [
-          25,
-          20,
-          25
-        ]
+        "basis": "GPU power cable loop in front of the card (GPU-side photos). Porous volume; cables drawn for illustration.",
+        "porosity": 0.55
+      },
+      {
+        "id": "CABLES_MAIN",
+        "label": "Cable bundle between PSU and board",
+        "role": "porous",
+        "certainty": "photo",
+        "box": {
+          "min": [
+            118,
+            75.0,
+            10
+          ],
+          "size": [
+            66,
+            75.0,
+            165
+          ]
+        },
+        "basis": "24-pin, EPS and PCIe gathered between the PSU and the RAM (board-side photos). Porous volume.",
+        "porosity": 0.5
+      },
+      {
+        "id": "CABLES_BOTTOM",
+        "label": "Cables along the floor to the rear",
+        "role": "porous",
+        "certainty": "photo",
+        "box": {
+          "min": [
+            184,
+            75.0,
+            2
+          ],
+          "size": [
+            150,
+            75.0,
+            32
+          ]
+        },
+        "basis": "Run along the floor on the board side. Porous volume.",
+        "porosity": 0.6
+      }
+    ],
+    "panels": [
+      {
+        "id": "PANEL_GPU",
+        "label": "GPU-side panel",
+        "face": "y-",
+        "certainty": "photo",
+        "grille": {
+          "rows_x": [
+            307.5,
+            299.45,
+            291.4,
+            283.35,
+            275.3,
+            267.25,
+            259.2,
+            251.15,
+            243.1,
+            235.05,
+            227.0,
+            218.95,
+            210.9,
+            202.85,
+            194.8,
+            186.75,
+            178.7,
+            170.65,
+            162.6,
+            154.55,
+            146.5,
+            138.45,
+            130.4,
+            122.35,
+            114.3,
+            106.25,
+            98.2,
+            90.15,
+            82.1,
+            74.05,
+            66.0,
+            57.95,
+            49.9,
+            41.85,
+            33.8,
+            25.75,
+            17.7
+          ],
+          "slot_w": 3.5,
+          "slot_z": [
+            27.7,
+            177.5
+          ],
+          "gap_z": {
+            "even": [
+              85.0,
+              90.0
+            ],
+            "odd": [
+              100.2,
+              105.3
+            ]
+          }
+        },
+        "basis": "37 rows every 8.05 mm, 3.5 mm slots ~150 mm long with an alternating central break. Checked against the panel length (342.3 vs 343)."
+      },
+      {
+        "id": "PANEL_CPU",
+        "label": "CPU-side panel",
+        "face": "y+",
+        "certainty": "photo",
+        "grille": {
+          "rows_x": [
+            307.5,
+            299.45,
+            291.4,
+            283.35,
+            275.3,
+            267.25,
+            259.2,
+            251.15,
+            243.1,
+            235.05,
+            227.0,
+            218.95,
+            210.9,
+            202.85,
+            194.8,
+            186.75,
+            178.7,
+            170.65,
+            162.6,
+            154.55,
+            146.5,
+            138.45,
+            130.4,
+            122.35,
+            114.3,
+            106.25,
+            98.2,
+            90.15,
+            82.1,
+            74.05,
+            66.0,
+            57.95,
+            49.9,
+            41.85,
+            33.8,
+            25.75,
+            17.7
+          ],
+          "slot_w": 3.5,
+          "slot_z": [
+            20.5,
+            170.3
+          ],
+          "gap_z": {
+            "even": [
+              108.0,
+              113.0
+            ],
+            "odd": [
+              92.7,
+              97.8
+            ]
+          }
+        },
+        "basis": "The same panel turned 180°."
+      },
+      {
+        "id": "PANEL_TOP",
+        "label": "Top panel",
+        "face": "z+",
+        "certainty": "assumed",
+        "grille": {
+          "pattern": "slots_along_y",
+          "pitch": 8.05,
+          "slot_w": 3.5,
+          "x_range": [
+            20,
+            323
+          ],
+          "y_range": [
+            12,
+            141
+          ]
+        },
+        "basis": "Slotted; pitch and size to measure."
+      },
+      {
+        "id": "PANEL_FRONT",
+        "label": "Walnut front",
+        "face": "x-",
+        "certainty": "assumed",
+        "basis": "Assumed closed."
+      },
+      {
+        "id": "PANEL_REAR",
+        "label": "Rear (board and GPU I/O)",
+        "face": "x+",
+        "certainty": "assumed",
+        "basis": "I/O and GPU bracket openings to measure."
+      },
+      {
+        "id": "PANEL_BOTTOM",
+        "label": "Floor",
+        "face": "z-",
+        "certainty": "assumed",
+        "basis": "Open only at the 120 mm fan (assumed)."
       }
     ],
     "flow_boundaries": [
       {
         "id": "GPU_SIDE_INTAKE",
-        "normal": [
-          0,
-          1,
-          0
+        "panel": "PANEL_GPU",
+        "driven_by": [
+          "GPU_FAN_1",
+          "GPU_FAN_2",
+          "GPU_FAN_3"
         ],
-        "driven_by": "three ZOTAC 90 mm fans, ~11 mm behind the slotted panel"
+        "through": "GPU_DUCT"
       },
       {
         "id": "CPU_SIDE_INTAKE",
-        "normal": [
-          0,
-          -1,
-          0
+        "panel": "PANEL_CPU",
+        "driven_by": [
+          "CPU_FAN"
         ],
-        "driven_by": "TL-9015R through the sealed NA-FD1 duct"
+        "through": "CPU_DUCT"
       },
       {
         "id": "PSU_SIDE_INTAKE",
-        "normal": [
-          0,
-          -1,
-          0
-        ],
-        "driven_by": "SF850 92 mm fan (zero-RPM at low load)"
+        "panel": "PANEL_CPU",
+        "driven_by": [
+          "PSU_FAN"
+        ]
       },
       {
         "id": "BOTTOM_EXHAUST",
-        "normal": [
-          0,
-          0,
-          -1
+        "panel": "PANEL_BOTTOM",
+        "driven_by": [
+          "BOTTOM_FAN"
         ],
-        "driven_by": "NF-A12x15 through a wire grille into the ~20 mm desk gap"
+        "note": "a 20 mm de la mesa"
       },
       {
         "id": "TOP_EXHAUST",
-        "normal": [
-          0,
-          0,
-          1
-        ],
-        "driven_by": "NF-A9x14 beneath the slotted top grille"
+        "panel": "PANEL_TOP",
+        "driven_by": [
+          "TOP_FAN"
+        ]
+      },
+      {
+        "id": "PASSIVE_SIDES",
+        "panel": "PANEL_GPU, PANEL_CPU",
+        "driven_by": [],
+        "note": "las ranuras fuera de los canales dejan pasar aire en los dos sentidos"
       }
     ],
-    "photo_evidence": [
-      {
-        "reference": "Photo 1",
-        "observation": "Top and both side panels installed; chassis sits on its standard feet over a solid desk."
-      },
-      {
-        "reference": "Photo 2",
-        "observation": "The 92 mm top fan is inside the chassis beneath the top grille and retained with black cable ties."
-      },
-      {
-        "reference": "Photo 3",
-        "observation": "GPU-side panel is highly slotted and covers the full three-fan horizontal GPU row."
-      },
-      {
-        "reference": "Photo 4",
-        "observation": "CPU-side panel is highly slotted; low-profile CPU cooler fan is visible behind it."
-      }
+    "not_modelled": [
+      "Bridas de los canales: unos gramos de nailon que no cambian el flujo.",
+      "Aletas reales de los disipadores: se tratan como bloques porosos con pérdida de carga.",
+      "Forma real de cada cable: se modelan como volúmenes porosos."
     ],
-    "modelling_rule": "Official dimensions, derived gaps and estimates are kept separate. This is reduced-order / CFD-preparation geometry, not a manufacturing CAD model."
+    "open_questions": [
+      "Paso, ancho y extensión de las ranuras del panel de arriba.",
+      "Posición exacta del ventilador de arriba y del de abajo (distancia al frontal y al panel de la gráfica).",
+      "Dónde está la columna central: distancia del panel de la gráfica a la chapa (la ficha da 53 mm, medimos 56,75).",
+      "Huecos del frontal y de la trasera (I/O, soporte de la gráfica).",
+      "Hacia dónde suelta el aire la fuente dentro de la caja.",
+      "Altura del centro del ventilador del procesador sobre el suelo de la caja (calculada: 122 mm).",
+      "Fotos desde arriba con el panel superior quitado para situar los mazos de cables."
+    ],
+    "modelling_rule": "Lo medido, lo oficial, lo deducido de fotos y lo supuesto se guardan por separado. Es geometría para preparar el CFD, no un CAD de fabricación."
   },
   "headline_metrics": {
     "cpu_only": {
@@ -1117,7 +1609,7 @@
         "label": "CPU",
         "W": 90,
         "basis": "measured CPU-only mean package power",
-        "path": "into the case air below the top-flow cooler",
+        "path": "into the case air below the top-flow cooler (fed by the printed duct)",
         "into_case_air": true
       },
       {
@@ -1140,13 +1632,13 @@
     "gaps_mm": [
       {
         "label": "CPU fan → side grille",
-        "value": 20,
-        "basis": "67 mm clearance − 47 mm cooler, filled by NA-FD1"
+        "value": 20.5,
+        "basis": "measured; filled by the printed PLA duct (13 Nov)"
       },
       {
         "label": "GPU fans → side panel",
-        "value": 11,
-        "basis": "53 mm slot − 41.6 mm card"
+        "value": 15.15,
+        "basis": "measured; filled by the printed PLA duct (14 Nov)"
       },
       {
         "label": "Bottom fan → desk",
@@ -1169,7 +1661,13 @@
       "Fan flows are free-air maxima from the manufacturers; real flow through grilles and filters is lower.",
       "ZOTAC and Corsair do not publish flow for the GPU and PSU fans.",
       "The slotted panels also let air in and out passively, so fan exhaust is not the only outlet."
-    ]
+    ],
+    "geometry_export": {
+      "script": "tools/terra-cfd/export_stl.py",
+      "output": "Desktop/Claude/Datos/Terra/cfd-geometria",
+      "files": "one STL per part, porous zone, fan disc and panel slot patch, plus manifest.json",
+      "units": "m"
+    }
   },
   "story": {
     "updated": "2026-11-14",
@@ -1326,6 +1824,12 @@
         "kind": "page",
         "title": "Antes y después, en una gráfica",
         "detail": "La web y la presentación enseñan todas las pruebas de los canales juntas: cuánta potencia aguanta el procesador y a qué velocidad va el ventilador de la gráfica en cada montaje."
+      },
+      {
+        "date": "2026-11-14",
+        "kind": "parts",
+        "title": "Modelo 3D rehecho para el CFD",
+        "detail": "Con las fotos: la memoria en vertical junto al procesador, los dos canales impresos, las ranuras reales de los paneles, la rejilla del ventilador de abajo y los mazos de cables como zonas porosas. Cada pieza dice si está medida, sale de la ficha, de las fotos o es supuesta, y ya se exporta a STL para el CFD."
       }
     ],
     "next_steps": [
@@ -1390,8 +1894,8 @@
     "cfd_gate": [
       {
         "done": true,
-        "es": "Piezas, ventiladores y huecos documentados",
-        "en": "Parts, fan specs and key gaps documented"
+        "es": "Piezas, ventiladores y huecos documentados, con modelo 3D exportable",
+        "en": "Parts, fan specs and key gaps documented, with an exportable 3D model"
       },
       {
         "done": true,

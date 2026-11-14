@@ -20,3 +20,4 @@ el relato, de la sección `story`. Cada vez que cambie algo del Thermal Lab (pru
    Revisa `story.next_steps` (siempre debe quedar uno en `next`), `story.phases`, `story.cfd_gate`, `story.conclusions` y `story.uses`.
 3. Sube `story.updated` y `generated_at`. Una idea o modelo nuevo necesita su `plain_es`.
 4. `node --test tests/thermal-story.test.mjs` comprueba que no falte nada.
+5. El modelo 3D sale de `tools/terra-cfd/build_geometry.py` (no edites `geometry` a mano). Si cambias `control/thermal-viewer.js`, recompila `thermal-viewer.bundle.js` (ver `tools/terra-cfd/README.md`) y sube el `?v=` en `control/index.html`.
