@@ -24,7 +24,7 @@
     const cfd=data.cfd_inputs||{heat_sources:[],air:{density_kg_m3:1.16,cp_J_kgK:1005},grille_derating:.6};
     const fans=data.configuration.fans||[];
     const baseline=screening.find(row=>row.configuration_id==='CFG-000');
-    const ideas=screening.filter(row=>row.configuration_id!=='CFG-000')
+    const ideas=screening.filter(row=>row.configuration_id!=='CFG-000'&&row.gpu_peak_model_low_C!=null&&row.stage!=='measured')
       .map(row=>({...row,mid:(row.gpu_peak_model_low_C+row.gpu_peak_model_high_C)/2}))
       .sort((a,b)=>a.mid-b.mid);
     const best=ideas[0];
