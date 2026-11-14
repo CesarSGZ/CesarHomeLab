@@ -28,7 +28,7 @@
   <link rel="stylesheet" href="/theme.css?v=20261001contrast">
   <link rel="stylesheet" href="flight-control.css?v=20261014agent">
   <link rel="stylesheet" href="thermal.css?v=20261110deck">
-  <link rel="stylesheet" href="thermal-deck.css?v=20261110deck">
+  <link rel="stylesheet" href="thermal-deck.css?v=20261114ab">
 </head>
 <body class="access-pending" data-workspace>
   <canvas id="control-grid" aria-hidden="true"></canvas>
@@ -363,8 +363,13 @@
         <p class="tl-note" id="tl-cfd-note"></p>
       </section>
 
+      <section class="tl-block" aria-labelledby="tl-ab-title">
+        <header class="tl-block-head"><span>06</span><div><h3 id="tl-ab-title">Printed ducts: before and after</h3><p>71-minute sessions, changing one thing at a time. Ducts are only ever added, never removed.</p></div></header>
+        <div id="tl-ab"><p class="tl-loading">Loading results…</p></div>
+      </section>
+
       <section class="tl-block" aria-labelledby="tl-next-title">
-        <header class="tl-block-head"><span>06</span><div><h3 id="tl-next-title">Next steps</h3><p>From a validated GPU model to a proven hardware change, then CFD.</p></div></header>
+        <header class="tl-block-head"><span>07</span><div><h3 id="tl-next-title">Next steps</h3><p>From a validated GPU model to a proven hardware change, then CFD.</p></div></header>
         <div class="tl-next">
           <ol class="tl-roadmap" id="tl-roadmap">
             <li class="done"><b>✓</b><div><strong>Close the unknowns</strong><p>Done 31 Oct: every part identified and the key gaps derived. Still estimated: cable bundle, top-fan position, panel open area, PSU exhaust direction.</p></div></li>
@@ -387,7 +392,7 @@
       </section>
 
       <section class="tl-block" aria-labelledby="tl-why-title">
-        <header class="tl-block-head"><span>07</span><div><h3 id="tl-why-title">What it is good for</h3></div></header>
+        <header class="tl-block-head"><span>08</span><div><h3 id="tl-why-title">What it is good for</h3></div></header>
         <div class="tl-why">
           <article><small>FOR THIS PC</small><strong>Change only what works.</strong><p>Know roughly how many degrees each modification is worth before cutting, printing or buying anything.</p></article>
           <article><small>AS A METHOD</small><strong>Engine-bay thinking.</strong><p>Controlled configuration, measured boundary conditions, fast reduced-order models and CFD only where it adds value, as in engine–nacelle integration.</p></article>
@@ -422,7 +427,7 @@
   <script src="training.js?v=20261111fiable"></script>
   <script type="module" src="backtest.js?v=20261012m"></script>
   <script src="github-galaxy.js?v=20261110mapa"></script>
-  <script src="thermal-deck.js?v=20261110deck"></script>
+  <script src="thermal-deck.js?v=20261114ab"></script>
   <script src="control.js?v=20261110deck"></script>
   <script src="servercesar.js?v=20261020wake" defer></script>
   <script src="flight-control.js?v=20261014a" defer></script>

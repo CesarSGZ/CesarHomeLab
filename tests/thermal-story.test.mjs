@@ -42,3 +42,14 @@ test('the page loads the presentation before the Thermal Lab renders', async () 
   const control = await readFile(new URL('../control/control.js', import.meta.url), 'utf8');
   assert.match(control, /window\.ThermalDeck\?\.render\(data\)/);
 });
+
+test('the printed-duct A/B results have a reference and complete numbers', () => {
+  const ab = story.ab_tests;
+  assert.ok(ab?.rows?.length, 'story.ab_tests.rows exists');
+  const done = ab.rows.filter(row => row.status === 'done');
+  assert.ok(done.some(row => row.id === ab.reference), 'the reference is a finished test');
+  for (const row of done) {
+    for (const key of ['cpu_alone_W', 'cpu_combined_W', 'gpu_fan_pct', 'ambient_C']) assert.equal(typeof row[key], 'number', `${row.id}.${key}`);
+  }
+  for (const row of ab.rows) assert.ok(row.title_es && row.title_en, `${row.id} has titles in both languages`);
+});

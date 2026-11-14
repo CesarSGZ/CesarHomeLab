@@ -118,6 +118,38 @@
   };
   const icon=name=>`<svg viewBox="0 0 32 32" class="dk-icon" aria-hidden="true">${ICONS[name]||ICONS.info}</svg>`;
 
+  // ---------- A/B tests of the printed ducts (deck and page share it) ----------
+  function abChart(ab,lang='es'){
+    if(!ab||!ab.rows?.length)return '';
+    const es=lang==='es';
+    const T=es?{alone:'solo',both:'con la gráfica',fan:'ventilador gráfica',pending:'pendiente',room:'cuarto',ref:'referencia',power:'Potencia que aguanta el procesador (W, más = mejor)',fanHead:'vent. gráfica'}
+             :{alone:'alone',both:'with GPU load',fan:'GPU fan',pending:'pending',room:'room',ref:'reference',power:'Power the CPU sustains (W, more = better)',fanHead:'GPU fan'};
+    const fmt=(v,dg=0)=>Number(v).toLocaleString(es?'es-ES':'en-GB',{minimumFractionDigits:dg,maximumFractionDigits:dg});
+    const done=ab.rows.filter(r=>r.status==='done');
+    const ref=ab.rows.find(r=>r.id===ab.reference)||done[0];
+    const max=Math.max(...done.map(r=>Math.max(r.cpu_alone_W,r.cpu_combined_W)))*1.06;
+    const pct=(v,base)=>{const d=(v/base-1)*100;return Math.abs(d)<0.5?'=':`${d>0?'+':'−'}${fmt(Math.abs(d))} %`};
+    const best=done.reduce((a,b)=>b.cpu_combined_W>a.cpu_combined_W?b:a,done[0]);
+    const rows=ab.rows.map(r=>{
+      const name=`<span class="ab-name"><b>${esc(es?r.title_es:r.title_en)}</b><small>${esc(r.id)}${r.ambient_C!=null?` · ${T.room} ${fmt(r.ambient_C,r.ambient_C%1?1:0)} °C`:''}${r===ref?` · ${T.ref}`:''}</small></span>`;
+      if(r.status!=='done')return `<li class="ab-row todo">${name}<span class="ab-bars"><i class="ab-pending">${T.pending} · ${esc(es?r.detail_es:r.detail_en)}</i></span><span class="ab-fan">—</span></li>`;
+      const bar=(v,cls,label)=>`<span class="ab-bar ${cls}"><i style="width:${(v/max*100).toFixed(1)}%"></i><em>${fmt(v)} W <small>${label}${r!==ref?` · ${pct(v,cls==='alone'?ref.cpu_alone_W:ref.cpu_combined_W)}`:''}</small></em></span>`;
+      const fd=r.gpu_fan_pct-ref.gpu_fan_pct;
+      return `<li class="ab-row${r===best?' best':''}${r===ref?' ref':''}">${name}<span class="ab-bars">${bar(r.cpu_alone_W,'alone',T.alone)}${bar(r.cpu_combined_W,'both',T.both)}</span><span class="ab-fan"><i class="ab-fan-l">${T.fan}</i><b>${fmt(r.gpu_fan_pct)} %</b>${r!==ref&&Math.abs(fd)>=0.5?`<small class="${fd<0?'good':'bad'}">${fd>0?'+':'−'}${fmt(Math.abs(fd),1)}</small>`:''}</span></li>`;
+    }).join('');
+    const gain=(best.cpu_combined_W/ref.cpu_combined_W-1)*100;
+    const callout=es
+      ? `<b>${esc(best.title_es)}</b> es lo mejor hasta ahora: el procesador aguanta un <b>${fmt(gain)} % más de potencia</b> con la gráfica trabajando a la vez (${fmt(best.cpu_combined_W)} W frente a ${fmt(ref.cpu_combined_W)} W sin nada).`
+      : `<b>${esc(best.title_en)}</b> is the best so far: the CPU sustains <b>${fmt(gain)} % more power</b> while the GPU is also loaded (${fmt(best.cpu_combined_W)} W vs ${fmt(ref.cpu_combined_W)} W with nothing fitted).`;
+    return `<div class="ab-wrap"><div class="ab">
+      <div class="ab-head"><span></span><span>${T.power}</span><span>${T.fanHead}</span></div>
+      <ol>${rows}</ol>
+      <p class="ab-legend"><span><i class="alone"></i>${es?'procesador solo':'CPU alone'}</span><span><i class="both"></i>${es?'procesador + gráfica a la vez':'CPU + GPU together'}</span><span>${es?'% = cambio frente a la referencia':'% = change vs the reference'}</span></p>
+      ${best!==ref?`<p class="dk-callout ab-callout">${callout}</p>`:''}
+      <p class="dk-muted ab-note">${esc(es?ab.note_es:ab.note_en)}</p>
+    </div></div>`;
+  }
+
   // ---------- Slides ----------
   function slides(m,data){
     const s=m.story;
@@ -282,6 +314,15 @@
         </figure>
       </div>`);
 
+    if(s.ab_tests){
+      const doneN=s.ab_tests.rows.filter(r=>r.status==='done').length;
+      add('canales','Antes y después',`
+        <p class="dk-kicker">Pruebas de los canales impresos · ${doneN} de ${s.ab_tests.rows.length} hechas</p>
+        <h2 class="dk-h">¿Qué ha funcionado de verdad?</h2>
+        ${abChart(s.ab_tests,'es')}`);
+    }
+
+
     const conclusions=(s.conclusions||[]).map(item=>{
       const chip=metricChip(item.metric,m);
       return `<article class="dk-card ${item.tone}">${icon(item.tone)}<strong>${esc(item.title)}</strong><p>${esc(item.detail)}</p>${chip?`<small>${esc(chip)}</small>`:''}</article>`;
@@ -434,6 +475,8 @@
     if(gate&&m.gate.length){
       gate.replaceChildren(...m.gate.map(item=>{const li=el('li',item.done?'done':'');li.textContent=item.en;return li}));
     }
+    const abBox=document.getElementById('tl-ab');
+    if(abBox&&m.story.ab_tests)abBox.innerHTML=abChart(m.story.ab_tests,'en');
     const updated=document.getElementById('tl-deck-updated');
     if(updated)updated.textContent=`Actualizada el ${dateEs(m.updated)} · ${items.length} diapositivas · ${m.current>=0?`fase ${m.current+1} de ${m.phases.length}`:''}`;
     const nextName=document.getElementById('tl-deck-next');

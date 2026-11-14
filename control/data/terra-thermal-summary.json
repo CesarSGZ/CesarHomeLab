@@ -1,6 +1,6 @@
 {
   "schema_version": "1.4.0",
-  "generated_at": "2026-11-14T14:00:00+00:00",
+  "generated_at": "2026-11-14T15:00:00+00:00",
   "project": {
     "id": "terra-powerplant-lab",
     "title": "Terra Powerplant Lab",
@@ -1320,6 +1320,12 @@
         "kind": "parts",
         "title": "Rejillas documentadas",
         "detail": "La rejilla de cada panel tiene unos 186 cm² de hueco (37 ranuras de 3,5 mm, el 42 % de la zona perforada), medida en las fotos al diseñar los canales. Quitar los paneles (S05) mostró cuánto frena: poco cuando trabaja solo el procesador y un 7 % cuando trabajan los dos."
+      },
+      {
+        "date": "2026-11-14",
+        "kind": "page",
+        "title": "Antes y después, en una gráfica",
+        "detail": "La web y la presentación enseñan todas las pruebas de los canales juntas: cuánta potencia aguanta el procesador y a qué velocidad va el ventilador de la gráfica en cada montaje."
       }
     ],
     "next_steps": [
@@ -1516,6 +1522,77 @@
         "Escribir un artículo corto (congresos de gestión térmica como ITherm o SEMI-THERM)",
         "Buscar un grupo universitario de ingeniería térmica o de control que dirija la tesis",
         "Escalar a varios equipos y publicar los datos"
+      ]
+    },
+    "ab_tests": {
+      "note_es": "El procesador se para solo hacia 87 °C y la gráfica hacia 78 °C, así que lo que se compara es cuánta potencia aguanta el procesador a esa temperatura y a qué velocidad tiene que ir el ventilador de la gráfica.",
+      "note_en": "The CPU throttles itself near 87 °C and the GPU fan holds about 78 °C, so the comparison is how much power the CPU sustains and how hard the GPU fan has to work.",
+      "reference": "S04",
+      "rows": [
+        {
+          "id": "S01–S03",
+          "status": "done",
+          "date": "2026-11-10",
+          "ambient_C": 20,
+          "title_es": "Espuma de antes",
+          "title_en": "Old foam spacer",
+          "detail_es": "La espuma de Noctua entre el ventilador y el panel (media de 3 pruebas).",
+          "detail_en": "Noctua foam spacer between fan and panel (mean of 3 runs).",
+          "cpu_alone_W": 85.0,
+          "cpu_combined_W": 83.5,
+          "gpu_C": 78.0,
+          "gpu_fan_pct": 61.6
+        },
+        {
+          "id": "S04",
+          "status": "done",
+          "date": "2026-11-13",
+          "ambient_C": 19,
+          "title_es": "Nada",
+          "title_en": "Nothing fitted",
+          "detail_es": "Sin espuma ni canales, paneles puestos. Es la referencia.",
+          "detail_en": "No foam, no ducts, panels on. The reference.",
+          "cpu_alone_W": 96.3,
+          "cpu_combined_W": 87.7,
+          "gpu_C": 78.9,
+          "gpu_fan_pct": 59.5
+        },
+        {
+          "id": "S05",
+          "status": "done",
+          "date": "2026-11-13",
+          "ambient_C": 20.5,
+          "title_es": "Sin paneles",
+          "title_en": "Panels off",
+          "detail_es": "Los dos paneles quitados: lo máximo que podrían dar las rejillas.",
+          "detail_en": "Both side panels removed: the most the grilles could ever give.",
+          "cpu_alone_W": 98.1,
+          "cpu_combined_W": 94.2,
+          "gpu_C": 77.9,
+          "gpu_fan_pct": 59.9
+        },
+        {
+          "id": "S06",
+          "status": "done",
+          "date": "2026-11-14",
+          "ambient_C": 19,
+          "title_es": "Canal impreso CPU",
+          "title_en": "Printed CPU duct",
+          "detail_es": "El canal de PLA que lleva el aire de fuera al ventilador del procesador.",
+          "detail_en": "PLA duct feeding outside air straight to the CPU fan.",
+          "cpu_alone_W": 107.4,
+          "cpu_combined_W": 104.6,
+          "gpu_C": 77.9,
+          "gpu_fan_pct": 57.8
+        },
+        {
+          "id": "S07",
+          "status": "todo",
+          "title_es": "Los dos canales",
+          "title_en": "Both ducts",
+          "detail_es": "Se añade el canal de la gráfica.",
+          "detail_en": "The GPU duct is added."
+        }
       ]
     }
   }
