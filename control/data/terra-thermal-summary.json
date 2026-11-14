@@ -1314,6 +1314,12 @@
         "kind": "test",
         "title": "El canal impreso de la CPU funciona",
         "detail": "Con el canal impreso el procesador aguanta 107 W solo (+12 % frente a no llevar nada) y 105 W con la gráfica a la vez (+19 %). Supera incluso a la caja abierta y a la espuma de antes. La gráfica también lo nota: 1 °C menos y su ventilador 2 puntos más bajo."
+      },
+      {
+        "date": "2026-11-14",
+        "kind": "parts",
+        "title": "Rejillas documentadas",
+        "detail": "La rejilla de cada panel tiene unos 186 cm² de hueco (37 ranuras de 3,5 mm, el 42 % de la zona perforada), medida en las fotos al diseñar los canales. Quitar los paneles (S05) mostró cuánto frena: poco cuando trabaja solo el procesador y un 7 % cuando trabajan los dos."
       }
     ],
     "next_steps": [
@@ -1325,8 +1331,8 @@
           "en": "Close the unknowns"
         },
         "detail": {
-          "es": "Todas las piezas identificadas y los huecos clave calculados. Siguen estimados: el mazo de cables, la posición del ventilador de arriba, el área abierta de los paneles y hacia dónde sopla la fuente.",
-          "en": "Done 31 Oct: every part identified and the key gaps derived. Still estimated: cable bundle, top-fan position, panel open area, PSU exhaust direction."
+          "es": "Todas las piezas identificadas y los huecos clave calculados. Siguen estimados: el mazo de cables, la posición del ventilador de arriba y hacia dónde sopla la fuente (el área abierta de los paneles se midió después, el 12 nov).",
+          "en": "Done 31 Oct: every part identified and the key gaps derived. Still estimated: cable bundle, top-fan position, PSU exhaust direction (panel open area measured later, 12 Nov)."
         }
       },
       {
@@ -1382,9 +1388,9 @@
         "en": "Parts, fan specs and key gaps documented"
       },
       {
-        "done": false,
-        "es": "Área abierta de los paneles y pérdida en las rejillas",
-        "en": "Panel open area and grille pressure loss"
+        "done": true,
+        "es": "Área abierta de los paneles (≈186 cm² por panel, 42 % de la rejilla) y lo que frenan (medido sin paneles)",
+        "en": "Panel open area (≈186 cm² per panel, 42 % of the grille) and grille loss (measured with panels off)"
       },
       {
         "done": true,
