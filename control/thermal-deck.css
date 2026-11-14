@@ -312,3 +312,7 @@ html[data-theme=day] .dk-heatbar span{color:#fff}
   .ab-bars{grid-column:1/-1;grid-row:2}
   .ab-fan-l{display:block}
 }
+
+.dk-gate .dk-checks{margin-top:4px}
+.dk-gate .dk-checks li{font-size:13px;color:var(--tl-muted)}
+.dk-gate .dk-checks li::before{content:"□";margin-right:6px;color:var(--tl-amber)}

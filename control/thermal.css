@@ -269,3 +269,12 @@ html[data-theme=night] :is(.tl-plot-crop,.tl-curves img){filter:invert(.9) hue-r
 .tl-rank-row.measured .tl-rank-value strong{color:var(--tl-ok)}
 .tl-rank-measured{position:absolute;top:50%;width:14px;height:14px;background:var(--tl-ok);transform:translate(-50%,-50%) rotate(45deg);border-radius:2px;box-shadow:0 0 0 3px color-mix(in srgb,var(--tl-ok) 25%,transparent)}
 .tl-rank-row.fitted .tl-rank-name small{color:var(--tl-amber)}
+
+/* Lista de comprobaciones pendientes antes del CFD */
+.tl-checklist{margin-top:18px;padding:16px 18px;border:1px dashed color-mix(in srgb,var(--tl-amber) 60%,var(--tl-line));border-radius:14px;background:color-mix(in srgb,var(--tl-amber) 6%,transparent)}
+.tl-checklist h4{margin:0 0 10px;font-size:15px}
+.tl-checklist h4 b{color:var(--tl-amber)}
+.tl-checklist ol{margin:0;padding-left:22px;display:grid;gap:8px}
+.tl-checklist li strong{display:block}
+.tl-checklist li small{display:inline-block;margin:2px 8px 0 0;padding:1px 7px;border-radius:999px;background:var(--tl-soft);color:var(--tl-ink);font:11px "DM Mono",monospace}
+.tl-checklist li span{color:var(--tl-muted);font-size:13px}
