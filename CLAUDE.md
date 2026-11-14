@@ -16,6 +16,7 @@ La página del Thermal Lab (`/control/#thermal`) y su presentación para todo el
 el relato, de la sección `story`. Cada vez que cambie algo del Thermal Lab (pruebas, modelos, piezas, ideas, página):
 
 1. Añade una línea a `story.timeline` con la fecha y qué se hizo, en lenguaje sencillo.
-2. Revisa `story.next_steps` (siempre debe quedar uno en `next`), `story.phases`, `story.cfd_gate`, `story.conclusions` y `story.uses`.
+2. Cada prueba nueva de la campaña de canales va también como fila en `story.ab_tests.rows` (cifras de `tools/thermal-bench/analyze.py`); así sale en la gráfica de antes y después.
+   Revisa `story.next_steps` (siempre debe quedar uno en `next`), `story.phases`, `story.cfd_gate`, `story.conclusions` y `story.uses`.
 3. Sube `story.updated` y `generated_at`. Una idea o modelo nuevo necesita su `plain_es`.
 4. `node --test tests/thermal-story.test.mjs` comprueba que no falte nada.
