@@ -366,6 +366,7 @@
           <svg viewBox="0 0 120 120" class="dk-ring" aria-hidden="true"><circle cx="60" cy="60" r="50" class="bg"/><circle cx="60" cy="60" r="50" class="fg" style="stroke-dasharray:${(ring*314).toFixed(1)} 314"/><text x="60" y="58" text-anchor="middle">${m.gateDone}/${m.gate.length}</text><text x="60" y="78" text-anchor="middle" class="sub">listo</text></svg>
           <p class="dk-label">Para simular el aire (CFD) hace falta</p>
           <ul>${m.gate.map(item=>`<li class="${item.done?'done':''}">${esc(item.es)}</li>`).join('')}</ul>
+          ${(data.geometry?.open_questions||[]).length?`<p class="dk-label">Pendiente de comprobar</p><ul class="dk-checks">${data.geometry.open_questions.map(q=>`<li><b>${esc(q.what)}</b> · ${esc(q.how)}</li>`).join('')}</ul>`:''}
         </aside>
       </div>`);
     return list;

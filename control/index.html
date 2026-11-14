@@ -27,8 +27,8 @@
   <link rel="stylesheet" href="backtest.css?v=20261012n">
   <link rel="stylesheet" href="/theme.css?v=20261001contrast">
   <link rel="stylesheet" href="flight-control.css?v=20261014agent">
-  <link rel="stylesheet" href="thermal.css?v=20261114r">
-  <link rel="stylesheet" href="thermal-deck.css?v=20261114ab">
+  <link rel="stylesheet" href="thermal.css?v=20261114s">
+  <link rel="stylesheet" href="thermal-deck.css?v=20261114s">
 </head>
 <body class="access-pending" data-workspace>
   <canvas id="control-grid" aria-hidden="true"></canvas>
@@ -364,6 +364,11 @@
           </article>
         </div>
         <p class="tl-note" id="tl-cfd-note"></p>
+        <div class="tl-checklist" lang="es">
+          <h4>Pendiente de comprobar antes del CFD · <b id="tl-cfd-checklist-count">–</b></h4>
+          <ol id="tl-cfd-checklist"></ol>
+          <p class="tl-note">Sale de <code>geometry.open_questions</code>: cuando se resuelve una, se quita de la lista en <code>tools/terra-cfd/build_geometry.py</code>.</p>
+        </div>
       </section>
 
       <section class="tl-block" aria-labelledby="tl-ab-title">
@@ -430,8 +435,8 @@
   <script src="training.js?v=20261111fiable"></script>
   <script type="module" src="backtest.js?v=20261114a"></script>
   <script src="github-galaxy.js?v=20261110mapa"></script>
-  <script src="thermal-deck.js?v=20261114r"></script>
-  <script src="control.js?v=20261110deckr"></script>
+  <script src="thermal-deck.js?v=20261114s"></script>
+  <script src="control.js?v=20261114s"></script>
   <script src="servercesar.js?v=20261020wake" defer></script>
   <script src="flight-control.js?v=20261014ar" defer></script>
   <script src="thermal-viewer.bundle.js?v=20261114r"></script>

@@ -361,6 +361,18 @@ function renderThermalCfd(cfd,fans){
   document.getElementById('tl-cfd-note').textContent=`* PSU losses may leave through the PSU's own exhaust; its direction is still to confirm. ${cfd.notes.join(' ')}`;
 }
 
+function renderCfdChecklist(items){
+  const list=document.getElementById('tl-cfd-checklist');
+  if(!list)return;
+  list.replaceChildren(...items.map(item=>{
+    const li=makeElement('li');
+    li.append(makeElement('strong',null,item.what),makeElement('small',null,item.how),makeElement('span',null,item.why));
+    return li;
+  }));
+  const count=document.getElementById('tl-cfd-checklist-count');
+  if(count)count.textContent=String(items.length);
+}
+
 function renderThermalLab(data){
   const ambient=data.project.ambient_C.toFixed(1);
   const models=data.model_lineage||[];
@@ -376,6 +388,7 @@ function renderThermalLab(data){
   renderThermalRanking(data.configuration_screening||[]);
   renderThermalLedger(data.experimental_campaign||[]);
   if(data.cfd_inputs)renderThermalCfd(data.cfd_inputs,data.configuration.fans);
+  renderCfdChecklist(data.geometry?.open_questions||[]);
   window.ThermalDeck?.render(data);
 }
 

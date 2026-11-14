@@ -137,11 +137,11 @@ components = [
         "heat_W": 107,
     },
     {
-        "id": "CPU_FAN", "label": "Noctua NF-A9x14 PWM on the cooler", "role": "fan", "certainty": "photo",
+        "id": "CPU_FAN", "label": "Noctua 92 mm fan on the cooler (model to confirm)", "role": "fan", "certainty": "photo",
         "parent": "CPU_COOLER",
         "fan": fan(cpu_x, cooler_top - 7, cpu_z, [0, -1, 0], 88, 14, "intake", frame=92),
         "box": box(cpu_x - 46, cooler_top - 14, cpu_z - 46, 92, 14, 92),
-        "basis": "Top-flow cooler: the fan blows down onto the board. Official 92 × 92 × 14 mm. The photos show this Noctua (from the purchase list) instead of the stock TL-9015R.",
+        "basis": "Top-flow cooler: the fan blows down onto the board. The photos show a brown Noctua 92 mm here instead of the stock TL-9015R; drawn as 92 × 92 × 14 until the model is confirmed.",
     },
     {
         "id": "CPU_DUCT", "label": "Printed CPU duct (PLA)", "role": "duct", "certainty": "measured",
@@ -182,11 +182,11 @@ components = [
         "basis": "On the inner side, so the cables cannot touch the blades.", "porosity": 0.85,
     },
     {
-        "id": "TOP_FAN", "label": "Noctua 120 mm · top exhaust (model to confirm)", "role": "fan", "certainty": "photo",
-        "fan": fan(78, 76.5, H - PANEL_T - 7.5, [0, 0, 1], 114, 15, "exhaust", frame=120),
-        "box": box(18, 16.5, H - PANEL_T - 15, 120, 120, 15),
-        "basis": "Zip-tied to the underside of the top panel at the front, right above the PSU exhaust. "
-                 "Official 120 × 120 × 15 mm frame; centre (78 mm from the front, centred across) read from the top photo through the slots.",
+        "id": "TOP_FAN", "label": "Noctua NF-A9x14 PWM · top exhaust", "role": "fan", "certainty": "official",
+        "fan": fan(78, 76.5, H - PANEL_T - 7, [0, 0, 1], 88, 14, "exhaust", frame=92),
+        "box": box(32, 30.5, H - PANEL_T - 14, 92, 92, 14),
+        "basis": "92 × 92 × 14 mm, 29.7 CFM (official; model given by César). Zip-tied to the underside of the top panel at the front, "
+                 "right above the PSU exhaust; centre (78 mm from the front, centred across) read from the top photo.",
     },
     {
         "id": "FRONT_FRAME", "label": "Internal front frame (steel)", "role": "structure", "certainty": "photo",
@@ -262,7 +262,7 @@ FEET_SPEC = {
 }
 
 geometry = {
-    "schema_version": "2.3.0",
+    "schema_version": "2.4.0",
     "updated": "2026-11-14",
     "coordinate_system": {
         "origin": "esquina delantera-inferior del lado de la gráfica, sin patas",
@@ -291,18 +291,22 @@ geometry = {
         "Forma real de cada cable: se modelan como volúmenes porosos.",
     ],
     "open_questions": [
-        "Modelo y grosor del ventilador de 120 mm de arriba (supuesto 120 × 120 × 15).",
-        "Foto del suelo de la caja: está ventilado, pero el dibujo de las ranuras es supuesto (copiado del panel de arriba).",
-        "Comprobar con regla la chapa de la columna: calculada a 81,6 mm del panel del procesador.",
-        "Altura del centro del ventilador del procesador sobre el suelo de la caja (calculada: 122 mm).",
+        {"what": "Modelo del ventilador del disipador", "how": "mirar la etiqueta", "why": "en las fotos es un Noctua de 92 mm; si arriba va el NF-A9x14, este es otro distinto (curva de caudal y grosor)"},
+        {"what": "Confirmar el ventilador de arriba", "how": "mirar la etiqueta", "why": "dado como NF-A9x14 de 92 mm; en la foto desde arriba parecía más grande. Centro estimado a 78 mm del frontal"},
+        {"what": "Suelo de la caja por fuera", "how": "una foto", "why": "las ranuras están copiadas del panel de arriba"},
+        {"what": "Chapa de la columna central", "how": "regla", "why": "calculada a 81,6 mm del panel del procesador (10,6 mm libres detrás de la gráfica)"},
+        {"what": "Altura del centro del ventilador del procesador", "how": "regla", "why": "calculada a 122 mm del suelo de la caja"},
+        {"what": "Curvas presión-caudal de los ventiladores", "how": "fichas de Noctua", "why": "las de la gráfica y la fuente no se publican: habrá que estimarlas"},
+        {"what": "Cuánto frenan cables, aletas y rejillas", "how": "ajustar con las pruebas S04-S07", "why": "son las zonas porosas del modelo"},
     ],
     "resolved": [
         "Panel de arriba: 36 filas de ranuras, medido en la foto desde arriba (14 nov).",
-        "Ventilador de arriba: 120 mm, delante, justo encima de la salida de la fuente.",
+        "Ventilador de arriba: delante, justo encima de la salida de la fuente.",
         "Fuente: toma aire del panel del procesador y lo suelta hacia arriba (César y foto).",
         "Frontal cerrado; trasera con la placa de I/O, una ranura abierta al lado y las rejillas del soporte de la gráfica.",
         "Cable de la gráfica por encima de la tarjeta; riser doblado sobre la columna central.",
         "Ventilador de abajo: NF-A12x15 bajo la fuente (lista de compra y guía de Fractal).",
+        "Ventilador de arriba: NF-A9x14 de 92 mm (César).",
         "Fuente SFX con los 100 mm de fondo en vertical, encima del ventilador de abajo.",
         "Columna central calculada con la cadena de medidas del lado del procesador.",
         "Aristas superiores redondeadas, radio ~4 mm.",

@@ -1,6 +1,6 @@
 {
   "schema_version": "1.4.0",
-  "generated_at": "2026-11-14T19:00:00+00:00",
+  "generated_at": "2026-11-14T19:30:00+00:00",
   "project": {
     "id": "terra-powerplant-lab",
     "title": "Terra Powerplant Lab",
@@ -113,7 +113,7 @@
         "group": "CPU",
         "location": "on the CPU heatsink, fed through the printed PLA duct",
         "orientation": "intake",
-        "model": "Noctua NF-A9x14 PWM (seen in photos; the stock TL-9015R is not fitted)",
+        "model": "Noctua 92 mm (seen in photos; model to confirm — the stock TL-9015R is not fitted)",
         "size_mm": [
           92,
           92,
@@ -142,11 +142,11 @@
         "group": "case",
         "location": "internal, cable-tied beneath the slotted top grille",
         "orientation": "exhaust",
-        "model": "Noctua 120 mm (model to confirm)",
+        "model": "Noctua NF-A9x14 PWM",
         "size_mm": [
-          120,
-          120,
-          15
+          92,
+          92,
+          14
         ],
         "max_rpm": 2200,
         "max_flow_m3h": 50.5,
@@ -216,7 +216,7 @@
     }
   },
   "geometry": {
-    "schema_version": "2.3.0",
+    "schema_version": "2.4.0",
     "updated": "2026-11-14",
     "coordinate_system": {
       "origin": "esquina delantera-inferior del lado de la gráfica, sin patas",
@@ -540,7 +540,7 @@
       },
       {
         "id": "CPU_FAN",
-        "label": "Noctua NF-A9x14 PWM on the cooler",
+        "label": "Noctua 92 mm fan on the cooler (model to confirm)",
         "role": "fan",
         "certainty": "photo",
         "parent": "CPU_COOLER",
@@ -573,7 +573,7 @@
             92
           ]
         },
-        "basis": "Top-flow cooler: the fan blows down onto the board. Official 92 × 92 × 14 mm. The photos show this Noctua (from the purchase list) instead of the stock TL-9015R."
+        "basis": "Top-flow cooler: the fan blows down onto the board. The photos show a brown Noctua 92 mm here instead of the stock TL-9015R; drawn as 92 × 92 × 14 until the model is confirmed."
       },
       {
         "id": "CPU_DUCT",
@@ -739,39 +739,39 @@
       },
       {
         "id": "TOP_FAN",
-        "label": "Noctua 120 mm · top exhaust (model to confirm)",
+        "label": "Noctua NF-A9x14 PWM · top exhaust",
         "role": "fan",
-        "certainty": "photo",
+        "certainty": "official",
         "fan": {
           "centre": [
             78,
             76.5,
-            189.5
+            190.0
           ],
           "axis": [
             0,
             0,
             1
           ],
-          "diameter": 114,
-          "thickness": 15,
+          "diameter": 88,
+          "thickness": 14,
           "hub_ratio": 0.3,
           "flow": "exhaust",
-          "frame": 120
+          "frame": 92
         },
         "box": {
           "min": [
-            18,
-            16.5,
-            182.0
+            32,
+            30.5,
+            183.0
           ],
           "size": [
-            120,
-            120,
-            15
+            92,
+            92,
+            14
           ]
         },
-        "basis": "Zip-tied to the underside of the top panel at the front, right above the PSU exhaust. Official 120 × 120 × 15 mm frame; centre (78 mm from the front, centred across) read from the top photo through the slots."
+        "basis": "92 × 92 × 14 mm, 29.7 CFM (official; model given by César). Zip-tied to the underside of the top panel at the front, right above the PSU exhaust; centre (78 mm from the front, centred across) read from the top photo."
       },
       {
         "id": "FRONT_FRAME",
@@ -1259,18 +1259,50 @@
       "Forma real de cada cable: se modelan como volúmenes porosos."
     ],
     "open_questions": [
-      "Modelo y grosor del ventilador de 120 mm de arriba (supuesto 120 × 120 × 15).",
-      "Foto del suelo de la caja: está ventilado, pero el dibujo de las ranuras es supuesto (copiado del panel de arriba).",
-      "Comprobar con regla la chapa de la columna: calculada a 81,6 mm del panel del procesador.",
-      "Altura del centro del ventilador del procesador sobre el suelo de la caja (calculada: 122 mm)."
+      {
+        "what": "Modelo del ventilador del disipador",
+        "how": "mirar la etiqueta",
+        "why": "en las fotos es un Noctua de 92 mm; si arriba va el NF-A9x14, este es otro distinto (curva de caudal y grosor)"
+      },
+      {
+        "what": "Confirmar el ventilador de arriba",
+        "how": "mirar la etiqueta",
+        "why": "dado como NF-A9x14 de 92 mm; en la foto desde arriba parecía más grande. Centro estimado a 78 mm del frontal"
+      },
+      {
+        "what": "Suelo de la caja por fuera",
+        "how": "una foto",
+        "why": "las ranuras están copiadas del panel de arriba"
+      },
+      {
+        "what": "Chapa de la columna central",
+        "how": "regla",
+        "why": "calculada a 81,6 mm del panel del procesador (10,6 mm libres detrás de la gráfica)"
+      },
+      {
+        "what": "Altura del centro del ventilador del procesador",
+        "how": "regla",
+        "why": "calculada a 122 mm del suelo de la caja"
+      },
+      {
+        "what": "Curvas presión-caudal de los ventiladores",
+        "how": "fichas de Noctua",
+        "why": "las de la gráfica y la fuente no se publican: habrá que estimarlas"
+      },
+      {
+        "what": "Cuánto frenan cables, aletas y rejillas",
+        "how": "ajustar con las pruebas S04-S07",
+        "why": "son las zonas porosas del modelo"
+      }
     ],
     "resolved": [
       "Panel de arriba: 36 filas de ranuras, medido en la foto desde arriba (14 nov).",
-      "Ventilador de arriba: 120 mm, delante, justo encima de la salida de la fuente.",
+      "Ventilador de arriba: delante, justo encima de la salida de la fuente.",
       "Fuente: toma aire del panel del procesador y lo suelta hacia arriba (César y foto).",
       "Frontal cerrado; trasera con la placa de I/O, una ranura abierta al lado y las rejillas del soporte de la gráfica.",
       "Cable de la gráfica por encima de la tarjeta; riser doblado sobre la columna central.",
       "Ventilador de abajo: NF-A12x15 bajo la fuente (lista de compra y guía de Fractal).",
+      "Ventilador de arriba: NF-A9x14 de 92 mm (César).",
       "Fuente SFX con los 100 mm de fondo en vertical, encima del ventilador de abajo.",
       "Columna central calculada con la cadena de medidas del lado del procesador.",
       "Aristas superiores redondeadas, radio ~4 mm.",
@@ -2124,6 +2156,12 @@
         "kind": "parts",
         "title": "Caja completa: patas, chapas y aristas",
         "detail": "La fuente SFX va con sus 100 mm de fondo en vertical, sobre el ventilador NF-A12x15 de abajo (como indica Fractal). La columna central sale de la cadena de medidas del lado del procesador. Se añaden las patas de los laterales, el suelo ventilado, el marco frontal, el soporte de la fuente, la sujeción de la gráfica y las aristas superiores redondeadas. En la web, un botón pone los paneles opacos para comparar el modelo con las fotos."
+      },
+      {
+        "date": "2026-11-14",
+        "kind": "page",
+        "title": "Lista de comprobaciones para el CFD",
+        "detail": "Lo que falta medir o confirmar antes de montar la simulación sale en la página y en la presentación. Arriba va el NF-A9x14 de 92 mm."
       }
     ],
     "next_steps": [
