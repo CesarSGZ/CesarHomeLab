@@ -116,8 +116,8 @@ async function initViewer() {
   };
 
   addDesk(root, model.case);
-  addCaseFrame(root);
-  for (const panel of model.panels || []) addPanel(panelGroup, panel);
+  addCaseFrame(root, model.case, panelGroup);
+  for (const panel of model.panels || []) addPanel(panelGroup, panel, model.case);
 
   const OFFSETS = {
     GPU: [0, 0, -1.2], GPU_FAN_1: [0, 0, -1.2], GPU_FAN_2: [0, 0, -1.2], GPU_FAN_3: [0, 0, -1.2],
@@ -173,6 +173,13 @@ async function initViewer() {
     const on = button.getAttribute('aria-pressed') !== 'true';
     setPressed(button, on);
     panelGroup.visible = on;
+    render();
+  });
+  toggle('[data-thermal-opaque]', (button) => {
+    const on = button.getAttribute('aria-pressed') !== 'true';
+    setPressed(button, on);
+    setPanelsOpaque(on);
+    if (on && panelsButton && panelsButton.getAttribute('aria-pressed') !== 'true') panelsButton.click();
     render();
   });
   toggle('[data-thermal-flow]', (button) => {
@@ -243,72 +250,95 @@ function isVisible(object) {
 }
 
 // ---------- Case ----------
+const PANEL_MATS = [];
+function panelMaterial(opacity = 0.22) {
+  const material = new THREE.MeshStandardMaterial({
+    color: 0x86a58a, transparent: true, opacity, roughness: 0.8, metalness: 0.3,
+    side: THREE.DoubleSide, depthWrite: false,
+  });
+  material.userData.baseOpacity = opacity;
+  PANEL_MATS.push(material);
+  return material;
+}
+function setPanelsOpaque(on) {
+  for (const material of PANEL_MATS) {
+    material.opacity = on ? 1 : material.userData.baseOpacity;
+    material.transparent = !on;
+    material.depthWrite = on;
+    material.needsUpdate = true;
+  }
+}
+
 function addDesk(root, kase) {
-  const feet = kase.feet_mm || 20;
+  const feet = kase.feet?.height_mm || kase.feet_mm || 20;
   const desk = new THREE.Mesh(new THREE.PlaneGeometry(5.4, 3.4), new THREE.MeshStandardMaterial({ color: 0x1a2326, roughness: 0.95 }));
   desk.rotation.x = -Math.PI / 2;
   desk.position.copy(P(CASE.x / 2, CASE.y / 2, -feet));
   root.add(desk);
-  const footMaterial = new THREE.MeshStandardMaterial({ color: 0x2a3335, roughness: 0.8 });
-  for (const x of [22, CASE.x - 22]) {
-    for (const y of [18, CASE.y - 18]) {
-      const foot = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.13, feet * S, 20), footMaterial);
-      foot.position.copy(P(x, y, -feet / 2));
-      root.add(foot);
-    }
-  }
 }
 
-function addCaseFrame(root) {
-  const geometry = new THREE.BoxGeometry(CASE.x * S, CASE.z * S, CASE.y * S);
-  root.add(new THREE.LineSegments(new THREE.EdgesGeometry(geometry), new THREE.LineBasicMaterial({ color: 0x9fbf98, transparent: true, opacity: 0.85 })));
-  // Frontal: chapa maciza y el listón de nogal abajo (botón y USB-C)
-  const front = new THREE.Mesh(
-    new THREE.PlaneGeometry(CASE.y * S, CASE.z * S),
-    new THREE.MeshStandardMaterial({ color: 0x86a58a, transparent: true, opacity: 0.28, side: THREE.DoubleSide, depthWrite: false }),
-  );
+// Contorno de la caja con las dos aristas superiores redondeadas (radio oficial de las fotos)
+function addCaseFrame(root, kase, group) {
+  const r = kase.top_edge_radius_mm || 0;
+  const w = CASE.y / 2;
+  const h = CASE.z / 2;
+  const profile = new THREE.Shape();
+  profile.moveTo(-w, -h); profile.lineTo(w, -h); profile.lineTo(w, h - r);
+  if (r) profile.absarc(w - r, h - r, r, 0, Math.PI / 2, false);
+  profile.lineTo(-w + r, h);
+  if (r) profile.absarc(-w + r, h - r, r, Math.PI / 2, Math.PI, false);
+  profile.lineTo(-w, -h);
+  const shell = new THREE.ExtrudeGeometry(profile, { depth: CASE.x, bevelEnabled: false, curveSegments: 10 });
+  const edges = new THREE.LineSegments(new THREE.EdgesGeometry(shell, 25), new THREE.LineBasicMaterial({ color: 0x9fbf98, transparent: true, opacity: 0.85 }));
+  edges.scale.setScalar(S);
+  edges.rotation.y = Math.PI / 2;   // extruido a lo largo de x
+  edges.position.copy(P(0, CASE.y / 2, CASE.z / 2));
+  root.add(edges);
+  // Frontal macizo y listón de nogal hasta la mesa (botón y USB-C)
+  const front = new THREE.Mesh(new THREE.ShapeGeometry(profile, 10), panelMaterial(0.28));
+  front.scale.setScalar(S);
   front.rotation.y = Math.PI / 2;
   front.position.copy(P(-0.5, CASE.y / 2, CASE.z / 2));
-  root.add(front);
-  const walnut = new THREE.Mesh(
-    new THREE.BoxGeometry(0.04, 36 * S, CASE.y * S),
-    new THREE.MeshStandardMaterial({ color: 0x7a4d2a, roughness: 0.7 }),
-  );
-  walnut.position.copy(P(-2, CASE.y / 2, -2));
+  group.add(front);
+  const feet = kase.feet?.height_mm || 20;
+  const walnut = new THREE.Mesh(new THREE.BoxGeometry(0.04, (feet + 16) * S, CASE.y * S), new THREE.MeshStandardMaterial({ color: 0x7a4d2a, roughness: 0.7 }));
+  walnut.position.copy(P(-2, CASE.y / 2, (16 - feet) / 2));
   root.add(walnut);
 }
 
-function addPanel(group, panel) {
+function addPanel(group, panel, kase) {
   if (panel.openings) return addRear(group, panel);
   const g = panel.grille;
   if (!g) return;
-  const material = new THREE.MeshStandardMaterial({
-    color: 0x86a58a, transparent: true, opacity: 0.22, roughness: 0.8, metalness: 0.3,
-    side: THREE.DoubleSide, depthWrite: false,
-  });
-  const rect = (w, h) => {
-    const shape = new THREE.Shape();
-    shape.moveTo(0, 0); shape.lineTo(w, 0); shape.lineTo(w, h); shape.lineTo(0, h); shape.lineTo(0, 0);
-    return shape;
-  };
+  const material = panelMaterial();
   let mesh;
   if (panel.face === 'y-' || panel.face === 'y+') {
-    const shape = rect(CASE.x, CASE.z);
+    // Lateral: baja hasta la mesa en los extremos (patas) con un corte a 45° entre medias
+    const f = kase.feet || { height_mm: 20, legs: [{ x: [0, 30] }, { x: [CASE.x - 30, CASE.x] }], chamfer_mm: 20 };
+    const hgt = f.height_mm;
+    const c = f.chamfer_mm;
+    const r = kase.top_edge_radius_mm || 0;
+    const shape = new THREE.Shape();
+    const [l0, l1] = [f.legs[0].x[1], f.legs[1].x[0]];
+    shape.moveTo(0, -hgt); shape.lineTo(l0, -hgt); shape.lineTo(l0 + c, 0); shape.lineTo(l1 - c, 0); shape.lineTo(l1, -hgt);
+    shape.lineTo(CASE.x, -hgt); shape.lineTo(CASE.x, CASE.z - r); shape.lineTo(0, CASE.z - r); shape.lineTo(0, -hgt);
     g.rows_x.forEach((x, k) => {
       const gap = k % 2 === 0 ? g.gap_z.even : g.gap_z.odd;
       for (const [z0, z1] of [[g.slot_z[0], gap[0]], [gap[1], g.slot_z[1]]]) shape.holes.push(slotPath(x, z0, z1, g.slot_w));
     });
     mesh = new THREE.Mesh(new THREE.ShapeGeometry(shape, 4), material);
     mesh.position.copy(P(0, panel.face === 'y-' ? -0.5 : CASE.y + 0.5, 0));
-  } else if (panel.face === 'z+') {
-    const shape = rect(CASE.x, CASE.y);
+  } else if (panel.face === 'z+' || panel.face === 'z-') {
+    const r = panel.face === 'z+' ? (kase.top_edge_radius_mm || 0) : 0;
+    const shape = new THREE.Shape();
+    shape.moveTo(0, r); shape.lineTo(CASE.x, r); shape.lineTo(CASE.x, CASE.y - r); shape.lineTo(0, CASE.y - r); shape.lineTo(0, r);
     g.rows_x.forEach((x, k) => {
       const gap = k % 2 === 0 ? g.gap_y.even : g.gap_y.odd;
       for (const [y0, y1] of [[g.slot_y[0], gap[0]], [gap[1], g.slot_y[1]]]) shape.holes.push(slotPath(x, y0, y1, g.slot_w));
     });
     mesh = new THREE.Mesh(new THREE.ShapeGeometry(shape, 4), material);
     mesh.rotation.x = Math.PI / 2;
-    mesh.position.copy(P(0, 0, CASE.z + 0.5));
+    mesh.position.copy(P(0, 0, panel.face === 'z+' ? CASE.z + 0.5 : -0.5));
   }
   if (!mesh) return;
   mesh.scale.setScalar(S);
@@ -324,8 +354,7 @@ function addRear(group, panel) {
     hole.moveTo(o.y[0], o.z[0]); hole.lineTo(o.y[1], o.z[0]); hole.lineTo(o.y[1], o.z[1]); hole.lineTo(o.y[0], o.z[1]); hole.lineTo(o.y[0], o.z[0]);
     sheet.holes.push(hole);
   }
-  const material = new THREE.MeshStandardMaterial({ color: 0x86a58a, transparent: true, opacity: 0.22, side: THREE.DoubleSide, depthWrite: false });
-  const mesh = new THREE.Mesh(new THREE.ShapeGeometry(sheet), material);
+  const mesh = new THREE.Mesh(new THREE.ShapeGeometry(sheet), panelMaterial());
   // Plano y-z en x = L: el eje X del shape es y del dato (mundo z), el Y del shape es z (mundo y)
   mesh.rotation.y = -Math.PI / 2;
   mesh.scale.setScalar(S);

@@ -141,9 +141,9 @@ function renderThermalLoads(headline,board){
   const loads=document.getElementById('tl-loads');
   const chipRow=(label,peak)=>thermalBar(label,peak-20,80,formatTemperature(peak));
   const cards=[
-    ['CPU ONLY',headline.cpu_only.mean_power_W,[chipRow('CPU peak',headline.cpu_only.peak_temperature_C)],`Average under load ${formatTemperature(headline.cpu_only.mean_temperature_C)}`],
-    ['GPU ONLY',headline.gpu_only.mean_power_W,[chipRow('GPU peak',headline.gpu_only.peak_temperature_C)],`Average under load ${formatTemperature(headline.gpu_only.mean_temperature_C)}`],
-    ['BOTH AT ONCE · 15 S',headline.full_combined.mean_chip_power_W,[chipRow('CPU peak',headline.full_combined.cpu_peak_temperature_C),chipRow('GPU peak',headline.full_combined.gpu_peak_temperature_C)],`Board power stage peaked at ${formatTemperature(board.full_combined.vrm_load_peak_C)}`]
+    ['CPU ONLY · 4 AUG BASELINE',headline.cpu_only.mean_power_W,[chipRow('CPU peak',headline.cpu_only.peak_temperature_C)],`Average under load ${formatTemperature(headline.cpu_only.mean_temperature_C)}`],
+    ['GPU ONLY · 4 AUG BASELINE',headline.gpu_only.mean_power_W,[chipRow('GPU peak',headline.gpu_only.peak_temperature_C)],`Average under load ${formatTemperature(headline.gpu_only.mean_temperature_C)}`],
+    ['BOTH AT ONCE · 15 S · 4 AUG',headline.full_combined.mean_chip_power_W,[chipRow('CPU peak',headline.full_combined.cpu_peak_temperature_C),chipRow('GPU peak',headline.full_combined.gpu_peak_temperature_C)],`Board power stage peaked at ${formatTemperature(board.full_combined.vrm_load_peak_C)}`]
   ];
   loads.replaceChildren(...cards.map(([label,power,rows,note])=>{
     const card=makeElement('article','tl-load');
@@ -191,10 +191,11 @@ function renderThermalRanking(screening){
   const rank=document.getElementById('tl-rank');
   const baseline=screening.find(item=>item.configuration_id==='CFG-000');
   const baselinePeak=baseline?baseline.gpu_peak_model_low_C:80.31;
+  const measured=screening.filter(item=>item.stage==='measured'&&item.measured);
   const ideas=screening
-    .filter(item=>item.configuration_id!=='CFG-000')
+    .filter(item=>item.configuration_id!=='CFG-000'&&item.gpu_peak_model_low_C!=null)
     .map(item=>({...item,mid:(item.gpu_peak_model_low_C+item.gpu_peak_model_high_C)/2}))
-    .sort((a,b)=>a.mid-b.mid);
+    .sort((a,b)=>(a.stage==='fitted'?-1:0)-(b.stage==='fitted'?-1:0)||a.mid-b.mid);
   const lo=Math.floor(Math.min(...ideas.map(item=>item.gpu_peak_model_low_C)))-.5;
   const hi=Math.ceil(Math.max(baselinePeak,...ideas.map(item=>item.gpu_peak_model_high_C)))+.5;
   const at=value=>`${(value-lo)/(hi-lo)*100}%`;
@@ -206,16 +207,45 @@ function renderThermalRanking(screening){
     label.style.left=at(tick);
     scale.append(label);
   }
-  const today=makeElement('em',null,`Today ${baselinePeak.toFixed(1)} °C`);
+  const today=makeElement('em',null,`Model baseline ${baselinePeak.toFixed(1)} °C`);
   today.style.left=at(baselinePeak);
   scale.append(today);
   axis.append(makeElement('span'),scale,makeElement('span'));
 
-  const rows=ideas.map((idea,index)=>{
-    const row=makeElement('details',`tl-rank-row conf-${idea.evidence_confidence.split(/[ ;]/)[0]}`);
+  const measuredRows=measured.map(item=>{
+    const m=item.measured;
+    const row=makeElement('details','tl-rank-row measured');
     const summary=makeElement('summary');
     const name=makeElement('div','tl-rank-name');
-    name.append(makeElement('strong',null,idea.physical_change),makeElement('small',null,`${idea.configuration_id}${index===0?' · TOP PICK':''}`));
+    name.append(makeElement('strong',null,item.physical_change),makeElement('small',null,`${item.configuration_id} · MEASURED · ${m.sessions}`));
+    const track=makeElement('div','tl-rank-track');
+    const marker=makeElement('b');
+    marker.style.left=at(baselinePeak);
+    const dot=makeElement('span','tl-rank-measured');
+    dot.style.left=at(baselinePeak+m.gpu_delta_C);
+    dot.title=`Measured: ${m.gpu_delta_C} °C on the GPU`;
+    track.append(marker,dot);
+    const value=makeElement('div','tl-rank-value');
+    value.append(makeElement('strong',null,`GPU ${m.gpu_delta_C>0?'+':'−'}${Math.abs(m.gpu_delta_C).toFixed(1)} °C`),makeElement('small',null,`CPU +${m.cpu_power_gain_pct} % power`));
+    summary.append(name,track,value);
+    const more=makeElement('div','tl-rank-more');
+    [['What',item.hypothesis],['Result',item.status],['Risk',item.main_risk]].forEach(([label,text])=>{
+      const line=makeElement('p');
+      line.append(makeElement('b',null,`${label} · `),document.createTextNode(text));
+      more.append(line);
+    });
+    row.append(summary,more);
+    return row;
+  });
+  let pick=true;
+  const rows=ideas.map(idea=>{
+    const fitted=idea.stage==='fitted';
+    const row=makeElement('details',`tl-rank-row conf-${idea.evidence_confidence.split(/[ ;]/)[0]}${fitted?' fitted':''}`);
+    const summary=makeElement('summary');
+    const name=makeElement('div','tl-rank-name');
+    const tag=fitted?` · FITTED · ${idea.fitted?.test||'A/B'} PENDING`:(pick?' · TOP PICK':'');
+    if(!fitted)pick=false;
+    name.append(makeElement('strong',null,idea.physical_change),makeElement('small',null,`${idea.configuration_id}${tag}`));
     const track=makeElement('div','tl-rank-track');
     const range=makeElement('i');
     range.style.left=at(idea.gpu_peak_model_low_C);
@@ -230,7 +260,7 @@ function renderThermalRanking(screening){
     );
     summary.append(name,track,value);
     const more=makeElement('div','tl-rank-more');
-    [['Idea',idea.hypothesis],['Risk',idea.main_risk],['Confidence',idea.evidence_confidence]].forEach(([label,text])=>{
+    [['Idea',idea.hypothesis],['Risk',idea.main_risk],['Confidence',idea.evidence_confidence],['Status',idea.status]].forEach(([label,text])=>{
       const line=makeElement('p');
       line.append(makeElement('b',null,`${label} · `),document.createTextNode(text));
       more.append(line);
@@ -238,7 +268,7 @@ function renderThermalRanking(screening){
     row.append(summary,more);
     return row;
   });
-  rank.replaceChildren(axis,...rows);
+  rank.replaceChildren(axis,...measuredRows,...rows);
 }
 
 function renderThermalLedger(experiments){
@@ -246,10 +276,12 @@ function renderThermalLedger(experiments){
   body.replaceChildren(...experiments.map((experiment,index)=>{
     const row=makeElement('tr');
     const stamp=experiment.id.match(/^EXP-\d{8}-(\d{2})(\d{2})\d{2}-/);
+    const day=experiment.id.match(/^EXP-(\d{4})(\d{2})(\d{2})/);
+    const dayText=day?new Date(`${day[1]}-${day[2]}-${day[3]}T12:00:00`).toLocaleDateString('en-GB',{day:'numeric',month:'short'}):'';
     const test=makeElement('td');
     test.append(
       makeElement('strong',null,experiment.id.replace(/^EXP-(\d{8}-\d{6}-)?/,'').replace(/-/g,' ')),
-      makeElement('small',null,stamp?`4 Aug · ${stamp[1]}:${stamp[2]}`:'4 Aug')
+      makeElement('small',null,stamp?`${dayText} · ${stamp[1]}:${stamp[2]}`:dayText)
     );
     row.append(makeElement('td',null,String(index+1)),test,makeElement('td',null,experiment.profile),makeElement('td',null,experiment.role),makeElement('td',null,experiment.key_result));
     return row;
@@ -335,8 +367,10 @@ function renderThermalLab(data){
   document.getElementById('tl-test-count').textContent=String((data.experimental_campaign||[]).length);
   document.getElementById('tl-model-count').textContent=String(models.length);
   document.getElementById('tl-valid-count').textContent=String(models.filter(model=>model.decision.startsWith('ACCEPTED')).length);
-  document.getElementById('tl-config').textContent=`${data.project.configuration_id} baseline · ${ambient} °C room`;
-  document.getElementById('tl-ambient').textContent=`${ambient} °C, held fixed`;
+  const campaign=(data.story?.ab_tests?.rows||[]).filter(row=>row.status==='done'&&row.ambient_C!=null).map(row=>row.ambient_C);
+  const room=campaign.length?`${Math.min(...campaign)}–${Math.max(...campaign)} °C`:`${ambient} °C`;
+  document.getElementById('tl-config').textContent=`Duct campaign · ${room} room`;
+  document.getElementById('tl-ambient').textContent=`${room} in the duct campaign (Nov 2026); ${ambient} °C for the 4 Aug baseline the models were fitted on`;
   renderThermalLoads(data.headline_metrics,data.motherboard_telemetry);
   renderThermalScores(models);
   renderThermalRanking(data.configuration_screening||[]);

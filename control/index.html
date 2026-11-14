@@ -27,7 +27,7 @@
   <link rel="stylesheet" href="backtest.css?v=20261012n">
   <link rel="stylesheet" href="/theme.css?v=20261001contrast">
   <link rel="stylesheet" href="flight-control.css?v=20261014agent">
-  <link rel="stylesheet" href="thermal.css?v=20261110deck">
+  <link rel="stylesheet" href="thermal.css?v=20261114r">
   <link rel="stylesheet" href="thermal-deck.css?v=20261114ab">
 </head>
 <body class="access-pending" data-workspace>
@@ -255,6 +255,7 @@
               <button type="button" class="active" data-thermal-colour="role" aria-pressed="true">Colour: function</button>
               <button type="button" data-thermal-colour="certainty" aria-pressed="false">Colour: certainty</button>
               <button type="button" class="active" data-thermal-panels aria-pressed="true">Panels</button>
+              <button type="button" data-thermal-opaque aria-pressed="false">Solid panels</button>
               <button type="button" class="active" data-thermal-flow aria-pressed="true">Airflow</button>
             </div>
             <div class="thermal-3d-shell" id="thermal-3d-shell">
@@ -336,9 +337,9 @@
       </section>
 
       <section class="tl-block" aria-labelledby="tl-rank-title">
-        <header class="tl-block-head"><span>04</span><div><h3 id="tl-rank-title">Which airflow change is worth building?</h3><p>The validated GPU model predicts the peak GPU temperature for each idea. Bars are ranges, not measurements: the real effect is only known after an A/B test.</p></div></header>
+        <header class="tl-block-head"><span>04</span><div><h3 id="tl-rank-title">Which airflow change is worth building?</h3><p>Ideas already tested come first with their measured result. For the rest, the validated GPU model predicts the peak GPU temperature from the 4 Aug baseline: bars are ranges, not measurements, until an A/B test settles them.</p></div></header>
         <div class="tl-rank" id="tl-rank"><p class="tl-loading">Loading predictions…</p></div>
-        <p class="tl-note">Lower is better. The dashed line is today; paler bars have less physical evidence behind them. Tap a row for the idea and its main risk.</p>
+        <p class="tl-note">Lower is better. The dashed line is the 4 Aug model baseline; a green diamond is a measured change, a bar is a prediction (paler bars have less physical evidence). Tap a row for the details.</p>
       </section>
 
       <section class="tl-block" aria-labelledby="tl-cfd-title">
@@ -429,10 +430,10 @@
   <script src="training.js?v=20261111fiable"></script>
   <script type="module" src="backtest.js?v=20261012m"></script>
   <script src="github-galaxy.js?v=20261110mapa"></script>
-  <script src="thermal-deck.js?v=20261114ab"></script>
-  <script src="control.js?v=20261110deck"></script>
+  <script src="thermal-deck.js?v=20261114r"></script>
+  <script src="control.js?v=20261110deckr"></script>
   <script src="servercesar.js?v=20261020wake" defer></script>
-  <script src="flight-control.js?v=20261014a" defer></script>
-  <script src="thermal-viewer.bundle.js?v=20261114p"></script>
+  <script src="flight-control.js?v=20261014ar" defer></script>
+  <script src="thermal-viewer.bundle.js?v=20261114r"></script>
 </body>
 </html>

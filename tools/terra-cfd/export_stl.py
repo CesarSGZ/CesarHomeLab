@@ -142,6 +142,7 @@ def export(out):
     manifest = {"units": "m", "source": "control/data/terra-thermal-summary.json · geometry " + g["schema_version"],
                 "domain": {"case_interior_m": [[t * M, t * M, t * M], [(L - t) * M, (W - t) * M, (H - t) * M]],
                            "note": "Dominio interior de la caja. Para el exterior añadir una caja de aire alrededor y la mesa 20 mm por debajo."},
+                "case": {"top_edge_radius_mm": g["case"].get("top_edge_radius_mm"), "feet": g["case"].get("feet")},
                 "files": []}
 
     def save(mesh, name, kind, part, extra=None):
@@ -205,11 +206,12 @@ def export(out):
                 gap = gr["gap_z"]["even" if k % 2 == 0 else "odd"]
                 for z0, z1 in ((gr["slot_z"][0], gap[0]), (gap[1], gr["slot_z"][1])):
                     add_slot(mesh, 1, y, 0, x, z0, z1, 2, gr["slot_w"])
-        elif panel["face"] == "z+":
+        elif panel["face"] in ("z+", "z-"):
+            z = H - t if panel["face"] == "z+" else t
             for k, x in enumerate(gr["rows_x"]):
                 gap = gr["gap_y"]["even" if k % 2 == 0 else "odd"]
                 for y0, y1 in ((gr["slot_y"][0], gap[0]), (gap[1], gr["slot_y"][1])):
-                    add_slot(mesh, 2, H - t, 0, x, y0, y1, 1, gr["slot_w"])
+                    add_slot(mesh, 2, z, 0, x, y0, y1, 1, gr["slot_w"])
         save(mesh, panel["id"].lower() + "_slots", "opening", panel,
              {"bc": "patch de presión total / entrada-salida libre", "face": panel["face"]})
 

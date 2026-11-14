@@ -262,3 +262,10 @@ html[data-theme=night] :is(.tl-plot-crop,.tl-curves img){filter:invert(.9) hue-r
 
 /* Visor 3D: segunda fila de botones (capas y colores) */
 .thermal-view-controls.thermal-view-layers{margin-top:-6px}
+
+/* Ideas ya medidas o montadas en el ranking */
+.tl-rank-row.measured{background:color-mix(in srgb,var(--tl-ok) 9%,transparent);border-radius:10px}
+.tl-rank-row.measured .tl-rank-name small{color:var(--tl-ok)}
+.tl-rank-row.measured .tl-rank-value strong{color:var(--tl-ok)}
+.tl-rank-measured{position:absolute;top:50%;width:14px;height:14px;background:var(--tl-ok);transform:translate(-50%,-50%) rotate(45deg);border-radius:2px;box-shadow:0 0 0 3px color-mix(in srgb,var(--tl-ok) 25%,transparent)}
+.tl-rank-row.fitted .tl-rank-name small{color:var(--tl-amber)}
