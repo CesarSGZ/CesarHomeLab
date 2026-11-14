@@ -140,12 +140,19 @@ async function initViewer() {
     else if (part.id === 'RAM') addRam(group, part, mat, pick);
     else if (part.id === 'SPINE') addSpine(group, part, mat, pick);
     else if (part.id === 'CPU_COOLER') addCooler(group, part, mat, pick);
+    else if (part.id === 'RISER') addBlock(group, part, mat, pick, 0.04);
     else addBlock(group, part, mat, pick);
   }
 
   const flow = new THREE.Group();
   root.add(flow);
   addAirflow(flow, model);
+
+  // Cables con su recorrido (fotos) y los volúmenes porosos que los representan en el CFD
+  const cableGroup = new THREE.Group();
+  root.add(cableGroup);
+  for (const cable of model.cables || []) addCableRoute(cableGroup, cable, mat, pick);
+  const porousCables = explodables.filter((g, i) => model.components[i]?.id.startsWith('CABLES_'));
 
   // ---------- UI ----------
   let mode = 'role';
@@ -182,15 +189,25 @@ async function initViewer() {
     if (on && panelsButton && panelsButton.getAttribute('aria-pressed') !== 'true') panelsButton.click();
     render();
   });
+  toggle('[data-thermal-cables]', (button) => {
+    const on = button.getAttribute('aria-pressed') !== 'true';
+    setPressed(button, on);
+    cableGroup.visible = on && !exploded;
+    porousCables.forEach((g) => { g.visible = on; });
+    render();
+  });
   toggle('[data-thermal-flow]', (button) => {
     const on = button.getAttribute('aria-pressed') !== 'true';
     setPressed(button, on);
     flow.visible = on;
     render();
   });
+  let exploded = false;
   toggle('[data-thermal-explode]', (button) => {
     const on = button.getAttribute('aria-pressed') !== 'true';
     setPressed(button, on);
+    exploded = on;
+    cableGroup.visible = !on && document.querySelector('[data-thermal-cables]')?.getAttribute('aria-pressed') !== 'false';
     for (const group of explodables) group.position.copy(on ? group.userData.offset : new THREE.Vector3());
     flow.visible = !on && (document.querySelector('[data-thermal-flow]')?.getAttribute('aria-pressed') ?? 'true') !== 'false';
     render();
@@ -294,6 +311,15 @@ function addCaseFrame(root, kase, group) {
   edges.rotation.y = Math.PI / 2;   // extruido a lo largo de x
   edges.position.copy(P(0, CASE.y / 2, CASE.z / 2));
   root.add(edges);
+  // Las dos aristas superiores redondeadas también son chapa (se ven al poner los paneles opacos)
+  if (r) {
+    for (const [yc, start] of [[CASE.y - r, Math.PI * 1.5], [r, Math.PI]]) {
+      const edge = new THREE.Mesh(new THREE.CylinderGeometry(r * S, r * S, CASE.x * S, 8, 1, true, start, Math.PI / 2), panelMaterial());
+      edge.rotation.z = -Math.PI / 2;   // eje del cilindro a lo largo de x
+      edge.position.copy(P(CASE.x / 2, yc, CASE.z - r));
+      group.add(edge);
+    }
+  }
   // Frontal macizo y listón de nogal hasta la mesa (botón y USB-C)
   const front = new THREE.Mesh(new THREE.ShapeGeometry(profile, 10), panelMaterial(0.28));
   front.scale.setScalar(S);
@@ -304,6 +330,27 @@ function addCaseFrame(root, kase, group) {
   const walnut = new THREE.Mesh(new THREE.BoxGeometry(0.04, (feet + 16) * S, CASE.y * S), new THREE.MeshStandardMaterial({ color: 0x7a4d2a, roughness: 0.7 }));
   walnut.position.copy(P(-2, CASE.y / 2, (16 - feet) / 2));
   root.add(walnut);
+  // Botón de encendido y los dos USB-C del listón
+  const io = kase.front_io;
+  if (io) {
+    const metal = new THREE.MeshStandardMaterial({ color: 0x2c3438, metalness: 0.6, roughness: 0.35 });
+    const b = io.power_button;
+    const button = new THREE.Mesh(new THREE.CylinderGeometry((b.diameter / 2) * S, (b.diameter / 2) * S, 2 * S, 32), metal);
+    button.rotation.z = Math.PI / 2;
+    button.position.copy(P(-5, b.y, b.z));
+    root.add(button);
+    const port = new THREE.MeshStandardMaterial({ color: 0x0d1012, roughness: 0.6 });
+    for (const u of io.usb_c) {
+      const shape = new THREE.Shape();
+      shape.absarc(-3, 0, 1.6, Math.PI / 2, Math.PI * 1.5, false);
+      shape.absarc(3, 0, 1.6, -Math.PI / 2, Math.PI / 2, false);
+      const slot = new THREE.Mesh(new THREE.ShapeGeometry(shape, 8), port);
+      slot.scale.setScalar(S);
+      slot.rotation.set(Math.PI / 2, -Math.PI / 2, 0, 'YXZ');
+      slot.position.copy(P(-4.05, u.y, u.z));
+      root.add(slot);
+    }
+  }
 }
 
 function addPanel(group, panel, kase) {
@@ -411,7 +458,10 @@ function addCooler(group, part, mat, pick) {
 
 function addRam(group, part, mat, pick) {
   const b = part.box;
-  for (const dx of [1.5, 9.5]) addBlock(group, { ...part, box: { min: [b.min[0] + dx, b.min[1], b.min[2]], size: [6, b.size[1], b.size[2]] } }, mat, pick, 0.6);
+  const m = part.modules || { count: 2, size_mm: [7, b.size[1], b.size[2]], pitch_mm: 9.5 };
+  for (let i = 0; i < m.count; i += 1) {
+    addBlock(group, { ...part, box: { min: [b.min[0] + 0.5 + i * m.pitch_mm, b.min[1], b.min[2]], size: [m.size_mm[0], m.size_mm[1], m.size_mm[2]] } }, mat, pick, 0.6);
+  }
 }
 
 function addSpine(group, part, mat, pick) {
@@ -528,13 +578,13 @@ function addDiscGrille(group, part, mat, pick) {
   const material = mat(part, { opacity: 0.9 });
   const centre = P(...s.centre);
   for (let i = 1; i <= s.rings; i += 1) {
-    const ring = new THREE.Mesh(new THREE.TorusGeometry((s.diameter / 2) * (i / s.rings) * S, 0.006, 6, 48), material);
+    const ring = new THREE.Mesh(new THREE.TorusGeometry((s.diameter / 2) * (i / s.rings) * S, ((s.wire_mm || 1.2) / 2) * S, 6, 48), material);
     ring.rotation.x = Math.PI / 2;
     ring.position.copy(centre);
     group.add(pick(ring, part));
   }
   for (let i = 0; i < 4; i += 1) {
-    const wire = new THREE.Mesh(new THREE.BoxGeometry(s.diameter * S, 0.008, 0.008), material);
+    const wire = new THREE.Mesh(new THREE.BoxGeometry(s.diameter * S, (s.wire_mm || 1.2) * S, (s.wire_mm || 1.2) * S), material);
     wire.rotation.y = (i * Math.PI) / 4;
     wire.position.copy(centre);
     group.add(pick(wire, part));
@@ -550,29 +600,33 @@ function addCables(group, part, mat, pick) {
   const edges = new THREE.LineSegments(new THREE.EdgesGeometry(volume.geometry), mat(part, { line: true, opacity: 0.35 }));
   edges.position.copy(volume.position);
   group.add(edges);
-  let seed = [...part.id].reduce((a, ch) => (a * 31 + ch.charCodeAt(0)) >>> 0, 7);
-  const rnd = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
-  // Un mazo: cables casi paralelos a lo largo del lado más largo, con una ondulación suave
-  const material = mat(part, { opacity: 0.8 });
-  const long = b.size.indexOf(Math.max(...b.size));
-  const across = [0, 1, 2].filter((axis) => axis !== long);
-  const count = 7;
-  for (let i = 0; i < count; i += 1) {
-    const base = across.map(() => 0.3 + 0.4 * rnd());
-    const phase = rnd() * Math.PI * 2;
-    const points = [];
-    for (let k = 0; k <= 8; k += 1) {
-      const t = k / 8;
-      const p = [0, 0, 0];
-      p[long] = b.min[long] + (0.04 + 0.92 * t) * b.size[long];
-      across.forEach((axis, j) => {
-        const wobble = 0.12 * Math.sin(phase + t * Math.PI * (2 + j));
-        p[axis] = b.min[axis] + Math.min(0.92, Math.max(0.08, base[j] + wobble)) * b.size[axis];
-      });
-      points.push(P(...p));
-    }
-    group.add(pick(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points), 48, 0.03, 8, false), material), part));
+}
+
+// Un cable: tubo redondo (o cinta plana para el riser) siguiendo los puntos del recorrido
+function addCableRoute(group, cable, mat, pick) {
+  const part = { ...cable, role: 'porous', basis: `${cable.from} → ${cable.to}` };
+  const curve = new THREE.CatmullRomCurve3(cable.points.map((p) => P(...p)), false, 'centripetal');
+  const material = mat(part, { opacity: 0.95 });
+  let geometry;
+  if (cable.flat) {
+    // Cinta: ancho a lo largo de x (la cinta va en el plano y-z)
+    const w = (cable.flat[0] / 2) * S;
+    const samples = curve.getPoints(60);
+    const pos = [];
+    const idx = [];
+    samples.forEach((p, i) => {
+      pos.push(p.x - w, p.y, p.z, p.x + w, p.y, p.z);
+      if (i) idx.push(2 * i - 2, 2 * i - 1, 2 * i, 2 * i - 1, 2 * i + 1, 2 * i);
+    });
+    geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    geometry.setIndex(idx);
+    geometry.computeVertexNormals();
+    material.side = THREE.DoubleSide;
+  } else {
+    geometry = new THREE.TubeGeometry(curve, 80, (cable.diameter / 2) * S, 10, false);
   }
+  group.add(pick(new THREE.Mesh(geometry, material), part));
 }
 
 // ---------- Airflow ----------
@@ -589,6 +643,7 @@ function addAirflow(flow, model) {
     if (part.id.startsWith('GPU_FAN')) origin = P(f.centre[0], -45, f.centre[2]);
     else if (part.id === 'CPU_FAN') origin = P(f.centre[0], CASE.y + 45, f.centre[2]);
     else if (part.id === 'PSU_FAN') origin = P(f.centre[0], CASE.y + 35, f.centre[2]);
+    else if (f.flow === 'intake') origin = P(...f.centre).sub(axis.clone().multiplyScalar(0.5));
     else origin = P(...f.centre).add(axis.clone().multiplyScalar(0.18));
     flow.add(arrow(origin, axis, 0.45, f.flow === 'intake' ? AIR_IN : AIR_OUT));
   }

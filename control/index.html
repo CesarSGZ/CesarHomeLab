@@ -256,6 +256,7 @@
               <button type="button" data-thermal-colour="certainty" aria-pressed="false">Colour: certainty</button>
               <button type="button" class="active" data-thermal-panels aria-pressed="true">Panels</button>
               <button type="button" data-thermal-opaque aria-pressed="false">Solid panels</button>
+              <button type="button" class="active" data-thermal-cables aria-pressed="true">Cables</button>
               <button type="button" class="active" data-thermal-flow aria-pressed="true">Airflow</button>
             </div>
             <div class="thermal-3d-shell" id="thermal-3d-shell">
@@ -268,16 +269,16 @@
               </div>
               <p class="thermal-3d-fallback" id="thermal-3d-fallback" hidden>WebGL is unavailable. The numbers alongside still describe the machine.</p>
             </div>
-            <p class="tl-note">Air enters through both slotted sides (GPU, CPU and PSU fans, the first two through the printed ducts) and leaves through the top and bottom fans. Arrows show direction only. Click any part to see where its position comes from; switch the colour to <b>certainty</b> to see what still has to be measured before the CFD.</p>
+            <p class="tl-note">Air enters through both slotted sides (GPU, CPU and PSU fans, the first two through the printed ducts) and through the bottom fan, and leaves through the top fan and the free slots. Arrows show direction only. Click any part to see where its position comes from; switch the colour to <b>certainty</b> to see what still has to be measured before the CFD.</p>
           </article>
           <div class="tl-side">
             <dl class="tl-specs">
               <div><dt>Case</dt><dd>Fractal Terra Jade · spine position 3<small>343 × 153 × 198 mm · 10.4 L</small></dd></div>
-              <div><dt>CPU</dt><dd>Ryzen 7 9800X3D · Thermalright AXP90-X47 Full Copper<small>47 mm top-flow · TL-9015R fan · printed PLA duct to the panel (13 Nov)</small></dd></div>
+              <div><dt>CPU</dt><dd>Ryzen 7 9800X3D · Thermalright AXP90-X47 Full Copper<small>47 mm top-flow · Noctua NF-A9x14 fan · printed PLA duct to the panel (13 Nov)</small></dd></div>
               <div><dt>GPU</dt><dd>ZOTAC RTX 5070 Ti SOLID SFF OC<small>304 × 116 × 42 mm · 3 × 90 mm fans · 300 W · printed PLA duct (14 Nov)</small></dd></div>
               <div><dt>Board</dt><dd>Gigabyte B850I AORUS PRO<small>Vengeance DDR5 2 × 16 GB · WD_BLACK SN850X 2 TB</small></dd></div>
               <div><dt>PSU</dt><dd>Corsair SF850 (2024) SFX Platinum<small>125 × 100 × 63.5 mm · 92 mm fan</small></dd></div>
-              <div><dt>Case fans</dt><dd>Noctua NF-A12x15 bottom · NF-A9x14 top<small>both exhaust · grille on the bottom fan</small></dd></div>
+              <div><dt>Case fans</dt><dd>Noctua NF-A12x15 bottom · NF-A9x14 top<small>bottom intake (grille on its inner side) · top exhaust</small></dd></div>
               <div><dt>Room</dt><dd id="tl-ambient">26.5 °C, held fixed</dd></div>
             </dl>
             <div class="tl-loads" id="tl-loads" aria-label="Measured load tests"><p class="tl-loading">Loading measurements…</p></div>
@@ -435,10 +436,10 @@
   <script src="training.js?v=20261111fiable"></script>
   <script type="module" src="backtest.js?v=20261114a"></script>
   <script src="github-galaxy.js?v=20261110mapa"></script>
-  <script src="thermal-deck.js?v=20261114s"></script>
-  <script src="control.js?v=20261114s"></script>
+  <script src="thermal-deck.js?v=20261114u"></script>
+  <script src="control.js?v=20261114u"></script>
   <script src="servercesar.js?v=20261020wake" defer></script>
   <script src="flight-control.js?v=20261014ar" defer></script>
-  <script src="thermal-viewer.bundle.js?v=20261114r"></script>
+  <script src="thermal-viewer.bundle.js?v=20261114v"></script>
 </body>
 </html>

@@ -133,6 +133,32 @@ def add_slot(mesh, plane, coord, a_axis, a, b0, b1, b_axis, w, n=8):
         mesh.tri(p3(cx, cb), p3(*p0), p3(*p1))
 
 
+def add_segment_tube(mesh, a, b, r, n=10):
+    """Cilindro abierto de a a b (cualquier dirección)."""
+    d = [b[i] - a[i] for i in range(3)]
+    length = math.sqrt(sum(x * x for x in d)) or 1.0
+    d = [x / length for x in d]
+    ref = [0, 0, 1] if abs(d[2]) < 0.9 else [1, 0, 0]
+    u = [d[1] * ref[2] - d[2] * ref[1], d[2] * ref[0] - d[0] * ref[2], d[0] * ref[1] - d[1] * ref[0]]
+    lu = math.sqrt(sum(x * x for x in u))
+    u = [x / lu for x in u]
+    w = [d[1] * u[2] - d[2] * u[1], d[2] * u[0] - d[0] * u[2], d[0] * u[1] - d[1] * u[0]]
+
+    def ring(c, k):
+        ang = 2 * math.pi * k / n
+        return tuple(c[i] + r * (math.cos(ang) * u[i] + math.sin(ang) * w[i]) for i in range(3))
+
+    for k in range(n):
+        mesh.quad(ring(a, k), ring(a, k + 1), ring(b, k + 1), ring(b, k))
+
+
+def add_ribbon(mesh, pts, width):
+    """Cinta plana con el ancho a lo largo de x."""
+    h = width / 2
+    for p, q in zip(pts, pts[1:]):
+        mesh.quad((p[0] - h, p[1], p[2]), (p[0] + h, p[1], p[2]), (q[0] + h, q[1], q[2]), (q[0] - h, q[1], q[2]))
+
+
 def export(out):
     data = json.loads(DATA.read_text(encoding="utf-8"))
     g = data["geometry"]
@@ -214,6 +240,18 @@ def export(out):
                     add_slot(mesh, 2, z, 0, x, y0, y1, 1, gr["slot_w"])
         save(mesh, panel["id"].lower() + "_slots", "opening", panel,
              {"bc": "patch de presión total / entrada-salida libre", "face": panel["face"]})
+
+    for cable in g.get("cables", []):
+        mesh = Mesh()
+        pts = cable["points"]
+        if cable.get("flat"):
+            add_ribbon(mesh, pts, cable["flat"][0])
+        else:
+            for a, b in zip(pts, pts[1:]):
+                add_segment_tube(mesh, a, b, cable["diameter"] / 2)
+        save(mesh, "cable_" + cable["id"].lower(), "cable", cable,
+             {"bc": "opcional: pared si se resuelven los cables; si no, ya están dentro de las zonas porosas CABLES_*",
+              "from": cable["from"], "to": cable["to"]})
 
     (out / "manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     return manifest

@@ -331,7 +331,10 @@ function renderThermalHeat(sources){
 function renderThermalBalance(cfd,fans){
   const {density_kg_m3:rho,cp_J_kgK:cp}=cfd.air;
   const power=cfd.heat_sources.filter(source=>source.into_case_air).reduce((sum,source)=>sum+source.W,0);
-  const exhaust=fans.filter(fan=>fan.orientation==='exhaust').reduce((sum,fan)=>sum+(fan.max_flow_m3h||0),0);
+  const caseFans=fans.filter(fan=>fan.group==='case');
+  const flowOf=dir=>caseFans.filter(fan=>fan.orientation.startsWith(dir)).reduce((sum,fan)=>sum+(fan.max_flow_m3h||0),0);
+  const fanIn=flowOf('intake'),fanOut=flowOf('exhaust');
+  const exhaust=Math.max(fanIn,fanOut);
   const realistic=exhaust*cfd.grille_derating;
   const rise=flow=>power/(rho*cp*flow/3600);
   const width=560,height=230,left=44,right=16,top=16,bottom=40;
@@ -345,7 +348,7 @@ function renderThermalBalance(cfd,fans){
   const marker=(flow,label)=>`<line x1="${x(flow)}" y1="${y(rise(flow))}" x2="${x(flow)}" y2="${height-bottom}" class="tl-b-mark"/><circle cx="${x(flow)}" cy="${y(rise(flow))}" r="5" class="tl-b-dot"/><text x="${x(flow)+8}" y="${y(rise(flow))-12}" class="tl-b-label">${label}: +${rise(flow).toFixed(0)} °C</text>`;
   const figure=document.getElementById('tl-balance-chart');
   figure.innerHTML=`<svg viewBox="0 0 ${width} ${height}" role="img" aria-label="Air temperature rise against total airflow for ${power} W"><g>${ticksX}${ticksY}</g><polyline points="${points.join(' ')}" class="tl-b-curve"/>${marker(realistic,'Through grilles')}${marker(exhaust,'Fans flat out')}<text x="${(left+width-right)/2}" y="${height-4}" text-anchor="middle" class="tl-b-axis">airflow through the case, m³/h</text><text x="12" y="${top+2}" class="tl-b-axis" transform="rotate(-90 12 ${top+2})" text-anchor="end">air warms by, °C</text></svg>`;
-  document.getElementById('tl-balance-text').innerHTML=`To carry <b>${power} W</b> out, every m³/h of air can take only ~${(rho*cp/3600).toFixed(2)} W per degree. The two exhaust fans move at most <b>${exhaust.toFixed(0)} m³/h</b> in free air, so the case air ends up at least <b>+${rise(exhaust).toFixed(0)} °C</b> over the room; behind grilles (~${Math.round(cfd.grille_derating*100)}% of that flow) it is closer to <b>+${rise(realistic).toFixed(0)} °C</b>. The slotted panels also vent passively, which the CFD will quantify.`;
+  document.getElementById('tl-balance-text').innerHTML=`To carry <b>${power} W</b> out, every m³/h of air can take only ~${(rho*cp/3600).toFixed(2)} W per degree. The case fans push at most <b>${exhaust.toFixed(0)} m³/h</b> through the case in free air (bottom fan in ${fanIn.toFixed(0)}, top fan out ${fanOut.toFixed(0)}), so the case air ends up at least <b>+${rise(exhaust).toFixed(0)} °C</b> over the room; behind grilles (~${Math.round(cfd.grille_derating*100)}% of that flow) it is closer to <b>+${rise(realistic).toFixed(0)} °C</b>. The slotted panels also vent passively, which the CFD will quantify.`;
 }
 
 function renderThermalCfd(cfd,fans){
@@ -358,7 +361,7 @@ function renderThermalCfd(cfd,fans){
     return item;
   }));
   renderThermalBalance(cfd,fans);
-  document.getElementById('tl-cfd-note').textContent=`* PSU losses may leave through the PSU's own exhaust; its direction is still to confirm. ${cfd.notes.join(' ')}`;
+  document.getElementById('tl-cfd-note').textContent=`* PSU losses leave through its rear grille, which faces the top fan. ${cfd.notes.join(' ')}`;
 }
 
 function renderCfdChecklist(items){

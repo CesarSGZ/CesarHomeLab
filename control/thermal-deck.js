@@ -35,7 +35,10 @@
     const rho=cfd.air.density_kg_m3,cp=cfd.air.cp_J_kgK;
     const heatTotal=cfd.heat_sources.reduce((sum,source)=>sum+source.W,0);
     const heatInCase=cfd.heat_sources.filter(source=>source.into_case_air).reduce((sum,source)=>sum+source.W,0);
-    const exhaust=fans.filter(fan=>fan.orientation==='exhaust').reduce((sum,fan)=>sum+(fan.max_flow_m3h||0),0);
+    const caseFans=fans.filter(fan=>fan.group==='case');
+    const flowOf=dir=>caseFans.filter(fan=>fan.orientation.startsWith(dir)).reduce((sum,fan)=>sum+(fan.max_flow_m3h||0),0);
+    const fanIn=flowOf('intake'),fanOut=flowOf('exhaust');
+    const exhaust=Math.max(fanIn,fanOut);
     const realistic=exhaust*cfd.grille_derating;
     const rise=flow=>heatInCase/(rho*cp*flow/3600);
     const phases=story.phases||[];
@@ -51,7 +54,7 @@
       cpuLimit:story.limits?.cpu_C,
       tests:(data.experimental_campaign||[]).length,models,accepted,rejected,gpuModel,cpuModel,
       baseline:baseline?baseline.gpu_peak_model_low_C:head.gpu_only.peak_temperature_C,ideas,best,
-      heatSources:cfd.heat_sources,heatTotal,heatInCase,exhaust,realistic,rise,wPerM3h:rho*cp/3600,
+      heatSources:cfd.heat_sources,heatTotal,heatInCase,exhaust,fanIn,fanOut,realistic,rise,wPerM3h:rho*cp/3600,
       phases,current,gate,gateDone:gate.filter(item=>item.done).length,
       updated:story.updated||data.generated_at.slice(0,10)
     };
@@ -301,7 +304,7 @@
           <div class="dk-air-row"><span>Habitación</span><strong>${deg(m.ambient,1)}</strong></div>
           <div class="dk-air-arrow">+${deg(m.rise(m.realistic))}</div>
           <div class="dk-air-row hot"><span>Aire dentro de la caja</span><strong>≈ ${deg(m.ambient+m.rise(m.realistic))}</strong></div>
-          <p class="dk-muted">Cada metro cúbico de aire por hora solo se lleva ${num(m.wPerM3h,2)} W por grado. Para sacar ${num(m.heatInCase)} W, los dos ventiladores de salida (${num(m.exhaust)} m³/h como mucho) dejan el aire al menos <b>${deg(m.rise(m.exhaust))}</b> más caliente que la habitación; con las rejillas, más cerca de <b>${deg(m.rise(m.realistic))}</b>.</p>
+          <p class="dk-muted">Cada metro cúbico de aire por hora solo se lleva ${num(m.wPerM3h,2)} W por grado. Para sacar ${num(m.heatInCase)} W, los ventiladores de la caja (el de abajo mete ${num(m.fanIn)} m³/h y el de arriba saca ${num(m.fanOut)} como mucho) dejan el aire al menos <b>${deg(m.rise(m.exhaust))}</b> más caliente que la habitación; con las rejillas, más cerca de <b>${deg(m.rise(m.realistic))}</b>.</p>
         </div>
         <figure class="dk-balance">
           <svg viewBox="0 0 ${width} ${height}" role="img" aria-label="Cuanto más aire pasa, menos se calienta">
