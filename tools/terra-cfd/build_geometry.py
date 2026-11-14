@@ -29,6 +29,8 @@ PANEL_T = 1.0                          # chapa de los paneles (supuesta)
 PITCH, SLOT, ROWS = 8.05, 3.5, 37
 REAR_STRIP = 35.5                      # chapa sin ranuras junto a la trasera
 row_x = [round(L - REAR_STRIP - k * PITCH, 2) for k in range(ROWS)]   # fila 0 = la más trasera
+# Panel de arriba (foto desde arriba, 14 nov 2026): 36 filas de delante (28 mm) a detrás (33 mm del final)
+TOP_ROWS_X = [round(28 + k * PITCH, 2) for k in range(36)]
 
 # Lado gráfica: ranuras y corte central respecto al centro de los ventiladores (canal_gpu.scad)
 GPU_FAN_Z = 100.0                      # 58 mm desde el borde del PCB, centrado en la altura útil
@@ -64,9 +66,13 @@ def box(x, y, z, sx, sy, sz):
     return {"min": [round(x, 2), round(y, 2), round(z, 2)], "size": [round(sx, 2), round(sy, 2), round(sz, 2)]}
 
 
-def fan(cx, cy, cz, axis, d, t, direction, hub=0.3):
-    return {"centre": [round(cx, 2), round(cy, 2), round(cz, 2)], "axis": axis, "diameter": d,
-            "thickness": t, "hub_ratio": hub, "flow": direction}
+def fan(cx, cy, cz, axis, d, t, direction, hub=0.3, frame=None):
+    """d = diámetro de las aspas; frame = lado del marco cuadrado (ventiladores de caja), None si no tiene."""
+    out = {"centre": [round(cx, 2), round(cy, 2), round(cz, 2)], "axis": axis, "diameter": d,
+           "thickness": t, "hub_ratio": hub, "flow": direction}
+    if frame:
+        out["frame"] = frame
+    return out
 
 
 components = [
@@ -101,8 +107,8 @@ components = [
     },
     {
         "id": "RISER", "label": "PCIe riser cable", "role": "structure", "certainty": "photo",
-        "box": box(120, gpu_y0 + 4, 4, 213, 30, 34),
-        "basis": "Visible in the photos below the GPU, along the floor.",
+        "box": box(214, gpu_y0 + GPU_T + 2, 120, 78, BOARD_Y0 - gpu_y0 - GPU_T - 2, H - PANEL_T - 120),
+        "basis": "Black ribbon folded over the top of the spine, from the board to the GPU (top photo, 14 Nov).",
     },
     {
         "id": "MOTHERBOARD", "label": "Gigabyte B850I AORUS PRO", "role": "structure", "certainty": "official",
@@ -123,11 +129,11 @@ components = [
         "heat_W": 107,
     },
     {
-        "id": "CPU_FAN", "label": "Thermalright TL-9015R (92 mm)", "role": "fan", "certainty": "official",
+        "id": "CPU_FAN", "label": "Noctua 92 mm fan on the cooler", "role": "fan", "certainty": "photo",
         "parent": "CPU_COOLER",
-        "fan": fan(cpu_x, cooler_top - 7.5, cpu_z, [0, -1, 0], 92, 15, "intake"),
-        "box": box(cpu_x - 46, cooler_top - 15, cpu_z - 46, 92, 15, 92),
-        "basis": "Top-flow cooler: the fan blows down onto the board.",
+        "fan": fan(cpu_x, cooler_top - 7, cpu_z, [0, -1, 0], 88, 14, "intake", frame=92),
+        "box": box(cpu_x - 46, cooler_top - 14, cpu_z - 46, 92, 14, 92),
+        "basis": "Top-flow cooler: the fan blows down onto the board. Official 92 × 92 × 14 mm Noctua frame (seen in the photos instead of the stock TL-9015R).",
     },
     {
         "id": "CPU_DUCT", "label": "Printed CPU duct (PLA)", "role": "duct", "certainty": "measured",
@@ -139,22 +145,23 @@ components = [
     },
     {
         "id": "PSU", "label": "Corsair SF850 (2024) SFX", "role": "heat", "certainty": "photo",
-        "box": box(18, W - PANEL_T - 4 - 63.5, 48, 100, 63.5, 125),
-        "basis": "Official size; at the front, fan facing the CPU-side panel.",
+        "box": box(10, W - PANEL_T - 4 - 63.5, 48, 100, 63.5, 125),
+        "basis": "Official size; at the front on the CPU side. Fan towards the CPU-side panel; AC socket and honeycomb exhaust face up, under the top fan (top photo).",
+        "exhaust": {"face": "z+", "note": "the SFX rear grille points at the top panel"},
         "heat_W": 36,
     },
     {
-        "id": "PSU_FAN", "label": "PSU fan (92 mm, stops at low load)", "role": "fan", "certainty": "photo",
+        "id": "PSU_FAN", "label": "PSU fan (92 mm, stops at low load)", "role": "fan", "certainty": "measured",
         "parent": "PSU",
-        "fan": fan(68, W - PANEL_T - 4 - 6, 110.5, [0, -1, 0], 92, 12, "intake"),
-        "box": box(22, W - PANEL_T - 4 - 12, 64.5, 92, 12, 92),
-        "basis": "Draws air from the CPU-side panel. Where it releases it inside the case is still to confirm.",
+        "fan": fan(60, W - PANEL_T - 4 - 6, 110.5, [0, -1, 0], 92, 12, "intake"),
+        "box": box(14, W - PANEL_T - 4 - 12, 64.5, 92, 12, 92),
+        "basis": "Draws air in from the CPU-side panel, like the CPU fan (confirmed by César); it leaves through the SFX rear grille, which faces up.",
     },
     {
-        "id": "BOTTOM_FAN", "label": "Noctua NF-A12x15 PWM · bottom exhaust", "role": "fan", "certainty": "assumed",
-        "fan": fan(68, 77, 9.5, [0, 0, -1], 120, 15, "exhaust"),
+        "id": "BOTTOM_FAN", "label": "Noctua 120 mm · bottom exhaust", "role": "fan", "certainty": "assumed",
+        "fan": fan(68, 77, 9.5, [0, 0, -1], 114, 15, "exhaust", frame=120),
         "box": box(8, 17, 2, 120, 120, 15),
-        "basis": "Official 120 mm floor mount, at the front. Exact position to measure (±10 mm).",
+        "basis": "Official 120 × 120 × 15 mm Noctua on the official floor mount, at the front. Exact position to measure (±10 mm).",
     },
     {
         "id": "BOTTOM_GRILLE", "label": "COYUN wire grille over the bottom fan", "role": "porous",
@@ -164,15 +171,16 @@ components = [
         "basis": "On the inner side, so the cables cannot touch the blades.", "porosity": 0.85,
     },
     {
-        "id": "TOP_FAN", "label": "Noctua NF-A9x14 PWM · top exhaust", "role": "fan", "certainty": "assumed",
-        "fan": fan(68, 77, H - PANEL_T - 7, [0, 0, 1], 92, 14, "exhaust"),
-        "box": box(22, 31, H - PANEL_T - 14, 92, 92, 14),
-        "basis": "Zip-tied under the top grille, at the front. Position ±10 mm.",
+        "id": "TOP_FAN", "label": "Noctua 120 mm · top exhaust", "role": "fan", "certainty": "photo",
+        "fan": fan(78, 76.5, H - PANEL_T - 7.5, [0, 0, 1], 114, 15, "exhaust", frame=120),
+        "box": box(18, 16.5, H - PANEL_T - 15, 120, 120, 15),
+        "basis": "Zip-tied to the underside of the top panel at the front, right above the PSU exhaust. "
+                 "Official 120 × 120 × 15 mm frame; centre (78 mm from the front, centred across) read from the top photo through the slots.",
     },
     {
         "id": "CABLES_GPU", "label": "Cable bundle, GPU side", "role": "porous", "certainty": "photo",
-        "box": box(3, PANEL_T + 2, 40, 27, gpu_y0 + GPU_T - PANEL_T - 2, 152),
-        "basis": "GPU power cable loop in front of the card (GPU-side photos). Porous volume; cables drawn for illustration.", "porosity": 0.55,
+        "box": box(2, PANEL_T + 2, gpu_z0 + GPU_H + 1, 95, gpu_y0 + GPU_T - PANEL_T - 2, H - PANEL_T - 15 - gpu_z0 - GPU_H - 2),
+        "basis": "GPU power cable (braided 12V-2x6) plugged into the top edge of the card and looped above it towards the front (top photo). Porous volume; cables drawn for illustration.", "porosity": 0.55,
     },
     {
         "id": "CABLES_MAIN", "label": "Cable bundle between PSU and board", "role": "porous", "certainty": "photo",
@@ -196,18 +204,26 @@ panels = [
      "grille": {"rows_x": row_x, "slot_w": SLOT, "slot_z": [round(v, 2) for v in CPU_SLOT_Z],
                 "gap_z": {k: list(v) for k, v in CPU_GAP.items()}},
      "basis": "The same panel turned 180°."},
-    {"id": "PANEL_TOP", "label": "Top panel", "face": "z+", "certainty": "assumed",
-     "grille": {"pattern": "slots_along_y", "pitch": 8.05, "slot_w": 3.5, "x_range": [20, 323], "y_range": [12, 141]},
-     "basis": "Slotted; pitch and size to measure."},
-    {"id": "PANEL_FRONT", "label": "Walnut front", "face": "x-", "certainty": "assumed", "basis": "Assumed closed."},
-    {"id": "PANEL_REAR", "label": "Rear (board and GPU I/O)", "face": "x+", "certainty": "assumed",
-     "basis": "I/O and GPU bracket openings to measure."},
+    {"id": "PANEL_TOP", "label": "Top panel", "face": "z+", "certainty": "photo",
+     "grille": {"rows_x": TOP_ROWS_X, "slot_w": SLOT, "slot_y": [20.8, 132.4], "gap_y": {"even": [68.0, 72.5], "odd": [77.5, 83.0]}},
+     "basis": "36 rows across the case every 8.05 mm, from 28 mm behind the front to 33 mm before the rear; slots ~112 mm "
+              "with an alternating break, like the sides (top photo, 14 Nov)."},
+    {"id": "PANEL_FRONT", "label": "Front", "face": "x-", "certainty": "photo",
+     "walnut": {"z": [-FEET, 16]},
+     "basis": "Solid sheet; the walnut strip at the bottom carries the power button and a USB-C port (front photo)."},
+    {"id": "PANEL_REAR", "label": "Rear (board and GPU I/O)", "face": "x+", "certainty": "photo",
+     "openings": [
+         {"id": "REAR_GAP", "y": [141, 147], "z": [14, 188], "porosity": 1.0, "note": "open strip beside the I/O plate, CPU side"},
+         {"id": "BOARD_IO", "y": [88, 141], "z": [18, 182], "porosity": 0.12, "note": "board I/O plate with vent holes"},
+         {"id": "GPU_BRACKET", "y": [gpu_y0, round(gpu_y0 + GPU_T, 2)], "z": [gpu_z0, round(gpu_z0 + GPU_H, 2)], "porosity": 0.3, "note": "GPU bracket vents"},
+     ],
+     "basis": "Recessed I/O area seen in the rear photos; open fractions estimated."},
     {"id": "PANEL_BOTTOM", "label": "Floor", "face": "z-", "certainty": "assumed",
-     "basis": "Open only at the 120 mm fan (assumed)."},
+     "basis": "Open at the 120 mm fan; the side panels are cut away between the feet, so the 20 mm gap under the case is open on both sides."},
 ]
 
 geometry = {
-    "schema_version": "2.0.0",
+    "schema_version": "2.1.0",
     "updated": "2026-11-14",
     "coordinate_system": {
         "origin": "esquina delantera-inferior del lado de la gráfica, sin patas",
@@ -235,13 +251,17 @@ geometry = {
         "Forma real de cada cable: se modelan como volúmenes porosos.",
     ],
     "open_questions": [
-        "Paso, ancho y extensión de las ranuras del panel de arriba.",
-        "Posición exacta del ventilador de arriba y del de abajo (distancia al frontal y al panel de la gráfica).",
+        "Modelo de cada ventilador: las fotos muestran un Noctua de 92 mm en el disipador y uno de 120 mm arriba; ¿cuál va abajo?",
+        "Posición del ventilador de abajo (supuesta: delante, centrado).",
         "Dónde está la columna central: distancia del panel de la gráfica a la chapa (la ficha da 53 mm, medimos 56,75).",
-        "Huecos del frontal y de la trasera (I/O, soporte de la gráfica).",
-        "Hacia dónde suelta el aire la fuente dentro de la caja.",
         "Altura del centro del ventilador del procesador sobre el suelo de la caja (calculada: 122 mm).",
-        "Fotos desde arriba con el panel superior quitado para situar los mazos de cables.",
+    ],
+    "resolved": [
+        "Panel de arriba: 36 filas de ranuras, medido en la foto desde arriba (14 nov).",
+        "Ventilador de arriba: 120 mm, delante, justo encima de la salida de la fuente.",
+        "Fuente: toma aire del panel del procesador y lo suelta hacia arriba (César y foto).",
+        "Frontal cerrado; trasera con la placa de I/O, una ranura abierta al lado y las rejillas del soporte de la gráfica.",
+        "Cable de la gráfica por encima de la tarjeta; riser doblado sobre la columna central.",
     ],
     "modelling_rule": "Lo medido, lo oficial, lo deducido de fotos y lo supuesto se guardan por separado. "
                       "Es geometría para preparar el CFD, no un CAD de fabricación.",
