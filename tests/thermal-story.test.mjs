@@ -53,3 +53,21 @@ test('the printed-duct A/B results have a reference and complete numbers', () =>
   }
   for (const row of ab.rows) assert.ok(row.title_es && row.title_en, `${row.id} has titles in both languages`);
 });
+
+test('the 3D geometry labels every part with its role and how sure it is', () => {
+  const geometry = data.geometry;
+  const roles = new Set(['heat', 'fan', 'duct', 'structure', 'porous']);
+  const levels = new Set(Object.keys(geometry.certainty_levels));
+  const ids = geometry.components.map(part => part.id);
+  assert.equal(new Set(ids).size, ids.length, 'component ids are unique');
+  for (const part of geometry.components) {
+    assert.ok(roles.has(part.role), `${part.id} has a known role`);
+    assert.ok(levels.has(part.certainty), `${part.id} has a known certainty`);
+    assert.ok(part.label && part.basis, `${part.id} says what it is and where it comes from`);
+    part.box.min.forEach((value, axis) => {
+      assert.ok(value >= 0 && value + part.box.size[axis] <= geometry.case.outer_body_mm[axis] + 0.01, `${part.id} fits inside the case`);
+    });
+  }
+  const ram = geometry.components.find(part => part.id === 'RAM');
+  assert.ok(ram.box.size[2] > ram.box.size[0], 'the RAM stands upright beside the CPU cooler');
+});
