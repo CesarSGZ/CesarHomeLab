@@ -1,6 +1,6 @@
 {
   "schema_version": "1.4.0",
-  "generated_at": "2026-11-14T21:30:00+00:00",
+  "generated_at": "2026-11-15T10:00:00+00:00",
   "project": {
     "id": "terra-powerplant-lab",
     "title": "Terra Powerplant Lab",
@@ -2310,7 +2310,7 @@
     }
   },
   "story": {
-    "updated": "2026-11-14",
+    "updated": "2026-11-15",
     "limits": {
       "cpu_C": 95,
       "cpu_basis": "temperatura máxima que AMD fija para el Ryzen 7 9800X3D"
@@ -2518,6 +2518,12 @@
         "kind": "page",
         "title": "Resumen de la campaña en la web",
         "detail": "Cada prueba con lo que enseñó, las ideas revisadas con lo medido (qué merece la pena y qué no) y el plan del CFD paso a paso."
+      },
+      {
+        "date": "2026-11-15",
+        "kind": "page",
+        "title": "Se cierran los ajustes",
+        "detail": "César decide no hacer más pruebas de ajustes: los dos canales se quedan montados y lo siguiente es el CFD. Las ideas revisadas quedan en la web como referencia."
       }
     ],
     "next_steps": [
@@ -2571,17 +2577,6 @@
       },
       {
         "status": "next",
-        "title": {
-          "es": "Ajustes gratis: curvas y voltajes",
-          "en": "Free tweaks: curves and voltages"
-        },
-        "detail": {
-          "es": "Curva del ventilador de la CPU, Curve Optimizer y límite de la gráfica, cada uno con su sesión de 71 minutos frente a la S07.",
-          "en": "CPU fan curve, Curve Optimizer and GPU power limit, each with its own 71-minute session against S07."
-        }
-      },
-      {
-        "status": "todo",
         "title": {
           "es": "Simular el aire (CFD)",
           "en": "Run the CFD"
@@ -2845,8 +2840,8 @@
     },
     "ideas_next": {
       "updated": "2026-11-14",
-      "note_es": "Revisado con las pruebas S04–S07. Techo medido: quitar los paneles (S05) es lo máximo que puede dar cualquier cambio que solo abra más rejilla.",
-      "note_en": "Re-checked against tests S04–S07. Measured ceiling: taking the panels off (S05) is the most any change that only opens more grille can give.",
+      "note_es": "Revisado con las pruebas S04–S07. Decisión del 15 nov: no se harán más ajustes; los dos canales se quedan y esta lista queda como referencia. Techo medido: quitar los paneles (S05) es lo máximo que puede dar cualquier cambio que solo abra más rejilla.",
+      "note_en": "Re-checked against tests S04–S07. Decision on 15 Nov: no more tweaks; both ducts stay and this list is kept for reference. Measured ceiling: taking the panels off (S05) is the most any change that only opens more grille can give.",
       "items": [
         {
           "id": "CPU fan curve",
@@ -2857,8 +2852,8 @@
           "expect_en": "Free and reversible: more heat removed per degree with no hardware change.",
           "why_es": "El NF-A9x14 del disipador va a unas 1.100–1.270 rpm a 87 °C y llega a 2.500. Ahora que respira aire de fuera, girar más rápido le sienta directamente.",
           "why_en": "The cooler’s NF-A9x14 runs at about 1,100–1,270 rpm at 87 °C and can reach 2,500. Now that it breathes outside air, spinning faster pays off directly.",
-          "effort_es": "BIOS · 10 min · probar con ruido",
-          "effort_en": "BIOS · 10 min · check the noise"
+          "effort_es": "BIOS · 10 min · probar con ruido · no previsto",
+          "effort_en": "BIOS · 10 min · check the noise · not planned"
         },
         {
           "id": "CPU undervolt",
@@ -2869,8 +2864,8 @@
           "expect_en": "More work per watt at the same 87 °C limit.",
           "why_es": "El procesador siempre llega a su límite de temperatura, así que cada vatio ahorrado se convierte en rendimiento. Hay que comprobar la estabilidad.",
           "why_en": "The CPU always reaches its temperature limit, so every watt saved turns into performance. Stability has to be checked.",
-          "effort_es": "BIOS · una tarde de pruebas",
-          "effort_en": "BIOS · an afternoon of testing"
+          "effort_es": "BIOS · una tarde de pruebas · no previsto",
+          "effort_en": "BIOS · an afternoon of testing · not planned"
         },
         {
           "id": "GPU power",
@@ -2881,8 +2876,8 @@
           "expect_en": "About 3–4 °C less or a slower fan, losing little performance (to be measured).",
           "why_es": "La gráfica pone dos de cada tres vatios de la caja. Con 0,19 °C por vatio medidos, 20–30 W menos se notan más que cualquier cambio de ventiladores.",
           "why_en": "The GPU puts in two of every three watts in the case. At the measured 0.19 °C per watt, 20–30 W less beats any fan change.",
-          "effort_es": "Software · 15 min",
-          "effort_en": "Software · 15 min"
+          "effort_es": "Software · 15 min · no previsto",
+          "effort_en": "Software · 15 min · not planned"
         },
         {
           "id": "CFG-020",
