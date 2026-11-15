@@ -293,3 +293,13 @@ test('a new machine is worth the muscle level until its second session; free wei
   assert.ok(isFreeWeight('French Press · Banco'));assert.ok(!isFreeWeight('Tríceps Polea Cuerda Alta · Dreamfit'));
   assert.equal(percentile(valueAtPct(35,[50,60,70,80,90]),[50,60,70,80,90]).pct,35);
 });
+test('a machine is calibrated only against the same movement, and never by more than 40 %', () => {
+  const rows=[['2026-01-10',1,'Romanian Deadlift · Barra Olímpica','Femoral',1,10,150,'','','app','r1']];
+  for(const [i,f] of ['2026-03-01','2026-03-08','2026-04-01'].entries())rows.push([f,1,'St Leg Curl · TGD · Dreamfit','Femoral',1,6,55,'','','app','c'+i]);
+  const raw=liftPercentile('St Leg Curl · TGD · Dreamfit',e1rm(55,6),85).pct, cal=liftPercentile('St Leg Curl · TGD · Dreamfit',e1rm(55,6),85,rows,'2026-04-01').pct;
+  assert.equal(cal,raw);
+  rows.push(['2026-06-01',1,'Leg Curl · Movemia','Femoral',1,6,40,'','','app','m1'],['2026-06-08',1,'Leg Curl · Movemia','Femoral',1,6,40,'','','app','m2']);
+  const m=liftPercentile('Leg Curl · Movemia',e1rm(40,6),85,rows,'2026-06-08'), mraw=liftPercentile('Leg Curl · Movemia',e1rm(40,6),85);
+  assert.ok(m.calibrated);assert.ok(m.pct>mraw.pct);
+  const marks=standardAt('lyingCurl',85);assert.ok(Math.abs(valueAtPct(m.pct,marks)/(e1rm(40,6))-1.4)<0.05);
+});
