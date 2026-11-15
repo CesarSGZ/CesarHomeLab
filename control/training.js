@@ -935,7 +935,7 @@
   window.TrainingLab = { async initialise(token) {
     csrf = token;
     try {
-      model = await import('./training-model.js?v=20261111fiable'); F = model.F;
+      model = await import('./training-model.js?v=20261115patron'); F = model.F;
       S.queue = read('queue', []); S.plan = read('plan', null); S.measures = read('measures', {}); S.swaps = read('cambios', {});
       // Swaps used to last one day: today's carry on.
       if (S.plan?.fecha === today() && Object.keys(S.plan.cambios || {}).length) { S.swaps = { ...S.plan.cambios, ...S.swaps }; S.plan.cambios = {}; saveSwaps(); savePlan(); }

@@ -384,9 +384,23 @@ const levelOf = pct => (pct < TIERS[0] ? -1 : TIERS.reduce((n, t, i) => (pct >= 
 const shiftDays = (iso, days) => new Date(Date.parse(`${iso}T12:00:00Z`) + days * 864e5).toISOString().slice(0, 10);
 
 // ---------- Reliability: free weights weigh the same in every gym; a machine or a cable does not ----------
-// A machine is calibrated once, against the level its muscle already had in the half year before it was first used:
+// A machine is calibrated once, against the level its movement already had in the half year before it was first used:
 // its first two sessions are worth that level, and only what it gains afterwards moves the percentage.
 // A free weight is the reference and needs no calibration.
+// A machine is only calibrated against the same movement: a curl against curls, a press against presses. A compound
+// lift says little about an isolation machine (a heavy Romanian deadlift once doubled every leg curl).
+const PATTERN = {
+  bench: 'chestPress', incline: 'chestPress', inclineDb: 'chestPress', chestPress: 'chestPress',
+  ohp: 'overhead', dbShoulder: 'overhead', dbLateral: 'lateral', cableLateral: 'lateral', machineLateral: 'lateral',
+  pulldown: 'pulldown', bentRow: 'row', dbRow: 'row', tbar: 'row', cableRow: 'row', machineRow: 'row',
+  squat: 'squat', hack: 'squat', deadlift: 'hinge', rdl: 'hinge', standingCurl: 'legCurl', lyingCurl: 'legCurl',
+  barbellCurl: 'curl', preacher: 'curl', cableCurl: 'curl', inclineCurl: 'curl',
+  pushdown: 'triceps', ropePushdown: 'triceps', dbTriceps: 'triceps', lyingTriceps: 'triceps', machineTriceps: 'triceps'
+};
+export const patternOf = std => PATTERN[std] || std;
+// Clamped: a stack more than 40 % off is a mislabelled machine, not something to calibrate away.
+const CLAMP = [0.6, 1.4];
+const clampFactor = f => Math.min(CLAMP[1], Math.max(CLAMP[0], f));
 const FREE = /barra ol[ií]mpica|barra z|mancuerna|dumbbell|french press|pjr/i;
 export const isFreeWeight = name => FREE.test(String(name));
 export const RELIABILITY = { alta: 'Fiabilidad alta', media: 'Fiabilidad media', baja: 'Fiabilidad baja' };
@@ -419,10 +433,9 @@ export function calibrations(rows, bodyWeight) {
   for (const e of list) {
     if (isFreeWeight(e.name)) { map.set(e.name, { factor: 1, reliability: 'alta' }); continue; }
     const s = standardFor(e.name), group = muscleOf(e.name);
-    const anchor = rate(bestLifts(rows, group, shiftDays(e.first, -182), shiftDays(e.first, -1), bodyWeight, map).filter(l => l.name !== e.name), bodyWeight);
+    const anchor = rate(bestLifts(rows, group, shiftDays(e.first, -182), shiftDays(e.first, -1), bodyWeight, map, patternOf(s.std)).filter(l => l.name !== e.name), bodyWeight);
     if (!anchor) { map.set(e.name, { factor: 1, reliability: 'baja', since: e.first }); continue; }
-    // Clamped: beyond these a machine is mislabelled, not calibrated.
-    const factor = Math.min(2.5, Math.max(0.4, valueAtPct(anchor.pct, standardAt(s.std, bodyWeight)) / (e.base * s.factor)));
+    const factor = clampFactor(valueAtPct(anchor.pct, standardAt(s.std, bodyWeight)) / (e.base * s.factor));
     map.set(e.name, { factor, reliability: e.sessions >= 2 ? 'media' : 'baja', provisional: e.sessions < 2, anchorPct: anchor.pct, since: e.first });
   }
   // Second pass, with every other lift already placed: a machine is worth what the rest of its muscle was worth in each
@@ -434,12 +447,12 @@ export function calibrations(rows, bodyWeight) {
     const quarters = new Map();
     for (const [fecha, v] of e.dates) { const [y, mo] = fecha.split('-'), q = `${y}-${Math.floor((mo - 1) / 3)}`; quarters.set(q, { fecha, v: Math.max(quarters.get(q)?.v || 0, v) }); }
     for (const { fecha, v } of quarters.values()) {
-      const others = bestLifts(rows, group, shiftDays(fecha, -60), shiftDays(fecha, 60), bodyWeight, map).filter(l => l.name !== e.name);
+      const others = bestLifts(rows, group, shiftDays(fecha, -60), shiftDays(fecha, 60), bodyWeight, map, patternOf(s.std)).filter(l => l.name !== e.name);
       const trusted = others.filter(l => l.reliability !== 'baja'), level = rate(trusted.length ? trusted : others, bodyWeight);
       if (level) ratios.push(valueAtPct(level.pct, marks) / (v * s.factor));
     }
     if (!ratios.length) continue;
-    const factor = Math.min(2.5, Math.max(0.4, median(ratios)));
+    const factor = clampFactor(median(ratios));
     final.set(e.name, { ...map.get(e.name), factor, reliability: 'media', provisional: false, quarters: ratios.length });
   }
   calCache = { rows, key, map: final };
@@ -447,12 +460,13 @@ export function calibrations(rows, bodyWeight) {
 }
 // Best e1RM of each standardised exercise in [from, to], converted to what the standard measures and calibrated.
 // `cal` is passed while the calibrations themselves are being built; exercises not in it yet count as they are.
-function bestLifts(rows, group, from, to, bodyWeight = 85, cal = null) {
+// With `pattern`, only lifts of that movement count.
+function bestLifts(rows, group, from, to, bodyWeight = 85, cal = null, pattern = null) {
   const map = cal || calibrations(rows, bodyWeight), best = new Map();
   for (const row of rows) {
     if (row[F.FECHA] < from || row[F.FECHA] > to || muscleOf(row[F.EJ], row[F.MUSC]) !== group) continue;
     const s = standardFor(row[F.EJ]), v = s && rowE1rm(row);
-    if (!v) continue;
+    if (!v || (pattern && patternOf(s.std) !== pattern)) continue;
     if (cal && !map.has(row[F.EJ]) && !isFreeWeight(row[F.EJ])) continue;
     const c = map.get(row[F.EJ]) || { factor: 1, reliability: isFreeWeight(row[F.EJ]) ? 'alta' : 'baja' };
     const prev = best.get(row[F.EJ]), value = v * s.factor * c.factor;
@@ -523,7 +537,7 @@ export function yearReview(rows, today, bodyWeight) {
 
 // ---------- You against yourself, whatever the machine ----------
 // Where a single set stands against other men, or null when its exercise has no standard.
-// With the rows, a machine uses its calibration; a machine never used before is worth its muscle's level
+// With the rows, a machine uses its calibration; a machine never used before is worth the level of the same movement
 // until it has two sessions, so a light stack or a new gym never makes a set look better than it is.
 export function liftPercentile(name, value, bodyWeight, rows = null, today = null) {
   const s = standardFor(name);
@@ -533,7 +547,7 @@ export function liftPercentile(name, value, bodyWeight, rows = null, today = nul
   const c = calibrations(rows, bodyWeight).get(name);
   if (c && !c.provisional) return { ...percentile(value * s.factor * c.factor, standardAt(s.std, bodyWeight)), std: s.std, reliability: c.reliability, calibrated: c.factor !== 1 };
   const group = muscleOf(name), day = today || rows.reduce((m, r) => (r[F.FECHA] > m ? r[F.FECHA] : m), '');
-  const level = group && rate(bestLifts(rows, group, shiftDays(day, -182), day, bodyWeight).filter(l => l.name !== name), bodyWeight);
+  const level = group && rate(bestLifts(rows, group, shiftDays(day, -182), day, bodyWeight, null, patternOf(s.std)).filter(l => l.name !== name), bodyWeight);
   return level ? { pct: level.pct, level: level.level, std: s.std, reliability: 'baja', provisional: true } : raw;
 }
 // The best single lift of a muscle in a window, as a share of men beaten: the mark a new machine has to beat.
