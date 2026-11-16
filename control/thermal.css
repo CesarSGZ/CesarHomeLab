@@ -329,3 +329,36 @@ html[data-theme=night] :is(.tl-plot-crop,.tl-curves img){filter:invert(.9) hue-r
 .tl-cfdtuning li.done small{color:var(--tl-ok)}
 .tl-cfdtuning li.next{border-color:var(--tl-cool)}
 .tl-cfdtuning li.next small{color:var(--tl-cool)}
+
+/* CFD v2: vídeo, cifras, comparador, caudales y supuestos */
+.tl-cfdhero{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(0,1fr);gap:12px;margin:12px 0}
+.tl-cfdhero figure{margin:0;border:1px solid var(--tl-line);border-radius:14px;overflow:hidden;background:#0b1317}
+.tl-cfdhero video{display:block;width:100%;aspect-ratio:1280/780;object-fit:cover}
+.tl-cfdhero figcaption,.tl-cfdcompare figcaption{padding:9px 12px;font-size:12.5px;line-height:1.45;color:var(--tl-muted);background:var(--tl-bg)}
+.tl-cfdkpis{margin:0;padding:0;list-style:none;display:grid;gap:8px;align-content:stretch}
+.tl-cfdkpis li{padding:12px 14px;border:1px solid var(--tl-line);border-radius:12px;background:var(--tl-bg);display:grid;gap:2px}
+.tl-cfdkpis strong{font:600 22px "DM Mono",monospace;color:var(--tl-cool)}
+.tl-cfdkpis span{font-size:12.5px;line-height:1.4;color:var(--tl-muted)}
+@media (max-width:760px){.tl-cfdhero{grid-template-columns:1fr}.tl-cfdkpis{grid-template-columns:1fr 1fr}}
+.tl-cfdcompare{margin:14px 0;border:1px solid var(--tl-line);border-radius:14px;overflow:hidden;background:#0b1317}
+.tl-cfdcompare>input{position:absolute;opacity:0;pointer-events:none}
+.tl-cfdcompare .tabs{display:flex;flex-wrap:wrap;gap:8px 18px;padding:10px 12px;background:var(--tl-bg);border-bottom:1px solid var(--tl-line)}
+.tl-cfdcompare .grp{display:flex;flex-wrap:wrap;gap:6px}
+.tl-cfdcompare label{padding:5px 11px;border:1px solid var(--tl-line);border-radius:999px;font-size:12.5px;cursor:pointer;color:var(--tl-ink);user-select:none}
+.tl-cfdcompare label:hover{border-color:var(--tl-cool)}
+.tl-cfdcompare>input:focus-visible~.tabs{outline:2px solid var(--tl-cool);outline-offset:-2px}
+.tl-cfdcompare .stage figure{display:none;margin:0}
+.tl-cfdcompare .stage img{display:block;width:100%;aspect-ratio:16/10;object-fit:contain;background:#0b1317}
+.tl-cfdflows{width:100%;border-collapse:collapse;font-size:13px}
+.tl-cfdflows th,.tl-cfdflows td{padding:6px 9px;border-bottom:1px solid var(--tl-line);text-align:left;font-weight:400}
+.tl-cfdflows thead th{font-weight:600}
+.tl-cfdflows td{white-space:nowrap}
+.tl-cfdflows .bar{display:inline-block;width:min(120px,22vw);height:9px;margin-right:8px;border-radius:5px;background:var(--tl-track);vertical-align:middle;overflow:hidden}
+.tl-cfdflows .bar i{display:block;height:100%;border-radius:5px}
+.tl-cfdflows .bar.in i{background:var(--tl-cool)}
+.tl-cfdflows .bar.out i{background:var(--tl-hot)}
+.tl-cfdflows td b{font:500 12px "DM Mono",monospace}
+.tl-cfdassume{margin:0;padding-left:20px;display:grid;gap:5px;font-size:13px;line-height:1.5;color:var(--tl-muted)}
+.tl-cfdassume b{color:var(--tl-ink);font-weight:600}
+.tl-cfdtuning li.ask{border-color:var(--tl-amber)}
+.tl-cfdtuning li.ask small{color:var(--tl-amber)}

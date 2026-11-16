@@ -361,7 +361,7 @@ function renderThermalCfd(cfd,fans){
     return item;
   }));
   renderThermalBalance(cfd,fans);
-  document.getElementById('tl-cfd-note').textContent=`* PSU losses leave through its rear grille, which faces the top fan. ${cfd.notes.join(' ')}`;
+  document.getElementById('tl-cfd-note').textContent=`* PSU losses leave through its rear grille, which points up at the top panel. ${cfd.notes.join(' ')}`;
 }
 
 function renderCfdChecklist(items){

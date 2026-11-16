@@ -19,6 +19,8 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 FOAM = str(HERE / 'foam.bat')
 RHO = 1.16
+SOLVER = 'buoyantBoussinesqSimpleFoam'
+DISC_SIGN = 1.0     # sentido de phi en los discos (cara orientada saliendo de la zona del ventilador)
 
 
 def foam(case, *args, log=None):
@@ -71,6 +73,13 @@ def vent_flow(case, vent):
     return last_row(d[-1])[1] if d else None     # m3/s, + sale de la caja
 
 
+def fan_flow(case, zone, s):
+    """Caudal real del ventilador (m3/h): flujo phi por su disco de caras."""
+    d = sorted((case / 'postProcessing' / f'fanflow_{zone}').glob('*/surfaceFieldValue.dat'), key=lambda p: float(p.parent.name))
+    raw = last_row(d[-1])[1] if d else 0.0
+    return raw * DISC_SIGN * (1 if s.get('disc', 'down') == 'down' else -1) * 3600
+
+
 def write_fans(case, state):
     text = (case / 'constant' / 'fvOptions').read_text()
     for zone, s in state['fans'].items():
@@ -102,9 +111,9 @@ def solve(case, iters, np_):
             dp = (case / 'system' / 'decomposeParDict')
             dp.write_text(re.sub(r'numberOfSubdomains\s+\d+;', f'numberOfSubdomains {np_};', dp.read_text()))
             foam(case, 'decomposePar', '-force')
-        foam(case, 'mpiexec', '-n', str(np_), 'simpleFoam', '-parallel', log=f'log.simpleFoam.{end}')
+        foam(case, 'mpiexec', '-n', str(np_), SOLVER, '-parallel', log=f'log.simpleFoam.{end}')
     else:
-        foam(case, 'simpleFoam', log=f'log.simpleFoam.{end}')
+        foam(case, SOLVER, log=f'log.simpleFoam.{end}')
     return end
 
 
@@ -125,12 +134,8 @@ def main():
         row = {'loop': loop, 'iter': end, 'fans': {}}
         worst = 0
         for zone, s in state['fans'].items():
-            z = zone_avg(case, zone)
-            ax = s['axis']
-            u_ax = sum(z['U'][i] * ax[i] for i in range(3)) if z else 0.0
-            area = math.pi * (s.get('radius_m') or math.sqrt(s['area_m2'] / math.pi / (1 - 0.09))) ** 2
-            q = max(0.0, u_ax * area * 3600)
-            target = max(0.0, s['p0_Pa'] * (1 - q / s['q0_m3h']))
+            q = fan_flow(case, zone, s)
+            target = max(0.0, s['p0_Pa'] * (1 - max(q, 0.0) / s['q0_m3h']))
             worst = max(worst, abs(target - s['dp_Pa']) / max(s['p0_Pa'], 1e-6))
             row['fans'][zone] = {'Q_m3h': round(q, 1), 'dp_Pa': round(s['dp_Pa'], 2), 'target_Pa': round(target, 2)}
             s['dp_Pa'] = 0.5 * s['dp_Pa'] + 0.5 * target

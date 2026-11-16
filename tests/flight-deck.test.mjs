@@ -17,7 +17,7 @@ test('portfolio loads the flight-deck layer after every earlier stylesheet and s
 test('every public section declares a flight phase for the HUD', async () => {
   const page = await readFile(file('index.html'), 'utf8');
   const phases = [...page.matchAll(/<section[^>]*data-phase="([^"]+)"/g)].map(match => match[1]);
-  assert.deepEqual(phases, ['Pre-flight', 'Take-off', 'Climb', 'Cruise', 'Descent', 'Approach', 'Landing']);
+  assert.deepEqual(phases, ['Pre-flight', 'Take-off', 'Climb', 'Cruise', 'Holding', 'Descent', 'Approach', 'Landing']);
 });
 
 test('mission brief player ships a web-sized video and poster', async () => {
