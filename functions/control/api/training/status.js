@@ -1,6 +1,7 @@
 import { userCan, validCsrf } from '../../../_lib/auth.js';
 import { json, methodNotAllowed } from '../../../_lib/http.js';
 import { CESAR_COLUMNS, MARIA_COLUMNS, madridToday, summarize } from '../../../_lib/rivalry.js';
+import { carlitosAction, carlitosFor } from '../../../_lib/carlitos-store.js';
 
 const DATASET = 'training-lab';
 const CODE = /^(https:\/\/script\.google\.com\/macros\/s\/[\w-]+\/exec)#(\w{16,})$/;
@@ -18,12 +19,13 @@ async function oldBodyWeight(env) {
 }
 
 // María's week, for the rivalry: only her summary leaves this function, never her rows.
-async function rivalSummary(env) {
+// Her rows are also what Carlitos is fed with; they never leave this function.
+async function rivalRows(env) {
   try {
     const maria = await env.CONTROL_DB.prepare('SELECT payload FROM personal_datasets WHERE name = ?').bind('maria-lab').first();
     if (!maria) return null;
     const sheet = await readSheet(JSON.parse(maria.payload).sheet);
-    return Array.isArray(sheet.filas) ? summarize(sheet.filas, MARIA_COLUMNS, madridToday()) : null;
+    return Array.isArray(sheet.filas) ? sheet.filas : null;
   } catch { return null; }
 }
 
@@ -69,9 +71,11 @@ export async function onRequest({ request, env, data }) {
     const lab = await readLab(env);
     if (request.method === 'GET') {
       if (!lab?.sheet) return json({ ok: true, connected: false });
-      const [sheet, rival] = await Promise.all([readSheet(lab.sheet), rivalSummary(env)]);
+      const [sheet, mariaRows] = await Promise.all([readSheet(lab.sheet), rivalRows(env)]);
+      const rival = mariaRows ? summarize(mariaRows, MARIA_COLUMNS, madridToday()) : null;
       const me = rival && Array.isArray(sheet.filas) ? summarize(sheet.filas, CESAR_COLUMNS, madridToday()) : null;
-      return json({ ok: true, connected: true, ...sheet, bodyWeight: lab.bodyWeight || [], rival, me });
+      const carlitos = mariaRows && Array.isArray(sheet.filas) ? await carlitosFor(env, { cesarRows: sheet.filas, mariaRows }).catch(() => null) : null;
+      return json({ ok: true, connected: true, ...sheet, bodyWeight: lab.bodyWeight || [], rival, me, carlitos: carlitos?.state || null });
     }
     const body = await request.text();
     if (body.length > MAX_BODY) return json({ ok: false, error: 'request_too_large' }, { status: 413 });
@@ -98,6 +102,13 @@ export async function onRequest({ request, env, data }) {
       await env.CONTROL_DB.prepare('INSERT INTO personal_datasets(name,payload,updated_at) VALUES(?,?,?) ON CONFLICT(name) DO UPDATE SET payload=excluded.payload,updated_at=excluded.updated_at')
         .bind('maria-lab', JSON.stringify({ sheet }), new Date().toISOString()).run();
       return json({ ok: true });
+    }
+    if (action?.action === 'carlitos') {
+      try { return json({ ok: true, carlitos: await carlitosAction(env, 'cesar', action.do) }); }
+      catch (error) {
+        if (['bones', 'item', 'text', 'type', 'vale', 'vale_semana', 'fecha'].includes(error?.message)) return json({ ok: false, error: error.message }, { status: 400 });
+        throw error;
+      }
     }
     if (action?.action === 'ops') {
       if (!lab?.sheet) return json({ ok: false, error: 'not_connected' }, { status: 409 });
