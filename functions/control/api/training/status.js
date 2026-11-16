@@ -106,7 +106,7 @@ export async function onRequest({ request, env, data }) {
     if (action?.action === 'carlitos') {
       try { return json({ ok: true, carlitos: await carlitosAction(env, 'cesar', action.do) }); }
       catch (error) {
-        if (['bones', 'item', 'text', 'type', 'vale', 'vale_semana', 'fecha'].includes(error?.message)) return json({ ok: false, error: error.message }, { status: 400 });
+        if (['bones', 'item', 'text', 'type', 'vale', 'vale_semana', 'fecha', 'not_active'].includes(error?.message)) return json({ ok: false, error: error.message }, { status: 400 });
         throw error;
       }
     }

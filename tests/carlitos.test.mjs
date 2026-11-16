@@ -81,3 +81,9 @@ test('Carlitos: the next visit counts down and is celebrated on the day', () => 
   assert.equal(day.visit.days, 0); assert.equal(day.love, 100); assert.ok(day.diary.some(d => /Hoy os veis/.test(d.text)));
   assert.equal(carlitosState(acts([], []), log, '2026-12-21').visit, null);
 });
+test('Carlitos: off on the server until his start date is set', async () => {
+  const { carlitosActivo, carlitosFor, CARLITOS_DESDE } = await import('../functions/_lib/carlitos-store.js');
+  assert.equal(CARLITOS_DESDE, null); assert.equal(carlitosActivo('2026-11-16'), false);
+  const env = { CONTROL_DB: { prepare: () => { throw new Error('no debe tocar la base'); } } };
+  assert.equal(await carlitosFor(env), null);
+});
