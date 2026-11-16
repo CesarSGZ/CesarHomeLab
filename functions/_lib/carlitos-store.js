@@ -3,6 +3,10 @@ import { CESAR_COLUMNS, MARIA_COLUMNS, madridToday, monday } from './rivalry.js'
 import { TREAT_COST, activity, applyAction, carlitosState } from './carlitos.js';
 
 const LOG = 'carlitos-lab';
+// Carlitos starts the day César moves to Germany. Until this date is set (YYYY-MM-DD), the server neither reads nor creates
+// him; from that date he is born afresh, and anything stored before it is thrown away.
+export const CARLITOS_DESDE = null;
+export const carlitosActivo = (today = madridToday()) => Boolean(CARLITOS_DESDE) && today >= CARLITOS_DESDE;
 
 async function dataset(env, name) {
   const row = await env.CONTROL_DB.prepare('SELECT payload FROM personal_datasets WHERE name = ?').bind(name).first();
@@ -16,9 +20,9 @@ export async function readSheetRows(sheet) {
 }
 export async function readLog(env, today = madridToday()) {
   const log = await dataset(env, LOG);
-  if (log) return log;
-  // He arrives the week he is first asked about, so that week's training already counts.
-  const fresh = { born: monday(today), actions: [], messages: [], vales: [] };
+  if (log && log.born >= monday(CARLITOS_DESDE)) return log;
+  // He arrives the week he starts, so that week's training already counts.
+  const fresh = { born: monday(CARLITOS_DESDE), actions: [], messages: [], vales: [] };
   await saveLog(env, fresh);
   return fresh;
 }
@@ -29,6 +33,7 @@ async function saveLog(env, log) {
 // Either side may pass rows it already has, so no Sheet is read twice in one request.
 export async function carlitosFor(env, { cesarRows, mariaRows } = {}) {
   const today = madridToday();
+  if (!carlitosActivo(today)) return null;
   const [cesar, maria, log] = await Promise.all([
     cesarRows || dataset(env, 'training-lab').then(d => readSheetRows(d?.sheet)),
     mariaRows || dataset(env, 'maria-lab').then(d => readSheetRows(d?.sheet)),
@@ -40,6 +45,7 @@ export async function carlitosFor(env, { cesarRows, mariaRows } = {}) {
 }
 // Checked against the dog as he is now: no treat without bones, nothing bought twice, no clothes he does not have.
 export async function carlitosAction(env, who, action) {
+  if (!carlitosActivo()) throw new Error('not_active');
   const now = await carlitosFor(env);
   if (!now) throw new Error('not_connected');
   const { state, log, acts, today } = now, type = action?.type;
