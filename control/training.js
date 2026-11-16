@@ -114,7 +114,7 @@
       if (M.perSession && H.perSession) out.push(`Por entreno, este mes: tú mueves ${weight(M.perSession)}; Marialópoda, ${weight(H.perSession)}.`);
       if (M.best && H.best) out.push(`Entreno más pesado de la semana: el tuyo, ${weight(M.best.kg)}; el suyo, ${weight(H.best.kg)}.`);
       if (H.top) out.push(`Lo que más ha cargado Marialópoda esta semana: ${H.top.ejercicio.toLowerCase()}, ${weight(H.top.kg)} en total.`);
-      if (M.week + H.week >= 1000) out.push(`Entre los dos lleváis ${weight(M.week + H.week)} esta semana: lo que pesan ${N0((M.week + H.week) / 9)} carlitos.`);
+      if (M.week + H.week >= 1000) out.push(`Entre los dos lleváis ${weight(M.week + H.week)} esta semana: lo que pesan ${N0((M.week + H.week) / 9)} perros salchicha.`);
       if (M.month && H.month) out.push(`Último mes: tú ${weight(M.month)}, Marialópoda ${weight(H.month)}.`);
       if (M.year && H.year) out.push(`En el último año habéis movido ${weight(M.year + H.year)} entre los dos. Ella, ${weight(H.year)}.`);
     }
@@ -147,8 +147,10 @@
       <button type="button" class="tl-link center" data-act="close">Cerrar</button></div>`);
   }
   // ---------- Carlitos, the dog you look after with Marialópoda ----------
+  // He already lives on the server; hidden in both apps until César decides to show him.
+  const CARLITOS_VISIBLE = false;
   function carlitosStrip() {
-    if (!window.Carlitos || !S.carlitos) return '';
+    if (!CARLITOS_VISIBLE || !window.Carlitos || !S.carlitos) return '';
     return Carlitos.tira(S.carlitos, 'cesar') || `<button type="button" class="cx-tira" data-cx-abrir aria-label="Ver a Carlitos">${Carlitos.mini(S.carlitos)}<span><small>CARLITOS</small>${E(S.carlitos.stageName)} · nivel ${S.carlitos.level}. Tócalo para verlo.</span></button>`;
   }
   async function sendCarlitos(todo) {
@@ -193,7 +195,7 @@
 
   function layerRival(message) {
     showLayer(`<div class="tl-card plain" role="dialog" aria-label="Conectar el pique"><h3>Pique con Marialópoda</h3>
-      <p class="tl-note">Pega el código de conexión de Marialópoda: la URL de su Apps Script que acaba en /exec, seguida de # y su clave. Se guarda en el servidor y solo se usa para leer su resumen: peso movido, récords frente a sí misma y caminadora, y para cuidar juntos de Carlitos. Ella verá lo mismo de ti en su app.</p>
+      <p class="tl-note">Pega el código de conexión de Marialópoda: la URL de su Apps Script que acaba en /exec, seguida de # y su clave. Se guarda en el servidor y solo se usa para leer su resumen: peso movido, récords frente a sí misma y caminadora. Ella verá lo mismo de ti en su app.</p>
       <label class="tl-field" for="tl-rival-code">Código de Marialópoda</label><textarea class="tl-text" id="tl-rival-code" autocomplete="off" spellcheck="false" style="height:90px"></textarea>
       ${message ? `<p class="tl-error" role="status">${E(message)}</p>` : ''}
       <button type="button" class="tl-primary" data-act="rival-save">Conectar</button><button type="button" class="tl-link center" data-act="close">Cancelar</button></div>`);
@@ -588,7 +590,7 @@
     showLayer(`<div class="tl-card tl-finish" role="dialog" aria-label="Entreno terminado"><small>SESIÓN CERRADA</small><strong>${N(Math.round(rep.tonnes * 10) / 10)} t</strong><p class="tl-finish-lead">${E(lead)}</p>
       <div class="tl-finish-stats"><span><b>${rep.sets}</b>series</span><span><b>${rep.exercises}</b>${rep.exercises === 1 ? 'ejercicio' : 'ejercicios'}</span>${rep.minutes ? `<span><b>${rep.minutes}</b>min</span>` : ''}${rep.rpe ? `<span><b>${N(Math.round(rep.rpe * 10) / 10)}</b>RPE medio</span>` : ''}</div>
       ${wins.length ? `<ul class="tl-finish-wins">${wins.join('')}</ul>` : ''}
-      ${walkLine()}${finishDuel()}${S.carlitos ? '<p>🐶 Carlitos ya tiene sus croquetas: tu entreno cuenta para él.</p>' : ''}
+      ${walkLine()}${finishDuel()}${CARLITOS_VISIBLE && S.carlitos ? '<p>🐶 Carlitos ya tiene sus croquetas: tu entreno cuenta para él.</p>' : ''}
       <button type="button" class="tl-primary" data-act="close-finish">Hecho</button></div>`);
     paintRest();
     chime('finish'); buzz([20, 60, 20, 60, 40]); confetti();
