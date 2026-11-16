@@ -88,16 +88,36 @@
       walkWeek: Math.round(walks.reduce((t, f) => t + model.walkOf(f).km, 0) * 10) / 10, walkedToday: walks.some(f => f[F.FECHA] === today()) };
   }
   const veces = n => (n === 1 ? '1 entreno' : `${n} entrenos`);
-  // Weights are not comparable between the two of you, so it is always each one against their own past.
+  // Tonnage with its unit; tonnes from one.
+  const weight = kg => (kg >= 100000 ? `${N0(kg / 1000)} t` : kg >= 1000 ? `${N(Math.round(kg / 100) / 10)} t` : `${N0(kg)} kg`);
+  // Each one against their own pace of the four weeks before, up to the same weekday; null until there is something to compare.
+  const vsSelf = (now, pace) => (pace > 0 && now > 0 ? Math.round((now / pace - 1) * 100) : null);
+  const signed = p => `${p > 0 ? '+' : p < 0 ? '−' : ''}${Math.abs(p)} %`;
+  function duel() {
+    const R = S.rival, M = S.me?.tonnage, H = R?.tonnage;
+    if (!M || !H) return null;
+    return { me: vsSelf(M.week, M.pace), her: vsSelf(H.week, H.pace), meBefore: vsSelf(M.lastWeek, M.lastPace), herBefore: vsSelf(H.lastWeek, H.lastPace), M, H };
+  }
+  // The routines have a different number of days, so days are never compared: weight moved and each one's own progress are.
   function rivalLines() {
     const R = S.rival, me = mine(), out = [];
     if (!R || R.today !== today()) return out;
     if (R.trainedToday && !me.trainedToday) out.push('Marialópoda ya ha entrenado hoy. Tú sigues leyendo esto.');
     if (R.trainedToday && me.trainedToday) out.push('Hoy habéis entrenado los dos. Empate técnico, de momento.');
     if (!R.trainedToday && me.trainedToday) out.push('Hoy tú sí y Marialópoda todavía no. Díselo, con cariño.');
-    if (R.week > me.week) out.push(`Marialópoda lleva ${veces(R.week)} esta semana; tú, ${me.week}. Ejem.`);
-    else if (R.week && R.week === me.week) out.push(`Empate a ${veces(R.week)} esta semana. Desempata.`);
-    else if (me.week > R.week) out.push(`Vas ${me.week} a ${R.week} en entrenos esta semana. No te relajes.`);
+    const d = duel();
+    if (d) {
+      const { M, H } = d;
+      if (d.me !== null && d.her !== null) out.push(d.me > d.her ? `Duelo de la semana, cada uno contra su media: tú ${signed(d.me)}, Marialópoda ${signed(d.her)}. Vas ganando.` : d.her > d.me ? `Duelo de la semana: Marialópoda va ${signed(d.her)} frente a su media y tú ${signed(d.me)}. Ejem.` : `Duelo de la semana empatado al ${signed(d.me)}. Desempata.`);
+      if (d.meBefore !== null && d.herBefore !== null && d.meBefore !== d.herBefore) out.push(d.meBefore > d.herBefore ? `La semana pasada ganaste el duelo: ${signed(d.meBefore)} frente a su ${signed(d.herBefore)}.` : `La semana pasada ganó Marialópoda el duelo (${signed(d.herBefore)} frente a tu ${signed(d.meBefore)}). Revancha.`);
+      if (M.week || H.week) out.push(`Peso movido esta semana: tú ${weight(M.week)}, Marialópoda ${weight(H.week)}.`);
+      if (M.perSession && H.perSession) out.push(`Por entreno, este mes: tú mueves ${weight(M.perSession)}; Marialópoda, ${weight(H.perSession)}.`);
+      if (M.best && H.best) out.push(`Entreno más pesado de la semana: el tuyo, ${weight(M.best.kg)}; el suyo, ${weight(H.best.kg)}.`);
+      if (H.top) out.push(`Lo que más ha cargado Marialópoda esta semana: ${H.top.ejercicio.toLowerCase()}, ${weight(H.top.kg)} en total.`);
+      if (M.week + H.week >= 1000) out.push(`Entre los dos lleváis ${weight(M.week + H.week)} esta semana: lo que pesan ${N0((M.week + H.week) / 9)} carlitos.`);
+      if (M.month && H.month) out.push(`Último mes: tú ${weight(M.month)}, Marialópoda ${weight(H.month)}.`);
+      if (M.year && H.year) out.push(`En el último año habéis movido ${weight(M.year + H.year)} entre los dos. Ella, ${weight(H.year)}.`);
+    }
     const rec = R.records?.[0];
     if (rec) out.push(`Marialópoda se ha superado en ${rec.ejercicio.toLowerCase()}: ${rec.reps} × ${N(rec.kg)} kg, un ${N(rec.mejora)} % por encima de su mejor marca.`);
     const mineRecs = me.records?.length || 0, hers = R.records?.length || 0;
@@ -109,12 +129,44 @@
     if (!R.trainedToday && R.lastDay && Date.parse(today()) - Date.parse(R.lastDay) >= 4 * 864e5) out.push(`Marialópoda no entrena desde el ${shortDate(R.lastDay)}. Ventaja tuya.`);
     return out;
   }
+  // Everything of the rivalry at a glance.
+  function layerRivalry() {
+    const d = duel(), R = S.rival, me = mine();
+    if (!d) return;
+    const { M, H } = d;
+    const row = (name, a, b, fmt = weight) => `<tr><td>${name}</td><td class="${a > b ? 'win' : ''}">${fmt(a)}</td><td class="${b > a ? 'win' : ''}">${fmt(b)}</td></tr>`;
+    const box = (who, p, other) => `<div class="${p !== null && (other === null || p > other) ? 'win' : ''}"><small>${who}</small><b>${p === null ? '—' : signed(p)}</b></div>`;
+    showLayer(`<div class="tl-card plain tl-rivalry" role="dialog" aria-label="Pique con Marialópoda"><h3>Pique con Marialópoda</h3>
+      <p class="tl-note">El duelo de la semana compara lo que mueve cada uno con su propia media de las cuatro semanas anteriores, hasta el mismo día de la semana. Gana quien más se supera, entrene los días que entrene.</p>
+      <div class="tl-duelbox">${box('Tú', d.me, d.her)}${box('Marialópoda', d.her, d.me)}</div>
+      <table class="tl-rtable"><thead><tr><th></th><th>Tú</th><th>Ella</th></tr></thead><tbody>
+        ${row('Esta semana', M.week, H.week)}${row('Semana pasada', M.lastWeek, H.lastWeek)}${row('Por entreno (mes)', M.perSession, H.perSession)}
+        ${row('Entreno más pesado', M.best?.kg || 0, H.best?.kg || 0)}${row('Último mes', M.month, H.month)}${row('Último año', M.year, H.year)}
+        ${row('Marcas (2 sem.)', me.records?.length || 0, R.records?.length || 0, v => N0(v))}${row('Caminadora (sem.)', me.walkWeek || 0, R.walkWeek || 0, v => `${N(v)} km`)}${row('Semanas seguidas', me.streak || 0, R.streak || 0, v => N0(v))}
+      </tbody></table>
+      <button type="button" class="tl-link center" data-act="close">Cerrar</button></div>`);
+  }
+  // ---------- Carlitos, the dog you look after with Marialópoda ----------
+  function carlitosStrip() {
+    if (!window.Carlitos || !S.carlitos) return '';
+    return Carlitos.tira(S.carlitos, 'cesar') || `<button type="button" class="cx-tira" data-cx-abrir aria-label="Ver a Carlitos">${Carlitos.mini(S.carlitos)}<span><small>CARLITOS</small>${E(S.carlitos.stageName)} · nivel ${S.carlitos.level}. Tócalo para verlo.</span></button>`;
+  }
+  async function sendCarlitos(todo) {
+    const result = await call('POST', { action: 'carlitos', do: todo });
+    S.carlitos = result.carlitos;
+    write('cache', { rutina: S.rutina, alternativas: S.alternativas, filas: S.filas, bodyWeight: S.bodyWeight, rival: S.rival, me: S.me, carlitos: S.carlitos });
+    return result.carlitos;
+  }
+  function layerCarlitos() {
+    showLayer('<div class="tl-card plain tl-carlitos" role="dialog" aria-label="Carlitos"><button type="button" class="tl-link tl-cx-close" data-act="close-carlitos" aria-label="Cerrar">×</button><div id="tl-cx"></div></div>');
+    Carlitos.montar(document.getElementById('tl-cx'), { estado: S.carlitos, viewer: 'cesar', enviar: sendCarlitos });
+  }
   function rivalStrip() {
     if (!S.rival && !read('rivalHidden', false)) return `<div class="tl-rival off"><small>PIQUE</small><span>Conecta el Sheet de Marialópoda y verás cómo va su semana frente a la tuya.</span><button type="button" class="tl-link" data-act="rival-connect">Conectar</button><button type="button" class="tl-link" data-act="rival-hide" aria-label="No mostrar">×</button></div>`;
     const lines = rivalLines();
     if (!lines.length) return '';
     S.rivalIndex = (S.rivalIndex ?? Math.floor(Math.random() * lines.length)) % lines.length;
-    return `<button type="button" class="tl-rival" data-act="rival-next" aria-label="Siguiente pique"><small>PIQUE</small><span>${E(lines[S.rivalIndex])}</span></button>`;
+    return `<div class="tl-rival-row"><button type="button" class="tl-rival" data-act="rival-next" aria-label="Siguiente pique"><small>PIQUE</small><span>${E(lines[S.rivalIndex])}</span></button>${duel() ? '<button type="button" class="tl-link" data-act="rivalry">Ver todo</button>' : ''}</div>`;
   }
 
   // Your session three months ago, or, on a new machine, your muscle three months ago against other men.
@@ -141,7 +193,7 @@
 
   function layerRival(message) {
     showLayer(`<div class="tl-card plain" role="dialog" aria-label="Conectar el pique"><h3>Pique con Marialópoda</h3>
-      <p class="tl-note">Pega el código de conexión de Marialópoda: la URL de su Apps Script que acaba en /exec, seguida de # y su clave. Se guarda en el servidor y solo se usa para leer su resumen: días entrenados, récords frente a sí misma y caminadora. Ella verá lo mismo de ti en su app.</p>
+      <p class="tl-note">Pega el código de conexión de Marialópoda: la URL de su Apps Script que acaba en /exec, seguida de # y su clave. Se guarda en el servidor y solo se usa para leer su resumen: peso movido, récords frente a sí misma y caminadora, y para cuidar juntos de Carlitos. Ella verá lo mismo de ti en su app.</p>
       <label class="tl-field" for="tl-rival-code">Código de Marialópoda</label><textarea class="tl-text" id="tl-rival-code" autocomplete="off" spellcheck="false" style="height:90px"></textarea>
       ${message ? `<p class="tl-error" role="status">${E(message)}</p>` : ''}
       <button type="button" class="tl-primary" data-act="rival-save">Conectar</button><button type="button" class="tl-link center" data-act="close">Cancelar</button></div>`);
@@ -199,10 +251,10 @@
     const data = await call('GET');
     S.connected = data.connected;
     if (!data.connected) return;
-    S.rutina = data.rutina; S.alternativas = data.alternativas; S.bodyWeight = data.bodyWeight; S.rival = data.rival || null; S.me = data.me || null;
+    S.rutina = data.rutina; S.alternativas = data.alternativas; S.bodyWeight = data.bodyWeight; S.rival = data.rival || null; S.me = data.me || null; S.carlitos = data.carlitos || S.carlitos || null;
     merge(data.filas);
     for (const op of S.queue) if (op.tipo === 'alternativa' && !S.alternativas.some(a => a.ejercicio === op.ejercicio)) S.alternativas.push({ musculo: op.musculo, ejercicio: op.ejercicio, referencia: op.referencia });
-    write('cache', { rutina: S.rutina, alternativas: S.alternativas, filas: S.filas, bodyWeight: S.bodyWeight, rival: S.rival, me: S.me });
+    write('cache', { rutina: S.rutina, alternativas: S.alternativas, filas: S.filas, bodyWeight: S.bodyWeight, rival: S.rival, me: S.me, carlitos: S.carlitos });
     S.error = '';
   }
   async function flush() {
@@ -220,7 +272,7 @@
   function enqueue(op) {
     S.queue.push(op);
     write('queue', S.queue);
-    write('cache', { rutina: S.rutina, alternativas: S.alternativas, filas: S.filas, bodyWeight: S.bodyWeight, rival: S.rival, me: S.me });
+    write('cache', { rutina: S.rutina, alternativas: S.alternativas, filas: S.filas, bodyWeight: S.bodyWeight, rival: S.rival, me: S.me, carlitos: S.carlitos });
     paintPending();
     flush();
   }
@@ -257,7 +309,7 @@
     const r = list.find(x => x.ejercicio === S.ejercicio);
     const anyDone = list.some(x => todayRows(S.dia, x.ejercicio).length);
     const week = model.weeklySets(S.filas, today());
-    $('#tl-body').innerHTML = `${rivalStrip()}${dayRow}<div class="tl-layout"><div>${paintFocus(r)}</div><aside class="tl-side">
+    $('#tl-body').innerHTML = `${rivalStrip()}${carlitosStrip()}${dayRow}<div class="tl-layout"><div>${paintFocus(r)}</div><aside class="tl-side">
       <div class="tl-side-head"><h3>Hoy</h3><span><button type="button" class="tl-link" data-act="new">Añadir</button><button type="button" class="tl-link" data-act="order">Cambiar orden</button></span></div>
       <ul class="tl-list">${list.map(x => { const s = setState(x); return `<li class="${s.complete ? 'done' : ''}${x === r ? ' current' : ''}"><button type="button" data-ex="${E(x.ejercicio)}"><span>${E(x.ejercicio)}</span><span class="tl-dots" aria-label="${s.done.length} de ${x.series} series">${Array.from({ length: x.series }, (_, i) => `<i class="${s.done.some(f => f[F.SERIE] === i + 1) ? 'ok' : s.skipped.includes(i + 1) ? 'skip' : ''}"></i>`).join('')}</span></button></li>`; }).join('')}</ul>
       ${anyDone ? '<button type="button" class="tl-secondary" data-act="finish">Terminar entreno</button>' : ''}
@@ -480,7 +532,7 @@
     if (S.measures[from]) { S.measures[to] ||= S.measures[from]; delete S.measures[from]; write('measures', S.measures); }
     if (S.draft[from]) { S.draft[to] = S.draft[from]; delete S.draft[from]; }
     S.ejercicio = swap(S.ejercicio); S.chart = swap(S.chart);
-    write('cache', { rutina: S.rutina, alternativas: S.alternativas, filas: S.filas, bodyWeight: S.bodyWeight, rival: S.rival, me: S.me });
+    write('cache', { rutina: S.rutina, alternativas: S.alternativas, filas: S.filas, bodyWeight: S.bodyWeight, rival: S.rival, me: S.me, carlitos: S.carlitos });
     closeLayer(); paint();
     try { await load(); paint(); } catch { /* the local copy already has the new name */ }
     return undefined;
@@ -528,7 +580,7 @@
       ...(ahead ? [`<li class="win"><b>${ahead}</b> ${ahead === 1 ? 'ejercicio' : 'ejercicios'} por delante de tu yo de hace tres meses</li>`] : []),
       ...rep.extra.slice(0, 2).map(x => `<li class="win"><b>+${x.work - x.planned}</b> ${x.work - x.planned === 1 ? 'serie extra' : 'series extra'} en ${E(x.name)}: volumen que suma</li>`),
       ...rep.drops.slice(0, 2).map(x => `<li class="win"><b>Dropset</b> en ${E(x.name)}: buen remate, sin bajar tu media</li>`),
-      ...rep.short.slice(0, 2).map(x => `<li><b>${x.work} de ${x.planned}</b> series en ${E(x.name)}: no cuenta como bajón. La próxima, a por todas</li>`),
+      ...rep.short.slice(0, 2).map(x => `<li><b>Más corto</b> en ${E(x.name)}: no cuenta como bajón. La próxima, a por todas</li>`),
       ...(rep.muscles.length ? [`<li><b>Trabajado</b> ${E(rep.muscles.join(', ').toLowerCase())}</li>`] : [])
     ];
     const lead = rep.records.length ? `${rep.records.length === 1 ? 'Un récord' : `${rep.records.length} récords`} hoy. Así se hace.` : change > .03 && change <= 1 ? 'Más volumen que la última vez. Sube la cuesta.' : ahead ? 'Hoy le has ganado a tu yo del pasado.' : pick(PHRASES.done);
@@ -536,10 +588,15 @@
     showLayer(`<div class="tl-card tl-finish" role="dialog" aria-label="Entreno terminado"><small>SESIÓN CERRADA</small><strong>${N(Math.round(rep.tonnes * 10) / 10)} t</strong><p class="tl-finish-lead">${E(lead)}</p>
       <div class="tl-finish-stats"><span><b>${rep.sets}</b>series</span><span><b>${rep.exercises}</b>${rep.exercises === 1 ? 'ejercicio' : 'ejercicios'}</span>${rep.minutes ? `<span><b>${rep.minutes}</b>min</span>` : ''}${rep.rpe ? `<span><b>${N(Math.round(rep.rpe * 10) / 10)}</b>RPE medio</span>` : ''}</div>
       ${wins.length ? `<ul class="tl-finish-wins">${wins.join('')}</ul>` : ''}
-      ${walkLine()}<p>Esta semana llevas ${veces(me.week)}${S.rival && S.rival.today === today() ? `; Marialópoda, ${veces(S.rival.week)}` : ''}.</p>
+      ${walkLine()}${finishDuel()}${S.carlitos ? '<p>🐶 Carlitos ya tiene sus croquetas: tu entreno cuenta para él.</p>' : ''}
       <button type="button" class="tl-primary" data-act="close-finish">Hecho</button></div>`);
     paintRest();
     chime('finish'); buzz([20, 60, 20, 60, 40]); confetti();
+  }
+
+  function finishDuel() {
+    const d = S.rival && S.rival.today === today() ? duel() : null;
+    return d && d.me !== null && d.her !== null ? `<p>Duelo de la semana: tú ${signed(d.me)} frente a tu media, Marialópoda ${signed(d.her)}.</p>` : '';
   }
 
   // ---------- Treadmill: any day, without touching the routine ----------
@@ -733,7 +790,7 @@
     const body = h.kind === 'muscle'
       ? `Hace un año superabas al ${h.before} % de los hombres en ${E(h.name.toLowerCase())}.<strong>Ahora, al ${h.now} %.</strong>`
       : `Hace un año, en ${E(h.name)}, tu ${model.MEASURES[h.measure].name} era ${fmtUnit(h.before, model.MEASURES[h.measure].unit)}.<strong>Ahora, ${fmtUnit(h.now, model.MEASURES[h.measure].unit)}.</strong>`;
-    return `<button type="button" class="tl-ago" data-act="ago"${list.length > 1 ? ' aria-label="Ver otra mejora"' : ''}>${body}${list.length > 1 ? `<small>Toca para ver otra · ${i + 1} de ${list.length}</small>` : ''}</button>`;
+    return `<button type="button" class="tl-ago" data-act="ago"${list.length > 1 ? ' aria-label="Ver otra mejora"' : ''}>${body}${list.length > 1 ? `<small>Toca para ver otra</small>` : ''}</button>`;
   }
   // How complete the last four weeks were against the routine, with a comment instead of a verdict.
   function paintHabits() {
@@ -848,6 +905,8 @@
   const onClick = async event => {
     const b = event.target.closest('button');
     if (!b) return;
+    if (b.hasAttribute('data-cx-abrir')) { keepDraft(); return layerCarlitos(); }
+    if (b.dataset.cx) return undefined;
     const d = b.dataset;
     if (d.tab) { keepDraft(); S.tab = d.tab; return paint(); }
     if (d.day) { keepDraft(); S.dia = +d.day; S.ejercicio = null; return paint(); }
@@ -888,6 +947,8 @@
       case 'rival-save': return saveRival(b);
       case 'rival-hide': write('rivalHidden', true); return paint();
       case 'rival-next': S.rivalIndex = (S.rivalIndex || 0) + 1; return paint();
+      case 'rivalry': return layerRivalry();
+      case 'close-carlitos': closeLayer(); return paint();
       case 'walk-save': return saveWalk();
       case 'rename-save': return saveRename(b);
       case 'all-ex': S.allEx = !S.allEx; return paint();
@@ -935,7 +996,7 @@
   window.TrainingLab = { async initialise(token) {
     csrf = token;
     try {
-      model = await import('./training-model.js?v=20261115patron'); F = model.F;
+      model = await import('./training-model.js?v=20261116carlitos'); F = model.F;
       S.queue = read('queue', []); S.plan = read('plan', null); S.measures = read('measures', {}); S.swaps = read('cambios', {});
       // Swaps used to last one day: today's carry on.
       if (S.plan?.fecha === today() && Object.keys(S.plan.cambios || {}).length) { S.swaps = { ...S.plan.cambios, ...S.swaps }; S.plan.cambios = {}; saveSwaps(); savePlan(); }

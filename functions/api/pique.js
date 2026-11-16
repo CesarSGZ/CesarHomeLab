@@ -1,6 +1,7 @@
 // María's app asks how César's week is going. It proves who it is with María's own Sheet key, which only her
-// phone and this server know, and gets back the rivalry summary only: no sets, notes or body weight.
+// phone and this server know, and gets back the rivalry summary only (no sets, notes or body weight) and Carlitos.
 import { CESAR_COLUMNS, madridToday, summarize } from '../_lib/rivalry.js';
+import { carlitosFor, readSheetRows } from '../_lib/carlitos-store.js';
 
 const ORIGINS = /^(https:\/\/cesarsgz\.github\.io|http:\/\/localhost:\d+)$/;
 const cors = request => {
@@ -28,10 +29,10 @@ export async function onRequest({ request, env }) {
     if (!maria?.sheet?.key || !key || !sameKey(key, maria.sheet.key)) return reply(request, { ok: false, error: 'not_authorised' }, 401);
     const cesar = await dataset(env, 'training-lab');
     if (!cesar?.sheet) return reply(request, { ok: false, error: 'not_connected' }, 409);
-    const response = await fetch(`${cesar.sheet.url}?k=${encodeURIComponent(cesar.sheet.key)}`, { signal: AbortSignal.timeout(25_000), redirect: 'follow' });
-    const sheet = await response.json();
-    if (!Array.isArray(sheet?.filas)) throw new Error('sheet_unavailable');
-    return reply(request, { ok: true, rival: summarize(sheet.filas, CESAR_COLUMNS, madridToday()) });
+    const [cesarRows, mariaRows] = await Promise.all([readSheetRows(cesar.sheet), readSheetRows(maria.sheet).catch(() => null)]);
+    if (!cesarRows) throw new Error('sheet_unavailable');
+    const carlitos = mariaRows ? await carlitosFor(env, { cesarRows, mariaRows }).catch(() => null) : null;
+    return reply(request, { ok: true, rival: summarize(cesarRows, CESAR_COLUMNS, madridToday()), carlitos: carlitos?.state || null });
   } catch {
     return reply(request, { ok: false, error: 'unavailable' }, 503);
   }

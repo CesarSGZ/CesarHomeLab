@@ -1,19 +1,21 @@
 // The friendly rivalry between César's and María's training apps. Each side only ever sees this summary:
 // how many days the other trained, whether they trained today, the marks they beat and the km they walked.
-// Weights are not comparable between two people, so a record is always "you against your own past".
+// Weights are not comparable between two people, so a record is always "you against your own past", and the weekly
+// duel is each one's tonnage against their own pace of the four weeks before. Days trained are not compared: the two
+// routines have a different number of days.
 
-export const CESAR_COLUMNS = { FECHA: 0, EJ: 2, REPS: 5, KG: 6, NOTA: 8, ORIGEN: 9 };
-export const MARIA_COLUMNS = { FECHA: 0, EJ: 2, REPS: 5, KG: 6, NOTA: 7, ORIGEN: 8 };
-const WALK = /^caminadora$/i, NOT_A_SET = /^nota$/i;
+export const CESAR_COLUMNS = { FECHA: 0, EJ: 2, MUSC: 3, REPS: 5, KG: 6, NOTA: 8, ORIGEN: 9 };
+export const MARIA_COLUMNS = { FECHA: 0, EJ: 2, MUSC: 3, REPS: 5, KG: 6, NOTA: 7, ORIGEN: 8 };
+export const WALK = /^caminadora$/i, NOT_A_SET = /^nota$/i;
 
 export const madridToday = (now = new Date()) => new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Madrid' }).format(now);
-const shift = (iso, days) => new Date(Date.parse(`${iso}T12:00:00Z`) + days * 864e5).toISOString().slice(0, 10);
-const monday = iso => shift(iso, -((new Date(`${iso}T12:00:00Z`).getUTCDay() + 6) % 7));
-const number = value => (value === '' || value === null || value === undefined || !Number.isFinite(+value) ? null : +value);
+export const shift = (iso, days) => new Date(Date.parse(`${iso}T12:00:00Z`) + days * 864e5).toISOString().slice(0, 10);
+export const monday = iso => shift(iso, -((new Date(`${iso}T12:00:00Z`).getUTCDay() + 6) % 7));
+export const number = value => (value === '' || value === null || value === undefined || !Number.isFinite(+value) ? null : +value);
 // Epley up to 15 reps; beyond that a set says nothing about strength.
 const e1rm = (kg, reps) => (kg > 0 && reps >= 1 && reps <= 15 ? (reps === 1 ? kg : kg * (1 + reps / 30)) : 0);
 
-function walkKm(row, c) {
+export function walkKm(row, c) {
   const m = /^([\d.,]+) km\/h/.exec(String(row[c.NOTA] || ''));
   const speed = m ? parseFloat(m[1].replace(',', '.')) : 0, minutes = number(row[c.REPS]) || 0;
   return speed * minutes / 60;
@@ -45,10 +47,31 @@ export function summarize(rows, c, today) {
     .map(([ejercicio, e]) => ({ ejercicio, kg: e.best.kg, reps: e.best.reps, fecha: e.best.fecha, mejora: Math.round((e.best.value / e.before - 1) * 1000) / 10 }))
     .sort((a, b) => (a.fecha < b.fecha ? 1 : a.fecha > b.fecha ? -1 : b.mejora - a.mejora)).slice(0, 6);
   const km = from => Math.round(walks.filter(r => r[c.FECHA] >= from).reduce((t, r) => t + walkKm(r, c), 0) * 10) / 10;
+  // Tonnage: kg × reps of every set, in kg.
+  const tonByDay = new Map();
+  const top = new Map();
+  for (const r of lifts) {
+    const kg = number(r[c.KG]) || 0, reps = number(r[c.REPS]) || 0;
+    if (kg <= 0 || reps <= 0) continue;
+    tonByDay.set(r[c.FECHA], (tonByDay.get(r[c.FECHA]) || 0) + kg * reps);
+    if (r[c.FECHA] >= week) top.set(r[c.EJ], (top.get(r[c.EJ]) || 0) + kg * reps);
+  }
+  const ton = (from, to = today) => Math.round([...tonByDay].reduce((t, [d, v]) => (d >= from && d <= to ? t + v : t), 0));
+  const weekday = Math.round((Date.parse(`${today}T12:00:00Z`) - Date.parse(`${week}T12:00:00Z`)) / 864e5);
+  // The same days of the four weeks before, so a Tuesday is never compared with a whole week.
+  const pace = (start, days) => Math.round([1, 2, 3, 4].reduce((t, i) => t + ton(shift(start, -7 * i), shift(start, -7 * i + days)), 0) / 4);
+  const best = [...tonByDay].filter(([d]) => d >= week).sort((a, b) => b[1] - a[1])[0];
+  const topExercise = [...top].sort((a, b) => b[1] - a[1])[0];
+  const sessionsMonth = [...tonByDay.keys()].filter(d => d >= shift(today, -29)).length;
+  const tonnage = {
+    week: ton(week), pace: pace(week, weekday), lastWeek: ton(lastWeek, shift(week, -1)), lastPace: pace(lastWeek, 6),
+    month: ton(shift(today, -29)), year: ton(shift(today, -364)), perSession: sessionsMonth ? Math.round(ton(shift(today, -29)) / sessionsMonth) : 0,
+    best: best ? { fecha: best[0], kg: Math.round(best[1]) } : null, top: topExercise ? { ejercicio: topExercise[0], kg: Math.round(topExercise[1]) } : null
+  };
   const last = lifts.reduce((a, r) => (r[c.FECHA] > a ? r[c.FECHA] : a), '');
   return {
     today, trainedToday: allDays.has(today), walkedToday: walks.some(r => r[c.FECHA] === today), lastDay: last || null,
     week: thisWeek.size, lastWeek: [...sinceLast].filter(d => d < week).length, streak,
-    year: days(shift(today, -364)).size, records, walkWeek: km(week), walkMonth: km(shift(today, -29))
+    year: days(shift(today, -364)).size, records, walkWeek: km(week), walkMonth: km(shift(today, -29)), tonnage
   };
 }
