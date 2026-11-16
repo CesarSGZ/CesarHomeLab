@@ -11,6 +11,7 @@ import argparse
 import json
 import math
 import re
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -38,10 +39,14 @@ def mesh(case):
     foam(case, 'topoSet', '-dict', 'system/topoSetDict.vents', log='log.topoSet.vents')
     foam(case, 'createPatch', '-overwrite')
     foam(case, 'topoSet')
+    shutil.copytree(case / '0', case / '0.orig', dirs_exist_ok=True)
     foam(case, 'subsetMesh', 'fluid', '-overwrite')
     # subsetMesh deja las caras de los sólidos quitados en un patch 'empty': en 3D tienen que ser pared
     b = case / 'constant' / 'polyMesh' / 'boundary'
     b.write_text(re.sub(r'(oldInternalFaces\s*\{[^}]*?type\s+)empty;(\s*inGroups\s+\w+\s*\([^)]*\);)?', r'\1wall;', b.read_text(), flags=re.S))
+    # subsetMesh reescribe los campos con ese patch como empty: se recuperan los originales (usan expresiones regulares)
+    shutil.rmtree(case / '0')
+    shutil.copytree(case / '0.orig', case / '0')
     out = foam(case, 'checkMesh')
     if 'Mesh OK' not in out:
         sys.exit('checkMesh no da Mesh OK')

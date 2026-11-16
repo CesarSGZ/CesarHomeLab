@@ -32,19 +32,19 @@ RHO, CP, NU = 1.16, 1005.0, 1.6e-5
 # Condiciones de cada prueba medida (vatios y rpm de la ventana estable, carga combinada)
 CONFIGS = {
     'S07': {'ducts': ['GPU_DUCT', 'CPU_DUCT'], 'ambient_C': 19.0,
-            'heat_W': {'GPU': 300, 'CPU_COOLER': 91.6, 'PSU': 36, 'MOTHERBOARD': 12, 'RAM': 8},
-            'rpm': {'GPU_FAN': 1955, 'CPU_FAN': 1907, 'BOTTOM_FAN': 1206, 'TOP_FAN': 1550, 'PSU_FAN': 900}},
+            'heat_W': {'GPU': 300, 'CPU_COOLER': 91.6, 'PSU': 27, 'MOTHERBOARD': 12, 'RAM': 8},
+            'rpm': {'GPU_FAN': 1955, 'CPU_FAN': 1907, 'BOTTOM_FAN': 1206, 'TOP_FAN': 1550, 'PSU_FAN': 1410}},
     'S04': {'ducts': [], 'ambient_C': 19.0,
-            'heat_W': {'GPU': 300, 'CPU_COOLER': 87.7, 'PSU': 36, 'MOTHERBOARD': 12, 'RAM': 8},
-            'rpm': {'GPU_FAN': 2050, 'CPU_FAN': 1950, 'BOTTOM_FAN': 1270, 'TOP_FAN': 1550, 'PSU_FAN': 900}},
+            'heat_W': {'GPU': 300, 'CPU_COOLER': 87.7, 'PSU': 27, 'MOTHERBOARD': 12, 'RAM': 8},
+            'rpm': {'GPU_FAN': 2050, 'CPU_FAN': 1950, 'BOTTOM_FAN': 1270, 'TOP_FAN': 1550, 'PSU_FAN': 1410}},
 }
 
 # Curvas: (rpm máximas, caudal libre m3/h, presión estática máxima Pa) — fichas oficiales salvo donde se dice
 FAN_SPEC = {
-    'NF-A9x14': (2500, 50.5, 22.1),      # Noctua: 29.7 CFM, 2.25 mmH2O
+    'NF-A9x14': (2200, 50.5, 16.1),      # Noctua NF-A9x14 PWM: 2200 rpm, 50.5 m3/h, 1.64 mmH2O
     'NF-A12x15': (1850, 94.2, 15.0),     # Noctua: 55.4 CFM, 1.53 mmH2O
-    'GPU_90': (2400, 55.0, 30.0),        # ZOTAC no lo publica: estimado (ventilador de gráfica de 90 mm)
-    'PSU_92': (2000, 45.0, 15.0),        # Corsair no lo publica: estimado
+    'GPU_90': (3300, 75.0, 45.0),        # ZOTAC no lo publica: estimado (90 mm de gráfica; el 56 % medido son ~1.955 rpm)
+    'PSU_92': (3700, 60.0, 40.0),        # Corsair NR092P (92 mm, 0,22 A): curva estimada; rpm según Cybenetics
 }
 FAN_MODEL = {'GPU_FAN_1': 'GPU_90', 'GPU_FAN_2': 'GPU_90', 'GPU_FAN_3': 'GPU_90', 'CPU_FAN': 'NF-A9x14',
              'TOP_FAN': 'NF-A9x14', 'BOTTOM_FAN': 'NF-A12x15', 'PSU_FAN': 'PSU_92'}
@@ -146,8 +146,12 @@ boundary
     def solid_box(name, lo, hi):
         cellset(name, boxsrc(lo, hi)); solids.append(name)
 
-    def zone_box(name, lo, hi):
+    fan_sets = []
+
+    def zone_box(name, lo, hi, exclude=()):
         cellset(name, boxsrc(lo, hi))
+        if exclude:
+            actions.append(f'    {{ name {name}; type cellSet; action subtract; source cellToCell; sets ({" ".join(exclude)}); }}')
         actions.append(f'    {{ name {name}; type cellZoneSet; action new; source setToCellZone; set {name}; }}')
 
     # Gráfica: ventiladores (y 16.15-26.15), aletas porosas y PCB sólida detrás
@@ -168,7 +172,7 @@ boundary
         cellset(name, zone_cyl)
         actions.append(f'    {{ name {name}; type cellZoneSet; action new; source setToCellZone; set {name}; }}')
         actions.append(f'    {{ name gpuShroud; type cellSet; action subtract; source {zone_cyl} }}')
-        fans.append((name, f'GPU_FAN_{i}', [0, 1, 0], r, p2[1] - p1[1], cfg['rpm']['GPU_FAN']))
+        fans.append((name, f'GPU_FAN_{i}', [0, 1, 0], r, p2[1] - p1[1], cfg['rpm']['GPU_FAN'])); fan_sets.append(name)
     solids.append('gpuShroud')
 
     # Procesador: ventilador, aletas porosas con el calor, base sólida
@@ -177,7 +181,7 @@ boundary
     p1 = [c[0], c[1] - th / 2, c[2]]; p2 = [c[0], c[1] + th / 2, c[2]]
     cellset('cpuFan', cylsrc(p1, p2, r))
     actions.append('    { name cpuFan; type cellZoneSet; action new; source setToCellZone; set cpuFan; }')
-    fans.append(('cpuFan', 'CPU_FAN', [0, -1, 0], r, th, cfg['rpm']['CPU_FAN']))
+    fans.append(('cpuFan', 'CPU_FAN', [0, -1, 0], r, th, cfg['rpm']['CPU_FAN'])); fan_sets.append('cpuFan')
     fin_y0 = clo[1] + m(6)
     zone_box('cpuFins', [clo[0], fin_y0, clo[2]], [chi[0], p1[1], chi[2]])
     porous.append(('cpuFins', 'cpuFins', (2e3, 2e3, 2e3), (500, 500, 500), 'y'))
@@ -196,7 +200,7 @@ boundary
     p1 = [c[0], phi[1] - sk, c[2]]; p2 = [c[0], phi[1], c[2]]
     cellset('psuFan', cylsrc(p1, p2, r))
     actions.append('    { name psuFan; type cellZoneSet; action new; source setToCellZone; set psuFan; }')
-    fans.append(('psuFan', 'PSU_FAN', [0, -1, 0], r, sk, cfg['rpm']['PSU_FAN']))
+    fans.append(('psuFan', 'PSU_FAN', [0, -1, 0], r, sk, cfg['rpm']['PSU_FAN'])); fan_sets.append('psuFan')
 
     # Ventiladores de caja
     for fid, zname in (('BOTTOM_FAN', 'bottomFan'), ('TOP_FAN', 'topFan')):
@@ -206,7 +210,7 @@ boundary
         cellset(zname, cylsrc(p1, p2, r))
         actions.append(f'    {{ name {zname}; type cellZoneSet; action new; source setToCellZone; set {zname}; }}')
         sign = 1 if f['flow'] == 'intake' else 1   # ambos empujan hacia +z (abajo mete, arriba saca)
-        fans.append((zname, fid, [0, 0, sign], r, th, cfg['rpm'][fid]))
+        fans.append((zname, fid, [0, 0, sign], r, th, cfg['rpm'][fid])); fan_sets.append(zname)
 
     # Sólidos sencillos y zonas porosas del resto
     for cid in ('RISER', 'SLOT_BRACKET'):
@@ -229,13 +233,13 @@ boundary
         porous.append((name, name, (0, 0, 0), tuple(fv), 'y'))
     for cid in ('CABLES_GPU', 'CABLES_MAIN', 'CABLES_BOTTOM'):
         cpn = comps[cid]; lo, hi = box_m(cpn['box']); name = cid.lower()
-        zone_box(name, lo, hi)
+        zone_box(name, lo, hi, exclude=fan_sets + ['ram', 'boardAir', 'cpuFins', 'psuIn'])
         k = 60.0 * (1 - cpn['porosity']) / cpn['porosity']       # por ajustar con S04-S07
         porous.append((name, name, (0, 0, 0), (k, k, k), 'y'))
     lo, hi = box_m(comps['BOTTOM_GRILLE']['box'])
     if hi[2] - lo[2] < m(cell_mm):
         hi[2] = lo[2] + m(cell_mm) * 1.1
-    zone_box('bottomGrille', lo, hi)
+    zone_box('bottomGrille', lo, hi, exclude=fan_sets)
     K = plate_K(comps['BOTTOM_GRILLE']['porosity'])
     porous.append(('bottomGrille', 'bottomGrille', (0, 0, 0), (100, 100, K / (hi[2] - lo[2])), 'y'))
 
@@ -265,7 +269,7 @@ boundary
         else:
             hi[ax] = (Y1 if ax == 1 else Z1); lo[ax] = hi[ax] - depth
         zname = name.replace('vent_', 'grille_')
-        zone_box(zname, lo, hi)
+        zone_box(zname, lo, hi, exclude=fan_sets)
         fv = [200.0, 200.0, 200.0]; fv[ax] = plate_K(phi) / depth
         porous.append((zname, zname, (0, 0, 0), tuple(fv), 'y'))
 

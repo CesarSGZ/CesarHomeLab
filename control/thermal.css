@@ -311,3 +311,21 @@ html[data-theme=night] :is(.tl-plot-crop,.tl-curves img){filter:invert(.9) hue-r
 .tl-cfdplan small{color:var(--tl-muted);font:11px "DM Mono",monospace;text-transform:uppercase}
 .tl-cfdplan strong{display:block;font-size:14px}
 .tl-cfdplan p{margin:4px 0 0;color:var(--tl-muted);font-size:13px;line-height:1.5}
+
+/* Estado del CFD */
+.tl-cfdstatus{margin-bottom:18px}
+.tl-cfdgallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px;margin:12px 0}
+.tl-cfdgallery figure{margin:0;border:1px solid var(--tl-line);border-radius:12px;overflow:hidden;background:#0f171c}
+.tl-cfdgallery img{display:block;width:100%;aspect-ratio:18/11;object-fit:cover}
+.tl-cfdgallery figcaption{padding:8px 10px;font-size:12.5px;color:var(--tl-muted);background:var(--tl-bg)}
+.tl-cfdchecks{width:100%;border-collapse:collapse;font-size:13px}
+.tl-cfdchecks th,.tl-cfdchecks td{padding:7px 9px;border-bottom:1px solid var(--tl-line);text-align:left}
+.tl-cfdchecks td:nth-child(2),.tl-cfdchecks td:nth-child(3){font-family:"DM Mono",monospace;white-space:nowrap}
+.tl-cfdchecks tr.ok td:last-child{color:var(--tl-ok);font-weight:700}
+.tl-cfdchecks tr.bad td:last-child{color:var(--tl-hot);font-weight:700}
+.tl-cfdtuning{margin:0;padding:0;list-style:none;display:grid;gap:6px}
+.tl-cfdtuning li{padding:8px 12px;border:1px solid var(--tl-line);border-radius:10px;font-size:13px;line-height:1.5;background:var(--tl-bg)}
+.tl-cfdtuning li small{display:inline-block;min-width:74px;margin-right:8px;font:11px "DM Mono",monospace;text-transform:uppercase;color:var(--tl-muted)}
+.tl-cfdtuning li.done small{color:var(--tl-ok)}
+.tl-cfdtuning li.next{border-color:var(--tl-cool)}
+.tl-cfdtuning li.next small{color:var(--tl-cool)}

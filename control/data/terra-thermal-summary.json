@@ -1,6 +1,6 @@
 {
   "schema_version": "1.4.0",
-  "generated_at": "2026-11-15T10:00:00+00:00",
+  "generated_at": "2026-11-16T12:00:00+00:00",
   "project": {
     "id": "terra-powerplant-lab",
     "title": "Terra Powerplant Lab",
@@ -1607,9 +1607,14 @@
         "why": "calculada a 122 mm del suelo de la caja"
       },
       {
-        "what": "Curvas presión-caudal de los ventiladores",
-        "how": "fichas de Noctua",
-        "why": "las de la gráfica y la fuente no se publican: habrá que estimarlas"
+        "what": "Qué ventilador va en la toma «Sistema 1» de la placa",
+        "how": "mirar el cable o la BIOS",
+        "why": "marca unas 1.150 rpm; el modelo supone que es el de abajo y deja el de arriba a 1.550 rpm"
+      },
+      {
+        "what": "Curva de los ventiladores de la gráfica",
+        "how": "estimada",
+        "why": "ZOTAC no la publica; se usa una de 90 mm típica a las 1.955 rpm medidas y se ajusta con S04-S07"
       },
       {
         "what": "Cuánto frenan cables, aletas y rejillas",
@@ -1618,6 +1623,8 @@
       }
     ],
     "resolved": [
+      "Curvas de los Noctua: fichas oficiales (NF-A9x14 PWM 2.200 rpm, 50,5 m³/h, 1,64 mmH₂O; NF-A12x15 PWM 1.850 rpm, 94,2 m³/h, 1,53 mmH₂O).",
+      "Fuente SF850: ventilador Corsair NR092P; a 230 V y ~425 W gira a ~1.410 rpm con un 94,1 % de rendimiento, unos 27 W de calor (informe de Cybenetics).",
       "Lista de ideas revisada con lo medido en S04-S07 (story.ideas_next), con el ventilador de abajo metiendo aire.",
       "Panel de arriba: 36 filas de ranuras, medido en la foto desde arriba (14 nov).",
       "Ventilador de arriba: delante, justo encima de la salida de la fuente.",
@@ -2310,7 +2317,7 @@
     }
   },
   "story": {
-    "updated": "2026-11-15",
+    "updated": "2026-11-16",
     "limits": {
       "cpu_C": 95,
       "cpu_basis": "temperatura máxima que AMD fija para el Ryzen 7 9800X3D"
@@ -2524,6 +2531,12 @@
         "kind": "page",
         "title": "Se cierran los ajustes",
         "detail": "César decide no hacer más pruebas de ajustes: los dos canales se quedan montados y lo siguiente es el CFD. Las ideas revisadas quedan en la web como referencia."
+      },
+      {
+        "date": "2026-11-16",
+        "kind": "model",
+        "title": "Primer CFD de la caja",
+        "detail": "OpenFOAM simula el aire dentro del Terra con el modelo 3D, los vatios y las rpm medidos. Con una sola constante ajustada en la S04, predice la gráfica de la S07 a 0,2 °C de lo medido. El procesador, la memoria y la fuente aún se están ajustando."
       }
     ],
     "next_steps": [
@@ -2582,8 +2595,8 @@
           "en": "Run the CFD"
         },
         "detail": {
-          "es": "Cerrar las comprobaciones, montar el caso base y validarlo contra S04 y S07 antes de usarlo para decidir (plan en la sección 08).",
-          "en": "Close the checklist, set up the base case and validate it on S04 and S07 before using it to decide (plan in section 08)."
+          "es": "En marcha desde el 16 nov: caso base hecho y la gráfica ya cuadra con lo medido. Falta ajustar procesador, memoria y fuente y cerrar las comprobaciones (sección 08).",
+          "en": "Under way since 16 Nov: base case done and the GPU already matches the measurements. CPU, RAM and PSU still to tune and the checklist to close (section 08)."
         }
       }
     ],
@@ -2984,21 +2997,21 @@
           "detail_en": "S04 (nothing), S05 (panels off), S06 (CPU duct) and S07 (both ducts), with watts, temperatures and fan speeds."
         },
         {
-          "status": "next",
+          "status": "todo",
           "title_es": "Cerrar las comprobaciones",
           "title_en": "Close the checklist",
           "detail_es": "Foto del suelo, medir la columna central y el centro del ventilador de la CPU, y las curvas de los ventiladores (lista de la sección 05).",
           "detail_en": "Floor photo, measure the spine and CPU fan centre, and the fan curves (checklist in section 05)."
         },
         {
-          "status": "todo",
+          "status": "done",
           "title_es": "Montar el caso base",
           "title_en": "Set up the base case",
           "detail_es": "Malla de la caja (OpenFOAM), ventiladores como discos con su curva presión-caudal, el calor medido en cada pieza y cables, aletas y rejillas como zonas que frenan el aire.",
           "detail_en": "Mesh the case (OpenFOAM), fans as discs with their pressure-flow curve, the measured heat in each part, and cables, fins and grilles as porous zones."
         },
         {
-          "status": "todo",
+          "status": "next",
           "title_es": "Validarlo con S04 y S07",
           "title_en": "Validate it on S04 and S07",
           "detail_es": "Tiene que reproducir el cambio medido entre no llevar nada y los dos canales: la gráfica 3 °C más fría y la CPU sacando un 19 % más por grado.",
@@ -3010,6 +3023,150 @@
           "title_en": "Use it to decide",
           "detail_es": "Ver si el aire caliente de la gráfica se queda atrapado, y probar en virtual la extracción de arriba o un segundo ventilador antes de construir nada.",
           "detail_en": "See whether the GPU’s hot air gets trapped, and try the top exhaust or a second fan virtually before building anything."
+        }
+      ]
+    },
+    "cfd_status": {
+      "updated": "2026-11-16",
+      "version_es": "Versión 1 · malla de 3 mm (unas 330.000 celdas), OpenFOAM v2512",
+      "version_en": "Version 1 · 3 mm mesh (about 330,000 cells), OpenFOAM v2512",
+      "summary_es": "Se simulan los montajes S04 (sin canales) y S07 (los dos canales) con los vatios y las rpm medidos. La gráfica ya cuadra; el procesador, la memoria y la fuente están en ajuste.",
+      "summary_en": "The S04 (no ducts) and S07 (both ducts) setups are simulated with the measured watts and fan speeds. The GPU already matches; CPU, RAM and PSU are being tuned.",
+      "images": [
+        {
+          "src": "/control/assets/thermal/cfd/s04-flujo-iso.jpg",
+          "es": "S04 sin canales: líneas del aire coloreadas por velocidad",
+          "en": "S04, no ducts: air paths coloured by speed"
+        },
+        {
+          "src": "/control/assets/thermal/cfd/s07-flujo-iso.jpg",
+          "es": "S07 con los dos canales: el aire de fuera entra directo a los ventiladores",
+          "en": "S07, both ducts: outside air goes straight into the fans"
+        },
+        {
+          "src": "/control/assets/thermal/cfd/s04-temp-cpu.jpg",
+          "es": "S04: corte por el procesador. Su ventilador respira aire de 45-60 °C",
+          "en": "S04: slice through the CPU. Its fan breathes 45-60 °C air"
+        },
+        {
+          "src": "/control/assets/thermal/cfd/s07-temp-cpu.jpg",
+          "es": "S07: el mismo corte. El canal le da aire a unos 26 °C",
+          "en": "S07: same slice. The duct feeds it air at about 26 °C"
+        },
+        {
+          "src": "/control/assets/thermal/cfd/s07-temp-grafica.jpg",
+          "es": "S07: corte por la gráfica. El aire caliente sale por arriba y por la trasera",
+          "en": "S07: slice through the GPU. Hot air leaves through the top and the rear"
+        },
+        {
+          "src": "/control/assets/thermal/cfd/s07-flujo-lado-cpu.jpg",
+          "es": "S07 visto desde el lado del procesador",
+          "en": "S07 seen from the CPU side"
+        }
+      ],
+      "checks": [
+        {
+          "es": "Gráfica en la S07 (constante del disipador ajustada solo con la S04)",
+          "en": "GPU in S07 (heatsink constant fitted on S04 only)",
+          "meas": "75,8 °C",
+          "sim": "75,6 °C",
+          "ok": true
+        },
+        {
+          "es": "Cambio de la gráfica de S04 a S07",
+          "en": "GPU change from S04 to S07",
+          "meas": "−3,1 °C",
+          "sim": "−3,3 °C",
+          "ok": true
+        },
+        {
+          "es": "Aire que llega a los ventiladores de la gráfica (S04 → S07)",
+          "en": "Air reaching the GPU fans (S04 → S07)",
+          "meas": "—",
+          "sim": "26 → 19 °C",
+          "ok": null
+        },
+        {
+          "es": "Aire que llega al ventilador del procesador (S04 → S07)",
+          "en": "Air reaching the CPU fan (S04 → S07)",
+          "meas": "—",
+          "sim": "42 → 26 °C",
+          "ok": null
+        },
+        {
+          "es": "Mejora del disipador del procesador de S04 a S07",
+          "en": "CPU cooler improvement from S04 to S07",
+          "meas": "+19 %",
+          "sim": "+30 %",
+          "ok": false
+        },
+        {
+          "es": "Memoria en la S07",
+          "en": "RAM in S07",
+          "meas": "53 °C",
+          "sim": "74 °C (aire)",
+          "ok": false
+        },
+        {
+          "es": "Caudal del ventilador de la fuente (según el informe de Cybenetics)",
+          "en": "PSU fan flow (from the Cybenetics report)",
+          "meas": "≈13 m³/h",
+          "sim": "18 m³/h",
+          "ok": false
+        },
+        {
+          "es": "Aire que entra = aire que sale (S07)",
+          "en": "Air in = air out (S07)",
+          "meas": "—",
+          "sim": "54 = 54 m³/h",
+          "ok": true
+        }
+      ],
+      "tuning": [
+        {
+          "status": "done",
+          "es": "Curvas oficiales de los Noctua (NF-A9x14 a 2.200 rpm, NF-A12x15 a 1.850 rpm) y de la fuente con las rpm y el rendimiento del informe de Cybenetics (≈1.410 rpm y 27 W de calor a 425 W).",
+          "en": "Official Noctua curves (NF-A9x14 at 2,200 rpm, NF-A12x15 at 1,850 rpm) and the PSU from the Cybenetics report (≈1,410 rpm and 27 W of heat at 425 W)."
+        },
+        {
+          "status": "done",
+          "es": "Cada ventilador se ajusta solo a su curva: el programa corrige el empuje hasta que caudal y presión cuadran (5-7 vueltas).",
+          "en": "Each fan settles onto its own curve: the script corrects the push until flow and pressure agree (5-7 rounds)."
+        },
+        {
+          "status": "done",
+          "es": "Supuesto: la constante del disipador de cada chip cambia con el caudal elevado a −0,7 (lo típico en aletas). Se ajusta con la S04 y se comprueba con la S07.",
+          "en": "Assumption: each heatsink constant scales with flow to the power −0.7 (typical for fins). Fitted on S04, checked on S07."
+        },
+        {
+          "status": "next",
+          "es": "Procesador: revisar la resistencia de sus aletas y cuánto aire caliente vuelve a su ventilador en la S04 (ahora exagera la mejora del canal).",
+          "en": "CPU: revisit the fin resistance and how much hot air recirculates into its fan in S04 (it currently overstates the duct gain)."
+        },
+        {
+          "status": "next",
+          "es": "Memoria: dejar pasar el aire entre los dos módulos (ahora queda casi quieto y sale demasiado caliente).",
+          "en": "RAM: let air flow between the two modules (it is almost still and comes out too hot)."
+        },
+        {
+          "status": "next",
+          "es": "Fuente: más freno interno hasta que mueva ≈13 m³/h.",
+          "en": "PSU: more internal drag until it moves ≈13 m³/h."
+        },
+        {
+          "status": "todo",
+          "es": "Malla más fina (2 mm) para comprobar que el resultado no cambia con el tamaño de celda.",
+          "en": "Finer mesh (2 mm) to check the result does not depend on cell size."
+        },
+        {
+          "status": "todo",
+          "es": "Paredes que pierden calor por la chapa y aire exterior alrededor de la caja (ahora las paredes no dejan pasar calor).",
+          "en": "Walls that lose heat through the sheet metal and outside air around the case (walls are adiabatic for now)."
+        },
+        {
+          "status": "todo",
+          "es": "Con lo que falta por medir (foto del suelo, columna central, centro del ventilador del procesador y qué ventilador va en «Sistema 1»), retocar la geometría.",
+          "en": "Once the missing measurements arrive (floor photo, spine, CPU fan centre, which fan is on \"System 1\"), refine the geometry."
         }
       ]
     }
