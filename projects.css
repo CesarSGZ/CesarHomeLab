@@ -1,0 +1,74 @@
+/* 04 / Holding pattern: proyectos personales. Sección técnica oscura en los dos temas, como el resto del CV. */
+.projects{--pj-bg:#071015;--pj-panel:#0c171c;--pj-line:#22343c;--pj-ink:#eef3ec;--pj-muted:#9aa9a3;--pj-thermal:#52d9ff;--pj-hot:#ff8f66;--pj-train:#c9ff3d;
+  background:radial-gradient(1200px 600px at 85% -10%,#0f2a33 0%,transparent 60%),var(--pj-bg);color:var(--pj-ink);position:relative;overflow:hidden}
+.projects .section-head{margin-bottom:28px}
+.projects .section-head em{color:var(--pj-thermal)}
+.projects .eyebrow{color:var(--pj-muted)}
+.projects-intro{max-width:760px;margin:0 0 56px;font-size:clamp(17px,1.5vw,20px);line-height:1.6;color:#c6d2cd}
+.projects-intro strong{color:var(--pj-ink);font-weight:600}
+
+.project-deck{display:grid;gap:22px}
+.project-card{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);border:1px solid var(--pj-line);border-radius:22px;overflow:hidden;background:linear-gradient(180deg,#0d1a20,#0a1418);
+  transition:transform .35s ease,border-color .35s ease,box-shadow .35s ease}
+.project-card:hover{transform:translateY(-3px);box-shadow:0 30px 70px -40px #000}
+.project-thermal:hover{border-color:color-mix(in srgb,var(--pj-thermal) 45%,var(--pj-line))}
+.project-training:hover{border-color:color-mix(in srgb,var(--pj-train) 45%,var(--pj-line))}
+.project-training{grid-template-columns:minmax(0,1fr) minmax(0,1.05fr)}
+.project-training .project-visual{order:2}
+
+.project-visual{position:relative;min-height:320px;background:#0f171c;border-right:1px solid var(--pj-line)}
+.project-training .project-visual{border-right:0;border-left:1px solid var(--pj-line)}
+.project-visual img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transform:scale(1.06);transition:transform .8s ease}
+.project-card:hover .project-visual img{transform:scale(1.1)}
+.project-tag{position:absolute;left:16px;bottom:16px;padding:6px 11px;border-radius:999px;background:#071015cc;border:1px solid var(--pj-line);font:11px "DM Mono",monospace;letter-spacing:.06em;color:var(--pj-muted);backdrop-filter:blur(6px)}
+
+.project-chart{display:grid;place-items:center;padding:34px 26px 58px}
+.project-chart svg{width:100%;height:auto;overflow:visible}
+.pc-grid line{stroke:#1e2f36;stroke-width:1}
+.pc-years text{font:10px "DM Mono",monospace;fill:#6f807a;text-anchor:middle}
+.pc-area{fill:color-mix(in srgb,var(--pj-train) 10%,transparent)}
+.pc-bench,.pc-squat{fill:none;stroke-width:2.6;stroke-linejoin:round}
+.pc-bench{stroke:var(--pj-train)}
+.pc-squat{stroke:#7fd8ef;stroke-dasharray:4 0}
+.pc-dot-bench{fill:var(--pj-train)}.pc-dot-squat{fill:#7fd8ef}
+.pc-label{font:600 12px "DM Mono",monospace}
+.pc-l-bench{fill:var(--pj-train)}.pc-l-squat{fill:#7fd8ef}
+
+.project-body{padding:clamp(26px,3.2vw,44px);display:flex;flex-direction:column;gap:18px}
+.project-kicker{margin:0;font:12px "DM Mono",monospace;letter-spacing:.14em;text-transform:uppercase;color:var(--pj-muted)}
+.project-kicker span{display:inline-block;margin-right:10px;padding:3px 9px;border-radius:999px;color:#071015;font-weight:500}
+.project-thermal .project-kicker span{background:var(--pj-thermal)}
+.project-training .project-kicker span{background:var(--pj-train)}
+.project-body h3{margin:0;font-size:clamp(24px,2.4vw,34px);line-height:1.12;letter-spacing:-.03em;font-weight:700}
+.project-plain{margin:0;font-size:15.5px;line-height:1.6;color:#b9c6c1}
+.project-plain b{color:var(--pj-ink);font-weight:600}
+
+.project-kpis{margin:4px 0 0;padding:0;list-style:none;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1px;border:1px solid var(--pj-line);border-radius:14px;overflow:hidden;background:var(--pj-line)}
+.project-kpis li{padding:14px 12px;background:#0a1519;display:flex;flex-direction:column;gap:4px}
+.project-kpis strong{font:600 clamp(20px,2vw,27px) "Archivo",sans-serif;letter-spacing:-.02em;line-height:1}
+.project-thermal .project-kpis strong{color:var(--pj-thermal)}
+.project-training .project-kpis strong{color:var(--pj-train)}
+.project-kpis span{font-size:12px;line-height:1.35;color:var(--pj-muted)}
+
+.project-flow{margin:0;padding:0;list-style:none;display:flex;flex-wrap:wrap;gap:6px;counter-reset:pf}
+.project-flow li{counter-increment:pf;position:relative;padding:5px 10px 5px 26px;border-radius:8px;background:#0f1d23;border:1px solid var(--pj-line);font-size:12.5px;color:#d3ddd9}
+.project-flow li::before{content:counter(pf);position:absolute;left:8px;top:50%;transform:translateY(-50%);font:10px "DM Mono",monospace;color:var(--pj-muted)}
+.project-flow li:not(:last-child)::after{content:"";position:absolute;right:-6px;top:50%;width:6px;height:1px;background:var(--pj-line)}
+
+.project-stack{margin:auto 0 0;display:flex;flex-wrap:wrap;gap:6px}
+.project-stack span{padding:3px 9px;border-radius:999px;border:1px dashed #2c4048;font:11px "DM Mono",monospace;color:#8fa29b}
+
+.projects-foot{margin:34px 0 0;display:flex;flex-wrap:wrap;align-items:center;gap:10px;font-size:14.5px;color:var(--pj-muted)}
+.projects-foot a{color:var(--pj-ink);text-decoration:none;border-bottom:1px solid #52d9ff66}
+.projects-foot a:hover{border-bottom-color:var(--pj-thermal)}
+
+@media (max-width:980px){
+  .project-card,.project-training{grid-template-columns:1fr}
+  .project-training .project-visual{order:0;border-left:0}
+  .project-visual{min-height:240px;border-right:0;border-bottom:1px solid var(--pj-line)}
+  .project-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media (prefers-reduced-motion:reduce){.project-card,.project-visual img{transition:none}.project-card:hover,.project-card:hover .project-visual img{transform:none}}
+.project-deck{grid-template-columns:minmax(0,1fr)}
+.project-card,.project-body,.project-visual{min-width:0}
+.projects-intro,.project-plain,.project-body h3{overflow-wrap:anywhere}

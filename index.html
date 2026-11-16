@@ -23,6 +23,7 @@
   <link rel="stylesheet" href="/theme.css?v=20261001contrast">
   <link rel="stylesheet" href="flight-deck.css?v=20261007c">
   <link rel="stylesheet" href="brief-player.css?v=20261015a">
+  <link rel="stylesheet" href="projects.css?v=20261116a">
 </head>
 <body>
   <div class="noise" aria-hidden="true"></div>
@@ -39,7 +40,7 @@
   <header class="nav-wrap">
     <a class="brand" href="#top" aria-label="Back to top"><span>CSG</span><i></i></a>
     <nav aria-label="Primary navigation">
-      <a href="#trajectory">Trajectory</a><a href="#systems">Capabilities</a><a href="#credentials">Credentials</a>
+      <a href="#trajectory">Trajectory</a><a href="#systems">Capabilities</a><a href="#projects">Projects</a><a href="#credentials">Credentials</a>
     </nav>
     <div class="nav-actions">
       <button class="theme-toggle" type="button" data-theme-toggle aria-label="Switch to night mode"></button>
@@ -173,8 +174,71 @@
       <div class="tool-marquee" id="capability-index" aria-label="Complete capability index"><div class="tool-marquee-track"></div></div>
     </section>
 
+    <section class="projects section" id="projects" data-phase="Holding" aria-labelledby="projects-title">
+      <div class="section-head reveal"><p class="eyebrow">04 / Holding pattern · Side missions</p><h2 id="projects-title">Off duty,<br><em>still engineering.</em></h2></div>
+      <p class="projects-intro reveal">Give my personal projects a look. Two systems I designed, built and keep running on my own time, with the same discipline I bring to work: <strong>measure first, model it, test one change at a time, keep the logbook.</strong></p>
+
+      <div class="project-deck">
+        <article class="project-card project-thermal reveal">
+          <div class="project-visual">
+            <img src="assets/projects/thermal-cfd.jpg" alt="CFD simulation of the airflow inside the PC case: streamlines coloured by air speed" width="960" height="800" loading="lazy">
+            <span class="project-tag">CFD · OpenFOAM · airflow at full load</span>
+          </div>
+          <div class="project-body">
+            <p class="project-kicker"><span>Mission 01</span> Thermal Lab</p>
+            <h3>I cooled a 10-litre gaming PC the way you would certify an engine bay.</h3>
+            <p class="project-plain">A small PC was running hot. Instead of buying parts blindly, I instrumented it, built a heat model, ranked the possible fixes and 3D-printed the best two. <b>Result: a cooler, quieter machine, proven with before-and-after tests.</b></p>
+            <ul class="project-kpis" aria-label="Thermal Lab results">
+              <li><strong>−3.1 °C</strong><span>GPU at full load</span></li>
+              <li><strong>+19 %</strong><span>CPU heat removed per °C</span></li>
+              <li><strong>0.2 °C</strong><span>CFD prediction error</span></li>
+              <li><strong>7</strong><span>A/B test sessions × 71 min</span></li>
+            </ul>
+            <ol class="project-flow" aria-label="Method">
+              <li>Telemetry</li><li>Heat model</li><li>Ranked fixes</li><li>3D-printed ducts</li><li>A/B tests</li><li>CFD</li>
+            </ol>
+            <p class="project-stack"><span>Python</span><span>MATLAB</span><span>HWiNFO telemetry</span><span>RC thermal networks</span><span>OpenFOAM</span><span>ParaView</span><span>OpenSCAD</span><span>Three.js</span></p>
+          </div>
+        </article>
+
+        <article class="project-card project-training reveal">
+          <div class="project-visual project-chart">
+            <svg viewBox="0 0 520 190" role="img" aria-labelledby="strength-title">
+              <title id="strength-title">Estimated one-rep max from my own training log, 2018 to 2026: bench press from 52 to 140 kg and squat from 58 to 168 kg.</title>
+              <g class="pc-grid"><line x1="8" x2="512" y1="55.1" y2="55.1"/><line x1="8" x2="512" y1="107.1" y2="107.1"/><line x1="8" x2="512" y1="168" y2="168"/></g>
+              <g class="pc-years"><text x="23.6" y="184">2019</text><text x="148.3" y="184">2021</text><text x="273" y="184">2023</text><text x="397.7" y="184">2025</text></g>
+              <path class="pc-area" d="M8.0 154.5H13.2V136.4H18.4V127.4H34.0V117.2H80.7V107.1H262.6V77.7H314.6V74.3H319.8V66.4H324.9V63.0H413.3V60.8H449.6V57.4H465.2V55.1H512.0V168H8.0Z"/>
+              <path class="pc-squat" d="M8.0 147.7H13.2V120.6H28.8V113.8H34.0V101.4H39.2V94.6H80.7V91.3H376.9V85.6H382.1V56.3H465.2V37.1H470.4V23.5H512.0"/>
+              <path class="pc-bench" d="M8.0 154.5H13.2V136.4H18.4V127.4H34.0V117.2H80.7V107.1H262.6V77.7H314.6V74.3H319.8V66.4H324.9V63.0H413.3V60.8H449.6V57.4H465.2V55.1H512.0"/>
+              <circle class="pc-dot-squat" cx="512" cy="23.5" r="4"/><circle class="pc-dot-bench" cx="512" cy="55.1" r="4"/>
+              <text class="pc-label pc-l-squat" x="504" y="16" text-anchor="end">Squat 168 kg</text>
+              <text class="pc-label pc-l-bench" x="504" y="74" text-anchor="end">Bench 140 kg</text>
+            </svg>
+            <span class="project-tag">Estimated 1RM · from my own logbook</span>
+          </div>
+          <div class="project-body">
+            <p class="project-kicker"><span>Mission 02</span> Training Lab</p>
+            <h3>Eight years of training, turned into a data product.</h3>
+            <p class="project-plain">I log every set I lift. I turned that habit into my own training app, backed by my spreadsheet, that plans the session, suggests the next weight and shows how I improve. <b>Result: consistency you can measure, and strength that kept climbing.</b></p>
+            <ul class="project-kpis" aria-label="Training Lab figures">
+              <li><strong>354</strong><span>sessions logged since 2018</span></li>
+              <li><strong>457 t</strong><span>total weight lifted, on record</span></li>
+              <li><strong>×2.7</strong><span>bench press since day one</span></li>
+              <li><strong>108</strong><span>exercise variants, 4 gyms</span></li>
+            </ul>
+            <ol class="project-flow" aria-label="Method">
+              <li>8-year logbook</li><li>Clean history</li><li>Mobile app</li><li>Effort (RPE) per set</li><li>Next-weight advice</li><li>Progress views</li>
+            </ol>
+            <p class="project-stack"><span>JavaScript PWA</span><span>Google Sheets + Apps Script API</span><span>Cloudflare Workers &amp; D1</span><span>RPE autoregulation</span><span>Per-machine calibration</span></p>
+          </div>
+        </article>
+      </div>
+
+      <p class="projects-foot reveal"><span class="pulse"></span> Both run live in my private Mission Control, with owner sign-in. <a href="mailto:cesarsollagonzalez@gmail.com" data-copy-email>Happy to give you a demo <span>↗</span></a></p>
+    </section>
+
     <section class="credentials section" id="credentials" data-phase="Descent">
-      <div class="section-head reveal"><p class="eyebrow">04 / Credentials</p><h2>Built on engineering.<br><em>Certified to lead.</em></h2></div>
+      <div class="section-head reveal"><p class="eyebrow">05 / Credentials</p><h2>Built on engineering.<br><em>Certified to lead.</em></h2></div>
       <div class="credential-grid">
         <article class="credential discipline-programme reveal"><div class="credential-brand credential-brand-pmi"><img src="assets/credentials/pmi.png" alt="Project Management Institute" width="84" height="84" loading="lazy"><span class="credential-no">PMP</span></div><div><span>2026 · PMI</span><h3>Project Management Professional</h3><p>Project Management Institute</p><span class="credential-category">Programme Management</span></div></article>
         <article class="credential discipline-engineering reveal"><div class="credential-brand"><img src="assets/credentials/ue.png" alt="Universidad Europea" width="84" height="84" loading="lazy"><span class="credential-no">MSc</span></div><div><span>2023 — 2025</span><h3>Aerospace Engineering</h3><p>Universidad Europea de Madrid</p><span class="credential-category">Engineering</span></div></article>
@@ -184,7 +248,7 @@
     </section>
 
     <section class="languages language-spectrum section reveal" id="languages" data-phase="Approach" aria-labelledby="languages-title">
-      <div class="language-heading"><div><p class="eyebrow">05 / Communication range</p><h2 id="languages-title">Passionate about languages.<br><em>Connecting with people.</em></h2></div></div>
+      <div class="language-heading"><div><p class="eyebrow">06 / Communication range</p><h2 id="languages-title">Passionate about languages.<br><em>Connecting with people.</em></h2></div></div>
       <div class="language-console">
         <div class="language-primary">
           <article class="language-channel" style="--signal:#d5e99a"><div class="language-content"><div class="language-identity"><img class="language-flag" src="assets/flags/es.svg" alt="Spain flag" width="51" height="35" loading="lazy"><div><h3>Spanish</h3><small>ES / ESPAÑOL</small></div></div><div class="language-grade"><strong>Native</strong></div><div class="language-native" aria-hidden="true"></div></div></article>
@@ -201,7 +265,7 @@
     <section class="finale section" data-phase="Landing">
       <div class="finale-orb" aria-hidden="true"><i></i></div>
       <div class="fd-runway" aria-hidden="true"><div class="fd-runway-plane"><i class="fd-centreline"></i><i class="fd-edge fd-edge-l"></i><i class="fd-edge fd-edge-r"></i><i class="fd-threshold"></i></div><div class="fd-papi"><i></i><i></i><i></i><i></i></div></div>
-      <p class="eyebrow reveal">06 / One last thing</p>
+      <p class="eyebrow reveal">07 / One last thing</p>
       <h2 class="reveal">And yes, obviously…<br><em>I can use AI too.</em></h2>
       <p class="vibe reveal">This website was <span>vibe coded</span> — curiosity, judgement and a human at the controls included.</p>
       <div class="final-actions reveal"><a class="button primary" href="mailto:cesarsollagonzalez@gmail.com" data-copy-email>Let's build something complex <span>↗</span></a><button class="button ghost" type="button" data-brief-open>Replay the brief <span>▶</span></button></div>
