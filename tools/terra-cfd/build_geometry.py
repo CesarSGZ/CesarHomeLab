@@ -187,10 +187,11 @@ components = [
     },
     {
         "id": "TOP_FAN", "label": "Noctua NF-A9x14 PWM · top exhaust", "role": "fan", "certainty": "official",
-        "fan": fan(78, 76.5, H - PANEL_T - 7, [0, 0, 1], 88, 14, "exhaust", frame=92),
-        "box": box(32, 30.5, H - PANEL_T - 14, 92, 92, 14),
-        "basis": "92 × 92 × 14 mm, 29.7 CFM (official; model given by César). Zip-tied to the underside of the top panel at the front, "
-                 "right above the PSU exhaust; centre (78 mm from the front, centred across) read from the top photo.",
+        "fan": fan(95, 50, H - PANEL_T - 7, [0, 0, 1], 88, 14, "exhaust", frame=92),
+        "box": box(49, 4, H - PANEL_T - 14, 92, 92, 14),
+        "basis": "92 × 92 × 14 mm, 29.7 CFM (official; model given by César). Flat against the underside of the top panel, no duct, "
+                 "on the GPU side at the front (GPU-side photo, 14 Nov; corrected by César on 16 Nov): it overhangs the top of the spine. "
+                 "Centre ~95 mm from the front and ~50 mm from the GPU panel, read from that photo.",
     },
     {
         "id": "FRONT_FRAME", "label": "Internal front frame (steel)", "role": "structure", "certainty": "photo",
@@ -283,7 +284,7 @@ CABLE_ROUTES = [
      "from": "walnut front I/O", "to": "front-panel headers at the front-bottom of the board",
      "points": [[4, 26, 6], [6, 22, 30], [20, 40, 42], [100, 74, 40], [150, 78, 30], [170, BOARD_Y0 + 8, 30]]},
     {"id": "FAN_TOP", "label": "Top fan lead", "diameter": 3, "certainty": "assumed",
-     "from": "top fan", "to": "SYS_FAN header", "points": [[124, 76, 186], [160, 100, 190], [190, BOARD_Y0 + 6, 182]]},
+     "from": "top fan", "to": "SYS_FAN header", "points": [[141, 60, 186], [165, 95, 190], [190, BOARD_Y0 + 6, 182]]},
     {"id": "FAN_BOTTOM", "label": "Bottom fan lead", "diameter": 3, "certainty": "assumed",
      "from": "bottom fan", "to": "SYS_FAN header", "points": [[126, 80, 14], [150, 100, 12], [185, BOARD_Y0 + 6, 20]]},
 ]
@@ -346,7 +347,7 @@ geometry = {
         "Fuente SF850: ventilador Corsair NR092P; a 230 V y ~425 W gira a ~1.410 rpm con un 94,1 % de rendimiento, unos 27 W de calor (informe de Cybenetics).",
         "Lista de ideas revisada con lo medido en S04-S07 (story.ideas_next), con el ventilador de abajo metiendo aire.",
         "Panel de arriba: 36 filas de ranuras, medido en la foto desde arriba (14 nov).",
-        "Ventilador de arriba: delante, justo encima de la salida de la fuente.",
+        "Ventilador de arriba: pegado al techo, sin canal, delante y en el lado de la gráfica (corregido por César el 16 nov).",
         "Fuente: toma aire del panel del procesador y lo suelta hacia arriba (César y foto).",
         "Frontal cerrado; trasera con la placa de I/O, una ranura abierta al lado y las rejillas del soporte de la gráfica.",
         "Cable de la gráfica por encima de la tarjeta; riser doblado sobre la columna central.",

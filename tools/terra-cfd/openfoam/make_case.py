@@ -28,14 +28,15 @@ DATA = ROOT / 'control' / 'data' / 'terra-thermal-summary.json'
 OUT_DEFAULT = Path(os.environ['USERPROFILE']) / 'Desktop' / 'Claude' / 'Datos' / 'Terra' / 'cfd-casos'
 
 RHO, CP, NU = 1.16, 1005.0, 1.6e-5
+PSU_F = 150.0     # freno interno de la fuente (Forchheimer, 1/m)
 
 # Condiciones de cada prueba medida (vatios y rpm de la ventana estable, carga combinada)
 CONFIGS = {
     'S07': {'ducts': ['GPU_DUCT', 'CPU_DUCT'], 'ambient_C': 19.0,
-            'heat_W': {'GPU': 300, 'CPU_COOLER': 91.6, 'PSU': 27, 'MOTHERBOARD': 12, 'RAM': 8},
+            'heat_W': {'GPU': 300, 'CPU_COOLER': 91.6, 'PSU': 27, 'MOTHERBOARD': 15, 'RAM': 5},
             'rpm': {'GPU_FAN': 1955, 'CPU_FAN': 1907, 'BOTTOM_FAN': 1206, 'TOP_FAN': 1550, 'PSU_FAN': 1410}},
     'S04': {'ducts': [], 'ambient_C': 19.0,
-            'heat_W': {'GPU': 300, 'CPU_COOLER': 87.7, 'PSU': 27, 'MOTHERBOARD': 12, 'RAM': 8},
+            'heat_W': {'GPU': 300, 'CPU_COOLER': 87.7, 'PSU': 27, 'MOTHERBOARD': 15, 'RAM': 5},
             'rpm': {'GPU_FAN': 2050, 'CPU_FAN': 1950, 'BOTTOM_FAN': 1270, 'TOP_FAN': 1550, 'PSU_FAN': 1410}},
 }
 
@@ -82,7 +83,7 @@ def box_m(b, pad=0.0):
     return lo, hi
 
 
-def build(geo, cfg_name, cell_mm, out):
+def build(geo, cfg_name, cell_mm, out, tag='', grille_k=1.0):
     cfg = CONFIGS[cfg_name]
     comps = {c['id']: c for c in geo['components']}
     L, W, H = geo['case']['outer_mm'] if 'outer_mm' in geo['case'] else (343, 153, 198)
@@ -90,7 +91,7 @@ def build(geo, cfg_name, cell_mm, out):
     x0, x1 = 5.0, L - t           # el marco frontal (4 mm) cierra el frente
     y0, y1, z0, z1 = t, W - t, t, H - t
     nx, ny, nz = (max(4, round((b - a) / cell_mm)) for a, b in ((x0, x1), (y0, y1), (z0, z1)))
-    case = out / f'terra-{cfg_name}-{cell_mm:g}mm'
+    case = out / f'terra-{cfg_name}-{cell_mm:g}mm{tag}'
     for d in ('system', 'constant', '0'):
         (case / d).mkdir(parents=True, exist_ok=True)
 
@@ -147,6 +148,28 @@ boundary
         cellset(name, boxsrc(lo, hi)); solids.append(name)
 
     fan_sets = []
+    fan_disc = {}
+
+    def fan_zone(name, p1, p2, r, axis):
+        """Zona del ventilador y disco de caras por donde se mide su caudal real (phi), aguas abajo si hay sitio."""
+        cellset(name, cylsrc(p1, p2, r))
+        actions.append(f'    {{ name {name}; type cellZoneSet; action new; source setToCellZone; set {name}; }}')
+        ext = m(cell_mm) * 1.6
+        out_end = [p2[i] + axis[i] * 0 for i in range(3)] if sum((p2[i] - p1[i]) * axis[i] for i in range(3)) > 0 else p1
+        in_end = p1 if out_end is not p1 else p2
+        beyond = [out_end[i] + axis[i] * ext for i in range(3)]
+        lims = ((X0, X1), (Y0, Y1), (Z0, Z1))
+        inside = all(lims[i][0] + 1e-6 < beyond[i] < lims[i][1] - 1e-6 for i in range(3))
+        if inside:
+            a, b, side = out_end, beyond, 'down'
+        else:
+            a, b, side = [in_end[i] - axis[i] * ext for i in range(3)], in_end, 'up'
+        fan_disc[name] = side
+        actions.append(f'    {{ name {name}Nb; type cellSet; action new; source {cylsrc(a, b, r)} }}')
+        actions.append(f'    {{ name {name}Nb; type cellSet; action subtract; source cellToCell; sets ({name}); }}')
+        actions.append(f'    {{ name {name}Disc; type faceSet; action new; source cellToFace; sets ({name}); option all; }}')
+        actions.append(f'    {{ name {name}Disc; type faceSet; action subset; source cellToFace; sets ({name}Nb); option all; }}')
+        actions.append(f'    {{ name {name}Disc; type faceZoneSet; action new; source setsToFaceZone; faceSet {name}Disc; cellSet {name}; }}')
 
     def zone_box(name, lo, hi, exclude=()):
         cellset(name, boxsrc(lo, hi))
@@ -169,8 +192,7 @@ boundary
         p1 = [c[0], m(16.15), c[2]]; p2 = [c[0], fan_y1, c[2]]
         name = f'gpuFan{i}'
         zone_cyl = cylsrc(p1, p2, r)
-        cellset(name, zone_cyl)
-        actions.append(f'    {{ name {name}; type cellZoneSet; action new; source setToCellZone; set {name}; }}')
+        fan_zone(name, p1, p2, r, [0, 1, 0])
         actions.append(f'    {{ name gpuShroud; type cellSet; action subtract; source {zone_cyl} }}')
         fans.append((name, f'GPU_FAN_{i}', [0, 1, 0], r, p2[1] - p1[1], cfg['rpm']['GPU_FAN'])); fan_sets.append(name)
     solids.append('gpuShroud')
@@ -179,36 +201,37 @@ boundary
     cc = comps['CPU_COOLER']; clo, chi = box_m(cc['box'])
     cf = comps['CPU_FAN']['fan']; c = [m(v) for v in cf['centre']]; r = m(cf['diameter'] / 2); th = m(cf['thickness'])
     p1 = [c[0], c[1] - th / 2, c[2]]; p2 = [c[0], c[1] + th / 2, c[2]]
-    cellset('cpuFan', cylsrc(p1, p2, r))
-    actions.append('    { name cpuFan; type cellZoneSet; action new; source setToCellZone; set cpuFan; }')
+    fan_zone('cpuFan', p1, p2, r, [0, -1, 0])
     fans.append(('cpuFan', 'CPU_FAN', [0, -1, 0], r, th, cfg['rpm']['CPU_FAN'])); fan_sets.append('cpuFan')
     fin_y0 = clo[1] + m(6)
     zone_box('cpuFins', [clo[0], fin_y0, clo[2]], [chi[0], p1[1], chi[2]])
-    porous.append(('cpuFins', 'cpuFins', (2e3, 2e3, 2e3), (500, 500, 500), 'y'))
+    # aletas verticales (foto del 14 nov): el aire baja por y y sale por arriba y por abajo (z); en x no pasa
+    porous.append(('cpuFins', 'cpuFins', (5e7, 2e3, 2e3), (8e3, 500, 500), 'y'))
     heat.append(('cpuFins', cfg['heat_W']['CPU_COOLER']))
     solid_box('cpuBase', [clo[0] + m(30), clo[1], clo[2] + m(30)], [chi[0] - m(30), fin_y0, chi[2] - m(30)])
 
     # Fuente: carcasa sólida con interior poroso; entra por el lado CPU (ventilador) y sale por arriba
     ps = comps['PSU']; plo, phi = box_m(ps['box']); sk = m(cell_mm)
     zone_box('psuIn', [plo[0] + sk, plo[1] + sk, plo[2] + sk], [phi[0] - sk, phi[1] - sk, phi[2]])
-    porous.append(('psuIn', 'psuIn', (5e4, 5e4, 5e4), (400, 400, 400), 'y'))
+    porous.append(('psuIn', 'psuIn', (5e4, 5e4, 5e4), (PSU_F, PSU_F, PSU_F), 'y'))   # se ajusta para ~13,7 m3/h a 1.410 rpm
     heat.append(('psuIn', cfg['heat_W']['PSU']))
     for nm, lo, hi in (('psuSkX0', plo, [plo[0] + sk, phi[1], phi[2]]), ('psuSkX1', [phi[0] - sk, plo[1], plo[2]], phi),
                        ('psuSkY0', plo, [phi[0], plo[1] + sk, phi[2]]), ('psuSkZ0', plo, [phi[0], phi[1], plo[2] + sk])):
         solid_box(nm, lo, hi)
     pf = comps['PSU_FAN']['fan']; c = [m(v) for v in pf['centre']]; r = m(pf['diameter'] / 2)
     p1 = [c[0], phi[1] - sk, c[2]]; p2 = [c[0], phi[1], c[2]]
-    cellset('psuFan', cylsrc(p1, p2, r))
-    actions.append('    { name psuFan; type cellZoneSet; action new; source setToCellZone; set psuFan; }')
+    fan_zone('psuFan', p1, p2, r, [0, -1, 0])
     fans.append(('psuFan', 'PSU_FAN', [0, -1, 0], r, sk, cfg['rpm']['PSU_FAN'])); fan_sets.append('psuFan')
+    # cara del ventilador cerrada salvo el disco (si no, el aire da vueltas dentro de la fuente)
+    solid_box('psuSkY1', [plo[0], phi[1] - sk, plo[2]], [phi[0], phi[1], phi[2]])
+    actions.append('    { name psuSkY1; type cellSet; action subtract; source cellToCell; sets (psuFan); }')
 
     # Ventiladores de caja
     for fid, zname in (('BOTTOM_FAN', 'bottomFan'), ('TOP_FAN', 'topFan')):
         f = comps[fid]['fan']; c = [m(v) for v in f['centre']]; r = m(f['diameter'] / 2); th = m(f['thickness'])
         ax = f['axis']
         p1 = [c[i] - ax[i] * th / 2 for i in range(3)]; p2 = [c[i] + ax[i] * th / 2 for i in range(3)]
-        cellset(zname, cylsrc(p1, p2, r))
-        actions.append(f'    {{ name {zname}; type cellZoneSet; action new; source setToCellZone; set {zname}; }}')
+        fan_zone(zname, p1, p2, r, [0, 0, 1])
         sign = 1 if f['flow'] == 'intake' else 1   # ambos empujan hacia +z (abajo mete, arriba saca)
         fans.append((zname, fid, [0, 0, sign], r, th, cfg['rpm'][fid])); fan_sets.append(zname)
 
@@ -219,15 +242,20 @@ boundary
     solid_box('board', lo, [hi[0], hi[1] - m(4), hi[2]])
     zone_box('boardAir', [lo[0], hi[1] - m(4), lo[2]], hi)
     heat.append(('boardAir', cfg['heat_W']['MOTHERBOARD']))
-    lo, hi = box_m(comps['RAM']['box']); zone_box('ram', lo, hi)
-    porous.append(('ram', 'ram', (1e9, 2e4, 2e4), (1e4, 200, 200), 'y'))
+    rm = comps['RAM']; lo, hi = box_m(rm['box'])
+    mod = rm.get('modules', {'count': 2, 'size_mm': [7, 35, 135], 'pitch_mm': 9.5})
+    for k in range(mod['count']):
+        x0 = lo[0] + m(k * mod['pitch_mm'])
+        solid_box(f'ramMod{k}', [x0, lo[1], lo[2]], [x0 + m(mod['size_mm'][0]), hi[1], hi[2]])
+    sh = m(cell_mm) * 1.2
+    zone_box('ram', [lo[0] - sh, lo[1], lo[2] - sh], [hi[0] + sh, hi[1] + sh, hi[2] + sh])   # aire alrededor de los módulos
     heat.append(('ram', cfg['heat_W']['RAM']))
     for cid in ('SPINE', 'PSU_BRACKET'):
         cpn = comps[cid]; lo, hi = box_m(cpn['box'])
         nrm = 1 if cid == 'SPINE' else 2
         if hi[nrm] - lo[nrm] < m(cell_mm):           # capa de al menos una celda
             mid = (hi[nrm] + lo[nrm]) / 2; lo[nrm] = mid - m(cell_mm) * 0.55; hi[nrm] = mid + m(cell_mm) * 0.55
-        name = cid.lower(); zone_box(name, lo, hi)
+        name = cid.lower(); zone_box(name, lo, hi, exclude=fan_sets)
         K = plate_K(cpn['porosity']); fdir = K / (hi[nrm] - lo[nrm])
         fv = [100.0, 100.0, 100.0]; fv[nrm] = fdir
         porous.append((name, name, (0, 0, 0), tuple(fv), 'y'))
@@ -270,7 +298,7 @@ boundary
             hi[ax] = (Y1 if ax == 1 else Z1); lo[ax] = hi[ax] - depth
         zname = name.replace('vent_', 'grille_')
         zone_box(zname, lo, hi, exclude=fan_sets)
-        fv = [200.0, 200.0, 200.0]; fv[ax] = plate_K(phi) / depth
+        fv = [200.0, 200.0, 200.0]; fv[ax] = grille_k * plate_K(phi) / depth   # grille_k: ajuste con S05 (sin paneles casi no cambia nada)
         porous.append((zname, zname, (0, 0, 0), tuple(fv), 'y'))
 
     # quitar sólidos (fuera de las zonas que ya existan, pero da igual: quedan como paredes)
@@ -288,7 +316,8 @@ boundary
     (case / 'system' / 'topoSetDict').write_text(header('dictionary', 'topoSetDict') + 'actions\n(\n' + '\n'.join(actions) + '\n);\n')
 
     # ---------- física ----------
-    (case / 'constant' / 'transportProperties').write_text(header('dictionary', 'transportProperties') + f'transportModel Newtonian;\nnu {NU};\n')
+    (case / 'constant' / 'transportProperties').write_text(header('dictionary', 'transportProperties') + f'transportModel Newtonian;\nnu {NU};\nbeta 3.3e-3;\nTRef {cfg["ambient_C"]};\nPr 0.71;\nPrt 0.85;\n')
+    (case / 'constant' / 'g').write_text(header('uniformDimensionedVectorField', 'g') + 'dimensions [0 1 -2 0 0 0 0];\nvalue (0 0 -9.81);\n')
     (case / 'constant' / 'turbulenceProperties').write_text(header('dictionary', 'turbulenceProperties') + 'simulationType RAS;\nRAS { RASModel kOmegaSST; turbulence on; printCoeffs off; }\n')
     (case / 'constant' / 'momentumTransport').write_text((case / 'constant' / 'turbulenceProperties').read_text())
 
@@ -299,7 +328,7 @@ boundary
         area = math.pi * r * r * (1 - 0.3 ** 2)
         dp = p0 * 0.6                                    # arranque: a 60 % de la presión máxima
         fan_state[zname] = {'fan': fid, 'rpm': rpm, 'q0_m3h': q0, 'p0_Pa': p0, 'area_m2': area, 'radius_m': r, 'thickness_m': th,
-                            'axis': ax, 'dp_Pa': dp}
+                            'axis': ax, 'dp_Pa': dp, 'disc': fan_disc[zname]}
         acc = dp / RHO / th
         fv.append(f"""{zname}Push
 {{
@@ -332,19 +361,18 @@ boundary
     }}
 }}
 """)
+    for zone, W in heat:
+        fv.append(f"""{zone}Heat
+{{
+    type            scalarSemiImplicitSource;
+    selectionMode   cellZone;
+    cellZone        {zone};
+    volumeMode      absolute;
+    sources {{ T ({W / (RHO * CP):.6g} 0); }}
+}}
+""")
     (case / 'constant' / 'fvOptions').write_text(header('dictionary', 'fvOptions') + '\n'.join(fv))
     (case / 'fanState.json').write_text(json.dumps({'config': cfg_name, 'fans': fan_state}, indent=2))
-
-    heat_opts = []
-    for zone, W in heat:
-        heat_opts.append(f"""            {zone}Heat
-            {{
-                type            scalarSemiImplicitSource;
-                selectionMode   cellZone;
-                cellZone        {zone};
-                volumeMode      absolute;
-                sources {{ T ({W / (RHO * CP):.6g} 0); }}
-            }}""")
 
     # ---------- condiciones de contorno ----------
     vent_names = [n for n, *_ in vents]
@@ -363,8 +391,12 @@ boundaryField
     k0, om0 = 1e-3, 5.0
     (case / '0' / 'U').write_text(field('volVectorField', 'U', '[0 1 -1 0 0 0 0]', '(0 0 0)', 'type noSlip;',
                                        'type pressureInletOutletVelocity; value uniform (0 0 0);'))
-    (case / '0' / 'p').write_text(field('volScalarField', 'p', '[0 2 -2 0 0 0 0]', '0', 'type zeroGradient;',
-                                       'type totalPressure; p0 uniform 0; value uniform 0;'))
+    (case / '0' / 'p_rgh').write_text(field('volScalarField', 'p_rgh', '[0 2 -2 0 0 0 0]', '0', 'type fixedFluxPressure; rho rhok; value uniform 0;',
+                                           'type totalPressure; p0 uniform 0; value uniform 0;'))
+    (case / '0' / 'p').write_text(field('volScalarField', 'p', '[0 2 -2 0 0 0 0]', '0', 'type calculated; value uniform 0;',
+                                       'type calculated; value uniform 0;'))
+    (case / '0' / 'alphat').write_text(field('volScalarField', 'alphat', '[0 2 -1 0 0 0 0]', 0, 'type alphatJayatillekeWallFunction; Prt 0.85; value uniform 0;',
+                                            'type calculated; value uniform 0;'))
     (case / '0' / 'k').write_text(field('volScalarField', 'k', '[0 2 -2 0 0 0 0]', k0, f'type kqRWallFunction; value uniform {k0};',
                                        f'type inletOutlet; inletValue uniform {k0}; value uniform {k0};'))
     (case / '0' / 'omega').write_text(field('volScalarField', 'omega', '[0 0 -1 0 0 0 0]', om0, f'type omegaWallFunction; value uniform {om0};',
@@ -380,12 +412,17 @@ boundaryField
         type surfaceFieldValue; libs (fieldFunctionObjects); writeControl timeStep; writeInterval 20; log false; writeFields false;
         regionType patch; name {n}; operation sum; fields (phi);
     }}""" for n in vent_names)
+    fanflows = '\n'.join(f"""    fanflow_{z}
+    {{
+        type surfaceFieldValue; libs (fieldFunctionObjects); writeControl timeStep; writeInterval 20; log false; writeFields false;
+        regionType faceZone; name {z}Disc; operation sum; fields (phi);
+    }}""" for z in [f[0] for f in fans])
     zone_avg = '\n'.join(f"""    zone_{z}
     {{
         type volFieldValue; libs (fieldFunctionObjects); writeControl timeStep; writeInterval 20; log false; writeFields false;
         regionType cellZone; name {z}; operation volAverage; fields (U T);
     }}""" for z in [f[0] for f in fans] + ['gpuFins', 'cpuFins', 'psuIn', 'ram', 'boardAir'])
-    (case / 'system' / 'controlDict').write_text(header('dictionary', 'controlDict') + f"""application     simpleFoam;
+    (case / 'system' / 'controlDict').write_text(header('dictionary', 'controlDict') + f"""application     buoyantBoussinesqSimpleFoam;
 startFrom       latestTime;
 startTime       0;
 stopAt          endTime;
@@ -400,21 +437,8 @@ runTimeModifiable true;
 
 functions
 {{
-    T
-    {{
-        type            scalarTransport;
-        libs            (solverFunctionObjects);
-        field           T;
-        alphaD          1.4;
-        alphaDt         1.17;
-        resetOnStartUp  false;
-        writeControl    writeTime;
-        fvOptions
-        {{
-{chr(10).join(heat_opts)}
-        }}
-    }}
 {flows}
+{fanflows}
 {zone_avg}
 }}
 """)
@@ -436,26 +460,24 @@ wallDist { method meshWave; }
 """)
     (case / 'system' / 'fvSolution').write_text(header('dictionary', 'fvSolution') + """solvers
 {
-    p { solver GAMG; smoother GaussSeidel; tolerance 1e-7; relTol 0.05; }
+    p_rgh { solver GAMG; smoother GaussSeidel; tolerance 1e-7; relTol 0.05; }
     "(U|k|omega|T)" { solver smoothSolver; smoother symGaussSeidel; tolerance 1e-8; relTol 0.1; }
 }
 SIMPLE
 {
     momentumPredictor yes;
     nNonOrthogonalCorrectors 0;
-    consistent yes;
-    residualControl { p 1e-4; U 1e-5; "(k|omega)" 1e-5; }
 }
 relaxationFactors
 {
-    equations { U 0.7; "(k|omega)" 0.6; T 0.8; }
-    fields { p 0.9; }
+    equations { U 0.5; "(k|omega)" 0.5; T 0.7; }
+    fields { p_rgh 0.7; }
 }
 """)
     (case / 'system' / 'decomposeParDict').write_text(header('dictionary', 'decomposeParDict') + 'numberOfSubdomains 8;\nmethod scotch;\n')
     (case / 'case.foam').write_text('')
-    info = {'config': cfg_name, 'cell_mm': cell_mm, 'cells_block': nx * ny * nz, 'vents': vent_names,
-            'zones_porous': [p[0] for p in porous], 'heat_W': dict(heat), 'solids': solids}
+    info = {'grille_k': grille_k, 'config': cfg_name, 'ducts': cfg['ducts'], 'rpm': cfg['rpm'], 'cell_mm': cell_mm, 'cells_block': nx * ny * nz, 'vents': vent_names,
+            'zones_porous': [p[0] for p in porous], 'heat_W': dict(heat), 'solids': solids, 'solver': 'buoyantBoussinesqSimpleFoam'}
     (case / 'caseInfo.json').write_text(json.dumps(info, indent=2))
     return case, info
 
@@ -465,9 +487,19 @@ def main():
     ap.add_argument('--cell', type=float, default=3.0)
     ap.add_argument('--config', default='S07', choices=sorted(CONFIGS))
     ap.add_argument('--out', default=str(OUT_DEFAULT))
+    ap.add_argument('--rpm', action='append', default=[], help='FAN=rpm, p. ej. TOP_FAN=1206 (cambia la velocidad supuesta)')
+    ap.add_argument('--tag', default='', help='sufijo para el nombre del caso')
+    ap.add_argument('--grille-k', type=float, default=0.3, help='factor sobre la pérdida teórica de las rejillas de los paneles')
+    ap.add_argument('--psu-f', type=float, help='freno interno de la fuente')
     a = ap.parse_args()
     geo = json.loads(DATA.read_text(encoding='utf-8'))['geometry']
-    case, info = build(geo, a.config, a.cell, Path(a.out))
+    if a.psu_f:
+        global PSU_F
+        PSU_F = a.psu_f
+    for kv in a.rpm:
+        k, v = kv.split('=')
+        CONFIGS[a.config]['rpm'][k] = float(v)
+    case, info = build(geo, a.config, a.cell, Path(a.out), a.tag, a.grille_k)
     print(case)
     print(json.dumps(info, indent=1))
 

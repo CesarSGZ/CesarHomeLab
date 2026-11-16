@@ -1,6 +1,6 @@
 {
   "schema_version": "1.4.0",
-  "generated_at": "2026-11-16T12:00:00+00:00",
+  "generated_at": "2026-11-16T19:00:00+00:00",
   "project": {
     "id": "terra-powerplant-lab",
     "title": "Terra Powerplant Lab",
@@ -140,7 +140,7 @@
       {
         "id": "TOP-01",
         "group": "case",
-        "location": "internal, cable-tied beneath the slotted top grille",
+        "location": "flat against the underside of the top panel, no duct, at the front on the GPU side (overhanging the top of the spine)",
         "orientation": "exhaust",
         "model": "Noctua NF-A9x14 PWM",
         "size_mm": [
@@ -775,8 +775,8 @@
         "certainty": "official",
         "fan": {
           "centre": [
-            78,
-            76.5,
+            95,
+            50,
             190.0
           ],
           "axis": [
@@ -792,8 +792,8 @@
         },
         "box": {
           "min": [
-            32,
-            30.5,
+            49,
+            4,
             183.0
           ],
           "size": [
@@ -802,7 +802,7 @@
             14
           ]
         },
-        "basis": "92 × 92 × 14 mm, 29.7 CFM (official; model given by César). Zip-tied to the underside of the top panel at the front, right above the PSU exhaust; centre (78 mm from the front, centred across) read from the top photo."
+        "basis": "92 × 92 × 14 mm, 29.7 CFM (official; model given by César). Flat against the underside of the top panel, no duct, on the GPU side at the front (GPU-side photo, 14 Nov; corrected by César on 16 Nov): it overhangs the top of the spine. Centre ~95 mm from the front and ~50 mm from the GPU panel, read from that photo."
       },
       {
         "id": "FRONT_FRAME",
@@ -1181,13 +1181,13 @@
         "to": "SYS_FAN header",
         "points": [
           [
-            124,
-            76,
+            141,
+            60,
             186
           ],
           [
-            160,
-            100,
+            165,
+            95,
             190
           ],
           [
@@ -1627,7 +1627,7 @@
       "Fuente SF850: ventilador Corsair NR092P; a 230 V y ~425 W gira a ~1.410 rpm con un 94,1 % de rendimiento, unos 27 W de calor (informe de Cybenetics).",
       "Lista de ideas revisada con lo medido en S04-S07 (story.ideas_next), con el ventilador de abajo metiendo aire.",
       "Panel de arriba: 36 filas de ranuras, medido en la foto desde arriba (14 nov).",
-      "Ventilador de arriba: delante, justo encima de la salida de la fuente.",
+      "Ventilador de arriba: pegado al techo, sin canal, delante y en el lado de la gráfica (corregido por César el 16 nov).",
       "Fuente: toma aire del panel del procesador y lo suelta hacia arriba (César y foto).",
       "Frontal cerrado; trasera con la placa de I/O, una ranura abierta al lado y las rejillas del soporte de la gráfica.",
       "Cable de la gráfica por encima de la tarjeta; riser doblado sobre la columna central.",
@@ -2264,7 +2264,7 @@
         "label": "PSU losses",
         "W": 36,
         "basis": "≈ 8% of ~420 W DC at 92% efficiency (estimate)",
-        "path": "PSU rear grille, pointing up at the top fan",
+        "path": "PSU rear grille, pointing up at the top panel",
         "into_case_air": true
       },
       {
@@ -2537,6 +2537,12 @@
         "kind": "model",
         "title": "Primer CFD de la caja",
         "detail": "OpenFOAM simula el aire dentro del Terra con el modelo 3D, los vatios y las rpm medidos. Con una sola constante ajustada en la S04, predice la gráfica de la S07 a 0,2 °C de lo medido. El procesador, la memoria y la fuente aún se están ajustando."
+      },
+      {
+        "date": "2026-11-16",
+        "kind": "model",
+        "title": "CFD versión 2: cuadra con lo medido",
+        "detail": "Ventilador de arriba en su sitio, flotación del aire, caudales bien medidos y «Sistema 1» identificado como el ventilador de abajo. Ajustado solo con la S04, predice la S07 con unos 2 °C de error en gráfica, procesador y placa. Vídeo y comparador sin/con canales en la web."
       }
     ],
     "next_steps": [
@@ -2595,8 +2601,8 @@
           "en": "Run the CFD"
         },
         "detail": {
-          "es": "En marcha desde el 16 nov: caso base hecho y la gráfica ya cuadra con lo medido. Falta ajustar procesador, memoria y fuente y cerrar las comprobaciones (sección 08).",
-          "en": "Under way since 16 Nov: base case done and the GPU already matches the measurements. CPU, RAM and PSU still to tune and the checklist to close (section 08)."
+          "es": "CFD validado con S04 y S07 (unos 2 °C de error). Siguiente: malla de 2 mm y usarlo para probar cambios sin construirlos (sección 08).",
+          "en": "CFD validated on S04 and S07 (about 2 °C error). Next: 2 mm mesh and using it to try changes without building them (section 08)."
         }
       }
     ],
@@ -3011,14 +3017,14 @@
           "detail_en": "Mesh the case (OpenFOAM), fans as discs with their pressure-flow curve, the measured heat in each part, and cables, fins and grilles as porous zones."
         },
         {
-          "status": "next",
+          "status": "done",
           "title_es": "Validarlo con S04 y S07",
           "title_en": "Validate it on S04 and S07",
-          "detail_es": "Tiene que reproducir el cambio medido entre no llevar nada y los dos canales: la gráfica 3 °C más fría y la CPU sacando un 19 % más por grado.",
-          "detail_en": "It must reproduce the measured change from nothing to both ducts: GPU 3 °C cooler and the CPU removing 19 % more heat per degree."
+          "detail_es": "Hecho: ajustado con la S04, predice la S07 con unos 2 °C de error en gráfica, procesador y placa. La memoria todavía no cuadra.",
+          "detail_en": "Done: tuned on S04, it predicts S07 to about 2 °C on GPU, CPU and board. RAM does not match yet."
         },
         {
-          "status": "todo",
+          "status": "next",
           "title_es": "Usarlo para decidir",
           "title_en": "Use it to decide",
           "detail_es": "Ver si el aire caliente de la gráfica se queda atrapado, y probar en virtual la extracción de arriba o un segundo ventilador antes de construir nada.",
@@ -3028,145 +3034,304 @@
     },
     "cfd_status": {
       "updated": "2026-11-16",
-      "version_es": "Versión 1 · malla de 3 mm (unas 330.000 celdas), OpenFOAM v2512",
-      "version_en": "Version 1 · 3 mm mesh (about 330,000 cells), OpenFOAM v2512",
-      "summary_es": "Se simulan los montajes S04 (sin canales) y S07 (los dos canales) con los vatios y las rpm medidos. La gráfica ya cuadra; el procesador, la memoria y la fuente están en ajuste.",
-      "summary_en": "The S04 (no ducts) and S07 (both ducts) setups are simulated with the measured watts and fan speeds. The GPU already matches; CPU, RAM and PSU are being tuned.",
-      "images": [
+      "version_es": "Versión 2 · malla de 3 mm, flotación del aire caliente incluida, OpenFOAM v2512",
+      "version_en": "Version 2 · 3 mm mesh, buoyancy included, OpenFOAM v2512",
+      "summary_es": "Simula S04 (sin canales) y S07 (los dos canales) con los vatios y rpm medidos. Ajustado con una sola prueba (S04), predice la S07 con un error típico de unos 2 °C en gráfica, procesador y placa.",
+      "summary_en": "Simulates S04 (no ducts) and S07 (both ducts) with the measured watts and fan speeds. Tuned on one test only (S04), it predicts S07 to about 2 °C on GPU, CPU and board.",
+      "video": {
+        "src": "/control/assets/thermal/cfd/s07-giro.mp4",
+        "poster": "/control/assets/thermal/cfd/s07-giro.jpg",
+        "es": "S07 con los dos canales: líneas del aire coloreadas por temperatura. El aire de fuera (azul) entra por los canales y sale caliente por arriba.",
+        "en": "S07 with both ducts: air paths coloured by temperature. Outside air (blue) comes in through the ducts and leaves hot through the top."
+      },
+      "kpis": [
         {
-          "src": "/control/assets/thermal/cfd/s04-flujo-iso.jpg",
-          "es": "S04 sin canales: líneas del aire coloreadas por velocidad",
-          "en": "S04, no ducts: air paths coloured by speed"
+          "value": "±2 °C",
+          "es": "error típico al predecir la S07 (gráfica, procesador y placa)",
+          "en": "typical error predicting S07 (GPU, CPU and board)"
         },
         {
-          "src": "/control/assets/thermal/cfd/s07-flujo-iso.jpg",
-          "es": "S07 con los dos canales: el aire de fuera entra directo a los ventiladores",
-          "en": "S07, both ducts: outside air goes straight into the fans"
+          "value": "37 → 23 °C",
+          "es": "aire que llega al ventilador del procesador, sin y con canal",
+          "en": "air reaching the CPU fan, without and with the duct"
         },
         {
-          "src": "/control/assets/thermal/cfd/s04-temp-cpu.jpg",
-          "es": "S04: corte por el procesador. Su ventilador respira aire de 45-60 °C",
-          "en": "S04: slice through the CPU. Its fan breathes 45-60 °C air"
+          "value": "24 → 19 °C",
+          "es": "aire que llega a los ventiladores de la gráfica",
+          "en": "air reaching the GPU fans"
         },
         {
-          "src": "/control/assets/thermal/cfd/s07-temp-cpu.jpg",
-          "es": "S07: el mismo corte. El canal le da aire a unos 26 °C",
-          "en": "S07: same slice. The duct feeds it air at about 26 °C"
-        },
-        {
-          "src": "/control/assets/thermal/cfd/s07-temp-grafica.jpg",
-          "es": "S07: corte por la gráfica. El aire caliente sale por arriba y por la trasera",
-          "en": "S07: slice through the GPU. Hot air leaves through the top and the rear"
-        },
-        {
-          "src": "/control/assets/thermal/cfd/s07-flujo-lado-cpu.jpg",
-          "es": "S07 visto desde el lado del procesador",
-          "en": "S07 seen from the CPU side"
+          "value": "≈68 m³/h",
+          "es": "aire que atraviesa la caja con los dos canales",
+          "en": "air through the case with both ducts"
         }
       ],
+      "compare": {
+        "cases": [
+          {
+            "es": "Sin canales (S04)",
+            "en": "No ducts (S04)"
+          },
+          {
+            "es": "Con los dos canales (S07)",
+            "en": "Both ducts (S07)"
+          }
+        ],
+        "views": [
+          {
+            "es": "Vista general",
+            "en": "Overview",
+            "src": [
+              "/control/assets/thermal/cfd/s04-aire-iso.jpg",
+              "/control/assets/thermal/cfd/s07-aire-iso.jpg"
+            ],
+            "note_es": [
+              "Sin canales, los ventiladores mezclan aire de fuera con el caliente de dentro.",
+              "Con canales, cada ventilador coge aire de fuera (azul) y el calor sale por arriba."
+            ],
+            "note_en": [
+              "Without ducts, the fans mix outside air with the hot air inside.",
+              "With ducts, each fan takes outside air (blue) and the heat leaves through the top."
+            ]
+          },
+          {
+            "es": "Lado del procesador",
+            "en": "CPU side",
+            "src": [
+              "/control/assets/thermal/cfd/s04-aire-cpu.jpg",
+              "/control/assets/thermal/cfd/s07-aire-cpu.jpg"
+            ],
+            "note_es": [
+              "El ventilador del procesador se traga su propio aire caliente (rojo).",
+              "El canal le lleva aire de la habitación."
+            ],
+            "note_en": [
+              "The CPU fan swallows its own hot air (red).",
+              "The duct feeds it room air."
+            ]
+          },
+          {
+            "es": "Corte por el procesador",
+            "en": "Slice through the CPU",
+            "src": [
+              "/control/assets/thermal/cfd/s04-corte-cpu.jpg",
+              "/control/assets/thermal/cfd/s07-corte-cpu.jpg"
+            ],
+            "note_es": [
+              "Temperatura del aire en un corte por el ventilador del procesador.",
+              "El mismo corte con el canal puesto."
+            ],
+            "note_en": [
+              "Air temperature on a slice through the CPU fan.",
+              "Same slice with the duct fitted."
+            ]
+          },
+          {
+            "es": "Corte por la gráfica",
+            "en": "Slice through the GPU",
+            "src": [
+              "/control/assets/thermal/cfd/s04-corte-grafica.jpg",
+              "/control/assets/thermal/cfd/s07-corte-grafica.jpg"
+            ],
+            "note_es": [
+              "Corte por el ventilador central de la gráfica.",
+              "Con el canal, la gráfica solo ve aire de fuera."
+            ],
+            "note_en": [
+              "Slice through the middle GPU fan.",
+              "With the duct, the GPU only sees outside air."
+            ]
+          }
+        ]
+      },
+      "flows": {
+        "cases": [
+          {
+            "es": "Sin canales (S04)",
+            "en": "No ducts (S04)"
+          },
+          {
+            "es": "Con canales (S07)",
+            "en": "With ducts (S07)"
+          }
+        ],
+        "rows": [
+          {
+            "es": "Panel de la gráfica",
+            "en": "GPU-side panel",
+            "m3h": [
+              -35.9,
+              -41.4
+            ]
+          },
+          {
+            "es": "Panel del procesador",
+            "en": "CPU-side panel",
+            "m3h": [
+              -16.3,
+              -21.2
+            ]
+          },
+          {
+            "es": "Suelo (ventilador de abajo)",
+            "en": "Floor (bottom fan)",
+            "m3h": [
+              -15.6,
+              -8.7
+            ]
+          },
+          {
+            "es": "Techo (ventilador de arriba y ranuras)",
+            "en": "Top (top fan and slots)",
+            "m3h": [
+              66.7,
+              68.0
+            ]
+          },
+          {
+            "es": "Trasera",
+            "en": "Rear",
+            "m3h": [
+              1.0,
+              3.2
+            ]
+          }
+        ],
+        "note_es": "Saldo neto por cada abertura: un panel puede meter aire por unas ranuras y sacarlo por otras.",
+        "note_en": "Net flow through each opening: a panel can take air in through some slots and let it out through others."
+      },
       "checks": [
         {
-          "es": "Gráfica en la S07 (constante del disipador ajustada solo con la S04)",
-          "en": "GPU in S07 (heatsink constant fitted on S04 only)",
+          "es": "Gráfica en la S07",
+          "en": "GPU in S07",
           "meas": "75,8 °C",
-          "sim": "75,6 °C",
+          "sim": "77,5 °C",
           "ok": true
         },
         {
-          "es": "Cambio de la gráfica de S04 a S07",
-          "en": "GPU change from S04 to S07",
-          "meas": "−3,1 °C",
-          "sim": "−3,3 °C",
+          "es": "Procesador en la S07 (media de núcleos)",
+          "en": "CPU in S07 (core average)",
+          "meas": "72,4 °C",
+          "sim": "70,1 °C",
           "ok": true
         },
         {
-          "es": "Aire que llega a los ventiladores de la gráfica (S04 → S07)",
-          "en": "Air reaching the GPU fans (S04 → S07)",
-          "meas": "—",
-          "sim": "26 → 19 °C",
-          "ok": null
+          "es": "VRM de la placa en la S07",
+          "en": "Board VRM in S07",
+          "meas": "60,7 °C",
+          "sim": "59,7 °C",
+          "ok": true
         },
         {
-          "es": "Aire que llega al ventilador del procesador (S04 → S07)",
-          "en": "Air reaching the CPU fan (S04 → S07)",
-          "meas": "—",
-          "sim": "42 → 26 °C",
-          "ok": null
+          "es": "Chipset en la S07",
+          "en": "Chipset in S07",
+          "meas": "62,8 °C",
+          "sim": "60,8 °C",
+          "ok": true
         },
         {
-          "es": "Mejora del disipador del procesador de S04 a S07",
-          "en": "CPU cooler improvement from S04 to S07",
-          "meas": "+19 %",
-          "sim": "+30 %",
-          "ok": false
+          "es": "Sensor de la placa en la S07",
+          "en": "Board sensor in S07",
+          "meas": "51,3 °C",
+          "sim": "49,0 °C",
+          "ok": true
         },
         {
           "es": "Memoria en la S07",
           "en": "RAM in S07",
-          "meas": "53 °C",
-          "sim": "74 °C (aire)",
+          "meas": "53,4 °C",
+          "sim": "61,5 °C",
           "ok": false
         },
         {
-          "es": "Caudal del ventilador de la fuente (según el informe de Cybenetics)",
-          "en": "PSU fan flow (from the Cybenetics report)",
-          "meas": "≈13 m³/h",
-          "sim": "18 m³/h",
-          "ok": false
+          "es": "Ventilador de la fuente",
+          "en": "PSU fan",
+          "meas": "≈13,7 m³/h",
+          "sim": "14,2 m³/h",
+          "ok": true
         },
         {
           "es": "Aire que entra = aire que sale (S07)",
           "en": "Air in = air out (S07)",
           "meas": "—",
-          "sim": "54 = 54 m³/h",
+          "sim": "71 = 71 m³/h",
           "ok": true
+        }
+      ],
+      "checks_note_es": "Cada pieza se ajusta con una constante sacada de la S04 y se predice la S07 sin tocar nada más. La memoria no cuadra: en el modelo su aire se calienta con los canales, pero en la realidad su chip también se enfría a través de la placa, y eso el CFD no lo tiene.",
+      "checks_note_en": "Each part gets one constant fitted on S04, then S07 is predicted without touching anything else. RAM does not match: in the model its air gets warmer with the ducts, but the real chip also cools through the board, which the CFD does not include.",
+      "assumptions": [
+        {
+          "what_es": "Ventiladores.",
+          "what_en": "Fans.",
+          "es": "Curvas oficiales de los Noctua (NF-A9x14 2.200 rpm, NF-A12x15 1.850 rpm); fuente a ~1.410 rpm según el informe de Cybenetics; la de la gráfica (ZOTAC no la publica) es estimada.",
+          "en": "Official Noctua curves (NF-A9x14 2,200 rpm, NF-A12x15 1,850 rpm); PSU at ~1,410 rpm from the Cybenetics report; the GPU curve (not published by ZOTAC) is estimated."
+        },
+        {
+          "what_es": "«Sistema 1» es el ventilador de abajo.",
+          "what_en": "\"System 1\" is the bottom fan.",
+          "es": "Con esa hipótesis el CFD acierta mejor las seis temperaturas medidas que con el de arriba. El de arriba se supone a tope (2.200 rpm): «Sistema 2» da una lectura imposible.",
+          "en": "With that hypothesis the CFD matches all six measured temperatures better than with the top fan. The top fan is assumed at full speed (2,200 rpm): \"System 2\" reads an impossible value."
+        },
+        {
+          "what_es": "Rejillas de los paneles.",
+          "what_en": "Panel grilles.",
+          "es": "Frenan el 60 % de lo que da la fórmula de chapa perforada. Ajustado con S04 y S07, y coherente con la S05: quitar los paneles casi no cambió nada.",
+          "en": "They restrict 60 % of what the perforated-plate formula gives. Tuned on S04 and S07, and consistent with S05: removing the panels barely changed anything."
+        },
+        {
+          "what_es": "Disipadores.",
+          "what_en": "Heatsinks.",
+          "es": "Cada pieza tiene una constante ajustada en la S04 que cambia con el caudal elevado a −0,7 (lo típico en aletas).",
+          "en": "Each part has one constant fitted on S04 that scales with flow to the power −0.7 (typical for fins)."
+        },
+        {
+          "what_es": "Calor.",
+          "what_en": "Heat.",
+          "es": "Vatios medidos (gráfica 300 W, procesador 88-92 W), fuente 27 W (Cybenetics), placa 12 W y memoria 8 W estimados. Paredes que no dejan pasar calor.",
+          "en": "Measured watts (GPU 300 W, CPU 88-92 W), PSU 27 W (Cybenetics), board 12 W and RAM 8 W estimated. Walls do not conduct heat."
         }
       ],
       "tuning": [
         {
           "status": "done",
-          "es": "Curvas oficiales de los Noctua (NF-A9x14 a 2.200 rpm, NF-A12x15 a 1.850 rpm) y de la fuente con las rpm y el rendimiento del informe de Cybenetics (≈1.410 rpm y 27 W de calor a 425 W).",
-          "en": "Official Noctua curves (NF-A9x14 at 2,200 rpm, NF-A12x15 at 1,850 rpm) and the PSU from the Cybenetics report (≈1,410 rpm and 27 W of heat at 425 W)."
+          "es": "Ventilador de arriba en su sitio real: pegado al techo, delante y en el lado de la gráfica.",
+          "en": "Top fan in its real place: against the top panel, at the front, on the GPU side."
         },
         {
           "status": "done",
-          "es": "Cada ventilador se ajusta solo a su curva: el programa corrige el empuje hasta que caudal y presión cuadran (5-7 vueltas).",
-          "en": "Each fan settles onto its own curve: the script corrects the push until flow and pressure agree (5-7 rounds)."
+          "es": "Caudal de cada ventilador medido en su disco; la fuente da 14 m³/h, como dice el informe de Cybenetics.",
+          "en": "Each fan flow measured across its disc; the PSU gives 14 m³/h, as the Cybenetics report implies."
         },
         {
           "status": "done",
-          "es": "Supuesto: la constante del disipador de cada chip cambia con el caudal elevado a −0,7 (lo típico en aletas). Se ajusta con la S04 y se comprueba con la S07.",
-          "en": "Assumption: each heatsink constant scales with flow to the power −0.7 (typical for fins). Fitted on S04, checked on S07."
+          "es": "Flotación del aire caliente, aletas del procesador en vertical y memoria como dos módulos.",
+          "en": "Buoyancy of hot air, vertical CPU fins and the RAM as two modules."
+        },
+        {
+          "status": "done",
+          "es": "«Sistema 1» decidido con el CFD y pérdida de las rejillas ajustada: el error típico baja de 8 °C a unos 2 °C.",
+          "en": "\"System 1\" settled with the CFD and grille loss tuned: typical error drops from 8 °C to about 2 °C."
         },
         {
           "status": "next",
-          "es": "Procesador: revisar la resistencia de sus aletas y cuánto aire caliente vuelve a su ventilador en la S04 (ahora exagera la mejora del canal).",
-          "en": "CPU: revisit the fin resistance and how much hot air recirculates into its fan in S04 (it currently overstates the duct gain)."
-        },
-        {
-          "status": "next",
-          "es": "Memoria: dejar pasar el aire entre los dos módulos (ahora queda casi quieto y sale demasiado caliente).",
-          "en": "RAM: let air flow between the two modules (it is almost still and comes out too hot)."
-        },
-        {
-          "status": "next",
-          "es": "Fuente: más freno interno hasta que mueva ≈13 m³/h.",
-          "en": "PSU: more internal drag until it moves ≈13 m³/h."
+          "es": "Malla de 2 mm (1,25 millones de celdas) para comprobar que el resultado no depende del tamaño de celda.",
+          "en": "2 mm mesh (1.25 million cells) to check the result does not depend on cell size."
         },
         {
           "status": "todo",
-          "es": "Malla más fina (2 mm) para comprobar que el resultado no cambia con el tamaño de celda.",
-          "en": "Finer mesh (2 mm) to check the result does not depend on cell size."
+          "es": "Memoria: añadir el calor que va por la placa.",
+          "en": "RAM: add the heat path through the board."
         },
         {
           "status": "todo",
-          "es": "Paredes que pierden calor por la chapa y aire exterior alrededor de la caja (ahora las paredes no dejan pasar calor).",
-          "en": "Walls that lose heat through the sheet metal and outside air around the case (walls are adiabatic for now)."
+          "es": "Paredes que pierden calor y aire exterior alrededor de la caja.",
+          "en": "Walls that lose heat and outside air around the case."
         },
         {
-          "status": "todo",
-          "es": "Con lo que falta por medir (foto del suelo, columna central, centro del ventilador del procesador y qué ventilador va en «Sistema 1»), retocar la geometría.",
-          "en": "Once the missing measurements arrive (floor photo, spine, CPU fan centre, which fan is on \"System 1\"), refine the geometry."
+          "status": "ask",
+          "es": "Foto del suelo de la caja por fuera, y con regla: la chapa de la columna central y el centro del ventilador del procesador.",
+          "en": "Photo of the case floor from outside, and with a ruler: the spine plate and the CPU fan centre."
         }
       ]
     }

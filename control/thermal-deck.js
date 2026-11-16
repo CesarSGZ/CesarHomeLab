@@ -188,18 +188,54 @@
     return `${(es?x.goal_es:x.goal_en)?`<p class="tl-cfd-goal">${esc(es?x.goal_es:x.goal_en)}</p>`:''}<ol class="tl-cfdplan">${x.steps.map((s,i)=>`<li class="${esc(s.status)}"><b>${s.status==='done'?'✓':i+1}</b><div><small>${tag[s.status]||''}</small><strong>${esc(es?s.title_es:s.title_en)}</strong><p>${esc(es?s.detail_es:s.detail_en)}</p></div></li>`).join('')}</ol>`;
   }
 
-  function cfdStatusHtml(x,lang='es'){
+  function cfdStatusHtml(x,lang='es',parts='all',uid='p'){
     if(!x)return '';
     const es=lang==='es';const L=o=>es?o.es:o.en;
-    const imgs=(x.images||[]).map(i=>`<figure><a href="${esc(i.src)}" target="_blank" rel="noopener"><img src="${esc(i.src)}" alt="${esc(L(i))}" loading="lazy"></a><figcaption>${esc(L(i))}</figcaption></figure>`).join('');
-    const checks=(x.checks||[]).map(c=>`<tr class="${c.ok===true?'ok':c.ok===false?'bad':''}"><td>${esc(L(c))}</td><td>${esc(c.meas??'—')}</td><td>${esc(c.sim??'—')}</td><td>${c.ok===true?'✓':c.ok===false?'✗':'·'}</td></tr>`).join('');
-    const tag={done:es?'Hecho':'Done',next:es?'Ahora':'Now',todo:es?'Pendiente':'To do'};
-    const tuning=(x.tuning||[]).map(s=>`<li class="${esc(s.status)}"><small>${tag[s.status]||''}</small>${esc(L(s))}</li>`).join('');
+    const has=k=>parts==='all'||parts.includes(k);
+    const fmt=(v,dg=0)=>Number(v).toLocaleString(es?'es-ES':'en-GB',{minimumFractionDigits:dg,maximumFractionDigits:dg});
+    // Vídeo + cifras clave
+    const kpis=(x.kpis||[]).map(k=>`<li><strong>${esc(k.value)}</strong><span>${esc(L(k))}</span></li>`).join('');
+    const hero=has('hero')&&x.video?`<div class="tl-cfdhero">
+        <figure><video src="${esc(x.video.src)}" poster="${esc(x.video.poster||'')}" autoplay loop muted playsinline preload="metadata"></video><figcaption>${esc(L(x.video))}</figcaption></figure>
+        ${kpis?`<ul class="tl-cfdkpis">${kpis}</ul>`:''}
+      </div>`:'';
+    // Comparador sin canales / con canales (solo CSS: radios + hermanos)
+    let compare='';
+    if(has('compare')&&x.compare?.views?.length){
+      const c=x.compare,id=`cfd-${uid}-${lang}`;
+      const cases=c.cases;
+      const radios=cases.map((k,n)=>`<input type="radio" name="${id}-case" id="${id}-c${n}" class="c${n}"${n===cases.length-1?' checked':''}>`).join('')
+        +c.views.map((v,n)=>`<input type="radio" name="${id}-view" id="${id}-v${n}" class="v${n}"${n===0?' checked':''}>`).join('');
+      const caseTabs=cases.map((k,n)=>`<label for="${id}-c${n}" class="c${n}">${esc(L(k))}</label>`).join('');
+      const viewTabs=c.views.map((v,n)=>`<label for="${id}-v${n}" class="v${n}">${esc(L(v))}</label>`).join('');
+      const imgs=c.views.map((v,vn)=>cases.map((k,cn)=>`<figure class="c${cn} v${vn}"><img src="${esc(v.src[cn])}" alt="${esc(L(v))} · ${esc(L(k))}" loading="lazy"><figcaption>${esc(es?v.note_es[cn]:v.note_en[cn])}</figcaption></figure>`).join('')).join('');
+      const rules=cases.map((k,cn)=>c.views.map((v,vn)=>`.tl-cfdcompare .c${cn}:checked~.v${vn}:checked~.stage .c${cn}.v${vn}`).join(',')).join(',');
+      const tabRules=[...cases.map((k,n)=>`.tl-cfdcompare .c${n}:checked~.tabs label.c${n}`),...c.views.map((v,n)=>`.tl-cfdcompare .v${n}:checked~.tabs label.v${n}`)].join(',');
+      compare=`<div class="tl-cfdcompare"><style>${rules}{display:block}${tabRules}{background:var(--tl-cool);color:#06222c;border-color:var(--tl-cool)}</style>
+        ${radios}
+        <div class="tabs"><span class="grp">${caseTabs}</span><span class="grp">${viewTabs}</span></div>
+        <div class="stage">${imgs}</div>
+      </div>`;
+    }
+    // Por dónde entra y sale el aire
+    let flows='';
+    if(has('flows')&&x.flows?.rows?.length){
+      const f=x.flows,max=Math.max(...f.rows.flatMap(r=>r.m3h.map(Math.abs)));
+      const row=r=>`<tr><th>${esc(L(r))}</th>${r.m3h.map(v=>`<td><span class="bar ${v<0?'in':'out'}"><i style="width:${(Math.abs(v)/max*100).toFixed(0)}%"></i></span><b>${v<0?(es?'entra ':'in '):(es?'sale ':'out ')}${fmt(Math.abs(v))}</b></td>`).join('')}</tr>`;
+      flows=`<h4 class="tl-subhead">${es?'Por dónde entra y sale el aire (m³/h)':'Where air enters and leaves (m³/h)'}</h4>
+        <div class="tl-table-wrap"><table class="tl-cfdflows"><thead><tr><th></th>${f.cases.map(k=>`<th>${esc(L(k))}</th>`).join('')}</tr></thead><tbody>${f.rows.map(row).join('')}</tbody></table></div>
+        ${L({es:f.note_es,en:f.note_en})?`<p class="tl-note">${esc(es?f.note_es:f.note_en)}</p>`:''}`;
+    }
+    const checks=has('checks')?(x.checks||[]).map(c=>`<tr class="${c.ok===true?'ok':c.ok===false?'bad':''}"><td>${esc(L(c))}</td><td>${esc(c.meas??'—')}</td><td>${esc(c.sim??'—')}</td><td>${c.ok===true?'✓':c.ok===false?'✗':'·'}</td></tr>`).join(''):'';
+    const assumptions=has('assumptions')?(x.assumptions||[]).map(a=>`<li><b>${esc(es?a.what_es:a.what_en)}</b> ${esc(L(a))}</li>`).join(''):'';
+    const tag={done:es?'Hecho':'Done',next:es?'Ahora':'Now',todo:es?'Pendiente':'To do',ask:es?'Te lo pido':'Needs you'};
+    const tuning=has('tuning')?(x.tuning||[]).map(s=>`<li class="${esc(s.status)}"><small>${tag[s.status]||''}</small>${esc(L(s))}</li>`).join(''):'';
     return `<div class="tl-cfdstatus">
-      <p class="tl-cfd-goal"><b>${esc(es?x.version_es:x.version_en)}</b> · ${esc(es?x.summary_es:x.summary_en)}</p>
-      ${imgs?`<div class="tl-cfdgallery">${imgs}</div>`:''}
-      ${checks?`<div class="tl-table-wrap"><table class="tl-cfdchecks"><thead><tr><th>${es?'Qué se compara':'Check'}</th><th>${es?'Medido':'Measured'}</th><th>${es?'Simulado':'Simulated'}</th><th></th></tr></thead><tbody>${checks}</tbody></table></div>`:''}
-      ${tuning?`<h4 class="tl-subhead">${es?'Cómo lo vamos ajustando':'How it is being tuned'}</h4><ul class="tl-cfdtuning">${tuning}</ul>`:''}
+      ${has('intro')?`<p class="tl-cfd-goal"><b>${esc(es?x.version_es:x.version_en)}</b> · ${esc(es?x.summary_es:x.summary_en)}</p>`:''}
+      ${hero}${compare}${flows}
+      ${checks?`<h4 class="tl-subhead">${es?'¿Acierta? Medido frente a simulado':'Does it match? Measured vs simulated'}</h4><div class="tl-table-wrap"><table class="tl-cfdchecks"><thead><tr><th>${es?'Qué se compara':'Check'}</th><th>${es?'Medido':'Measured'}</th><th>${es?'Simulado':'Simulated'}</th><th></th></tr></thead><tbody>${checks}</tbody></table></div>${(es?x.checks_note_es:x.checks_note_en)?`<p class="tl-note">${esc(es?x.checks_note_es:x.checks_note_en)}</p>`:''}`:''}
+      ${assumptions?`<h4 class="tl-subhead">${es?'Supuestos del modelo':'Model assumptions'}</h4><ul class="tl-cfdassume">${assumptions}</ul>`:''}
+      ${tuning?`<h4 class="tl-subhead">${es?'Hecho, en marcha y pendiente':'Done, in progress and pending'}</h4><ul class="tl-cfdtuning">${tuning}</ul>`:''}
     </div>`;
   }
 
@@ -389,7 +425,15 @@
       add('cfdestado','El CFD hoy',`
         <p class="dk-kicker">Simulación del aire · cómo va</p>
         <h2 class="dk-h">Así se mueve el aire dentro</h2>
-        ${cfdStatusHtml(s.cfd_status,'es')}`);
+        ${cfdStatusHtml(s.cfd_status,'es',['hero'],'d')}`);
+      add('cfdcompara','Sin y con canales',`
+        <p class="dk-kicker">Simulación del aire · antes y después</p>
+        <h2 class="dk-h">Sin canales y con canales</h2>
+        ${cfdStatusHtml(s.cfd_status,'es',['compare'],'d1')}`);
+      add('cfdcheck','¿Acierta el CFD?',`
+        <p class="dk-kicker">Simulación del aire · comprobación</p>
+        <h2 class="dk-h">¿Se parece a lo medido?</h2>
+        ${cfdStatusHtml(s.cfd_status,'es',['intro','checks','flows'],'d2')}`);
     }
     if(s.cfd_plan){
       add('cfd','El CFD',`
