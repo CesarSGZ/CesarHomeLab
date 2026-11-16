@@ -1,4 +1,5 @@
-// Carlitos, the dachshund César and María look after together. Nothing about him is stored but what the two of them
+// Carlitos, the dachshund César and María look after together while they live apart: he lives in the flat in Germany
+// where they will live together for the first time, gets it ready for them and carries notes from one to the other. Nothing about him is stored but what the two of them
 // do with him (cuddles, treats, purchases, notes): everything else (how fed he is, his level, his tricks, the
 // weekly event, the surprises) is worked out again from both training logs, so both apps always see the same dog.
 // He never dies or falls ill: the worst that can happen is that he misses them.
@@ -42,6 +43,26 @@ export const TOYS = [
 ];
 export const TREAT_COST = 4;
 const LIMITS = { mimo: 3, golosina: 2, jugar: 2 };
+
+// ---------- What brings them closer: one tap a day for each thing done ----------
+// María practises English and moves her job search forward; César practises German and gets the flat ready.
+export const STEPS = {
+  ingles: { who: 'maria', points: 1, icon: '🇬🇧', text: '{n} ha practicado inglés. Carlitos dice «good girl» con acento salchicha.' },
+  trabajo: { who: 'maria', points: 1, icon: '💼', text: '{n} ha dado un paso más en su búsqueda de trabajo en Alemania. Carlitos le guarda el sitio en el sofá.' },
+  entrevista: { who: 'maria', points: 3, icon: '🤝', text: '¡{n} tiene una entrevista! Carlitos ha cruzado las patas (las cuatro, que para eso son cortas).' },
+  aleman: { who: 'cesar', points: 1, icon: '🇩🇪', text: '{n} ha practicado alemán. Carlitos ya sabe decir «Wurst».' },
+  casa: { who: 'cesar', points: 1, icon: '🏠', text: '{n} ha avanzado con la casa de Alemania. Carlitos lo ha supervisado todo.' }
+};
+// The flat in Germany fills up as they look after Carlitos and each other.
+export const HOME = [
+  { at: 0, id: 'llaves', name: 'Las llaves', icon: '🔑' }, { at: 3, id: 'cama', name: 'La cama de Carlitos', icon: '🧺' },
+  { at: 7, id: 'sofa', name: 'Un sofá para dos', icon: '🛋️' }, { at: 12, id: 'lampara', name: 'Una lámpara cálida', icon: '💡' },
+  { at: 18, id: 'girasoles', name: 'Girasoles en la ventana', icon: '🌻' }, { at: 25, id: 'libros', name: 'Libros de inglés y de alemán', icon: '📚' },
+  { at: 33, id: 'cafetera', name: 'Una cafetera para dos', icon: '☕' }, { at: 42, id: 'mesa', name: 'Una mesa para cenar juntos', icon: '🍽️' },
+  { at: 52, id: 'pesas', name: 'Un rincón de pesas', icon: '🏋️' }, { at: 63, id: 'plantas', name: 'Plantas', icon: '🪴' },
+  { at: 75, id: 'cuadro', name: 'Una foto vuestra en la pared', icon: '🖼️' }, { at: 88, id: 'manta', name: 'Una manta para las pelis', icon: '🧣' },
+  { at: 102, id: 'banderas', name: 'Una bandera de España y otra de Alemania', icon: '🇪🇸' }, { at: 118, id: 'cartel', name: 'Un cartel: «Willkommen zu Hause, Marialópoda»', icon: '🎉' }
+];
 
 // ---------- Weekly events: one each week, the same for both, in a fixed rotation ----------
 // Every goal is shared: what one does counts for the two.
@@ -128,9 +149,12 @@ export function carlitosState(acts, log, today) {
   const byDay = new Map();
   for (const a of log.actions || []) { if (!byDay.has(a.d)) byDay.set(a.d, []); byDay.get(a.d).push(a); }
   const owned = new Set(['collar', 'hueso']);
-  let togetherWeek = '', hunger = 80, love = 70, xp = 0, bones = 6, tonnage = 0, milestone = 0, streak = 0, best = 0, level = 1;
+  let homePoints = 0, homeIndex = 1, lastNote = '', togetherWeek = '', hunger = 80, love = 70, xp = 0, bones = 6, tonnage = 0, milestone = 0, streak = 0, best = 0, level = 1;
   const usedToday = { cesar: {}, maria: {} };
-  diary(born, '🐶', 'Ha llegado Carlitos a casa. Es un cachorro de perro salchicha y os ha elegido a los dos.');
+  diary(born, '🐶', 'Ha llegado Carlitos. Es un cachorro de perro salchicha y os ha elegido a los dos. Vive en vuestra futura casa de Alemania, va y viene con notas en el collar y os espera a los dos.');
+  const notesByDay = new Map();
+  for (const m of log.messages || []) notesByDay.set(m.d, (notesByDay.get(m.d) || 0) + 1);
+  const visits = new Set((log.visits || []).map(v => v.fecha));
 
   for (let day = born; day <= today; day = shift(day, 1)) {
     const mon = monday(day), isMonday = day === mon, is = { cesar: acts.cesar.get(day), maria: acts.maria.get(day) };
@@ -139,14 +163,14 @@ export function carlitosState(acts, log, today) {
       const prev = shift(day, -7), w = weekStats(acts, prev, shift(day, -1));
       if (prev >= monday(born)) {
         if (w.each.cesar && w.each.maria) {
-          streak++; xp += 30; bones += 5;
+          streak++; xp += 30; bones += 5; homePoints += 3;
           diary(shift(day, -1), '💞', streak === 1 ? 'Semana cuidada: habéis entrenado los dos. Carlitos duerme feliz.' : `Semana cuidada: ${streak} seguidas. Carlitos no recuerda haber sido tan feliz.`);
           if (streak === 8 && !owned.has('medalla')) { owned.add('medalla'); diary(shift(day, -1), '🏅', 'Dos meses seguidos bien cuidado: Carlitos estrena su medalla de campeón.'); }
         } else if (streak) { diary(shift(day, -1), '🥺', `${!w.each.cesar && !w.each.maria ? 'Nadie ha entrenado' : `${NAMES[w.each.cesar ? 'maria' : 'cesar']} no ha entrenado`} esta semana y Carlitos se ha quedado mirando la puerta. Empieza otra racha.`); streak = 0; }
         best = Math.max(best, streak);
         const ev = eventOf(prev), [have, need] = ev.goal({ ...w, average: averageTonnage(acts, prev) });
         if (have >= need) {
-          xp += 40;
+          xp += 40; homePoints += 2;
           if (ev.toy && !owned.has(ev.toy)) { owned.add(ev.toy); diary(shift(day, -1), '🎁', `${ev.title} superada: Carlitos ya tiene su ${TOYS.find(t => t.id === ev.toy).name.toLowerCase()}.`); }
           else { bones += 8; diary(shift(day, -1), '🎉', `${ev.title} superada. Ocho huesitos para Carlitos.`); }
         }
@@ -194,10 +218,23 @@ export function carlitosState(acts, log, today) {
         if (item && !owned.has(item.id) && item.price !== undefined && bones >= item.price && (!item.season || seasonOf(day, born)?.id === item.season)) {
           bones -= item.price; owned.add(item.id); diary(day, '🛍️', `${NAMES[a.who]} le ha comprado a Carlitos: ${item.name.toLowerCase()}.`);
         }
+      } else if (a.type === 'paso' && STEPS[a.kind]) {
+        u[a.kind] = (u[a.kind] || 0) + 1;
+        if (u[a.kind] > 1) continue;
+        const st = STEPS[a.kind];
+        love = Math.min(100, love + 6); bones += 2; xp += 5; homePoints += st.points;
+        diary(day, st.icon, st.text.replace('{n}', NAMES[a.who]));
       } else if (a.type === 'vale') diary(day, '🎟️', `Carlitos le ha traído un vale a ${NAMES[a.who]}: ${a.text}`);
       else if (a.type === 'canjear') diary(day, '✅', `Vale canjeado: ${a.text}`);
     }
     for (const who of WHO) if (used[who].mimo) diary(day, '💗', `${NAMES[who]} le ha dado mimos a Carlitos.`);
+    // A note sent on a day counts once for the flat; a visit is the best day of all.
+    if (notesByDay.get(day) && lastNote !== day) { lastNote = day; homePoints += 1; }
+    if (visits.has(day)) { love = 100; xp += 30; homePoints += 5; diary(day, '🫶', '¡Hoy os veis! Carlitos no ha podido dormir de los nervios. Disfrutad muchísimo.'); }
+    while (homeIndex < HOME.length && homePoints >= HOME[homeIndex].at) {
+      const h = HOME[homeIndex++];
+      diary(day, h.icon, h.id === 'cartel' ? 'La casa de Alemania ya está lista: Carlitos ha colgado un cartel que dice «Willkommen zu Hause, Marialópoda». Solo faltas tú.' : `Vuestra casa de Alemania tiene algo nuevo: ${h.name.toLowerCase()}. Carlitos lo ha olido todo.`);
+    }
     if (day === today) Object.assign(usedToday, used);
     const now = levelOf(xp);
     while (level < now) {
@@ -219,7 +256,9 @@ export function carlitosState(acts, log, today) {
     tricks: TRICKS.map(t => ({ ...t, learned: level >= t.level })),
     wardrobe: WARDROBE.map(x => ({ ...x, owned: owned.has(x.id), worn: worn.includes(x.id), buyable: !owned.has(x.id) && x.price !== undefined && (!x.season || out.season?.id === x.season) })),
     toys: TOYS.filter(t => owned.has(t.id)), worn,
-    left: Object.fromEntries(WHO.map(w => [w, Object.fromEntries(Object.entries(LIMITS).map(([k, n]) => [k, Math.max(0, n - (usedToday[w][k] || 0))]))])),
+    left: Object.fromEntries(WHO.map(w => [w, Object.fromEntries([...Object.entries(LIMITS), ...Object.keys(STEPS).map(k => [k, 1])].map(([k, n]) => [k, Math.max(0, n - (usedToday[w][k] || 0))]))])),
+    home: { items: HOME.slice(0, homeIndex), next: HOME[homeIndex] || null, progress: HOME[homeIndex] ? (homePoints - HOME[homeIndex - 1].at) / (HOME[homeIndex].at - HOME[homeIndex - 1].at) : 1 },
+    visit: nextVisit(log, today),
     messages: (log.messages || []).slice(-30), vales: (log.vales || []).slice(-40)
   });
   out.diary = out.diary.reverse().slice(0, 60);
@@ -250,6 +289,11 @@ function averageTonnage(acts, mon) {
   for (let i = 1; i <= 4; i++) t += weekStats(acts, shift(mon, -7 * i), shift(mon, -7 * i + 6)).tonnage;
   return t / 4;
 }
+// The next time they see each other, if one of them has set it and it has not passed.
+function nextVisit(log, today) {
+  const v = (log.visits || []).filter(x => x.fecha >= today).sort((a, b) => (a.fecha < b.fecha ? -1 : 1))[0];
+  return v ? { fecha: v.fecha, days: Math.round((Date.parse(`${v.fecha}T12:00:00Z`) - Date.parse(`${today}T12:00:00Z`)) / 864e5), who: v.who } : null;
+}
 function wornNow(log, owned) {
   const worn = (log.worn || ['collar']).filter(id => owned.has(id));
   return worn.length || log.worn ? worn : ['collar'];
@@ -259,7 +303,7 @@ function wornNow(log, owned) {
 const clean = text => String(text || '').replace(/\s+/g, ' ').trim().slice(0, 240);
 export function applyAction(log, who, action, today, now = new Date()) {
   if (!WHO.includes(who)) throw new Error('who');
-  const next = { born: log.born || today, actions: [...(log.actions || [])], messages: [...(log.messages || [])], vales: [...(log.vales || [])], worn: log.worn ? [...log.worn] : undefined };
+  const next = { ...log, born: log.born || today, actions: [...(log.actions || [])], messages: [...(log.messages || [])], vales: [...(log.vales || [])], visits: [...(log.visits || [])], worn: log.worn ? [...log.worn] : undefined };
   const t = now.toISOString(), type = action?.type;
   if (['mimo', 'jugar', 'golosina'].includes(type)) next.actions.push({ t, d: today, who, type, toy: type === 'jugar' ? clean(action.toy).slice(0, 20) : undefined });
   else if (type === 'comprar') {
@@ -282,6 +326,17 @@ export function applyAction(log, who, action, today, now = new Date()) {
     if (next.vales.some(v => v.who === who && v.d >= shift(today, -6))) throw new Error('vale_semana');
     next.vales.push({ id: `v${Date.now().toString(36)}`, who, text, d: today, used: null });
     next.actions.push({ t, d: today, who, type, text });
+  } else if (type === 'paso') {
+    const st = STEPS[action.kind];
+    if (!st || st.who !== who) throw new Error('type');
+    next.actions.push({ t, d: today, who, type, kind: action.kind });
+  } else if (type === 'visita') {
+    const fecha = String(action.fecha || '');
+    if (action.quitar) next.visits = next.visits.filter(v => v.fecha !== fecha);
+    else {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha) || fecha < today || fecha > shift(today, 400)) throw new Error('fecha');
+      next.visits = next.visits.filter(v => v.fecha < today).concat({ fecha, who });
+    }
   } else if (type === 'canjear') {
     const v = next.vales.find(x => x.id === action.id && !x.used);
     if (!v) throw new Error('vale');

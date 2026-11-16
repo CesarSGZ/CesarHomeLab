@@ -44,6 +44,7 @@ export async function carlitosAction(env, who, action) {
   if (!now) throw new Error('not_connected');
   const { state, log, acts, today } = now, type = action?.type;
   if (['mimo', 'jugar', 'golosina'].includes(type) && !state.left[who][type]) return state;
+  if (type === 'paso' && state.left[who][action.kind] === 0) return state;
   if (type === 'golosina' && state.bones < TREAT_COST) throw new Error('bones');
   if (type === 'comprar') {
     const item = state.wardrobe.find(x => x.id === action.item);

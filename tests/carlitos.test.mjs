@@ -60,3 +60,24 @@ test('Rivalry: tonnage this week against the same days of the four weeks before'
   assert.equal(s.tonnage.week, 800); assert.equal(s.tonnage.pace, 800); assert.equal(s.tonnage.lastWeek, 800);
   assert.deepEqual(s.tonnage.top, { ejercicio: 'Bench Press', kg: 800 });
 });
+test('Carlitos: each one marks what brings them closer, once a day, and the flat in Germany fills up', () => {
+  let log = { born: '2026-11-09', actions: [] };
+  log = applyAction(log, 'maria', { type: 'paso', kind: 'ingles' }, '2026-11-10');
+  log = applyAction(log, 'maria', { type: 'paso', kind: 'ingles' }, '2026-11-10');
+  log = applyAction(log, 'maria', { type: 'paso', kind: 'entrevista' }, '2026-11-10');
+  assert.throws(() => applyAction(log, 'cesar', { type: 'paso', kind: 'ingles' }, '2026-11-10'), /type/);
+  log = applyAction(log, 'cesar', { type: 'paso', kind: 'aleman' }, '2026-11-10');
+  const s = carlitosState(acts([], []), log, '2026-11-10');
+  assert.equal(s.left.maria.ingles, 0); assert.equal(s.left.cesar.aleman, 0); assert.equal(s.left.cesar.casa, 1);
+  assert.equal(s.diary.filter(d => /practicado inglés/.test(d.text)).length, 1);
+  assert.deepEqual(s.home.items.map(h => h.id), ['llaves', 'cama']);
+  assert.equal(s.home.next.id, 'sofa');
+});
+test('Carlitos: the next visit counts down and is celebrated on the day', () => {
+  let log = applyAction({ born: '2026-11-09' }, 'cesar', { type: 'visita', fecha: '2026-12-20' }, '2026-11-16');
+  assert.deepEqual(carlitosState(acts([], []), log, '2026-11-16').visit, { fecha: '2026-12-20', days: 34, who: 'cesar' });
+  assert.throws(() => applyAction(log, 'maria', { type: 'visita', fecha: '2026-11-01' }, '2026-11-16'), /fecha/);
+  const day = carlitosState(acts([], []), log, '2026-12-20');
+  assert.equal(day.visit.days, 0); assert.equal(day.love, 100); assert.ok(day.diary.some(d => /Hoy os veis/.test(d.text)));
+  assert.equal(carlitosState(acts([], []), log, '2026-12-21').visit, null);
+});

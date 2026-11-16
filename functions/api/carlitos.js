@@ -26,7 +26,7 @@ export async function onRequest({ request, env }) {
   try {
     return reply(request, { ok: true, carlitos: await carlitosAction(env, 'maria', body?.action) });
   } catch (error) {
-    const known = ['bones', 'item', 'text', 'type', 'vale', 'vale_semana'].includes(error?.message);
+    const known = ['bones', 'item', 'text', 'type', 'vale', 'vale_semana', 'fecha'].includes(error?.message);
     return reply(request, { ok: false, error: known ? error.message : 'unavailable' }, known ? 400 : 503);
   }
 }
