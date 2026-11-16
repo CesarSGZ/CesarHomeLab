@@ -188,6 +188,21 @@
     return `${(es?x.goal_es:x.goal_en)?`<p class="tl-cfd-goal">${esc(es?x.goal_es:x.goal_en)}</p>`:''}<ol class="tl-cfdplan">${x.steps.map((s,i)=>`<li class="${esc(s.status)}"><b>${s.status==='done'?'✓':i+1}</b><div><small>${tag[s.status]||''}</small><strong>${esc(es?s.title_es:s.title_en)}</strong><p>${esc(es?s.detail_es:s.detail_en)}</p></div></li>`).join('')}</ol>`;
   }
 
+  function cfdStatusHtml(x,lang='es'){
+    if(!x)return '';
+    const es=lang==='es';const L=o=>es?o.es:o.en;
+    const imgs=(x.images||[]).map(i=>`<figure><a href="${esc(i.src)}" target="_blank" rel="noopener"><img src="${esc(i.src)}" alt="${esc(L(i))}" loading="lazy"></a><figcaption>${esc(L(i))}</figcaption></figure>`).join('');
+    const checks=(x.checks||[]).map(c=>`<tr class="${c.ok===true?'ok':c.ok===false?'bad':''}"><td>${esc(L(c))}</td><td>${esc(c.meas??'—')}</td><td>${esc(c.sim??'—')}</td><td>${c.ok===true?'✓':c.ok===false?'✗':'·'}</td></tr>`).join('');
+    const tag={done:es?'Hecho':'Done',next:es?'Ahora':'Now',todo:es?'Pendiente':'To do'};
+    const tuning=(x.tuning||[]).map(s=>`<li class="${esc(s.status)}"><small>${tag[s.status]||''}</small>${esc(L(s))}</li>`).join('');
+    return `<div class="tl-cfdstatus">
+      <p class="tl-cfd-goal"><b>${esc(es?x.version_es:x.version_en)}</b> · ${esc(es?x.summary_es:x.summary_en)}</p>
+      ${imgs?`<div class="tl-cfdgallery">${imgs}</div>`:''}
+      ${checks?`<div class="tl-table-wrap"><table class="tl-cfdchecks"><thead><tr><th>${es?'Qué se compara':'Check'}</th><th>${es?'Medido':'Measured'}</th><th>${es?'Simulado':'Simulated'}</th><th></th></tr></thead><tbody>${checks}</tbody></table></div>`:''}
+      ${tuning?`<h4 class="tl-subhead">${es?'Cómo lo vamos ajustando':'How it is being tuned'}</h4><ul class="tl-cfdtuning">${tuning}</ul>`:''}
+    </div>`;
+  }
+
   // ---------- Slides ----------
   function slides(m,data){
     const s=m.story;
@@ -370,6 +385,12 @@
         <h2 class="dk-h">¿Qué más se podría cambiar?</h2>
         ${ideasNextHtml(s.ideas_next,'es')}`);
     }
+    if(s.cfd_status){
+      add('cfdestado','El CFD hoy',`
+        <p class="dk-kicker">Simulación del aire · cómo va</p>
+        <h2 class="dk-h">Así se mueve el aire dentro</h2>
+        ${cfdStatusHtml(s.cfd_status,'es')}`);
+    }
     if(s.cfd_plan){
       add('cfd','El CFD',`
         <p class="dk-kicker">Simulación del aire (CFD)</p>
@@ -537,6 +558,7 @@
     fill('tl-ab-lessons',lessonsHtml(m.story.ab_tests,'en'));
     fill('tl-ideas-next',ideasNextHtml(m.story.ideas_next,'en'));
     fill('tl-cfd-plan',cfdPlanHtml(m.story.cfd_plan,'en'));
+    fill('tl-cfd-status',cfdStatusHtml(m.story.cfd_status,'en'));
     const updated=document.getElementById('tl-deck-updated');
     if(updated)updated.textContent=`Actualizada el ${dateEs(m.updated)} · ${items.length} diapositivas · ${m.current>=0?`fase ${m.current+1} de ${m.phases.length}`:''}`;
     const nextName=document.getElementById('tl-deck-next');
