@@ -15,3 +15,22 @@ El visor (`control/thermal-viewer.js`) lee la misma geometría. Después de toca
 
 Ejes (mm): x de delante (nogal, fuente) hacia atrás (I/O), y del panel de la gráfica al del procesador, z hacia arriba.
 Las preguntas abiertas (lo que hay que medir antes del CFD) están en `geometry.open_questions`.
+
+## CFD con OpenFOAM (carpeta `openfoam/`)
+
+OpenFOAM v2512 para Windows (build MinGW de ESI/Keysight, en `C:\Program Files\ESI-OpenCFD`) y
+ParaView 6.2 portable (`Escritorio\Claude\Cache\CFD\ParaView`).
+
+```
+python tools/terra-cfd/openfoam/make_case.py --config S07 --cell 3      # escribe el caso en Datos\Terra\cfd-casos
+python tools/terra-cfd/openfoam/run_case.py <caso> --np 8 --loops 6     # malla, simula y ajusta los ventiladores
+pvbatch tools/terra-cfd/openfoam/render.py <caso> <salida> Datos\Terra\cfd-geometria   # imágenes
+```
+
+- `foam.bat` prepara el entorno de OpenFOAM para una orden suelta (`foam.bat checkMesh`).
+- Dominio: el aire de dentro de la caja. Sólidos recortados con topoSet + subsetMesh; `run_case.py` cambia
+  el patch `oldInternalFaces` de `empty` a `wall` (si no, simpleFoam no resuelve la velocidad).
+- Ventiladores: fuerza en su zona cilíndrica; el salto de presión se corrige en cada vuelta hacia su curva
+  (Noctua oficial; gráfica y fuente estimadas). Rejillas, aletas, cables y memoria: zonas porosas.
+- Temperatura: escalar pasivo (scalarTransport) con el calor medido en cada pieza. Paredes adiabáticas.
+- En v2512 las fuentes `semiImplicitSource` van en `sources { U ((x y z) 0); }`; `injectionRateSuSp` se ignora sin avisar.
