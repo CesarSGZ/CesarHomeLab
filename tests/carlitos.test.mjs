@@ -87,3 +87,7 @@ test('Carlitos: off on the server until his start date is set', async () => {
   const env = { CONTROL_DB: { prepare: () => { throw new Error('no debe tocar la base'); } } };
   assert.equal(await carlitosFor(env), null);
 });
+test('Rivalry: bodyweight lifts never count as a beaten mark', () => {
+  const rows = [['2026-10-01', 1, 'Dominadas', 'Espalda', 1, 3, 1, '', 'app', 'a'], ['2026-11-09', 1, 'Dominadas', 'Espalda', 1, 3, 5, '', 'app', 'b']];
+  assert.equal(summarize(rows, MARIA_COLUMNS, '2026-11-10').records.length, 0);
+});
