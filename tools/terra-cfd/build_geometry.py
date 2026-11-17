@@ -170,16 +170,16 @@ components = [
     },
     {
         "id": "BOTTOM_FAN", "label": "Noctua NF-A12x15 PWM · bottom intake", "role": "fan", "certainty": "official",
-        "fan": fan(100, 76.5, 8.5, [0, 0, 1], 114, 15, "intake", frame=120),
-        "box": box(40, 16.5, 1, 120, 120, 15),
+        "fan": fan(94.4, 76.5, 8.5, [0, 0, 1], 114, 15, "intake", frame=120),
+        "box": box(34.4, 16.5, 1, 120, 120, 15),
         "basis": "120 × 120 × 15 mm (official), blowing in from the 20 mm gap under the case (César). Terra's only bottom fan bay is under the PSU at the front; centred across the case "
                  "because a 120 mm frame only fits there (from the purchase list and Fractal's install guide).",
     },
     {
         "id": "BOTTOM_GRILLE", "label": "120 mm wire fan guard (QMseller) over the bottom fan", "role": "porous",
         "certainty": "official",
-        "box": box(40, 16.5, 16, 120, 120, 3.2),
-        "shape": {"type": "disc_grille", "axis": "z", "centre": [100, 76.5, 17.6], "diameter": 116, "rings": 5, "wire_mm": 1.6,
+        "box": box(34.4, 16.5, 16, 120, 120, 3.2),
+        "shape": {"type": "disc_grille", "axis": "z", "centre": [94.4, 76.5, 17.6], "diameter": 116, "rings": 5, "wire_mm": 1.6,
                   "hole_spacing_mm": 105},
         "basis": "Standard 120 mm wire guard: 105 mm hole spacing, 1.6 mm wire, ~3.2 mm thick where the wires cross "
                  "(typical spec; the QMseller sheet is not published). On the inner side, so the cables cannot touch the blades.",
@@ -346,11 +346,11 @@ geometry = {
         "Forma real de cada cable: se modelan como volúmenes porosos.",
     ],
     "open_questions": [
-        {"what": "Posición exacta del ventilador de abajo", "how": "regla, desde el frontal hasta su centro", "why": "estimada en ~100 mm desde una foto en ángulo (±15 mm)"},
         {"what": "Curva de los ventiladores de la gráfica", "how": "estimada y ajustada", "why": "ZOTAC no la publica; curva de 90 mm típica a las 1.955 rpm medidas, validada con S04-S07"},
         {"what": "Cuánto frenan cables, aletas y rejillas", "how": "ajustado con S04-S07", "why": "rejillas al 60 % de la pérdida teórica; el CFD acierta la S07 con menos de 1 °C"},
     ],
     "resolved": [
+        "Ventilador de abajo: centro a ~94,4 mm del frontal (César, 17 nov; medido a ojo).",
         "Ventilador del procesador: centro a 76,6 mm del suelo interior (César, 17 nov; antes calculado en 122).",
         "Columna central: centro a 85 mm del exterior del panel del procesador (César, 17 nov).",
         "Ventilador de arriba: centro a ~86 mm del frontal y ~70 mm del lado de la gráfica, por las bridas de sus esquinas (fotos del 17 nov).",

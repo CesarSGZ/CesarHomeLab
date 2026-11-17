@@ -155,6 +155,11 @@ def main():
     for v in info['vents']:
         q = vent_flow(case, v)
         res['vents_m3h'][v] = None if q is None else round(q * 3600, 1)
+    for z, g in info.get('grille_zones', {}).items():   # modo exterior: caudal por rejilla = velocidad media normal × área
+        za = zone_avg(case, z)
+        if za:
+            un = sum(za['U'][i] * g['normal_out'][i] for i in range(3))
+            res['vents_m3h'][z.replace('grille_', 'vent_')] = round(un * g['area_m2'] * 3600, 1)
     (case / 'results.json').write_text(json.dumps(res, indent=2))
     print(json.dumps({k: res[k] for k in ('fans', 'zone_T_C', 'vents_m3h')}, indent=1))
 
