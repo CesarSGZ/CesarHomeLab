@@ -38,6 +38,13 @@ CONFIGS = {
     'S04': {'ducts': [], 'ambient_C': 19.0,
             'heat_W': {'GPU': 300, 'CPU_COOLER': 87.7, 'PSU': 27, 'MOTHERBOARD': 15, 'RAM': 5},
             'rpm': {'GPU_FAN': 2050, 'CPU_FAN': 1950, 'BOTTOM_FAN': 1270, 'TOP_FAN': 1550, 'PSU_FAN': 1410}},
+    # Comprobaciones a ciegas: medidas pero nunca usadas para ajustar (measured.py S05 S06)
+    'S05': {'ducts': [], 'ambient_C': 20.5, 'panels_off': True,
+            'heat_W': {'GPU': 300, 'CPU_COOLER': 94.2, 'PSU': 27, 'MOTHERBOARD': 15, 'RAM': 5},
+            'rpm': {'GPU_FAN': 2086, 'CPU_FAN': 2071, 'BOTTOM_FAN': 1301, 'TOP_FAN': 2200, 'PSU_FAN': 1410}},
+    'S06': {'ducts': ['CPU_DUCT'], 'ambient_C': 19.0,
+            'heat_W': {'GPU': 300, 'CPU_COOLER': 104.6, 'PSU': 27, 'MOTHERBOARD': 15, 'RAM': 5},
+            'rpm': {'GPU_FAN': 2020, 'CPU_FAN': 1945, 'BOTTOM_FAN': 1270, 'TOP_FAN': 2200, 'PSU_FAN': 1410}},
 }
 
 # Curvas: (rpm máximas, caudal libre m3/h, presión estática máxima Pa) — fichas oficiales salvo donde se dice
@@ -572,7 +579,7 @@ def main():
     global EXT, FLIP, PANELS_OFF
     EXT = a.ext
     FLIP = set(a.flip)
-    PANELS_OFF = a.panels_off
+    PANELS_OFF = a.panels_off or CONFIGS[a.config].get('panels_off', False)
     case, info = build(geo, a.config, a.cell, Path(a.out), a.tag, a.grille_k)
     print(case)
     print(json.dumps(info, indent=1))
