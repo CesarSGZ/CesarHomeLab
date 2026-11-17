@@ -187,7 +187,7 @@ function renderThermalScores(models){
   }));
 }
 
-function renderThermalRanking(screening){
+function renderThermalRanking(screening,verdicts={}){
   const rank=document.getElementById('tl-rank');
   const baseline=screening.find(item=>item.configuration_id==='CFG-000');
   const baselinePeak=baseline?baseline.gpu_peak_model_low_C:80.31;
@@ -237,14 +237,15 @@ function renderThermalRanking(screening){
     row.append(summary,more);
     return row;
   });
-  let pick=true;
+  const VERDICT={try:'WORTH TRYING',maybe:'MAYBE',skip:'NOT WORTH IT AFTER THE TESTS',done:'ALREADY DONE'};
   const rows=ideas.map(idea=>{
     const fitted=idea.stage==='fitted';
     const row=makeElement('details',`tl-rank-row conf-${idea.evidence_confidence.split(/[ ;]/)[0]}${fitted?' fitted':''}`);
     const summary=makeElement('summary');
     const name=makeElement('div','tl-rank-name');
-    const tag=fitted?` · FITTED · ${idea.fitted?.test||'A/B'} PENDING`:(pick?' · TOP PICK':'');
-    if(!fitted)pick=false;
+    const verdict=VERDICT[verdicts[idea.configuration_id]];
+    const tag=fitted?` · FITTED · ${idea.fitted?.test||'A/B'} PENDING`:(verdict?` · ${verdict}`:'');
+    if(verdicts[idea.configuration_id]==='skip')row.classList.add('skipped');
     name.append(makeElement('strong',null,idea.physical_change),makeElement('small',null,`${idea.configuration_id}${tag}`));
     const track=makeElement('div','tl-rank-track');
     const range=makeElement('i');
@@ -388,7 +389,7 @@ function renderThermalLab(data){
   document.getElementById('tl-ambient').textContent=`${room} in the duct campaign (Nov 2026); ${ambient} °C for the 4 Aug baseline the models were fitted on`;
   renderThermalLoads(data.headline_metrics,data.motherboard_telemetry);
   renderThermalScores(models);
-  renderThermalRanking(data.configuration_screening||[]);
+  renderThermalRanking(data.configuration_screening||[],Object.fromEntries((data.story?.ideas_next?.items||[]).map(item=>[item.id,item.verdict])));
   renderThermalLedger(data.experimental_campaign||[]);
   if(data.cfd_inputs)renderThermalCfd(data.cfd_inputs,data.configuration.fans);
   renderCfdChecklist(data.geometry?.open_questions||[]);

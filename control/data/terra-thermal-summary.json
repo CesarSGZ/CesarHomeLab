@@ -2219,7 +2219,7 @@
         "gpu_delta_C": -2.1,
         "gpu_fan_delta_pct": -1.8,
         "date": "2026-11-14",
-        "value_note_en": "fan −1.8 pts · CPU unchanged",
+        "value_note_en": "fan −1.8 pts",
         "predicted_C": [
           -2.1,
           -0.6
@@ -2697,8 +2697,8 @@
       {
         "id": "PSU",
         "label": "PSU losses",
-        "W": 36,
-        "basis": "≈ 8% of ~420 W DC at 92% efficiency (estimate)",
+        "W": 27,
+        "basis": "≈ 6 % of ~425 W DC at 94 % efficiency (Cybenetics report of the SF850 at 230 V)",
         "path": "PSU rear grille, pointing up at the top panel",
         "into_case_air": true
       },
@@ -3456,11 +3456,11 @@
           "detail_en": "S04 (nothing), S05 (panels off), S06 (CPU duct) and S07 (both ducts), with watts, temperatures and fan speeds."
         },
         {
-          "status": "todo",
+          "status": "done",
           "title_es": "Cerrar las comprobaciones",
           "title_en": "Close the checklist",
-          "detail_es": "Foto del suelo, medir la columna central y el centro del ventilador de la CPU, y las curvas de los ventiladores (lista de la sección 05).",
-          "detail_en": "Floor photo, measure the spine and CPU fan centre, and the fan curves (checklist in section 05)."
+          "detail_es": "Hecho el 17 nov: foto del suelo, columna central (85 mm), centro del ventilador del procesador (76,6 mm), ventilador de abajo (94,4 mm) y curvas de los ventiladores.",
+          "detail_en": "Done on 17 Nov: floor photo, spine (85 mm), CPU fan centre (76.6 mm), bottom fan (94.4 mm) and the fan curves."
         },
         {
           "status": "done",

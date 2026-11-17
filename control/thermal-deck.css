@@ -331,3 +331,4 @@ html[data-theme=day] .dk-heatbar span{color:#fff}
 .tl-deck .tl-cfdkpis li,.tl-deck .tl-cfdcompare .tabs,.tl-deck .tl-cfdhero figcaption,.tl-deck .tl-cfdcompare figcaption{background:transparent}
 .tl-deck .tl-cfdhero{grid-template-columns:minmax(0,1.25fr) minmax(0,1fr)}
 .tl-deck .tl-cfdcompare .stage img{max-height:46vh}
+@media(max-width:560px){.dk-heatbar span b{display:none}.dk-heatbar span{font-size:11px}}
