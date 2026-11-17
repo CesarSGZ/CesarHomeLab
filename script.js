@@ -82,3 +82,15 @@ $$('[data-copy-email]').forEach(link=>link.addEventListener('click',copyContactE
 
 // Magnetic call-to-action movement, intentionally restrained.
 $$('.button').forEach(b=>{b.addEventListener('pointermove',e=>{if(reducedMotion.matches||e.pointerType!=='mouse')return;const r=b.getBoundingClientRect();b.style.transform=`translate(${(e.clientX-r.left-r.width/2)*.04}px,${(e.clientY-r.top-r.height/2)*.06}px)`});b.addEventListener('pointerleave',()=>b.style.transform='')});
+
+// Proyectos: el vídeo del CFD solo se mueve cuando se ve (y nunca con «reducir movimiento»)
+(() => {
+  const videos = document.querySelectorAll('.project-video');
+  if (!videos.length) return;
+  const still = window.matchMedia('(prefers-reduced-motion: reduce)');
+  const io = new IntersectionObserver((entries) => entries.forEach(({ target, isIntersecting }) => {
+    if (isIntersecting && !still.matches) target.play().catch(() => {});
+    else target.pause();
+  }), { threshold: 0.25 });
+  videos.forEach((v) => io.observe(v));
+})();
