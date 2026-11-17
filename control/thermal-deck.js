@@ -244,15 +244,23 @@
         ${L({es:f.note_es,en:f.note_en})?`<p class="tl-note">${esc(es?f.note_es:f.note_en)}</p>`:''}`;
     }
     const checks=has('checks')?(x.checks||[]).map(c=>`<tr class="${c.ok===true?'ok':c.ok===false?'bad':''}"><td>${esc(L(c))}</td><td>${esc(c.meas??'—')}</td><td>${esc(c.sim??'—')}</td><td>${c.ok===true?'✓':c.ok===false?'✗':'·'}</td></tr>`).join(''):'';
-    const assumptions=has('assumptions')?(x.assumptions||[]).map(a=>`<li><b>${esc(es?a.what_es:a.what_en)}</b> ${esc(L(a))}</li>`).join(''):'';
+    const assumptions=has('assumptions')?(x.assumptions||[]).map(a=>`<li><b>${esc((es?a.what_es:a.what_en).replace(/\.$/,''))}</b><p>${esc(L(a))}</p></li>`).join(''):'';
     const tag={done:es?'Hecho':'Done',next:es?'Ahora':'Now',todo:es?'Pendiente':'To do',ask:es?'Te lo pido':'Needs you'};
-    const tuning=has('tuning')?(x.tuning||[]).map(s=>`<li class="${esc(s.status)}"><small>${tag[s.status]||''}</small>${esc(L(s))}</li>`).join(''):'';
+    let tuning='';
+    if(has('tuning')&&x.tuning?.length){
+      const li=s=>`<li class="${esc(s.status)}"><small>${tag[s.status]||''}</small><span>${esc(L(s))}</span></li>`;
+      const done=x.tuning.filter(s=>s.status==='done'),open=x.tuning.filter(s=>s.status!=='done');
+      const pct=Math.round(done.length/x.tuning.length*100);
+      tuning=`<div class="tl-cfdprogress"><span><i style="width:${pct}%"></i></span><b>${done.length}/${x.tuning.length}</b> ${es?'hechos':'done'}</div>
+        <ul class="tl-cfdtuning">${open.map(li).join('')}</ul>
+        ${done.length?`<details class="tl-cfddone"><summary>${es?`Ver lo hecho (${done.length})`:`Show what is done (${done.length})`}</summary><ul class="tl-cfdtuning">${done.map(li).join('')}</ul></details>`:''}`;
+    }
     return `<div class="tl-cfdstatus">
       ${has('intro')?`<p class="tl-cfd-goal"><b>${esc(es?x.version_es:x.version_en)}</b> · ${esc(es?x.summary_es:x.summary_en)}</p>`:''}
       ${openBox}${hero}${compare}${flows}
       ${checks?`<h4 class="tl-subhead">${es?'¿Acierta? Medido frente a simulado':'Does it match? Measured vs simulated'}</h4><div class="tl-table-wrap"><table class="tl-cfdchecks"><thead><tr><th>${es?'Qué se compara':'Check'}</th><th>${es?'Medido':'Measured'}</th><th>${es?'Simulado':'Simulated'}</th><th></th></tr></thead><tbody>${checks}</tbody></table></div>${(es?x.checks_note_es:x.checks_note_en)?`<p class="tl-note">${esc(es?x.checks_note_es:x.checks_note_en)}</p>`:''}`:''}
       ${assumptions?`<h4 class="tl-subhead">${es?'Supuestos del modelo':'Model assumptions'}</h4><ul class="tl-cfdassume">${assumptions}</ul>`:''}
-      ${tuning?`<h4 class="tl-subhead">${es?'Hecho, en marcha y pendiente':'Done, in progress and pending'}</h4><ul class="tl-cfdtuning">${tuning}</ul>`:''}
+      ${tuning?`<h4 class="tl-subhead">${es?'Hecho, en marcha y pendiente':'Done, in progress and pending'}</h4>${tuning}`:''}
     </div>`;
   }
 

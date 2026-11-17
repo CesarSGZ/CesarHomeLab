@@ -187,7 +187,7 @@ function renderThermalScores(models){
   }));
 }
 
-function renderThermalRanking(screening,verdicts={}){
+function renderThermalRanking(screening,verdicts={},effects={},reference=null){
   const rank=document.getElementById('tl-rank');
   const baseline=screening.find(item=>item.configuration_id==='CFG-000');
   const baselinePeak=baseline?baseline.gpu_peak_model_low_C:80.31;
@@ -210,6 +210,11 @@ function renderThermalRanking(screening,verdicts={}){
   const today=makeElement('em',null,`Model baseline ${baselinePeak.toFixed(1)} °C`);
   today.style.left=at(baselinePeak);
   scale.append(today);
+  if(reference?.gpu){
+    const ducts=makeElement('em','tl-rank-ref-label',`Ducts ${reference.gpu} °C`);
+    ducts.style.left=at(baselinePeak+reference.gpu);
+    scale.append(ducts);
+  }
   axis.append(makeElement('span'),scale,makeElement('span'));
 
   const measuredRows=measured.map(item=>{
@@ -254,10 +259,24 @@ function renderThermalRanking(screening,verdicts={}){
     const marker=makeElement('b');
     marker.style.left=at(baselinePeak);
     track.append(marker,range);
+    if(reference?.gpu){
+      const ref=makeElement('span','tl-rank-ref');
+      ref.style.left=at(baselinePeak+reference.gpu);
+      ref.title=`What the ducts gave: ${reference.gpu} °C (measured)`;
+      track.append(ref);
+    }
+    const effect=effects[idea.configuration_id];
+    if(effect?.gpu){   // barra con el efecto revisado tras las pruebas, no el del modelo de agosto
+      const [elo,ehi]=effect.gpu;
+      range.style.left=at(baselinePeak+elo);
+      range.style.width=`calc(${at(baselinePeak+ehi)} - ${at(baselinePeak+elo)})`;
+    }
+    if(effect?.basis_en)name.append(makeElement('p','tl-rank-why',effect.basis_en));
     const value=makeElement('div','tl-rank-value');
+    const gain=effect?.gpu?`${effect.gpu[0]===effect.gpu[1]?effect.gpu[0]:`${effect.gpu[0]} to ${effect.gpu[1]}`} °C`:`≈ −${Math.max(0,baselinePeak-idea.mid).toFixed(1)} °C`;
     value.append(
-      makeElement('strong',null,`${idea.gpu_peak_model_low_C.toFixed(1)}–${idea.gpu_peak_model_high_C.toFixed(1)} °C`),
-      makeElement('small',null,`≈ −${Math.max(0,baselinePeak-idea.mid).toFixed(1)} °C`)
+      makeElement('strong',null,`GPU ${gain}`),
+      makeElement('small',null,reference?.gpu?`ducts gave ${reference.gpu} °C`:`${idea.gpu_peak_model_low_C.toFixed(1)}–${idea.gpu_peak_model_high_C.toFixed(1)} °C`)
     );
     summary.append(name,track,value);
     const more=makeElement('div','tl-rank-more');
@@ -389,7 +408,7 @@ function renderThermalLab(data){
   document.getElementById('tl-ambient').textContent=`${room} in the duct campaign (Nov 2026); ${ambient} °C for the 4 Aug baseline the models were fitted on`;
   renderThermalLoads(data.headline_metrics,data.motherboard_telemetry);
   renderThermalScores(models);
-  renderThermalRanking(data.configuration_screening||[],Object.fromEntries((data.story?.ideas_next?.items||[]).map(item=>[item.id,item.verdict])));
+  renderThermalRanking(data.configuration_screening||[],Object.fromEntries((data.story?.ideas_next?.items||[]).map(item=>[item.id,item.verdict])),Object.fromEntries((data.story?.ideas_next?.items||[]).filter(item=>item.effect).map(item=>[item.id,item.effect])),data.story?.ideas_next?.reference);
   renderThermalLedger(data.experimental_campaign||[]);
   if(data.cfd_inputs)renderThermalCfd(data.cfd_inputs,data.configuration.fans);
   renderCfdChecklist(data.geometry?.open_questions||[]);

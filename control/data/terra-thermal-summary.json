@@ -3817,8 +3817,18 @@
       "tuning": [
         {
           "status": "next",
-          "es": "Repetir S04 y S07 (malla de 2 mm) con las medidas del 17 nov: ventilador del procesador 44 mm más abajo, ventilador de arriba centrado sobre la columna, ventilador de abajo más atrás y suelo real. El aire que se ve en el visor y la tabla son todavía del modelo anterior.",
-          "en": "Rerun S04 and S07 (2 mm mesh) with the 17 Nov measurements: CPU fan 44 mm lower, top fan centred over the spine, bottom fan further back and the real floor. The air in the viewer and the table still come from the previous model."
+          "es": "Campaña con las medidas del 17 nov y el aire de fuera: S04, S07, ventiladores de caja al revés y la predicción de la S08 (6 casos, ~7 h). Espera a que el PC esté libre.",
+          "en": "Campaign with the 17 Nov measurements and outside air: S04, S07, case fans reversed and the S08 prediction (6 cases, ~7 h). Waiting for the PC to be free."
+        },
+        {
+          "status": "todo",
+          "es": "Prueba real S08 (sin paneles con canales) para comprobar la predicción a ciegas.",
+          "en": "Real S08 test (panels off with ducts) to check the blind prediction."
+        },
+        {
+          "status": "todo",
+          "es": "Memoria: añadir el calor que se va por la placa.",
+          "en": "RAM: add the heat path through the board."
         },
         {
           "status": "done",
@@ -3849,16 +3859,6 @@
           "status": "done",
           "es": "El aire del CFD se ve en el visor 3D: unas 3.000 líneas animadas por caso, coloreadas por temperatura y moviéndose a la velocidad real del aire.",
           "en": "The CFD air is shown in the 3D viewer: about 3,000 animated lines per case, coloured by temperature and moving at the real air speed."
-        },
-        {
-          "status": "todo",
-          "es": "Memoria: añadir el calor que va por la placa.",
-          "en": "RAM: add the heat path through the board."
-        },
-        {
-          "status": "todo",
-          "es": "Paredes que pierden calor y aire exterior alrededor de la caja.",
-          "en": "Walls that lose heat and outside air around the case."
         }
       ]
     }
