@@ -195,6 +195,7 @@
     const fmt=(v,dg=0)=>Number(v).toLocaleString(es?'es-ES':'en-GB',{minimumFractionDigits:dg,maximumFractionDigits:dg});
     // Vídeo + cifras clave
     const kpis=(x.kpis||[]).map(k=>`<li><strong>${esc(k.value)}</strong><span>${esc(L(k))}</span></li>`).join('');
+    const openBox=has('open')&&!x.video?`<div class="tl-cfd-open"><p>${es?'Mira el aire de la simulación en el modelo 3D: miles de líneas animadas, coloreadas por temperatura, que puedes girar y acercar.':'See the simulated air in the 3D model: thousands of animated lines, coloured by temperature, that you can rotate and zoom.'}</p><button type="button" class="primary" data-thermal-cfd="s07">${es?'Con canales (S07)':'Both ducts (S07)'}</button><button type="button" data-thermal-cfd="s04">${es?'Sin canales (S04)':'No ducts (S04)'}</button></div>${kpis?`<ul class="tl-cfdkpis solo">${kpis}</ul>`:''}`:'';
     const hero=has('hero')&&x.video?`<div class="tl-cfdhero">
         <figure><video src="${esc(x.video.src)}" poster="${esc(x.video.poster||'')}" autoplay loop muted playsinline preload="metadata"></video><figcaption>${esc(L(x.video))}</figcaption></figure>
         ${kpis?`<ul class="tl-cfdkpis">${kpis}</ul>`:''}
@@ -232,7 +233,7 @@
     const tuning=has('tuning')?(x.tuning||[]).map(s=>`<li class="${esc(s.status)}"><small>${tag[s.status]||''}</small>${esc(L(s))}</li>`).join(''):'';
     return `<div class="tl-cfdstatus">
       ${has('intro')?`<p class="tl-cfd-goal"><b>${esc(es?x.version_es:x.version_en)}</b> · ${esc(es?x.summary_es:x.summary_en)}</p>`:''}
-      ${hero}${compare}${flows}
+      ${openBox}${hero}${compare}${flows}
       ${checks?`<h4 class="tl-subhead">${es?'¿Acierta? Medido frente a simulado':'Does it match? Measured vs simulated'}</h4><div class="tl-table-wrap"><table class="tl-cfdchecks"><thead><tr><th>${es?'Qué se compara':'Check'}</th><th>${es?'Medido':'Measured'}</th><th>${es?'Simulado':'Simulated'}</th><th></th></tr></thead><tbody>${checks}</tbody></table></div>${(es?x.checks_note_es:x.checks_note_en)?`<p class="tl-note">${esc(es?x.checks_note_es:x.checks_note_en)}</p>`:''}`:''}
       ${assumptions?`<h4 class="tl-subhead">${es?'Supuestos del modelo':'Model assumptions'}</h4><ul class="tl-cfdassume">${assumptions}</ul>`:''}
       ${tuning?`<h4 class="tl-subhead">${es?'Hecho, en marcha y pendiente':'Done, in progress and pending'}</h4><ul class="tl-cfdtuning">${tuning}</ul>`:''}
@@ -422,11 +423,11 @@
         ${ideasNextHtml(s.ideas_next,'es')}`);
     }
     if(s.cfd_status){
-      add('cfdestado','El CFD hoy',`
+      if(s.cfd_status.video)add('cfdestado','El CFD hoy',`
         <p class="dk-kicker">Simulación del aire · cómo va</p>
         <h2 class="dk-h">Así se mueve el aire dentro</h2>
         ${cfdStatusHtml(s.cfd_status,'es',['hero'],'d')}`);
-      add('cfdcompara','Sin y con canales',`
+      if(s.cfd_status.compare)add('cfdcompara','Sin y con canales',`
         <p class="dk-kicker">Simulación del aire · antes y después</p>
         <h2 class="dk-h">Sin canales y con canales</h2>
         ${cfdStatusHtml(s.cfd_status,'es',['compare'],'d1')}`);

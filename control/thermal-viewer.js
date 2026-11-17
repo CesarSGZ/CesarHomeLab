@@ -154,6 +154,68 @@ async function initViewer() {
   for (const cable of model.cables || []) addCableRoute(cableGroup, cable, mat, pick);
   const porousCables = explodables.filter((g, i) => model.components[i]?.id.startsWith('CABLES_'));
 
+  // ---------- Aire del CFD: líneas de corriente animadas (OpenFOAM, malla de 2 mm) ----------
+  const cfdGroup = new THREE.Group();
+  root.add(cfdGroup);
+  const cfdCache = {};
+  const cfdTime = { value: 0 };
+  const ductGroups = explodables.filter((g, i) => ['GPU_DUCT', 'CPU_DUCT'].includes(model.components[i]?.id));
+  const cfdKey = document.getElementById('thermal-cfd-key');
+  let cfdCase = 'off';
+  let inView = true;
+  new IntersectionObserver((entries) => { inView = entries.some((e) => e.isIntersecting); }).observe(shell);
+  let raf = 0;
+  let last = 0;
+  async function loadCfd(name) {
+    if (!cfdCache[name]) {
+      const res = await fetch(`/control/data/cfd/${name}-streams.bin`, { credentials: 'same-origin' });
+      if (!res.ok) throw new Error(`CFD ${name}: ${res.status}`);
+      cfdCache[name] = cfdLines(await res.arrayBuffer(), cfdTime);
+    }
+    return cfdCache[name];
+  }
+  function tick(now) {
+    raf = 0;
+    if (cfdCase === 'off') return;
+    const dt = last ? Math.min((now - last) / 1000, 0.1) : 0;
+    last = now;
+    if (inView && !document.hidden) {
+      cfdTime.value += dt;
+      render();
+    }
+    raf = requestAnimationFrame(tick);
+  }
+  async function showCfd(name) {
+    cfdCase = name;
+    document.querySelectorAll('[data-thermal-cfd]').forEach((peer) => setPressed(peer, peer.dataset.thermalCfd === name));
+    cfdGroup.clear();
+    const on = name !== 'off';
+    flow.visible = !on && (document.querySelector('[data-thermal-flow]')?.getAttribute('aria-pressed') ?? 'true') !== 'false';
+    ductGroups.forEach((g) => { g.visible = name !== 's04'; });
+    if (cfdKey) {
+      cfdKey.hidden = !on;
+      const label = cfdKey.querySelector('b');
+      if (label) label.textContent = name === 's04' ? 'No ducts (S04)' : 'Both ducts (S07)';
+    }
+    if (on) {
+      try {
+        cfdGroup.add(await loadCfd(name));
+      } catch (error) {
+        console.warn(error);
+      }
+      if (!raf) { last = 0; raf = requestAnimationFrame(tick); }
+    }
+    render();
+  }
+  // Delegado: la sección del CFD pinta sus propios botones después de que arranque el visor
+  document.addEventListener('click', (event) => {
+    const button = event.target.closest?.('[data-thermal-cfd]');
+    if (!button) return;
+    const inViewer = button.closest('.thermal-view-controls') !== null;
+    if (!inViewer) shell.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    showCfd(button.dataset.thermalCfd);
+  });
+
   // ---------- UI ----------
   let mode = 'role';
   function renderLegend() {
@@ -199,7 +261,7 @@ async function initViewer() {
   toggle('[data-thermal-flow]', (button) => {
     const on = button.getAttribute('aria-pressed') !== 'true';
     setPressed(button, on);
-    flow.visible = on;
+    flow.visible = on && cfdCase === 'off';
     render();
   });
   let exploded = false;
@@ -209,7 +271,8 @@ async function initViewer() {
     exploded = on;
     cableGroup.visible = !on && document.querySelector('[data-thermal-cables]')?.getAttribute('aria-pressed') !== 'false';
     for (const group of explodables) group.position.copy(on ? group.userData.offset : new THREE.Vector3());
-    flow.visible = !on && (document.querySelector('[data-thermal-flow]')?.getAttribute('aria-pressed') ?? 'true') !== 'false';
+    flow.visible = !on && cfdCase === 'off' && (document.querySelector('[data-thermal-flow]')?.getAttribute('aria-pressed') ?? 'true') !== 'false';
+    cfdGroup.visible = !on;
     render();
   });
 
@@ -647,6 +710,73 @@ function addAirflow(flow, model) {
     else origin = P(...f.centre).add(axis.clone().multiplyScalar(0.18));
     flow.add(arrow(origin, axis, 0.45, f.flow === 'intake' ? AIR_IN : AIR_OUT));
   }
+}
+
+// Mapa de color del aire: 19 °C azul oscuro → 60 °C rojo (como las imágenes del CFD)
+const T_STOPS = [[19, 0x10236b], [26, 0x2f6fd6], [33, 0x8ec5ee], [40, 0xe8eef2], [47, 0xf6a46b], [54, 0xd9472b], [60, 0x8a1020]];
+function tempColor(t, out) {
+  let i = 1;
+  while (i < T_STOPS.length - 1 && t > T_STOPS[i][0]) i++;
+  const [t0, c0] = T_STOPS[i - 1];
+  const [t1, c1] = T_STOPS[i];
+  const k = Math.min(1, Math.max(0, (t - t0) / (t1 - t0)));
+  out.setHex(c0).lerp(new THREE.Color(c1), k);
+  return out;
+}
+
+// Líneas de corriente del CFD (formato de tools/terra-cfd/openfoam/export_streams.py).
+// Cada vértice lleva su "fase" = tiempo que tarda el aire en llegar ahí: un pulso de luz recorre
+// la línea a la velocidad real del aire.
+function cfdLines(buffer, time) {
+  const view = new DataView(buffer);
+  const nLines = view.getUint32(0, true);
+  const nPts = view.getUint32(4, true);
+  const counts = new Uint16Array(buffer, 8, nLines);
+  const offset = 8 + nLines * 2 + (nLines % 2 ? 2 : 0);
+  const data = new Int16Array(buffer, offset, nPts * 5);
+  const pos = new Float32Array(nPts * 3);
+  const col = new Float32Array(nPts * 3);
+  const phase = new Float32Array(nPts);
+  const index = [];
+  const c = new THREE.Color();
+  let k = 0;
+  for (let l = 0; l < nLines; l++) {
+    const n = counts[l];
+    let travel = Math.random() * 3;
+    for (let j = 0; j < n; j++, k++) {
+      const x = data[k * 5] / 10, y = data[k * 5 + 1] / 10, z = data[k * 5 + 2] / 10;
+      const v = P(x, y, z);
+      pos.set([v.x, v.y, v.z], k * 3);
+      tempColor(data[k * 5 + 3] / 100, c);
+      col.set([c.r, c.g, c.b], k * 3);
+      if (j > 0) {
+        const dx = (data[k * 5] - data[k * 5 - 5]) / 10000, dy = (data[k * 5 + 1] - data[k * 5 - 4]) / 10000, dz = (data[k * 5 + 2] - data[k * 5 - 3]) / 10000;
+        const speed = Math.max(0.03, (data[k * 5 + 4] + data[k * 5 - 1]) / 2000);
+        travel += Math.hypot(dx, dy, dz) / speed;
+        index.push(k - 1, k);
+      }
+      phase[k] = travel;
+    }
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  geometry.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  geometry.setAttribute('phase', new THREE.BufferAttribute(phase, 1));
+  geometry.setIndex(index);
+  const material = new THREE.ShaderMaterial({
+    uniforms: { time },
+    vertexShader: `attribute float phase; attribute vec3 color; varying vec3 vColor; varying float vPhase;
+      void main(){ vColor = color; vPhase = phase; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+    fragmentShader: `uniform float time; varying vec3 vColor; varying float vPhase;
+      void main(){
+        float w = fract((vPhase - time) / 0.45);
+        float pulse = smoothstep(0.0, 0.08, w) * (1.0 - smoothstep(0.08, 0.6, w));
+        gl_FragColor = vec4(vColor * (0.8 + 0.45 * pulse), 0.2 + 0.8 * pulse);
+      }`,
+    transparent: true,
+    depthWrite: false,
+  });
+  return new THREE.LineSegments(geometry, material);
 }
 
 function arrow(origin, direction, length, color) {
