@@ -1,6 +1,6 @@
 {
   "schema_version": "1.4.0",
-  "generated_at": "2026-11-17T12:00:00+00:00",
+  "generated_at": "2026-11-17T18:00:00+00:00",
   "project": {
     "id": "terra-powerplant-lab",
     "title": "Terra Powerplant Lab",
@@ -2996,6 +2996,12 @@
         "kind": "parts",
         "title": "Medidas reales: el ventilador del procesador va mucho más abajo",
         "detail": "César midió el centro del ventilador del procesador a 76,6 mm del suelo (estaba calculado a 122) y la columna a 85 mm del panel. Con las fotos del suelo y del techo se corrigen el suelo ventilado, el ventilador de arriba (centrado sobre la columna) y el de abajo (más atrás). Hueco hasta la mesa ~22 mm."
+      },
+      {
+        "date": "2026-11-17",
+        "kind": "page",
+        "title": "Plan al día y la prueba S08 propuesta",
+        "detail": "La lista para el CFD se rehace con lo que importa ahora (el CFD ya acierta la S07). Cada idea muestra cuántos grados daría frente a lo que dieron los canales. Se propone la S08 (sin paneles con canales): el CFD la predice antes de medirla."
       }
     ],
     "next_steps": [
@@ -3048,14 +3054,48 @@
         "date": "2026-11-14"
       },
       {
-        "status": "next",
+        "status": "done",
         "title": {
           "es": "Simular el aire (CFD)",
           "en": "Run the CFD"
         },
         "detail": {
-          "es": "CFD validado con S04 y S07 (menos de 1 °C de error con malla de 2 mm). Siguiente: usarlo para probar cambios sin construirlos (sección 08).",
-          "en": "CFD validated on S04 and S07 (under 1 °C error on the 2 mm mesh). Next: use it to try changes without building them (section 08)."
+          "es": "Caso base montado y validado: con malla de 2 mm predice la S07 con menos de 1 °C de error.",
+          "en": "Base case built and validated: on the 2 mm mesh it predicts S07 to within 1 °C."
+        },
+        "date": "2026-11-16"
+      },
+      {
+        "status": "next",
+        "title": {
+          "es": "CFD con las medidas nuevas y el aire de fuera",
+          "en": "CFD with the new measurements and outside air"
+        },
+        "detail": {
+          "es": "Seis casos (~7 h con el PC libre): S04, S07, ventilador de arriba metiendo aire, de abajo sacando, los dos al revés y la predicción de la S08.",
+          "en": "Six cases (~7 h with the PC free): S04, S07, top fan as intake, bottom fan as exhaust, both flipped and the S08 prediction."
+        }
+      },
+      {
+        "status": "todo",
+        "title": {
+          "es": "Prueba real S08: sin paneles y con los canales",
+          "en": "Real test S08: panels off with the ducts"
+        },
+        "detail": {
+          "es": "Una sesión de 71 minutos. Si el CFD la acierta sin haberla visto, el modelo queda validado a ciegas; y dice si con canales las rejillas todavía frenan.",
+          "en": "One 71-minute session. If the CFD predicts it without seeing it, the model is validated blind; it also shows whether the grilles still restrict with the ducts."
+        }
+      },
+      {
+        "status": "todo",
+        "title": {
+          "es": "Decidir el sentido de los ventiladores de caja",
+          "en": "Decide the case-fan directions"
+        },
+        "detail": {
+          "es": "Solo si el CFD da más de ~1 °C de mejora en alguna combinación se prueba en real; si no, se queda como está.",
+          "en": "Only if the CFD shows more than ~1 °C of gain for a combination is it tested for real; otherwise it stays as it is."
         }
       }
     ],
@@ -3067,8 +3107,8 @@
       },
       {
         "done": true,
-        "es": "Área abierta de los paneles (≈186 cm² por panel, 42 % de la rejilla) y lo que frenan (medido sin paneles)",
-        "en": "Panel open area (≈186 cm² per panel, 42 % of the grille) and grille loss (measured with panels off)"
+        "es": "Medidas reales de la caja: columna, ventiladores, suelo y patas (17 nov)",
+        "en": "Real case measurements: spine, fans, floor and feet (17 Nov)"
       },
       {
         "done": true,
@@ -3077,18 +3117,23 @@
       },
       {
         "done": true,
-        "es": "Cuatro configuraciones medidas para validar el CFD (S04–S07)",
-        "en": "Four measured configurations to validate the CFD against (S04–S07)"
+        "es": "Cuatro configuraciones medidas para comparar (S04-S07)",
+        "en": "Four measured configurations to compare against (S04-S07)"
+      },
+      {
+        "done": true,
+        "es": "El CFD predice la S07 con menos de 1 °C de error (gráfica, procesador y placa)",
+        "en": "The CFD predicts S07 within 1 °C (GPU, CPU and board)"
       },
       {
         "done": false,
-        "es": "Modelo de la gráfica con menos de 2 °C de error",
-        "en": "GPU model error below 2 °C"
+        "es": "Repetirlo con las medidas del 17 nov y el aire de fuera",
+        "en": "Repeat it with the 17 Nov measurements and the outside air"
       },
       {
         "done": false,
-        "es": "Modelo del procesador aprobado (< 3 °C)",
-        "en": "CPU model passes on CPU-only and combined load (< 3 °C)"
+        "es": "Acertar a ciegas una prueba nueva (S08: sin paneles con los canales)",
+        "en": "Predict a new test blind (S08: panels off with the ducts)"
       }
     ],
     "conclusions": [
@@ -3305,6 +3350,14 @@
           "lesson_tone": "ok",
           "lesson_es": "El canal de la gráfica la deja 2,1 °C más fría que en la S06 con el ventilador 1,8 puntos más lento (−3,1 °C y −3,5 puntos frente a no llevar nada). La CPU conserva lo ganado (+19 %) y todo lo de dentro (memoria, VRM, placa) baja 1–3 °C. Sus vatios bajaron solo porque Windows puso la carga en menos núcleos.",
           "lesson_en": "The GPU duct makes it 2.1 °C cooler than in S06 with its fan 1.8 points slower (−3.1 °C and −3.5 points against nothing fitted). The CPU keeps its gain (+19 %) and everything inside (RAM, VRM, board) drops 1–3 °C. Its watts fell only because Windows put the load on fewer cores."
+        },
+        {
+          "id": "S08",
+          "status": "todo",
+          "title_es": "Sin paneles + los dos canales",
+          "title_en": "Panels off + both ducts",
+          "detail_es": "Idea de César. El CFD la predice antes de medirla.",
+          "detail_en": "César's idea. The CFD predicts it before it is measured."
         }
       ],
       "metric": "cpu_WpC",
@@ -3325,7 +3378,19 @@
           "why_es": "El NF-A9x14 del disipador ya va a unas 1.940 rpm con carga y llega a 2.500. Ahora que respira aire de fuera, girar más rápido ayuda, pero ya está cerca de su tope.",
           "why_en": "The cooler’s NF-A9x14 already runs at about 1,940 rpm under load and tops out at 2,500. Now that it breathes outside air spinning faster helps, but it is near its limit.",
           "effort_es": "BIOS · 10 min · probar con ruido · no previsto",
-          "effort_en": "BIOS · 10 min · check the noise · not planned"
+          "effort_en": "BIOS · 10 min · check the noise · not planned",
+          "effect": {
+            "gpu": [
+              -0.3,
+              0
+            ],
+            "cpu": [
+              5,
+              9
+            ],
+            "basis_es": "NF-A9x14 de 1.940 a 2.200 rpm: un 13 % más de aire.",
+            "basis_en": "NF-A9x14 from 1,940 to 2,200 rpm: 13 % more air."
+          }
         },
         {
           "id": "CPU undervolt",
@@ -3337,7 +3402,19 @@
           "why_es": "El procesador siempre llega a su límite de temperatura, así que cada vatio ahorrado se convierte en rendimiento. Hay que comprobar la estabilidad.",
           "why_en": "The CPU always reaches its temperature limit, so every watt saved turns into performance. Stability has to be checked.",
           "effort_es": "BIOS · una tarde de pruebas · no previsto",
-          "effort_en": "BIOS · an afternoon of testing · not planned"
+          "effort_en": "BIOS · an afternoon of testing · not planned",
+          "effect": {
+            "gpu": [
+              0,
+              0
+            ],
+            "cpu": [
+              0,
+              0
+            ],
+            "basis_es": "No enfría: da más rendimiento al mismo límite de 87 °C.",
+            "basis_en": "No cooling: more performance at the same 87 °C limit."
+          }
         },
         {
           "id": "GPU power",
@@ -3349,7 +3426,15 @@
           "why_es": "La gráfica pone dos de cada tres vatios de la caja. Con 0,19 °C por vatio medidos, 20–30 W menos se notan más que cualquier cambio de ventiladores.",
           "why_en": "The GPU puts in two of every three watts in the case. At the measured 0.19 °C per watt, 20–30 W less beats any fan change.",
           "effort_es": "Software · 15 min · no previsto",
-          "effort_en": "Software · 15 min · not planned"
+          "effort_en": "Software · 15 min · not planned",
+          "effect": {
+            "gpu": [
+              -5.7,
+              -3.8
+            ],
+            "basis_es": "20-30 W menos × 0,19 °C/W medidos.",
+            "basis_en": "20-30 W less × the measured 0.19 °C/W."
+          }
         },
         {
           "id": "CFG-020",
@@ -3361,7 +3446,15 @@
           "why_es": "Con los canales, el calor de la gráfica se queda dentro hasta que sale por arriba y por las ranuras libres. El CFD dirá si se acumula.",
           "why_en": "With the ducts, the GPU heat stays inside until it leaves through the top and the free slots. The CFD will show whether it builds up.",
           "effort_es": "Esperar al CFD",
-          "effort_en": "Wait for the CFD"
+          "effort_en": "Wait for the CFD",
+          "effect": {
+            "gpu": [
+              -1.0,
+              0
+            ],
+            "basis_es": "La CPU y la gráfica ya cogen aire de fuera; el CFD lo afinará.",
+            "basis_en": "CPU and GPU already take outside air; the CFD will refine it."
+          }
         },
         {
           "id": "CFG-050",
@@ -3373,7 +3466,19 @@
           "why_es": "Haría “push-pull” en el canal ya sellado. Antes conviene agotar la curva del ventilador que ya está.",
           "why_en": "It would make a push-pull in the sealed duct. Worth it only after the existing fan’s curve is used up.",
           "effort_es": "Imprimir soporte + ventilador",
-          "effort_en": "Print a mount + buy a fan"
+          "effort_en": "Print a mount + buy a fan",
+          "effect": {
+            "gpu": [
+              -0.3,
+              0
+            ],
+            "cpu": [
+              5,
+              15
+            ],
+            "basis_es": "Empuja en el canal ya sellado.",
+            "basis_en": "Pushes into the already sealed duct."
+          }
         },
         {
           "id": "CFG-040",
@@ -3385,7 +3490,15 @@
           "why_es": "Su sitio lo ocupa ahora el canal, que ya lleva aire de fuera a los tres ventiladores. Sin paneles (S05) la gráfica no mejoraba: falta presión, no entrada.",
           "why_en": "The duct now takes its place and already feeds outside air to all three fans. Without panels (S05) the GPU did not improve: it is not short of inlet.",
           "effort_es": "—",
-          "effort_en": "—"
+          "effort_en": "—",
+          "effect": {
+            "gpu": [
+              -1.0,
+              0
+            ],
+            "basis_es": "Techo medido: sin paneles (S05) la gráfica bajó 1 °C.",
+            "basis_en": "Measured ceiling: with panels off (S05) the GPU dropped 1 °C."
+          }
         },
         {
           "id": "CFG-030",
@@ -3397,7 +3510,15 @@
           "why_es": "El de abajo ya mete aire y los dos grandes consumidores ya cogen el suyo de fuera por los canales.",
           "why_en": "The bottom fan already blows in and both big heat sources already draw their own air from outside through the ducts.",
           "effort_es": "—",
-          "effort_en": "—"
+          "effort_en": "—",
+          "effect": {
+            "gpu": [
+              -0.5,
+              0
+            ],
+            "basis_es": "Los dos grandes ya cogen su aire por los canales.",
+            "basis_en": "The two big parts already draw their air through the ducts."
+          }
         },
         {
           "id": "Grille",
@@ -3409,7 +3530,19 @@
           "why_es": "La S05 es el techo de todo lo que solo abre más paso; los canales ya lo superan.",
           "why_en": "S05 is the ceiling for anything that only opens more area; the ducts already beat it.",
           "effort_es": "—",
-          "effort_en": "—"
+          "effort_en": "—",
+          "effect": {
+            "gpu": [
+              -1.0,
+              0
+            ],
+            "cpu": [
+              0,
+              6
+            ],
+            "basis_es": "Techo medido: quitar los paneles (S05).",
+            "basis_en": "Measured ceiling: panels off (S05)."
+          }
         },
         {
           "id": "CFG-080",
@@ -3421,7 +3554,15 @@
           "why_es": "Los cables no están en el camino del aire de los canales. Mucho trabajo para casi nada.",
           "why_en": "The cables are not in the ducted air paths. A lot of work for almost nothing.",
           "effort_es": "—",
-          "effort_en": "—"
+          "effort_en": "—",
+          "effect": {
+            "gpu": [
+              -1.2,
+              -0.1
+            ],
+            "basis_es": "Modelo de agosto: entre 0,1 y 1,2 °C.",
+            "basis_en": "August model: 0.1 to 1.2 °C."
+          }
         },
         {
           "id": "CFG-010",
@@ -3435,7 +3576,12 @@
           "effort_es": "",
           "effort_en": ""
         }
-      ]
+      ],
+      "reference": {
+        "gpu": -3.1,
+        "es": "los canales (medido)",
+        "en": "the ducts (measured)"
+      }
     },
     "cfd_plan": {
       "goal_es": "El CFD no sustituye a las pruebas: sirve para ver por dónde va el aire dentro de la caja y probar cambios en el ordenador antes de imprimir o comprar nada. Solo nos fiaremos de él si reproduce lo que ya hemos medido.",
@@ -3478,6 +3624,13 @@
         },
         {
           "status": "next",
+          "title_es": "Aire de fuera y predicción a ciegas",
+          "title_en": "Outside air and a blind prediction",
+          "detail_es": "Simular también el aire alrededor de la caja y la mesa, y predecir la S08 (sin paneles con canales) antes de medirla.",
+          "detail_en": "Also simulate the air around the case and the desk, and predict S08 (panels off with ducts) before measuring it."
+        },
+        {
+          "status": "todo",
           "title_es": "Usarlo para decidir",
           "title_en": "Use it to decide",
           "detail_es": "Ver si el aire caliente de la gráfica se queda atrapado, y probar en virtual la extracción de arriba o un segundo ventilador antes de construir nada.",

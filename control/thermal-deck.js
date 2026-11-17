@@ -168,6 +168,21 @@
     return `<ol class="tl-lessons">${rows.map(r=>`<li class="${esc(r.lesson_tone||'info')}"><span><b>${esc(r.id)}</b><small>${esc(es?r.title_es:r.title_en)}</small></span><p>${esc(es?r.lesson_es:r.lesson_en)}</p></li>`).join('')}</ol>`;
   }
   const VERDICT={es:{try:'Merece la pena',maybe:'Quizá',skip:'No compensa',done:'Ya hecho'},en:{try:'Worth trying',maybe:'Maybe',skip:'Not worth it',done:'Already done'}};
+  // Barra de efecto esperado en la gráfica (0 a −6 °C) con la marca de lo que dieron los canales
+  function effectHtml(e,ref,es){
+    if(!e)return '';
+    const MAX=6,num=v=>Number(v).toLocaleString(es?'es-ES':'en-GB',{maximumFractionDigits:1});
+    const deg=([lo,hi])=>lo===hi?`${num(lo)} °C`:`${num(lo)} ${es?'a':'to'} ${num(hi)} °C`;
+    let bar='';
+    if(e.gpu){
+      const [lo,hi]=e.gpu,l=Math.min(100,-hi/MAX*100),w=Math.max(2.5,(hi-lo)/MAX*100);
+      const mk=ref?.gpu?`<i class="ref" style="left:${(-ref.gpu/MAX*100).toFixed(1)}%" title="${esc(es?ref.es:ref.en)}"></i>`:'';
+      bar=`<div class="tl-effect"><span>${es?'Gráfica':'GPU'} <b>${lo===0&&hi===0?(es?'sin cambio':'no change'):deg(e.gpu)}</b></span><div class="track"><i class="rng" style="left:${l.toFixed(1)}%;width:${w.toFixed(1)}%"></i>${mk}</div>${ref?.gpu?`<small>│ ${num(ref.gpu)} °C = ${esc(es?ref.es:ref.en)}</small>`:''}</div>`;
+    }
+    const cpu=e.cpu&&(e.cpu[0]||e.cpu[1])?`<span class="tl-effect-cpu">${es?'Procesador':'CPU'} <b>+${num(e.cpu[0])}–${num(e.cpu[1])} %</b> ${es?'de W/°C':'W/°C'}</span>`:'';
+    const basis=(es?e.basis_es:e.basis_en)?`<small class="tl-effect-basis">${esc(es?e.basis_es:e.basis_en)}</small>`:'';
+    return `<div class="tl-effectbox">${bar}${cpu}${basis}</div>`;
+  }
   function ideasNextHtml(x,lang='es'){
     if(!x?.items?.length)return '';
     const es=lang==='es';const V=VERDICT[es?'es':'en'];
@@ -177,6 +192,7 @@
       <header><span class="tl-verdict">${V[i.verdict]||esc(i.verdict)}</span>${i.id?`<small>${esc(i.id)}</small>`:''}</header>
       <strong>${esc(es?i.title_es:i.title_en)}</strong>
       <p class="tl-expect">${esc(es?i.expect_es:i.expect_en)}</p>
+      ${effectHtml(i.effect,x.reference,es)}
       <p>${esc(es?i.why_es:i.why_en)}</p>
       ${(es?i.effort_es:i.effort_en)?`<small class="tl-effort">${esc(es?i.effort_es:i.effort_en)}</small>`:''}
     </article>`).join('')}</div>${(es?x.note_es:x.note_en)?`<p class="tl-note">${esc(es?x.note_es:x.note_en)}</p>`:''}`;
