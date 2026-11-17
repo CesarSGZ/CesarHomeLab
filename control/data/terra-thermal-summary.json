@@ -706,7 +706,7 @@
         "certainty": "official",
         "fan": {
           "centre": [
-            100,
+            94.4,
             76.5,
             8.5
           ],
@@ -723,7 +723,7 @@
         },
         "box": {
           "min": [
-            40,
+            34.4,
             16.5,
             1
           ],
@@ -742,7 +742,7 @@
         "certainty": "official",
         "box": {
           "min": [
-            40,
+            34.4,
             16.5,
             16
           ],
@@ -756,7 +756,7 @@
           "type": "disc_grille",
           "axis": "z",
           "centre": [
-            100,
+            94.4,
             76.5,
             17.6
           ],
@@ -2042,11 +2042,6 @@
     ],
     "open_questions": [
       {
-        "what": "Posición exacta del ventilador de abajo",
-        "how": "regla, desde el frontal hasta su centro",
-        "why": "estimada en ~100 mm desde una foto en ángulo (±15 mm)"
-      },
-      {
         "what": "Curva de los ventiladores de la gráfica",
         "how": "estimada y ajustada",
         "why": "ZOTAC no la publica; curva de 90 mm típica a las 1.955 rpm medidas, validada con S04-S07"
@@ -2058,6 +2053,7 @@
       }
     ],
     "resolved": [
+      "Ventilador de abajo: centro a ~94,4 mm del frontal (César, 17 nov; medido a ojo).",
       "Ventilador del procesador: centro a 76,6 mm del suelo interior (César, 17 nov; antes calculado en 122).",
       "Columna central: centro a 85 mm del exterior del panel del procesador (César, 17 nov).",
       "Ventilador de arriba: centro a ~86 mm del frontal y ~70 mm del lado de la gráfica, por las bridas de sus esquinas (fotos del 17 nov).",

@@ -18,10 +18,12 @@ import sys
 
 from paraview.simple import (  # noqa: E402
     OpenFOAMReader, STLReader, StreamTracer, Slice, Tube, GetActiveViewOrCreate, Show, Hide, ColorBy,
-    GetColorTransferFunction, GetScalarBar, Render, SaveScreenshot, MergeBlocks, PointSource, CellDatatoPointData, Transform)
+    GetColorTransferFunction, GetScalarBar, Render, SaveScreenshot, MergeBlocks, PointSource, CellDatatoPointData, Transform, Box, Plane)
 
 case, out, stl_dir = sys.argv[1], sys.argv[2], sys.argv[3]
 video = '--video' in sys.argv
+gif = '--gif' in sys.argv
+SEEDS = int(next((a.split('=')[1] for a in sys.argv if a.startswith('--seeds=')), '1100'))
 os.makedirs(out, exist_ok=True)
 info = json.load(open(os.path.join(case, 'caseInfo.json')))
 ducts = info.get('ducts', [])
@@ -86,16 +88,26 @@ for f in manifest['files']:
     d.Specular = 0.2
     parts.append((d, role))
 
-outline = Show(mesh, view)
+EXT = info.get('ext_mm', 0) or 0
+# Contorno de la caja (en modo exterior la malla es el aire de alrededor, así que se dibuja aparte) y la mesa
+case_box = Box(XLength=0.343, YLength=0.153, ZLength=0.198, Center=[0.1715, 0.0765, 0.099])
+outline = Show(mirror(case_box) if EXT else mesh, view)
+if EXT:
+    desk = Plane(Origin=[-0.12, -0.12, -0.022], Point1=[0.463, -0.12, -0.022], Point2=[-0.12, 0.273, -0.022])
+    dd = Show(mirror(desk), view)
+    dd.ColorArrayName = ['POINTS', '']
+    dd.DiffuseColor = [0.36, 0.27, 0.18]
+    dd.AmbientColor = [0.36, 0.27, 0.18]
+    dd.Opacity = 0.55
 outline.SetRepresentationType('Outline')
 outline.AmbientColor = [0.62, 0.75, 0.6]
 outline.DiffuseColor = [0.62, 0.75, 0.6]
 outline.LineWidth = 1.5
 
-seed = PointSource(Center=[0.173, -0.0765, 0.099], Radius=0.115, NumberOfPoints=1100)
+seed = PointSource(Center=[0.173, -0.0765, 0.099], Radius=0.115, NumberOfPoints=SEEDS)
 st = StreamTracer(Input=mesh, SeedType=seed)
 st.Vectors = ['POINTS', 'U']
-st.MaximumStreamlineLength = 1.2
+st.MaximumStreamlineLength = 1.6 if EXT else 1.2
 st.IntegrationDirection = 'BOTH'
 tube = Tube(Input=st)
 tube.Radius = 0.00055
@@ -174,6 +186,17 @@ if not cortes:
             cam([C[0] + 0.66 * math.cos(a), C[1] + 0.66 * math.sin(a), 0.36], [0, 0, 1])
             SaveScreenshot(os.path.join(out, 'giro', f'{i:03d}.png'), view, ImageResolution=[1280, 780])
         sd.SetScalarBarVisibility(view, False)
+
+    if gif:
+        # vuelta suave alrededor de la caja, algo desde arriba, para montar un GIF con ffmpeg
+        color_streams('T')
+        os.makedirs(os.path.join(out, 'gif'), exist_ok=True)
+        N = 96
+        for i in range(N):
+            a = 2 * math.pi * i / N + 0.9
+            r = 0.78 if EXT else 0.66
+            cam([C[0] + r * math.cos(a), C[1] + r * math.sin(a), 0.30 + 0.06 * math.sin(a)], [0, 0, 1], 28)
+            SaveScreenshot(os.path.join(out, 'gif', f'{i:03d}.png'), view, ImageResolution=[1100, 700])
 
 else:
     # Cortes de temperatura: piezas casi transparentes para que se vea el corte
