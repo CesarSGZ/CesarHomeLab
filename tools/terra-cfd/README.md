@@ -38,3 +38,6 @@ pvbatch tools/terra-cfd/openfoam/render.py <caso> <salida> Datos\Terra\cfd-geome
   reflejada respecto a la caja real. El visor de la web lo corrige con su cambio de ejes y `render.py` hace lo mismo
   (y → −y, vectores incluidos) para que las imágenes del CFD coincidan con el PC y con el visor. La física no cambia
   con el reflejo (los ventiladores no llevan giro en el modelo), así que los resultados valen igual.
+- Aire en el visor 3D: `pvbatch tools/terra-cfd/openfoam/export_streams.py <caso> control/data/cfd/s07-streams.bin`
+  exporta ~3.000 líneas de corriente (binario compacto, coordenadas del modelo). El visor las anima con un shader
+  (pulsos a la velocidad real del aire, color por temperatura). Después de tocar `thermal-viewer.js`, recompilar el bundle.

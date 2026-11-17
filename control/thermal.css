@@ -362,3 +362,21 @@ html[data-theme=night] :is(.tl-plot-crop,.tl-curves img){filter:invert(.9) hue-r
 .tl-cfdassume b{color:var(--tl-ink);font-weight:600}
 .tl-cfdtuning li.ask{border-color:var(--tl-amber)}
 .tl-cfdtuning li.ask small{color:var(--tl-amber)}
+
+/* Aire del CFD en el visor 3D */
+.thermal-view-cfd{align-items:center;margin-top:-6px}
+.thermal-cfd-label{font:500 10px "DM Mono",monospace;letter-spacing:.12em;text-transform:uppercase;color:#52d9ff;margin-right:4px}
+.thermal-view-cfd button.active{border-color:#52d9ff!important;background:rgba(82,217,255,.12)!important;color:#eef3ec!important}
+.thermal-cfd-key{position:absolute;right:14px;bottom:14px;display:grid;gap:6px;width:min(260px,46%);padding:9px 11px;border-radius:7px;background:#0b1826e8;color:#aab9c3;font:9px "DM Mono",monospace;letter-spacing:.06em;pointer-events:none;z-index:2}
+.thermal-cfd-key[hidden]{display:none}
+.thermal-cfd-key b{color:#eef3ec;font-weight:500}
+.thermal-cfd-key i{display:block;height:7px;border-radius:4px;background:linear-gradient(90deg,#10236b,#2f6fd6 17%,#8ec5ee 34%,#e8eef2 51%,#f6a46b 68%,#d9472b 85%,#8a1020)}
+.thermal-cfd-key small{display:flex;justify-content:space-between}
+.thermal-cfd-key em{font-style:normal}
+.thermal-3d-shell:has(.thermal-cfd-key:not([hidden])) .thermal-flow-key{display:none}
+.tl-cfd-open{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:14px 0;padding:16px 18px;border:1px solid var(--tl-cool);border-radius:14px;background:color-mix(in srgb,var(--tl-cool) 8%,var(--tl-bg))}
+.tl-cfd-open p{margin:0 auto 0 0;font-size:14px;line-height:1.5;max-width:560px}
+.tl-cfd-open button{padding:10px 16px;border-radius:999px;border:1px solid var(--tl-cool);background:transparent;color:var(--tl-ink);font:500 13px "Manrope",sans-serif;cursor:pointer}
+.tl-cfd-open button.primary{background:var(--tl-cool);color:#06222c}
+.tl-cfdkpis.solo{grid-template-columns:repeat(4,minmax(0,1fr));margin:12px 0}
+@media (max-width:760px){.tl-cfdkpis.solo{grid-template-columns:1fr 1fr}}

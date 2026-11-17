@@ -1,6 +1,6 @@
 {
   "schema_version": "1.4.0",
-  "generated_at": "2026-11-16T22:00:00+00:00",
+  "generated_at": "2026-11-17T10:00:00+00:00",
   "project": {
     "id": "terra-powerplant-lab",
     "title": "Terra Powerplant Lab",
@@ -2317,7 +2317,7 @@
     }
   },
   "story": {
-    "updated": "2026-11-16",
+    "updated": "2026-11-17",
     "limits": {
       "cpu_C": 95,
       "cpu_basis": "temperatura máxima que AMD fija para el Ryzen 7 9800X3D"
@@ -2549,6 +2549,12 @@
         "kind": "model",
         "title": "CFD con malla fina: menos de 1 °C de error",
         "detail": "Con 1,25 millones de celdas, el CFD ajustado solo con la S04 predice la S07 con menos de 1 °C de error en gráfica, procesador y placa. El aire apenas cambia respecto a la malla gruesa, así que el resultado es fiable."
+      },
+      {
+        "date": "2026-11-17",
+        "kind": "page",
+        "title": "El aire del CFD, animado en el modelo 3D",
+        "detail": "En lugar de imágenes fijas, el visor 3D muestra unas 3.000 líneas de aire por caso (sin canales y con canales), coloreadas por temperatura y moviéndose a su velocidad real. Se puede girar y acercar."
       }
     ],
     "next_steps": [
@@ -3040,16 +3046,10 @@
     },
     "cfd_status": {
       "updated": "2026-11-16",
-      "version_es": "Versión 2 · malla de 2 mm (1,25 millones de celdas), flotación del aire caliente incluida, OpenFOAM v2512",
-      "version_en": "Version 2 · 2 mm mesh (1.25 million cells), buoyancy included, OpenFOAM v2512",
+      "version_es": "Versión 2 · malla de 2 mm (1,25 millones de celdas), flotación del aire caliente incluida, OpenFOAM v2512 · el aire se ve en el modelo 3D",
+      "version_en": "Version 2 · 2 mm mesh (1.25 million cells), buoyancy included, OpenFOAM v2512 · the air is shown in the 3D model",
       "summary_es": "Simula S04 (sin canales) y S07 (los dos canales) con los vatios y rpm medidos. Ajustado con una sola prueba (S04), predice la S07 con menos de 1 °C de error en gráfica, procesador y placa. Con malla de 3 mm daba lo mismo (±2 °C): el resultado no depende del tamaño de celda.",
       "summary_en": "Simulates S04 (no ducts) and S07 (both ducts) with the measured watts and fan speeds. Tuned on one test only (S04), it predicts S07 to within 1 °C on GPU, CPU and board. The 3 mm mesh gave the same (±2 °C): the result does not depend on cell size.",
-      "video": {
-        "src": "/control/assets/thermal/cfd/s07-giro.mp4",
-        "poster": "/control/assets/thermal/cfd/s07-giro.jpg",
-        "es": "S07 con los dos canales: líneas del aire coloreadas por temperatura. El aire de fuera (azul) entra por los canales y sale caliente por arriba.",
-        "en": "S07 with both ducts: air paths coloured by temperature. Outside air (blue) comes in through the ducts and leaves hot through the top."
-      },
       "kpis": [
         {
           "value": "<1 °C",
@@ -3072,84 +3072,6 @@
           "en": "air through the case with both ducts"
         }
       ],
-      "compare": {
-        "cases": [
-          {
-            "es": "Sin canales (S04)",
-            "en": "No ducts (S04)"
-          },
-          {
-            "es": "Con los dos canales (S07)",
-            "en": "Both ducts (S07)"
-          }
-        ],
-        "views": [
-          {
-            "es": "Vista general",
-            "en": "Overview",
-            "src": [
-              "/control/assets/thermal/cfd/s04-aire-iso.jpg",
-              "/control/assets/thermal/cfd/s07-aire-iso.jpg"
-            ],
-            "note_es": [
-              "Sin canales, los ventiladores mezclan aire de fuera con el caliente de dentro.",
-              "Con canales, cada ventilador coge aire de fuera (azul) y el calor sale por arriba."
-            ],
-            "note_en": [
-              "Without ducts, the fans mix outside air with the hot air inside.",
-              "With ducts, each fan takes outside air (blue) and the heat leaves through the top."
-            ]
-          },
-          {
-            "es": "Lado del procesador",
-            "en": "CPU side",
-            "src": [
-              "/control/assets/thermal/cfd/s04-aire-cpu.jpg",
-              "/control/assets/thermal/cfd/s07-aire-cpu.jpg"
-            ],
-            "note_es": [
-              "El ventilador del procesador se traga su propio aire caliente (rojo).",
-              "El canal le lleva aire de la habitación."
-            ],
-            "note_en": [
-              "The CPU fan swallows its own hot air (red).",
-              "The duct feeds it room air."
-            ]
-          },
-          {
-            "es": "Corte por el procesador",
-            "en": "Slice through the CPU",
-            "src": [
-              "/control/assets/thermal/cfd/s04-corte-cpu.jpg",
-              "/control/assets/thermal/cfd/s07-corte-cpu.jpg"
-            ],
-            "note_es": [
-              "Temperatura del aire en un corte por el ventilador del procesador.",
-              "El mismo corte con el canal puesto."
-            ],
-            "note_en": [
-              "Air temperature on a slice through the CPU fan.",
-              "Same slice with the duct fitted."
-            ]
-          },
-          {
-            "es": "Corte por la gráfica",
-            "en": "Slice through the GPU",
-            "src": [
-              "/control/assets/thermal/cfd/s04-corte-grafica.jpg",
-              "/control/assets/thermal/cfd/s07-corte-grafica.jpg"
-            ],
-            "note_es": [
-              "Corte por el ventilador central de la gráfica.",
-              "Con el canal, la gráfica solo ve aire de fuera."
-            ],
-            "note_en": [
-              "Slice through the middle GPU fan.",
-              "With the duct, the GPU only sees outside air."
-            ]
-          }
-        ]
-      },
       "flows": {
         "cases": [
           {
@@ -3326,8 +3248,8 @@
         },
         {
           "status": "done",
-          "es": "Imágenes del CFD con la misma orientación que el visor 3D y que el PC real (antes salían en espejo; los resultados no cambian).",
-          "en": "CFD images now have the same orientation as the 3D viewer and the real PC (they used to be mirrored; results are unchanged)."
+          "es": "El aire del CFD se ve en el visor 3D: unas 3.000 líneas animadas por caso, coloreadas por temperatura y moviéndose a la velocidad real del aire.",
+          "en": "The CFD air is shown in the 3D viewer: about 3,000 animated lines per case, coloured by temperature and moving at the real air speed."
         },
         {
           "status": "todo",
