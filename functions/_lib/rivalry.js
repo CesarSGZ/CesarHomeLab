@@ -7,6 +7,7 @@
 export const CESAR_COLUMNS = { FECHA: 0, EJ: 2, MUSC: 3, REPS: 5, KG: 6, NOTA: 8, ORIGEN: 9 };
 export const MARIA_COLUMNS = { FECHA: 0, EJ: 2, MUSC: 3, REPS: 5, KG: 6, NOTA: 7, ORIGEN: 8 };
 export const WALK = /^caminadora$/i, NOT_A_SET = /^nota$/i;
+const BODYWEIGHT = /dominad|fondos|pull[- ]?ups?\b|chin[- ]?ups?\b|\bdips?\b/i;
 
 export const madridToday = (now = new Date()) => new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Madrid' }).format(now);
 export const shift = (iso, days) => new Date(Date.parse(`${iso}T12:00:00Z`) + days * 864e5).toISOString().slice(0, 10);
@@ -36,6 +37,8 @@ export function summarize(rows, c, today) {
   // so an imported typo cannot invent a record.
   const byExercise = new Map();
   for (const r of lifts) {
+    // With bodyweight lifts the kilos are only the extra load: a few kilos more would look like a huge jump.
+    if (BODYWEIGHT.test(r[c.EJ])) continue;
     const value = e1rm(number(r[c.KG]), number(r[c.REPS]));
     if (!value) continue;
     const e = byExercise.get(r[c.EJ]) || { before: 0, best: null };
