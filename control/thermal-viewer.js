@@ -160,6 +160,7 @@ async function initViewer() {
   const cfdCache = {};
   const cfdTime = { value: 0 };
   const ductGroups = explodables.filter((g, i) => ['GPU_DUCT', 'CPU_DUCT'].includes(model.components[i]?.id));
+  ductGroups.forEach((g) => { g.userData.componentId = model.components[explodables.indexOf(g)].id; });
   const cfdKey = document.getElementById('thermal-cfd-key');
   let cfdCase = 'off';
   let inView = true;
@@ -191,11 +192,14 @@ async function initViewer() {
     cfdGroup.clear();
     const on = name !== 'off';
     flow.visible = !on && (document.querySelector('[data-thermal-flow]')?.getAttribute('aria-pressed') ?? 'true') !== 'false';
-    ductGroups.forEach((g) => { g.visible = name !== 's04'; });
+    // Canales montados en cada caso: S04 y S05 sin canales, S06 solo el de la CPU, el resto los dos
+    const ducts = { s04: [], s05: [], s06: ['CPU_DUCT'] }[name] ?? ['GPU_DUCT', 'CPU_DUCT'];
+    ductGroups.forEach((g) => { g.visible = !on || ducts.includes(g.userData.componentId); });
     if (cfdKey) {
       cfdKey.hidden = !on;
       const label = cfdKey.querySelector('b');
-      if (label) label.textContent = name === 's04' ? 'No ducts (S04)' : 'Both ducts (S07)';
+      const btn = document.querySelector(`.thermal-view-cfd [data-thermal-cfd="${name}"]`);
+      if (label) label.textContent = btn?.textContent || name.toUpperCase();
     }
     if (on) {
       try {
@@ -738,7 +742,7 @@ function addAirflow(flow, model) {
 }
 
 // Mapa de color del aire: 19 °C azul oscuro → 60 °C rojo (como las imágenes del CFD)
-const T_STOPS = [[19, 0x10236b], [26, 0x2f6fd6], [33, 0x8ec5ee], [40, 0xe8eef2], [47, 0xf6a46b], [54, 0xd9472b], [60, 0x8a1020]];
+const T_STOPS = [[19, 0x3b7bd8], [26, 0x5fb0f0], [33, 0xa8dcf5], [40, 0xeef2f4], [47, 0xf6a46b], [54, 0xe0482b], [60, 0xa01528]];
 function tempColor(t, out) {
   let i = 1;
   while (i < T_STOPS.length - 1 && t > T_STOPS[i][0]) i++;

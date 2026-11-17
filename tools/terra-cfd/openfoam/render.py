@@ -131,12 +131,24 @@ def bar(lut, title):
     return b
 
 
+# Escala de temperatura del aire: el frío en azul claro para que se vea sobre el fondo oscuro (igual que el visor web)
+T_STOPS = [(19, '3b7bd8'), (26, '5fb0f0'), (33, 'a8dcf5'), (40, 'eef2f4'), (47, 'f6a46b'), (54, 'e0482b'), (60, 'a01528')]
+
+
+def temp_lut(lut):
+    pts = []
+    for i, (_, hx) in enumerate(T_STOPS):
+        tv = Tamb + (60.0 - Tamb) * i / (len(T_STOPS) - 1)
+        pts += [tv] + [int(hx[k:k + 2], 16) / 255 for k in (0, 2, 4)]
+    lut.RGBPoints = pts
+    lut.ColorSpace = 'Lab'
+
+
 def color_streams(by):
     if by == 'T':
         ColorBy(sd, ('POINTS', 'T'))
         lut = GetColorTransferFunction('T')
-        lut.ApplyPreset('Cool to Warm (Extended)', True)
-        lut.RescaleTransferFunction(Tamb, 60.0)
+        temp_lut(lut)
         bar(lut, 'aire (°C)')
     else:
         ColorBy(sd, ('POINTS', 'U', 'Magnitude'))
@@ -219,8 +231,7 @@ else:
         d = Show(sl, view)
         ColorBy(d, ('POINTS', 'T'))
         tl = GetColorTransferFunction('T')
-        tl.ApplyPreset('Cool to Warm (Extended)', True)
-        tl.RescaleTransferFunction(Tamb, 60.0)
+        temp_lut(tl)
         bar(tl, 'aire (°C)')
         d.SetScalarBarVisibility(view, True)
         view.CameraPosition = pos

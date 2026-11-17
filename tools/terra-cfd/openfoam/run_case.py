@@ -42,14 +42,25 @@ def mesh(case):
     foam(case, 'createPatch', '-overwrite')
     foam(case, 'topoSet')
     shutil.copytree(case / '0', case / '0.orig', dirs_exist_ok=True)
-    foam(case, 'subsetMesh', 'fluid', '-overwrite')
-    # subsetMesh deja las caras de los sólidos quitados en un patch 'empty': en 3D tienen que ser pared
-    b = case / 'constant' / 'polyMesh' / 'boundary'
-    b.write_text(re.sub(r'(oldInternalFaces\s*\{[^}]*?type\s+)empty;(\s*inGroups\s+\w+\s*\([^)]*\);)?', r'\1wall;', b.read_text(), flags=re.S))
-    # subsetMesh reescribe los campos con ese patch como empty: se recuperan los originales (usan expresiones regulares)
-    shutil.rmtree(case / '0')
-    shutil.copytree(case / '0.orig', case / '0')
+    def subset(cellset):
+        foam(case, 'subsetMesh', cellset, '-overwrite', log=f'log.subsetMesh.{cellset}')
+        # subsetMesh deja las caras de los sólidos quitados en un patch 'empty': en 3D tienen que ser pared
+        b = case / 'constant' / 'polyMesh' / 'boundary'
+        b.write_text(re.sub(r'(oldInternalFaces\s*\{[^}]*?type\s+)empty;(\s*inGroups\s+\w+\s*\([^)]*\);)?', r'\1wall;', b.read_text(), flags=re.S))
+        # subsetMesh reescribe los campos con ese patch como empty: se recuperan los originales (usan expresiones regulares)
+        shutil.rmtree(case / '0')
+        shutil.copytree(case / '0.orig', case / '0')
+
+    subset('fluid')
     out = foam(case, 'checkMesh')
+    # Con mallas finas quedan bolsas de aire encerradas entre sólidos (sin ninguna salida): dejan la presión
+    # sin referencia y el solver se cae. Se queda solo la región de aire más grande.
+    regions = [(int(n), name) for n, name in re.findall(r'Writing region \d+ with (\d+) cells to cellSet (region\d+)', out)]
+    if len(regions) > 1:
+        keep = max(regions)[1]
+        print(f'  {len(regions) - 1} bolsas aisladas ({sum(n for n, _ in regions) - max(regions)[0]} celdas): se quitan', flush=True)
+        subset(keep)
+        out = foam(case, 'checkMesh')
     if 'Mesh OK' not in out:
         sys.exit('checkMesh no da Mesh OK')
 

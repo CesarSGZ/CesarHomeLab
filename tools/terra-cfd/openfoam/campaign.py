@@ -21,13 +21,15 @@ PV = Path(os.environ['USERPROFILE']) / 'Desktop' / 'Claude' / 'Cache' / 'CFD' / 
 FFMPEG = shutil.which('ffmpeg') or 'ffmpeg'
 
 # rpm medidas en la fase combinada; el de arriba a tope (Sistema 2 no da una lectura válida)
+# Orden por importancia: si el tiempo se acaba, lo que falta es lo menos útil
 CASES = [
-    ('S04', 'S04', ['BOTTOM_FAN=1361', 'TOP_FAN=2200'], []),
-    ('S07', 'S07', ['BOTTOM_FAN=1206', 'TOP_FAN=2200'], []),
+    ('S04', 'S04', ['BOTTOM_FAN=1361', 'TOP_FAN=2200'], []),          # ajuste
+    ('S07', 'S07', ['BOTTOM_FAN=1206', 'TOP_FAN=2200'], []),          # predicción (y vídeo del CV)
+    ('S05', 'S05', [], []),                                           # a ciegas: sin paneles (la S08 no se puede: los canales van en los paneles)
     ('S07-top-in', 'S07', ['BOTTOM_FAN=1206', 'TOP_FAN=2200'], ['TOP_FAN']),
     ('S07-bottom-out', 'S07', ['BOTTOM_FAN=1206', 'TOP_FAN=2200'], ['BOTTOM_FAN']),
     ('S07-both-flipped', 'S07', ['BOTTOM_FAN=1206', 'TOP_FAN=2200'], ['TOP_FAN', 'BOTTOM_FAN']),
-    ('S08-panels-off', 'S07', ['BOTTOM_FAN=1206', 'TOP_FAN=2200'], ['PANELS_OFF']),   # predicción a ciegas de la S08
+    ('S06', 'S06', [], []),                                           # a ciegas: solo el canal de la CPU
 ]
 
 
@@ -43,6 +45,7 @@ def main():
     ap.add_argument('--grille-k', type=float, default=0.6)
     ap.add_argument('--only', default='')
     ap.add_argument('--seeds', type=int, default=3500)
+    ap.add_argument('--loops', type=int, default=5)
     a = ap.parse_args()
     only = set(filter(None, a.only.split(',')))
     out = DATA / 'cfd-casos' / f'campana-ext-{a.cell:g}mm'
@@ -62,7 +65,7 @@ def main():
             for f in flip:
                 cmd += ['--panels-off'] if f == 'PANELS_OFF' else ['--flip', f]
             run(cmd, env=env)
-            run([sys.executable, HERE / 'run_case.py', case, '--np', '8', '--loops', '6', '--iters', '500'], env=env)
+            run([sys.executable, HERE / 'run_case.py', case, '--np', '8', '--loops', str(a.loops), '--iters', '500'], env=env)
         run([PV, HERE / 'export_streams.py', case, streams / f'{name.lower()}-streams.bin', a.seeds], env=env)
         frames = img / name
         run([PV, HERE / 'render.py', case, frames, DATA / 'cfd-geometria', '--gif', f'--seeds={a.seeds}'], env=env)
@@ -83,7 +86,8 @@ def main():
     s04 = out / f'terra-S04-{a.cell:g}mm-S04'
     s07 = out / f'terra-S07-{a.cell:g}mm-S07'
     if (s04 / 'results.json').exists() and (s07 / 'results.json').exists():
-        run([sys.executable, HERE / 'compare.py', s04, s07, '--json', out / 'compare.json'], env=env)
+        blind = [f'--blind={b}={out / f"terra-{b}-{a.cell:g}mm-{b}"}' for b in ('S05', 'S06')]
+        run([sys.executable, HERE / 'compare.py', s04, s07, *blind, '--json', out / 'compare.json'], env=env)
 
 
 if __name__ == '__main__':

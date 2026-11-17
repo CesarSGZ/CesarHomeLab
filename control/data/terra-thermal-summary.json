@@ -3002,6 +3002,12 @@
         "kind": "page",
         "title": "Plan al día y la prueba S08 propuesta",
         "detail": "La lista para el CFD se rehace con lo que importa ahora (el CFD ya acierta la S07). Cada idea muestra cuántos grados daría frente a lo que dieron los canales. Se propone la S08 (sin paneles con canales): el CFD la predice antes de medirla."
+      },
+      {
+        "date": "2026-11-17",
+        "kind": "page",
+        "title": "La S08 no se hace; la prueba a ciegas será con S05 y S06",
+        "detail": "Los canales van sujetos a los paneles, así que no se pueden quitar los paneles con los canales puestos. Para comprobar el CFD a ciegas se usan dos pruebas ya medidas que el modelo nunca vio: S05 (sin paneles) y S06 (solo canal del procesador)."
       }
     ],
     "next_steps": [
@@ -3072,19 +3078,8 @@
           "en": "CFD with the new measurements and outside air"
         },
         "detail": {
-          "es": "Seis casos (~7 h con el PC libre): S04, S07, ventilador de arriba metiendo aire, de abajo sacando, los dos al revés y la predicción de la S08.",
-          "en": "Six cases (~7 h with the PC free): S04, S07, top fan as intake, bottom fan as exhaust, both flipped and the S08 prediction."
-        }
-      },
-      {
-        "status": "todo",
-        "title": {
-          "es": "Prueba real S08: sin paneles y con los canales",
-          "en": "Real test S08: panels off with the ducts"
-        },
-        "detail": {
-          "es": "Una sesión de 71 minutos. Si el CFD la acierta sin haberla visto, el modelo queda validado a ciegas; y dice si con canales las rejillas todavía frenan.",
-          "en": "One 71-minute session. If the CFD predicts it without seeing it, the model is validated blind; it also shows whether the grilles still restrict with the ducts."
+          "es": "Siete casos (~7,5 h con el PC libre): S04 y S07 para ajustar y comprobar, S05 y S06 a ciegas, y los ventiladores de caja dados la vuelta (arriba metiendo, abajo sacando, los dos).",
+          "en": "Seven cases (~7.5 h with the PC free): S04 and S07 to fit and check, S05 and S06 blind, and the case fans reversed (top as intake, bottom as exhaust, both)."
         }
       },
       {
@@ -3132,8 +3127,8 @@
       },
       {
         "done": false,
-        "es": "Acertar a ciegas una prueba nueva (S08: sin paneles con los canales)",
-        "en": "Predict a new test blind (S08: panels off with the ducts)"
+        "es": "Acertar a ciegas pruebas que no vio: S05 (sin paneles) y S06 (solo canal CPU)",
+        "en": "Predict blind tests it never saw: S05 (panels off) and S06 (CPU duct only)"
       }
     ],
     "conclusions": [
@@ -3350,14 +3345,6 @@
           "lesson_tone": "ok",
           "lesson_es": "El canal de la gráfica la deja 2,1 °C más fría que en la S06 con el ventilador 1,8 puntos más lento (−3,1 °C y −3,5 puntos frente a no llevar nada). La CPU conserva lo ganado (+19 %) y todo lo de dentro (memoria, VRM, placa) baja 1–3 °C. Sus vatios bajaron solo porque Windows puso la carga en menos núcleos.",
           "lesson_en": "The GPU duct makes it 2.1 °C cooler than in S06 with its fan 1.8 points slower (−3.1 °C and −3.5 points against nothing fitted). The CPU keeps its gain (+19 %) and everything inside (RAM, VRM, board) drops 1–3 °C. Its watts fell only because Windows put the load on fewer cores."
-        },
-        {
-          "id": "S08",
-          "status": "todo",
-          "title_es": "Sin paneles + los dos canales",
-          "title_en": "Panels off + both ducts",
-          "detail_es": "Idea de César. El CFD la predice antes de medirla.",
-          "detail_en": "César's idea. The CFD predicts it before it is measured."
         }
       ],
       "metric": "cpu_WpC",
@@ -3626,8 +3613,8 @@
           "status": "next",
           "title_es": "Aire de fuera y predicción a ciegas",
           "title_en": "Outside air and a blind prediction",
-          "detail_es": "Simular también el aire alrededor de la caja y la mesa, y predecir la S08 (sin paneles con canales) antes de medirla.",
-          "detail_en": "Also simulate the air around the case and the desk, and predict S08 (panels off with ducts) before measuring it."
+          "detail_es": "Simular también el aire alrededor de la caja y la mesa, y predecir sin tocar nada las pruebas S05 (sin paneles) y S06 (solo canal CPU), que el modelo nunca usó.",
+          "detail_en": "Also simulate the air around the case and the desk, and predict, without retuning, tests S05 (panels off) and S06 (CPU duct only), which the model never used."
         },
         {
           "status": "todo",
@@ -3817,13 +3804,13 @@
       "tuning": [
         {
           "status": "next",
-          "es": "Campaña con las medidas del 17 nov y el aire de fuera: S04, S07, ventiladores de caja al revés y la predicción de la S08 (6 casos, ~7 h). Espera a que el PC esté libre.",
-          "en": "Campaign with the 17 Nov measurements and outside air: S04, S07, case fans reversed and the S08 prediction (6 cases, ~7 h). Waiting for the PC to be free."
+          "es": "Campaña con las medidas del 17 nov y el aire de fuera: 7 casos (~7,5 h). Espera a que el PC esté libre.",
+          "en": "Campaign with the 17 Nov measurements and outside air: 7 cases (~7.5 h). Waiting for the PC to be free."
         },
         {
           "status": "todo",
-          "es": "Prueba real S08 (sin paneles con canales) para comprobar la predicción a ciegas.",
-          "en": "Real S08 test (panels off with ducts) to check the blind prediction."
+          "es": "Comprobación a ciegas con S05 y S06 (la S08 sin paneles con canales no se puede: los canales van sujetos a los paneles).",
+          "en": "Blind check against S05 and S06 (S08, panels off with ducts, is not possible: the ducts are mounted on the panels)."
         },
         {
           "status": "todo",

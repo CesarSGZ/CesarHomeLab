@@ -264,6 +264,51 @@
     </div>`;
   }
 
+
+  // ---------- Campaña con aire de fuera: ¿acierta? y sentido de los ventiladores ----------
+  function cfdCampaignHtml(x,lang='es',parts='all'){
+    if(!x)return '';
+    const es=lang==='es';const L=o=>es?o.es:o.en;
+    const has=k=>parts==='all'||parts.includes(k);
+    const num=(v,dg=1)=>Number(v).toLocaleString(es?'es-ES':'en-GB',{minimumFractionDigits:dg,maximumFractionDigits:dg});
+    const sgn=v=>`${v>0?'+':v<0?'−':'±'}${num(Math.abs(v))}`;
+    const tone=e=>Math.abs(e)<=1.5?'ok':Math.abs(e)<=3?'warn':'bad';
+    let html='';
+    if(has('buttons')&&x.streams?.length){
+      const lab=Object.fromEntries([...(x.validation||[]),...(x.layouts||[])].map(c=>[String(c.case).toLowerCase(),L(c)]));
+      if(!lab.s04)lab.s04=es?'Sin canales (S04)':'No ducts (S04)';
+      html+=`<div class="tl-cfd-open"><p>${es?'Mira el aire de cada caso en el modelo 3D, también cómo entra desde fuera de la caja:':'See the air of each case in the 3D model, including how it enters from outside the case:'}</p>${x.streams.map((s,i)=>`<button type="button"${i===0?' class="primary"':''} data-thermal-cfd="${esc(s)}">${esc(lab[s]||s.toUpperCase())}</button>`).join('')}</div>`;
+    }
+    if(has('validation')&&x.validation?.length){
+      const card=v=>`<article class="tl-val ${tone(v.max_err_C)}">
+        <header><span class="tl-val-tag ${v.kind}">${v.kind==='blind'?(es?'A ciegas':'Blind'):(es?'Predicción':'Prediction')}</span><strong>${esc(L(v))}</strong></header>
+        <p class="tl-val-big"><b>${num(v.max_err_C)} °C</b> ${es?'de error máximo':'max error'}</p>
+        <ul>${v.rows.map(r=>`<li class="${r.id==='RAM'?'muted':tone(r.err)}"><span>${esc(L(r))}</span><span class="tl-val-bar"><i style="left:50%"></i><em style="${r.err<0?`right:50%`:`left:50%`};width:${Math.min(50,Math.abs(r.err)/4*50).toFixed(1)}%"></em></span><b>${sgn(r.err)}</b></li>`).join('')}</ul>
+      </article>`;
+      html+=`<h4 class="tl-subhead">${es?'¿Acierta? Ajustado solo con la S04':'Does it match? Fitted on S04 only'}</h4>
+        <div class="tl-vals">${x.validation.map(card).join('')}</div>
+        <p class="tl-note">${es?'Barra = error de la simulación frente a lo medido (escala ±4 °C). "A ciegas": pruebas medidas que el modelo nunca vio. La memoria va aparte: le falta el calor que se va por la placa.':'Bar = simulation error against the measurement (±4 °C scale). "Blind": measured tests the model never saw. RAM is set apart: its heat path through the board is missing.'}</p>`;
+    }
+    if(has('layouts')&&x.layouts?.length){
+      const arrow=(dir,pos)=>{const up=(pos==='top')===(dir==='out');return `<span class="tl-fan ${pos} ${dir}" title="${pos==='top'?(es?'arriba':'top'):(es?'abajo':'bottom')}: ${dir==='in'?(es?'mete':'intake'):(es?'saca':'exhaust')}">${up?'↑':'↓'}</span>`};
+      const delta=(v,lab)=>`<li class="${v<=-0.5?'ok':v>=0.5?'bad':''}"><span>${lab}</span><b>${v===0?'=':sgn(v)} °C</b></li>`;
+      const card=c=>{const base=c.case==='s07';return `<article class="tl-layout${base?' base':''}">
+        <div class="tl-case-icon">${arrow(c.top,'top')}<i></i>${arrow(c.bottom,'bottom')}</div>
+        <div><strong>${esc(L(c))}</strong>
+        ${base?`<ul class="tl-layout-d"><li><span>${es?'Gráfica':'GPU'}</span><b>${num(c.gpu)} °C</b></li><li><span>${es?'Procesador':'CPU'}</span><b>${num(c.cpu)} °C</b></li><li><span>${es?'Placa':'Board'}</span><b>${num(c.board)} °C</b></li></ul>`
+          :`<ul class="tl-layout-d">${delta(c.d_gpu,es?'Gráfica':'GPU')}${delta(c.d_cpu,es?'Procesador':'CPU')}${delta(c.d_board,es?'Placa':'Board')}</ul>`}
+        <small>${es?'Aire por la caja':'Air through the case'} ${num(c.through_m3h,0)} m³/h · ${es?'entra a la gráfica a':'GPU intake air'} ${num(c.gpu_inlet_C)} °C</small></div>
+      </article>`};
+      html+=`<h4 class="tl-subhead">${es?'¿Y si damos la vuelta a los ventiladores de caja?':'What if the case fans were reversed?'}</h4>
+        <div class="tl-layouts">${x.layouts.map(card).join('')}</div>
+        ${(es?x.layouts_note_es:x.layouts_note_en)?`<p class="tl-note">${esc(es?x.layouts_note_es:x.layouts_note_en)}</p>`:''}`;
+    }
+    if(has('findings')&&x.findings?.length){
+      html+=`<h4 class="tl-subhead">${es?'Lo que sale de la campaña':'What the campaign shows'}</h4><div class="tl-findings">${x.findings.map(f=>`<article class="${esc(f.tone||'')}"><strong>${esc(es?f.title_es:f.title_en)}</strong><p>${esc(es?f.detail_es:f.detail_en)}</p></article>`).join('')}</div>`;
+    }
+    return html?`<div class="tl-cfdcampaign">${html}</div>`:'';
+  }
+
   // ---------- Slides ----------
   function slides(m,data){
     const s=m.story;
@@ -455,6 +500,10 @@
         <p class="dk-kicker">Simulación del aire · antes y después</p>
         <h2 class="dk-h">Sin canales y con canales</h2>
         ${cfdStatusHtml(s.cfd_status,'es',['compare'],'d1')}`);
+      if(s.cfd_campaign?.validation?.length)add('cfdcampana','Campaña del CFD',`
+        <p class="dk-kicker">Simulación del aire · con el aire de fuera</p>
+        <h2 class="dk-h">¿Acierta, y qué pasa si giramos los ventiladores?</h2>
+        ${cfdCampaignHtml(s.cfd_campaign,'es',['validation','layouts'])}`);
       add('cfdcheck','¿Acierta el CFD?',`
         <p class="dk-kicker">Simulación del aire · comprobación</p>
         <h2 class="dk-h">¿Se parece a lo medido?</h2>
@@ -627,7 +676,7 @@
     fill('tl-ab-lessons',lessonsHtml(m.story.ab_tests,'en'));
     fill('tl-ideas-next',ideasNextHtml(m.story.ideas_next,'en'));
     fill('tl-cfd-plan',cfdPlanHtml(m.story.cfd_plan,'en'));
-    fill('tl-cfd-status',cfdStatusHtml(m.story.cfd_status,'en'));
+    fill('tl-cfd-status',cfdCampaignHtml(m.story.cfd_campaign,'en')+(m.story.cfd_campaign?.validation?.length?cfdStatusHtml({...m.story.cfd_status,flows:m.story.cfd_campaign.flows},'en',['intro','flows','assumptions','tuning']):cfdStatusHtml(m.story.cfd_status,'en')));
     const updated=document.getElementById('tl-deck-updated');
     if(updated)updated.textContent=`Actualizada el ${dateEs(m.updated)} · ${items.length} diapositivas · ${m.current>=0?`fase ${m.current+1} de ${m.phases.length}`:''}`;
     const nextName=document.getElementById('tl-deck-next');
