@@ -1607,22 +1607,18 @@
         "why": "calculada a 122 mm del suelo de la caja"
       },
       {
-        "what": "Qué ventilador va en la toma «Sistema 1» de la placa",
-        "how": "mirar el cable o la BIOS",
-        "why": "marca unas 1.150 rpm; el modelo supone que es el de abajo y deja el de arriba a 1.550 rpm"
-      },
-      {
         "what": "Curva de los ventiladores de la gráfica",
-        "how": "estimada",
-        "why": "ZOTAC no la publica; se usa una de 90 mm típica a las 1.955 rpm medidas y se ajusta con S04-S07"
+        "how": "estimada y ajustada",
+        "why": "ZOTAC no la publica; curva de 90 mm típica a las 1.955 rpm medidas, validada con S04-S07"
       },
       {
         "what": "Cuánto frenan cables, aletas y rejillas",
-        "how": "ajustar con las pruebas S04-S07",
-        "why": "son las zonas porosas del modelo"
+        "how": "ajustado con S04-S07",
+        "why": "rejillas al 60 % de la pérdida teórica; el CFD acierta la S07 con menos de 1 °C"
       }
     ],
     "resolved": [
+      "«Sistema 1» es el ventilador de abajo (NF-A12x15): el CFD con esa hipótesis acierta mejor las seis temperaturas medidas (16 nov).",
       "Curvas de los Noctua: fichas oficiales (NF-A9x14 PWM 2.200 rpm, 50,5 m³/h, 1,64 mmH₂O; NF-A12x15 PWM 1.850 rpm, 94,2 m³/h, 1,53 mmH₂O).",
       "Fuente SF850: ventilador Corsair NR092P; a 230 V y ~425 W gira a ~1.410 rpm con un 94,1 % de rendimiento, unos 27 W de calor (informe de Cybenetics).",
       "Lista de ideas revisada con lo medido en S04-S07 (story.ideas_next), con el ventilador de abajo metiendo aire.",
