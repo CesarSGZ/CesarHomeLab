@@ -27,7 +27,7 @@
   <link rel="stylesheet" href="backtest.css?v=20261012n">
   <link rel="stylesheet" href="/theme.css?v=20261001contrast">
   <link rel="stylesheet" href="flight-control.css?v=20261014agent">
-  <link rel="stylesheet" href="thermal.css?v=20261117d">
+  <link rel="stylesheet" href="thermal.css?v=20261117e">
   <link rel="stylesheet" href="thermal-deck.css?v=20261117d">
 </head>
 <body class="access-pending" data-workspace>
@@ -411,12 +411,11 @@
             <h4 id="tl-gate-title">Ready for CFD when…</h4>
             <ul id="tl-gate-list">
               <li class="done">Parts, fan specs and key gaps documented</li>
-              <li>Panel open area and grille pressure loss</li>
-              <li>Repeated peaks agree within ±1 °C</li>
-              <li>GPU model error below 2 °C</li>
-              <li>CPU model passes on CPU-only and combined load (&lt; 3 °C)</li>
+              <li class="done">The CFD predicts S07 within 1 °C</li>
+              <li>Repeat it with the 17 Nov measurements and the outside air</li>
+              <li>Predict a new test blind (S08)</li>
             </ul>
-            <p>CFD then answers the spatial questions: where hot air recirculates and which fan layout deserves a rebuild.</p>
+            <p>The two small heat models (one equation each) stalled at ±3 °C on the GPU and ±4.5 °C on the CPU, so they no longer gate anything: the CFD already lands within 1 °C. What is left is a blind check.</p>
           </aside>
         </div>
       </section>
@@ -458,7 +457,7 @@
   <script src="training.js?v=20261116oculto"></script>
   <script type="module" src="backtest.js?v=20261114a"></script>
   <script src="github-galaxy.js?v=20261110mapa"></script>
-  <script src="thermal-deck.js?v=20261117b"></script>
+  <script src="thermal-deck.js?v=20261117e"></script>
   <script src="control.js?v=20261117d"></script>
   <script src="servercesar.js?v=20261020wake" defer></script>
   <script src="flight-control.js?v=20261014ar" defer></script>

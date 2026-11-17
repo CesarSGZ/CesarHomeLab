@@ -27,6 +27,7 @@ CASES = [
     ('S07-top-in', 'S07', ['BOTTOM_FAN=1206', 'TOP_FAN=2200'], ['TOP_FAN']),
     ('S07-bottom-out', 'S07', ['BOTTOM_FAN=1206', 'TOP_FAN=2200'], ['BOTTOM_FAN']),
     ('S07-both-flipped', 'S07', ['BOTTOM_FAN=1206', 'TOP_FAN=2200'], ['TOP_FAN', 'BOTTOM_FAN']),
+    ('S08-panels-off', 'S07', ['BOTTOM_FAN=1206', 'TOP_FAN=2200'], ['PANELS_OFF']),   # predicción a ciegas de la S08
 ]
 
 
@@ -59,7 +60,7 @@ def main():
             for r in rpm:
                 cmd += ['--rpm', r]
             for f in flip:
-                cmd += ['--flip', f]
+                cmd += ['--panels-off'] if f == 'PANELS_OFF' else ['--flip', f]
             run(cmd, env=env)
             run([sys.executable, HERE / 'run_case.py', case, '--np', '8', '--loops', '6', '--iters', '500'], env=env)
         run([PV, HERE / 'export_streams.py', case, streams / f'{name.lower()}-streams.bin', a.seeds], env=env)

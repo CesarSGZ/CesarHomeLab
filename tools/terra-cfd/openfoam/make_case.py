@@ -86,6 +86,7 @@ def box_m(b, pad=0.0):
 EXT = 0.0          # mm de aire alrededor de la caja (0 = solo el interior)
 DESK = 22.0        # hueco medido entre el suelo de la caja y la mesa
 FLIP = set()       # ventiladores de caja dados la vuelta (TOP_FAN, BOTTOM_FAN)
+PANELS_OFF = False # sin los paneles laterales (solo con EXT): como la S05
 
 
 def build(geo, cfg_name, cell_mm, out, tag='', grille_k=1.0):
@@ -313,12 +314,16 @@ boundary
             'gpuSide': ([0, 0, 0], [Lm, c, Hm], 1, -1), 'cpuSide': ([0, Wm - c, 0], [Lm, Wm, Hm], 1, 1),
             'top': ([0, 0, Hm - c], [Lm, Wm, Hm], 2, 1), 'floor': ([0, 0, 0], [Lm, Wm, c], 2, -1),
             'rear': ([Lm - c, 0, 0], [Lm, Wm, Hm], 0, 1), 'front': ([0, 0, 0], [m(5), Wm, Hm], 0, -1)}
+        if PANELS_OFF:
+            shell.pop('gpuSide'); shell.pop('cpuSide')
+            vents = [v for v in vents if v[1] not in ('gpuSide', 'cpuSide')]
         for nm, (lo, hi, ax, sgn) in shell.items():
             cellset(f'shell_{nm}', boxsrc(lo, hi)); solids.append(f'shell_{nm}')
         # patas: los laterales bajan a la mesa en los extremos y el nogal cierra el frontal
         for i, (xa, xb) in enumerate(((0, 30), (L - 30, L))):
-            solid_box(f'legG{i}', [m(xa), 0, m(-DESK)], [m(xb), c, 0])
-            solid_box(f'legC{i}', [m(xa), Wm - c, m(-DESK)], [m(xb), Wm, 0])
+            if not PANELS_OFF:
+                solid_box(f'legG{i}', [m(xa), 0, m(-DESK)], [m(xb), c, 0])
+                solid_box(f'legC{i}', [m(xa), Wm - c, m(-DESK)], [m(xb), Wm, 0])
         solid_box('walnut', [0, 0, m(-DESK)], [c, Wm, 0])
         for name, patch, (lo, hi), phi in vents:
             lo = list(lo); hi = list(hi)
@@ -538,7 +543,7 @@ relaxationFactors
 """)
     (case / 'system' / 'decomposeParDict').write_text(header('dictionary', 'decomposeParDict') + 'numberOfSubdomains 8;\nmethod scotch;\n')
     (case / 'case.foam').write_text('')
-    info = {'ext_mm': EXT, 'flip': sorted(FLIP), 'grille_zones': grille_info, 'grille_k': grille_k, 'config': cfg_name, 'ducts': cfg['ducts'], 'rpm': cfg['rpm'], 'cell_mm': cell_mm, 'cells_block': nx * ny * nz, 'vents': vent_names,
+    info = {'panels_off': PANELS_OFF, 'ext_mm': EXT, 'flip': sorted(FLIP), 'grille_zones': grille_info, 'grille_k': grille_k, 'config': cfg_name, 'ducts': cfg['ducts'], 'rpm': cfg['rpm'], 'cell_mm': cell_mm, 'cells_block': nx * ny * nz, 'vents': vent_names,
             'zones_porous': [p[0] for p in porous], 'heat_W': dict(heat), 'solids': solids, 'solver': 'buoyantBoussinesqSimpleFoam'}
     (case / 'caseInfo.json').write_text(json.dumps(info, indent=2))
     return case, info
@@ -555,6 +560,7 @@ def main():
     ap.add_argument('--psu-f', type=float, help='freno interno de la fuente')
     ap.add_argument('--ext', type=float, default=0.0, help='mm de aire alrededor de la caja (0 = solo interior)')
     ap.add_argument('--flip', action='append', default=[], help='TOP_FAN o BOTTOM_FAN: darle la vuelta (meter ↔ sacar aire)')
+    ap.add_argument('--panels-off', action='store_true', help='sin paneles laterales (necesita --ext)')
     a = ap.parse_args()
     geo = json.loads(DATA.read_text(encoding='utf-8'))['geometry']
     if a.psu_f:
@@ -563,9 +569,10 @@ def main():
     for kv in a.rpm:
         k, v = kv.split('=')
         CONFIGS[a.config]['rpm'][k] = float(v)
-    global EXT, FLIP
+    global EXT, FLIP, PANELS_OFF
     EXT = a.ext
     FLIP = set(a.flip)
+    PANELS_OFF = a.panels_off
     case, info = build(geo, a.config, a.cell, Path(a.out), a.tag, a.grille_k)
     print(case)
     print(json.dumps(info, indent=1))
