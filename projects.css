@@ -72,3 +72,4 @@
 .project-deck{grid-template-columns:minmax(0,1fr)}
 .project-card,.project-body,.project-visual{min-width:0}
 .projects-intro,.project-plain,.project-body h3{overflow-wrap:anywhere}
+.project-visual video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#0b1317}

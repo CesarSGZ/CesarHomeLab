@@ -23,7 +23,7 @@
   <link rel="stylesheet" href="/theme.css?v=20261001contrast">
   <link rel="stylesheet" href="flight-deck.css?v=20261007c">
   <link rel="stylesheet" href="brief-player.css?v=20261015a">
-  <link rel="stylesheet" href="projects.css?v=20261116a">
+  <link rel="stylesheet" href="projects.css?v=20261117a">
 </head>
 <body>
   <div class="noise" aria-hidden="true"></div>
@@ -181,8 +181,8 @@
       <div class="project-deck">
         <article class="project-card project-thermal reveal">
           <div class="project-visual">
-            <img src="assets/projects/thermal-cfd.jpg" alt="CFD simulation of the airflow inside the PC case: streamlines coloured by air speed" width="960" height="800" loading="lazy">
-            <span class="project-tag">CFD · OpenFOAM · airflow at full load</span>
+            <video class="project-video" src="assets/projects/thermal-cfd.mp4" poster="assets/projects/thermal-cfd-poster.jpg" muted loop playsinline preload="metadata" aria-label="CFD simulation: air flowing through the PC case, coloured by temperature, blue cool to red hot"></video>
+            <span class="project-tag">CFD · OpenFOAM · air temperature at full load</span>
           </div>
           <div class="project-body">
             <p class="project-kicker"><span>Mission 01</span> Thermal Lab</p>
@@ -279,7 +279,7 @@
     </div>
   </dialog>
   <div class="contact-toast" id="contact-toast" role="status" aria-live="polite">Email copied to clipboard</div>
-  <script src="script.js?v=20261001ambient"></script>
+  <script src="script.js?v=20261117cfd"></script>
   <script type="module" src="career-dates.js?v=20260927a"></script>
   <script src="capability-atlas.js?v=20260927worlds"></script>
   <script src="assets/vendor/gsap/gsap.min.js" defer></script>

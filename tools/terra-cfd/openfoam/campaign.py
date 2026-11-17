@@ -72,6 +72,12 @@ def main():
         run([FFMPEG, '-y', '-loglevel', 'error', '-framerate', '24', '-i', frames / 'gif' / '%03d.png',
              '-vf', 'scale=1100:-2', '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-crf', '24', '-movflags', '+faststart',
              img / f'{name}.mp4'])                                    # la versión buena
+        if name == 'S07':   # vídeo de la tarjeta del CV (público, sin barra de color)
+            run([FFMPEG, '-y', '-loglevel', 'error', '-framerate', '20', '-i', frames / 'gif' / '%03d.png',
+                 '-vf', 'crop=960:660:40:20,scale=960:-2', '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-crf', '27', '-preset', 'slow',
+                 '-movflags', '+faststart', '-an', REPO / 'assets' / 'projects' / 'thermal-cfd.mp4'])
+            run([FFMPEG, '-y', '-loglevel', 'error', '-i', frames / 'gif' / '000.png', '-vf', 'crop=960:660:40:20',
+                 '-q:v', '4', REPO / 'assets' / 'projects' / 'thermal-cfd-poster.jpg'])
         print('listo', name, json.load(open(case / 'results.json'))['vents_m3h'], flush=True)
     s04 = out / f'terra-S04-{a.cell:g}mm-S04'
     s07 = out / f'terra-S07-{a.cell:g}mm-S07'
