@@ -1,6 +1,6 @@
 {
   "schema_version": "1.4.0",
-  "generated_at": "2026-11-16T19:00:00+00:00",
+  "generated_at": "2026-11-16T22:00:00+00:00",
   "project": {
     "id": "terra-powerplant-lab",
     "title": "Terra Powerplant Lab",
@@ -2543,6 +2543,12 @@
         "kind": "model",
         "title": "CFD versión 2: cuadra con lo medido",
         "detail": "Ventilador de arriba en su sitio, flotación del aire, caudales bien medidos y «Sistema 1» identificado como el ventilador de abajo. Ajustado solo con la S04, predice la S07 con unos 2 °C de error en gráfica, procesador y placa. Vídeo y comparador sin/con canales en la web."
+      },
+      {
+        "date": "2026-11-16",
+        "kind": "model",
+        "title": "CFD con malla fina: menos de 1 °C de error",
+        "detail": "Con 1,25 millones de celdas, el CFD ajustado solo con la S04 predice la S07 con menos de 1 °C de error en gráfica, procesador y placa. El aire apenas cambia respecto a la malla gruesa, así que el resultado es fiable."
       }
     ],
     "next_steps": [
@@ -2601,8 +2607,8 @@
           "en": "Run the CFD"
         },
         "detail": {
-          "es": "CFD validado con S04 y S07 (unos 2 °C de error). Siguiente: malla de 2 mm y usarlo para probar cambios sin construirlos (sección 08).",
-          "en": "CFD validated on S04 and S07 (about 2 °C error). Next: 2 mm mesh and using it to try changes without building them (section 08)."
+          "es": "CFD validado con S04 y S07 (menos de 1 °C de error con malla de 2 mm). Siguiente: usarlo para probar cambios sin construirlos (sección 08).",
+          "en": "CFD validated on S04 and S07 (under 1 °C error on the 2 mm mesh). Next: use it to try changes without building them (section 08)."
         }
       }
     ],
@@ -3020,8 +3026,8 @@
           "status": "done",
           "title_es": "Validarlo con S04 y S07",
           "title_en": "Validate it on S04 and S07",
-          "detail_es": "Hecho: ajustado con la S04, predice la S07 con unos 2 °C de error en gráfica, procesador y placa. La memoria todavía no cuadra.",
-          "detail_en": "Done: tuned on S04, it predicts S07 to about 2 °C on GPU, CPU and board. RAM does not match yet."
+          "detail_es": "Hecho: ajustado con la S04, predice la S07 con menos de 1 °C de error en gráfica, procesador y placa (malla de 2 mm). La memoria todavía no cuadra.",
+          "detail_en": "Done: tuned on S04, it predicts S07 to within 1 °C on GPU, CPU and board (2 mm mesh). RAM does not match yet."
         },
         {
           "status": "next",
@@ -3034,10 +3040,10 @@
     },
     "cfd_status": {
       "updated": "2026-11-16",
-      "version_es": "Versión 2 · malla de 3 mm, flotación del aire caliente incluida, OpenFOAM v2512",
-      "version_en": "Version 2 · 3 mm mesh, buoyancy included, OpenFOAM v2512",
-      "summary_es": "Simula S04 (sin canales) y S07 (los dos canales) con los vatios y rpm medidos. Ajustado con una sola prueba (S04), predice la S07 con un error típico de unos 2 °C en gráfica, procesador y placa.",
-      "summary_en": "Simulates S04 (no ducts) and S07 (both ducts) with the measured watts and fan speeds. Tuned on one test only (S04), it predicts S07 to about 2 °C on GPU, CPU and board.",
+      "version_es": "Versión 2 · malla de 2 mm (1,25 millones de celdas), flotación del aire caliente incluida, OpenFOAM v2512",
+      "version_en": "Version 2 · 2 mm mesh (1.25 million cells), buoyancy included, OpenFOAM v2512",
+      "summary_es": "Simula S04 (sin canales) y S07 (los dos canales) con los vatios y rpm medidos. Ajustado con una sola prueba (S04), predice la S07 con menos de 1 °C de error en gráfica, procesador y placa. Con malla de 3 mm daba lo mismo (±2 °C): el resultado no depende del tamaño de celda.",
+      "summary_en": "Simulates S04 (no ducts) and S07 (both ducts) with the measured watts and fan speeds. Tuned on one test only (S04), it predicts S07 to within 1 °C on GPU, CPU and board. The 3 mm mesh gave the same (±2 °C): the result does not depend on cell size.",
       "video": {
         "src": "/control/assets/thermal/cfd/s07-giro.mp4",
         "poster": "/control/assets/thermal/cfd/s07-giro.jpg",
@@ -3046,22 +3052,22 @@
       },
       "kpis": [
         {
-          "value": "±2 °C",
-          "es": "error típico al predecir la S07 (gráfica, procesador y placa)",
-          "en": "typical error predicting S07 (GPU, CPU and board)"
+          "value": "<1 °C",
+          "es": "error al predecir la S07 (gráfica, procesador y placa)",
+          "en": "error predicting S07 (GPU, CPU and board)"
         },
         {
-          "value": "37 → 23 °C",
+          "value": "34 → 24 °C",
           "es": "aire que llega al ventilador del procesador, sin y con canal",
           "en": "air reaching the CPU fan, without and with the duct"
         },
         {
-          "value": "24 → 19 °C",
+          "value": "25 → 19 °C",
           "es": "aire que llega a los ventiladores de la gráfica",
           "en": "air reaching the GPU fans"
         },
         {
-          "value": "≈68 m³/h",
+          "value": "≈73 m³/h",
           "es": "aire que atraviesa la caja con los dos canales",
           "en": "air through the case with both ducts"
         }
@@ -3160,40 +3166,40 @@
             "es": "Panel de la gráfica",
             "en": "GPU-side panel",
             "m3h": [
-              -35.9,
-              -41.4
+              -33.2,
+              -40.5
             ]
           },
           {
             "es": "Panel del procesador",
             "en": "CPU-side panel",
             "m3h": [
-              -16.3,
-              -21.2
+              -15.9,
+              -19.8
             ]
           },
           {
             "es": "Suelo (ventilador de abajo)",
             "en": "Floor (bottom fan)",
             "m3h": [
-              -15.6,
-              -8.7
+              -21.0,
+              -12.6
             ]
           },
           {
             "es": "Techo (ventilador de arriba y ranuras)",
             "en": "Top (top fan and slots)",
             "m3h": [
-              66.7,
-              68.0
+              69.2,
+              69.9
             ]
           },
           {
             "es": "Trasera",
             "en": "Rear",
             "m3h": [
-              1.0,
-              3.2
+              0.8,
+              3.1
             ]
           }
         ],
@@ -3205,56 +3211,56 @@
           "es": "Gráfica en la S07",
           "en": "GPU in S07",
           "meas": "75,8 °C",
-          "sim": "77,5 °C",
+          "sim": "76,6 °C",
           "ok": true
         },
         {
           "es": "Procesador en la S07 (media de núcleos)",
           "en": "CPU in S07 (core average)",
           "meas": "72,4 °C",
-          "sim": "70,1 °C",
+          "sim": "73,0 °C",
           "ok": true
         },
         {
           "es": "VRM de la placa en la S07",
           "en": "Board VRM in S07",
           "meas": "60,7 °C",
-          "sim": "59,7 °C",
+          "sim": "61,7 °C",
           "ok": true
         },
         {
           "es": "Chipset en la S07",
           "en": "Chipset in S07",
           "meas": "62,8 °C",
-          "sim": "60,8 °C",
+          "sim": "62,8 °C",
           "ok": true
         },
         {
           "es": "Sensor de la placa en la S07",
           "en": "Board sensor in S07",
           "meas": "51,3 °C",
-          "sim": "49,0 °C",
+          "sim": "51,0 °C",
           "ok": true
         },
         {
           "es": "Memoria en la S07",
           "en": "RAM in S07",
           "meas": "53,4 °C",
-          "sim": "61,5 °C",
+          "sim": "61,4 °C",
           "ok": false
         },
         {
           "es": "Ventilador de la fuente",
           "en": "PSU fan",
           "meas": "≈13,7 m³/h",
-          "sim": "14,2 m³/h",
+          "sim": "13,7 m³/h",
           "ok": true
         },
         {
           "es": "Aire que entra = aire que sale (S07)",
           "en": "Air in = air out (S07)",
           "meas": "—",
-          "sim": "71 = 71 m³/h",
+          "sim": "73 = 73 m³/h",
           "ok": true
         }
       ],
@@ -3310,13 +3316,18 @@
         },
         {
           "status": "done",
-          "es": "«Sistema 1» decidido con el CFD y pérdida de las rejillas ajustada: el error típico baja de 8 °C a unos 2 °C.",
+          "es": "«Sistema 1» decidido con el CFD y pérdida de las rejillas ajustada: el error típico baja de 8 °C a unos 2 °C (3 mm).",
           "en": "\"System 1\" settled with the CFD and grille loss tuned: typical error drops from 8 °C to about 2 °C."
         },
         {
-          "status": "next",
-          "es": "Malla de 2 mm (1,25 millones de celdas) para comprobar que el resultado no depende del tamaño de celda.",
-          "en": "2 mm mesh (1.25 million cells) to check the result does not depend on cell size."
+          "status": "done",
+          "es": "Malla de 2 mm (1,25 millones de celdas): el error baja a menos de 1 °C y el aire apenas cambia respecto a 3 mm.",
+          "en": "2 mm mesh (1.25 million cells): error drops below 1 °C and the air barely changes from 3 mm."
+        },
+        {
+          "status": "done",
+          "es": "Imágenes del CFD con la misma orientación que el visor 3D y que el PC real (antes salían en espejo; los resultados no cambian).",
+          "en": "CFD images now have the same orientation as the 3D viewer and the real PC (they used to be mirrored; results are unchanged)."
         },
         {
           "status": "todo",
