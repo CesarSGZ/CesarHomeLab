@@ -18,7 +18,7 @@ import sys
 
 from paraview.simple import (  # noqa: E402
     OpenFOAMReader, STLReader, StreamTracer, Slice, Tube, GetActiveViewOrCreate, Show, Hide, ColorBy,
-    GetColorTransferFunction, GetScalarBar, Render, SaveScreenshot, MergeBlocks, PointSource, CellDatatoPointData)
+    GetColorTransferFunction, GetScalarBar, Render, SaveScreenshot, MergeBlocks, PointSource, CellDatatoPointData, Transform)
 
 case, out, stl_dir = sys.argv[1], sys.argv[2], sys.argv[3]
 video = '--video' in sys.argv
@@ -38,6 +38,23 @@ foam.CellArrays = ['U', 'T']
 foam.UpdatePipeline(max(foam.TimestepValues) if foam.TimestepValues else 0)
 mesh = CellDatatoPointData(Input=MergeBlocks(Input=foam))
 mesh.PassCellData = 1
+
+
+def mirror(src):
+    # Las coordenadas del modelo (x frontal→trasera, y panel gráfica→panel CPU, z arriba) son una referencia
+    # reflejada respecto a la caja real; el visor de la web aplica esa reflexión y coincide con las fotos.
+    # Aquí se hace lo mismo (y → −y, también en los vectores) para que las imágenes se vean como el PC real.
+    tr = Transform(Input=src)
+    tr.Transform = 'Transform'
+    tr.Transform.Scale = [1.0, -1.0, 1.0]
+    try:
+        tr.TransformAllInputVectors = 1
+    except AttributeError:
+        pass
+    return tr
+
+
+mesh = mirror(mesh)
 
 view = GetActiveViewOrCreate('RenderView')
 W, H = 1800, 1100
@@ -60,7 +77,7 @@ for f in manifest['files']:
     path = os.path.join(stl_dir, f['file'])
     if not os.path.exists(path):
         continue
-    d = Show(STLReader(FileNames=[path]), view)
+    d = Show(mirror(STLReader(FileNames=[path])), view)
     ColorBy(d, None)
     color = HEAT.get(pid, ROLE[role])
     d.DiffuseColor = color
@@ -75,7 +92,7 @@ outline.AmbientColor = [0.62, 0.75, 0.6]
 outline.DiffuseColor = [0.62, 0.75, 0.6]
 outline.LineWidth = 1.5
 
-seed = PointSource(Center=[0.173, 0.0765, 0.099], Radius=0.115, NumberOfPoints=1100)
+seed = PointSource(Center=[0.173, -0.0765, 0.099], Radius=0.115, NumberOfPoints=1100)
 st = StreamTracer(Input=mesh, SeedType=seed)
 st.Vectors = ['POINTS', 'U']
 st.MaximumStreamlineLength = 1.2
@@ -120,12 +137,12 @@ def color_streams(by):
     sd.SetScalarBarVisibility(view, True)
 
 
-C = [0.173, 0.0765, 0.099]
+C = [0.173, -0.0765, 0.099]
 CAMS = {
-    'iso': ([0.60, -0.40, 0.40], [0, 0, 1]),
-    'grafica': ([0.173, -0.62, 0.13], [0, 0, 1]),
-    'cpu': ([0.173, 0.78, 0.13], [0, 0, 1]),
-    'arriba': ([0.173, 0.0766, 0.80], [1, 0, 0]),
+    'iso': ([0.60, 0.40, 0.40], [0, 0, 1]),
+    'grafica': ([0.173, 0.62, 0.13], [0, 0, 1]),
+    'cpu': ([0.173, -0.78, 0.13], [0, 0, 1]),
+    'arriba': ([0.173, -0.0766, 0.80], [1, 0, 0]),
 }
 
 
@@ -169,9 +186,9 @@ else:
         d.SetRepresentationType('Feature Edges')
         d.LineWidth = 2.0 if role in ('duct', 'fan') else 1.2
     for name, origin, normal, pos, up in [
-            ('grafica', [0.1818, 0.0765, 0.099], [1, 0, 0], [0.66, 0.0765, 0.099], [0, 0, 1]),
-            ('cpu', [0.2502, 0.0765, 0.099], [1, 0, 0], [0.73, 0.0765, 0.099], [0, 0, 1]),
-            ('horizontal', [0.173, 0.0765, 0.110], [0, 0, 1], [0.173, 0.0765, 0.80], [0, 1, 0])]:
+            ('grafica', [0.1818, -0.0765, 0.099], [1, 0, 0], [0.66, -0.0765, 0.099], [0, 0, 1]),
+            ('cpu', [0.2502, -0.0765, 0.099], [1, 0, 0], [0.73, -0.0765, 0.099], [0, 0, 1]),
+            ('horizontal', [0.173, -0.0765, 0.110], [0, 0, 1], [0.173, -0.0765, 0.80], [0, -1, 0])]:
         sl = Slice(Input=mesh)
         sl.SliceType = 'Plane'
         sl.SliceType.Origin = origin
@@ -186,7 +203,7 @@ else:
         view.CameraPosition = pos
         view.CameraFocalPoint = origin
         view.CameraViewUp = up
-        view.CameraViewAngle = 22
+        view.CameraViewAngle = 30
         Render(view)
         SaveScreenshot(os.path.join(out, f'corte_{name}.png'), view, ImageResolution=[W, H])
         Hide(sl, view)

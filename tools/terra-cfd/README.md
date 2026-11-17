@@ -34,3 +34,7 @@ pvbatch tools/terra-cfd/openfoam/render.py <caso> <salida> Datos\Terra\cfd-geome
   (Noctua oficial; gráfica y fuente estimadas). Rejillas, aletas, cables y memoria: zonas porosas.
 - Temperatura: escalar pasivo (scalarTransport) con el calor medido en cada pieza. Paredes adiabáticas.
 - En v2512 las fuentes `semiImplicitSource` van en `sources { U ((x y z) 0); }`; `injectionRateSuSp` se ignora sin avisar.
+- Orientación: los ejes del modelo (x frontal→trasera, y panel gráfica→panel CPU, z arriba) forman una referencia
+  reflejada respecto a la caja real. El visor de la web lo corrige con su cambio de ejes y `render.py` hace lo mismo
+  (y → −y, vectores incluidos) para que las imágenes del CFD coincidan con el PC y con el visor. La física no cambia
+  con el reflejo (los ventiladores no llevan giro en el modelo), así que los resultados valen igual.
