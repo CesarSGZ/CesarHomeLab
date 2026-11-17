@@ -91,3 +91,14 @@ test('Rivalry: bodyweight lifts never count as a beaten mark', () => {
   const rows = [['2026-10-01', 1, 'Dominadas', 'Espalda', 1, 3, 1, '', 'app', 'a'], ['2026-11-09', 1, 'Dominadas', 'Espalda', 1, 3, 5, '', 'app', 'b']];
   assert.equal(summarize(rows, MARIA_COLUMNS, '2026-11-10').records.length, 0);
 });
+test('Tonnage: what is logged per side (one leg, one arm, one dumbbell) is moved twice', async () => {
+  const { sidesOf } = await import('../functions/_lib/rivalry.js');
+  const model = await import('../control/training-model.js');
+  for (const n of ['Leg Extension · TGD · Dreamfit · Unilateral', 'Gemelos · TGD · Dreamfit · Individual', 'Lateral Raise Dumbbells', '30° Dumbbell Row', 'Remo Medio · TG · Dreamfit', 'Hip thrust a una pierna', 'Patada de glúteo en polea', 'Curl femoral de pie', 'Elevaciones laterales', 'Press militar con mancuernas', 'Búlgaras'])
+    { assert.equal(sidesOf(n), 2, n); assert.equal(model.sidesOf(n), 2, n); }
+  for (const n of ['Bench Press · Barra Olímpica 20kg', 'Tríceps Dumbbell Extension · Mancuerna · Sentado en banco', 'Peso muerto con mancuerna', 'Hip thrust', 'Remo Medio · Impulse · Vivagym Virgen de Lluc'])
+    { assert.equal(sidesOf(n), 1, n); assert.equal(model.sidesOf(n), 1, n); }
+  assert.equal(sidesOf('Tríceps Dumbbell Extension · Mancuerna · Sentado en banco · Unilateral'), 2);
+  const s = summarize([['2026-11-10', 1, 'Hip thrust a una pierna', 'Glúteos', 1, 10, 20, '', 'app', 'x']], MARIA_COLUMNS, '2026-11-10');
+  assert.equal(s.tonnage.week, 400);
+});

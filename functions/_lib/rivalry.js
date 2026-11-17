@@ -9,6 +9,10 @@ export const MARIA_COLUMNS = { FECHA: 0, EJ: 2, MUSC: 3, REPS: 5, KG: 6, NOTA: 7
 export const WALK = /^caminadora$/i, NOT_A_SET = /^nota$/i;
 const BODYWEIGHT = /dominad|fondos|pull[- ]?ups?\b|chin[- ]?ups?\b|\bdips?\b/i;
 
+// One side at a time (one leg, one arm, one dumbbell): the weight is logged per side and moved twice. The same rule as
+// sidesOf() in control/training-model.js and ladosDe() in Marialópoda.
+const PER_SIDE = /unilateral|individual|una pierna|un brazo|mancuerna|dumbbell|b[uú]lgara|step ?up|patada|femoral de pie|elevaciones laterales|zancada|^remo medio · tg\b/i, NOT_PER_SIDE = /peso muerto con mancuerna|dumbbell extension(?!.*unilateral)|goma/i;
+export const sidesOf = name => (PER_SIDE.test(String(name)) && !NOT_PER_SIDE.test(String(name)) ? 2 : 1);
 export const madridToday = (now = new Date()) => new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Madrid' }).format(now);
 export const shift = (iso, days) => new Date(Date.parse(`${iso}T12:00:00Z`) + days * 864e5).toISOString().slice(0, 10);
 export const monday = iso => shift(iso, -((new Date(`${iso}T12:00:00Z`).getUTCDay() + 6) % 7));
@@ -56,8 +60,9 @@ export function summarize(rows, c, today) {
   for (const r of lifts) {
     const kg = number(r[c.KG]) || 0, reps = number(r[c.REPS]) || 0;
     if (kg <= 0 || reps <= 0) continue;
-    tonByDay.set(r[c.FECHA], (tonByDay.get(r[c.FECHA]) || 0) + kg * reps);
-    if (r[c.FECHA] >= week) top.set(r[c.EJ], (top.get(r[c.EJ]) || 0) + kg * reps);
+    const moved = kg * reps * sidesOf(r[c.EJ]);
+    tonByDay.set(r[c.FECHA], (tonByDay.get(r[c.FECHA]) || 0) + moved);
+    if (r[c.FECHA] >= week) top.set(r[c.EJ], (top.get(r[c.EJ]) || 0) + moved);
   }
   const ton = (from, to = today) => Math.round([...tonByDay].reduce((t, [d, v]) => (d >= from && d <= to ? t + v : t), 0));
   const weekday = Math.round((Date.parse(`${today}T12:00:00Z`) - Date.parse(`${week}T12:00:00Z`)) / 864e5);
