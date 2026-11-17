@@ -781,7 +781,7 @@
 
   function paintHero(rows, first) {
     const weeks = Math.max(1, Math.round((Date.parse(today()) - Date.parse(first)) / 6048e5));
-    const tonnes = rows.reduce((t, f) => t + (model.num(f[F.KG]) || 0) * (model.num(f[F.REPS]) || 0), 0) / 1000;
+    const tonnes = rows.reduce((t, f) => t + model.movedKg(f), 0) / 1000;
     S.agoList = model.yearHighlights(model.yearReview(S.filas, today(), bw()), today());
     return `<p class="tl-hero"><b>${N0(weeks)} semanas</b> entrenando, <b>${N0(rows.length)} registros</b> y más de <b>${N0(tonnes)} toneladas</b> movidas.</p>${agoCard()}`;
   }
@@ -998,7 +998,7 @@
   window.TrainingLab = { async initialise(token) {
     csrf = token;
     try {
-      model = await import('./training-model.js?v=20261116carlitos'); F = model.F;
+      model = await import('./training-model.js?v=20261117lados'); F = model.F;
       S.queue = read('queue', []); S.plan = read('plan', null); S.measures = read('measures', {}); S.swaps = read('cambios', {});
       // Swaps used to last one day: today's carry on.
       if (S.plan?.fecha === today() && Object.keys(S.plan.cambios || {}).length) { S.swaps = { ...S.plan.cambios, ...S.swaps }; S.plan.cambios = {}; saveSwaps(); savePlan(); }

@@ -93,10 +93,14 @@ export function summary(rows, fecha) {
   const today = rows.filter(r => r[F.FECHA] === fecha && r[F.EJ] !== 'Caminadora');
   const rpes = today.map(r => num(r[F.RPE])).filter(Boolean);
   return { sets: today.length, exercises: new Set(today.map(r => r[F.EJ])).size,
-    tonnes: today.reduce((total, r) => total + (num(r[F.KG]) || 0) * (num(r[F.REPS]) || 0), 0) / 1000,
+    tonnes: tonnesOf(today),
     rpe: rpes.length ? rpes.reduce((a, b) => a + b) / rpes.length : null };
 }
-const tonnesOf = list => list.reduce((total, r) => total + (num(r[F.KG]) || 0) * (num(r[F.REPS]) || 0), 0) / 1000;
+// One side at a time (one leg, one arm, one dumbbell): logged per side, moved twice. Same rule as sidesOf() in functions/_lib/rivalry.js.
+const PER_SIDE_MOVE = /unilateral|individual|una pierna|un brazo|mancuerna|dumbbell|b[uú]lgara|step ?up|patada|femoral de pie|elevaciones laterales|zancada|^remo medio · tg\b/i, NOT_PER_SIDE_MOVE = /peso muerto con mancuerna|dumbbell extension(?!.*unilateral)|goma/i;
+export const sidesOf = name => (PER_SIDE_MOVE.test(String(name)) && !NOT_PER_SIDE_MOVE.test(String(name)) ? 2 : 1);
+export const movedKg = r => (num(r[F.KG]) || 0) * (num(r[F.REPS]) || 0) * sidesOf(r[F.EJ]);
+const tonnesOf = list => list.reduce((total, r) => total + movedKg(r), 0) / 1000;
 // App ids are "a" + Date.now() in base 36 + 5 random characters: the first and last set give the session's length.
 const loggedAt = id => (/^a[0-9a-z]{6,}$/.test(String(id)) ? parseInt(String(id).slice(1, -5), 36) : null);
 // What to celebrate at the end: records, against the last time this routine day was done, muscles worked.
@@ -523,7 +527,7 @@ export function yearReview(rows, today, bodyWeight) {
   }
   const totals = (from, to) => {
     const set = rows.filter(r => !isWalk(r) && r[F.FECHA] > from && r[F.FECHA] <= to);
-    return { days: new Set(set.map(r => r[F.FECHA])).size, sets: set.length, tonnes: set.reduce((t, r) => t + (num(r[F.KG]) || 0) * (num(r[F.REPS]) || 0), 0) / 1000 };
+    return { days: new Set(set.map(r => r[F.FECHA])).size, sets: set.length, tonnes: tonnesOf(set) };
   };
   // A muscle compares only the exercises done in both years: a new machine is not progress.
   const muscles = MUSCLES.map(({ id, name }) => {

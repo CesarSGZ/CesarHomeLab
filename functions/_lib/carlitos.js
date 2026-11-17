@@ -3,7 +3,7 @@
 // do with him (cuddles, treats, purchases, notes): everything else (how fed he is, his level, his tricks, the
 // weekly event, the surprises) is worked out again from both training logs, so both apps always see the same dog.
 // He never dies or falls ill: the worst that can happen is that he misses them.
-import { NOT_A_SET, WALK, monday, number, shift, walkKm } from './rivalry.js';
+import { NOT_A_SET, WALK, monday, number, shift, sidesOf, walkKm } from './rivalry.js';
 
 export const NAMES = { cesar: 'Cesarlópodo', maria: 'Marialópoda' };
 const WHO = ['cesar', 'maria'];
@@ -133,7 +133,7 @@ export function activity(rows, c) {
     if (WALK.test(r[c.EJ] || '')) d.km += walkKm(r, c);
     else {
       d.sets++;
-      d.kg += Math.max(0, (number(r[c.KG]) || 0) * (number(r[c.REPS]) || 0));
+      d.kg += Math.max(0, (number(r[c.KG]) || 0) * (number(r[c.REPS]) || 0) * sidesOf(r[c.EJ]));
       if (LEG.test(`${r[c.EJ]} ${r[c.MUSC] || ''}`)) d.legs = true;
     }
     days.set(fecha, d);
