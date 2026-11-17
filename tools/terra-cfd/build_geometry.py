@@ -54,7 +54,7 @@ gpu_z0 = round(GPU_FAN_Z - GPU_H / 2, 1)
 # ---- Procesador ----
 CPU_FAN_ROW = 7.12                      # fila de la rejilla del ventilador (foto)
 cpu_x = round(L - REAR_STRIP - CPU_FAN_ROW * PITCH, 1)
-cpu_z = round(H - GPU_FAN_Z + 24.0, 1)  # = 122: encaja las ranuras del panel con el ventilador
+cpu_z = 77.6                            # medido por César (17 nov): 76,6 mm del suelo interior al centro del ventilador
 CPU_DUCT_H = 20.5                       # medida
 cooler_top = W - PANEL_T - CPU_DUCT_H
 COOLER = (95.0, 47.0, 95.0)             # AXP90-X47: 95 x 95, 47 de alto con ventilador
@@ -65,7 +65,7 @@ PCB = 1.6         # placa
 STANDOFF = 6.5    # separadores mini-ITX estándar (6,35 mm)
 SPINE_T = 1.5     # chapa de la columna
 BOARD_Y0, BOARD_T = cooler_y0 - SOCKET - PCB, 8.0
-SPINE_Y0 = BOARD_Y0 - STANDOFF - SPINE_T
+SPINE_Y0 = W - 85.0 - SPINE_T / 2      # medido por César (17 nov): 85 mm del centro de la columna al exterior del panel CPU
 EDGE_R = 4.0      # radio de las aristas superiores (foto del frontal y de la trasera)
 
 
@@ -125,7 +125,7 @@ components = [
     },
     {
         "id": "RAM", "label": "Corsair Vengeance DDR5 2 × 16 GB", "role": "heat", "certainty": "official",
-        "box": box(cpu_x - COOLER[0] / 2 - 18.5, BOARD_Y0 + PCB, cpu_z - 67.5, 17, 35, 135),
+        "box": box(cpu_x - COOLER[0] / 2 - 18.5, BOARD_Y0 + PCB, 16 + (170 - 135) / 2, 17, 35, 135),
         "modules": {"count": 2, "size_mm": [7, 35, 135], "pitch_mm": 9.5},
         "basis": "Two modules of 135 × 7 × 35 mm (Corsair's official Vengeance DDR5 size), upright just in front of the cooler "
                  "(to its left seen from the board side; corrected by César on 14 Nov 2026).", "heat_W": 8,
@@ -170,16 +170,16 @@ components = [
     },
     {
         "id": "BOTTOM_FAN", "label": "Noctua NF-A12x15 PWM · bottom intake", "role": "fan", "certainty": "official",
-        "fan": fan(65, 76.5, 8.5, [0, 0, 1], 114, 15, "intake", frame=120),
-        "box": box(5, 16.5, 1, 120, 120, 15),
+        "fan": fan(100, 76.5, 8.5, [0, 0, 1], 114, 15, "intake", frame=120),
+        "box": box(40, 16.5, 1, 120, 120, 15),
         "basis": "120 × 120 × 15 mm (official), blowing in from the 20 mm gap under the case (César). Terra's only bottom fan bay is under the PSU at the front; centred across the case "
                  "because a 120 mm frame only fits there (from the purchase list and Fractal's install guide).",
     },
     {
         "id": "BOTTOM_GRILLE", "label": "120 mm wire fan guard (QMseller) over the bottom fan", "role": "porous",
         "certainty": "official",
-        "box": box(5, 16.5, 16, 120, 120, 3.2),
-        "shape": {"type": "disc_grille", "axis": "z", "centre": [65, 76.5, 17.6], "diameter": 116, "rings": 5, "wire_mm": 1.6,
+        "box": box(40, 16.5, 16, 120, 120, 3.2),
+        "shape": {"type": "disc_grille", "axis": "z", "centre": [100, 76.5, 17.6], "diameter": 116, "rings": 5, "wire_mm": 1.6,
                   "hole_spacing_mm": 105},
         "basis": "Standard 120 mm wire guard: 105 mm hole spacing, 1.6 mm wire, ~3.2 mm thick where the wires cross "
                  "(typical spec; the QMseller sheet is not published). On the inner side, so the cables cannot touch the blades.",
@@ -187,11 +187,11 @@ components = [
     },
     {
         "id": "TOP_FAN", "label": "Noctua NF-A9x14 PWM · top exhaust", "role": "fan", "certainty": "official",
-        "fan": fan(95, 50, H - PANEL_T - 7, [0, 0, 1], 88, 14, "exhaust", frame=92),
-        "box": box(49, 4, H - PANEL_T - 14, 92, 92, 14),
+        "fan": fan(86, 70, H - PANEL_T - 7, [0, 0, 1], 88, 14, "exhaust", frame=92),
+        "box": box(40, 24, H - PANEL_T - 14, 92, 92, 14),
         "basis": "92 × 92 × 14 mm, 29.7 CFM (official; model given by César). Flat against the underside of the top panel, no duct, "
                  "on the GPU side at the front (GPU-side photo, 14 Nov; corrected by César on 16 Nov): it overhangs the top of the spine. "
-                 "Centre ~95 mm from the front and ~50 mm from the GPU panel, read from that photo.",
+                 "Centre ~86 mm from the front and ~70 mm from the GPU side (almost centred, over the spine), from the cable ties at its corners in the top photos of 17 Nov.",
     },
     {
         "id": "FRONT_FRAME", "label": "Internal front frame (steel)", "role": "structure", "certainty": "photo",
@@ -222,10 +222,20 @@ components = [
     },
     {
         "id": "CABLES_BOTTOM", "label": "Cables along the floor to the rear", "role": "porous", "certainty": "photo",
-        "box": box(184, BOARD_Y0, 2, 150, W - PANEL_T - BOARD_Y0 - 2, 32),
+        "box": box(184, BOARD_Y0, 2, 150, W - PANEL_T - BOARD_Y0 - 2, 24),
         "basis": "Run along the floor on the board side. Porous volume.", "porosity": 0.6,
     },
 ]
+
+# Suelo (fotos del 17 nov): ranuras a lo largo de la caja
+FLOOR_SLOTS = []
+for k in range(11):                      # sobre el ventilador de abajo
+    yc = 24 + k * 10.5
+    FLOOR_SLOTS.append({"x": [45, 185], "y": [yc - 2.5, yc + 2.5]})
+for x0, x1 in ((226, 250), (255, 279), (288, 318)):   # columnas de ranuras cortas hacia la trasera
+    for k in range(13):
+        yc = 20 + k * 9.4
+        FLOOR_SLOTS.append({"x": [x0, x1], "y": [yc - 2.2, yc + 2.2]})
 
 panels = [
     {"id": "PANEL_GPU", "label": "GPU-side panel", "face": "y-", "certainty": "photo",
@@ -250,10 +260,11 @@ panels = [
          {"id": "GPU_BRACKET", "y": [gpu_y0, round(gpu_y0 + GPU_T, 2)], "z": [gpu_z0, round(gpu_z0 + GPU_H, 2)], "porosity": 0.3, "note": "GPU bracket vents"},
      ],
      "basis": "Recessed I/O area seen in the rear photos; open fractions estimated."},
-    {"id": "PANEL_BOTTOM", "label": "Floor", "face": "z-", "certainty": "assumed",
-     "grille": {"rows_x": TOP_ROWS_X, "slot_w": SLOT, "slot_y": [20.8, 132.4], "gap_y": {"even": [68.0, 72.5], "odd": [77.5, 83.0]}},
-     "basis": "Reviews describe the floor as fully ventilated with four small feet; drawn with the top-panel slot pattern until there is a photo of it. "
-              "The bottom fan draws air in through it from the 20 mm gap above the desk."},
+    {"id": "PANEL_BOTTOM", "label": "Floor", "face": "z-", "certainty": "photo",
+     "grille": {"slots": FLOOR_SLOTS, "slot_w": 5.0},
+     "basis": "Black steel floor plate, recessed ~2 mm (photos of 17 Nov): long slots along the case over the 120 mm fan, "
+              "then two columns and one column of short slots towards the rear. Positions read from angled photos (±10 mm). "
+              "The bottom fan draws air in through it from the ~22 mm gap above the desk (measured by César)."},
 ]
 
 # ---- Recorridos de cables (fotos del 10-14 nov). La placa va girada 180°: su borde superior
@@ -335,13 +346,15 @@ geometry = {
         "Forma real de cada cable: se modelan como volúmenes porosos.",
     ],
     "open_questions": [
-        {"what": "Suelo de la caja por fuera", "how": "una foto", "why": "las ranuras están copiadas del panel de arriba"},
-        {"what": "Chapa de la columna central", "how": "regla", "why": "calculada a 81,6 mm del panel del procesador (10,6 mm libres detrás de la gráfica)"},
-        {"what": "Altura del centro del ventilador del procesador", "how": "regla", "why": "calculada a 122 mm del suelo de la caja"},
+        {"what": "Posición exacta del ventilador de abajo", "how": "regla, desde el frontal hasta su centro", "why": "estimada en ~100 mm desde una foto en ángulo (±15 mm)"},
         {"what": "Curva de los ventiladores de la gráfica", "how": "estimada y ajustada", "why": "ZOTAC no la publica; curva de 90 mm típica a las 1.955 rpm medidas, validada con S04-S07"},
         {"what": "Cuánto frenan cables, aletas y rejillas", "how": "ajustado con S04-S07", "why": "rejillas al 60 % de la pérdida teórica; el CFD acierta la S07 con menos de 1 °C"},
     ],
     "resolved": [
+        "Ventilador del procesador: centro a 76,6 mm del suelo interior (César, 17 nov; antes calculado en 122).",
+        "Columna central: centro a 85 mm del exterior del panel del procesador (César, 17 nov).",
+        "Ventilador de arriba: centro a ~86 mm del frontal y ~70 mm del lado de la gráfica, por las bridas de sus esquinas (fotos del 17 nov).",
+        "Suelo: foto del 17 nov; hueco hasta la mesa ~22 mm (oficial: 20 mm de patas; la chapa del suelo está algo metida)."
         "«Sistema 1» es el ventilador de abajo (NF-A12x15): el CFD con esa hipótesis acierta mejor las seis temperaturas medidas (16 nov).",
         "Curvas de los Noctua: fichas oficiales (NF-A9x14 PWM 2.200 rpm, 50,5 m³/h, 1,64 mmH₂O; NF-A12x15 PWM 1.850 rpm, 94,2 m³/h, 1,53 mmH₂O).",
         "Fuente SF850: ventilador Corsair NR092P; a 230 V y ~425 W gira a ~1.410 rpm con un 94,1 % de rendimiento, unos 27 W de calor (informe de Cybenetics).",

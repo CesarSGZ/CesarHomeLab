@@ -232,6 +232,14 @@ def export(out):
                 gap = gr["gap_z"]["even" if k % 2 == 0 else "odd"]
                 for z0, z1 in ((gr["slot_z"][0], gap[0]), (gap[1], gr["slot_z"][1])):
                     add_slot(mesh, 1, y, 0, x, z0, z1, 2, gr["slot_w"])
+        elif panel["face"] in ("z+", "z-") and gr.get("slots"):
+            z = H - t if panel["face"] == "z+" else t
+            for s in gr["slots"]:
+                (x0, x1), (y0, y1) = s["x"], s["y"]
+                if x1 - x0 >= y1 - y0:
+                    add_slot(mesh, 2, z, 1, (y0 + y1) / 2, x0, x1, 0, y1 - y0)
+                else:
+                    add_slot(mesh, 2, z, 0, (x0 + x1) / 2, y0, y1, 1, x1 - x0)
         elif panel["face"] in ("z+", "z-"):
             z = H - t if panel["face"] == "z+" else t
             for k, x in enumerate(gr["rows_x"]):
