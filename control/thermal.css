@@ -115,7 +115,7 @@ html[data-theme=night] :is(.tl-plot-crop,.tl-curves img){filter:invert(.9) hue-r
 
 /* 04 Ranking */
 .tl-rank{padding:8px 18px 14px;border:1px solid var(--tl-line);border-radius:14px;background:var(--tl-bg)}
-.tl-rank-axis,.tl-rank-row summary{display:grid;grid-template-columns:minmax(170px,1.2fr) minmax(0,2fr) 120px;gap:16px;align-items:center}
+.tl-rank-axis,.tl-rank-row summary{display:grid;grid-template-columns:minmax(170px,1.2fr) minmax(0,2fr) minmax(130px,.8fr);gap:16px;align-items:center}
 .tl-rank-scale{position:relative;height:44px}
 .tl-rank-scale span{position:absolute;bottom:4px;transform:translateX(-50%);color:var(--tl-muted);font:11px "DM Mono",monospace}
 .tl-rank-scale em{position:absolute;top:6px;transform:translateX(-50%);color:var(--tl-ink);font:normal 600 11px "DM Mono",monospace;white-space:nowrap}
@@ -246,7 +246,7 @@ html[data-theme=night] :is(.tl-plot-crop,.tl-curves img){filter:invert(.9) hue-r
   .tl-machine .thermal-panel{padding:12px}
   .tl-method{grid-template-columns:1fr}
   .tl-circuit{padding:12px;overflow-x:auto}
-  .tl-circuit svg{min-width:520px}
+  .tl-circuit svg{min-width:0}
   .tl-scores,.tl-why,.tl-roadmap{grid-template-columns:1fr}
   .tl-score.old{display:flex}
   .tl-rank{padding:4px 14px 10px}
@@ -380,3 +380,15 @@ html[data-theme=night] :is(.tl-plot-crop,.tl-curves img){filter:invert(.9) hue-r
 .tl-cfd-open button.primary{background:var(--tl-cool);color:#06222c}
 .tl-cfdkpis.solo{grid-template-columns:repeat(4,minmax(0,1fr));margin:12px 0}
 @media (max-width:760px){.tl-cfdkpis.solo{grid-template-columns:1fr 1fr}}
+
+/* Textos que no se corten: columna de valores flexible y cortes de línea limpios */
+.tl-rank-value small{display:block;line-height:1.4;overflow-wrap:normal;word-break:normal}
+.tl-rank-name strong,.tl-rank-name small{overflow-wrap:anywhere}
+.tl-rank-row.skipped{opacity:.6}
+.tl-rank-row.skipped .tl-rank-name small{color:var(--tl-muted)}
+@media (max-width:640px){
+  .tl-cfdflows .bar{display:none}
+  .tl-cfdflows th,.tl-cfdflows td{padding:6px 5px}
+  .tl-cfdflows tbody th{min-width:96px}
+  .tl-cfdtuning li small{display:block;min-width:0;margin:0 0 3px}
+}
