@@ -124,7 +124,14 @@ boundary
     vents.append(('vent_cpu', 'cpuSide', ([m(xs[0]), Y1 - h, m(cp_['slot_z'][0])], [m(xs[1]), Y1 + h, m(cp_['slot_z'][1])]), phi_side))
     xt = (min(tp['rows_x']) - slot / 2, max(tp['rows_x']) + slot / 2)
     vents.append(('vent_top', 'top', ([m(xt[0]), m(tp['slot_y'][0]), Z1 - h], [m(xt[1]), m(tp['slot_y'][1]), Z1 + h]), phi_side))
-    vents.append(('vent_floor', 'floor', ([m(xt[0]), m(tp['slot_y'][0]), Z0 - h], [m(xt[1]), m(tp['slot_y'][1]), Z0 + h]), phi_side))
+    fl = panels['PANEL_BOTTOM']['grille']
+    if fl.get('slots'):
+        fx0 = min(s['x'][0] for s in fl['slots']); fx1 = max(s['x'][1] for s in fl['slots'])
+        fy0 = min(s['y'][0] for s in fl['slots']); fy1 = max(s['y'][1] for s in fl['slots'])
+        phi_floor = sum((s['x'][1] - s['x'][0]) * (s['y'][1] - s['y'][0]) for s in fl['slots']) / ((fx1 - fx0) * (fy1 - fy0))
+        vents.append(('vent_floor', 'floor', ([m(fx0), m(fy0), Z0 - h], [m(fx1), m(fy1), Z0 + h]), phi_floor))
+    else:
+        vents.append(('vent_floor', 'floor', ([m(xt[0]), m(tp['slot_y'][0]), Z0 - h], [m(xt[1]), m(tp['slot_y'][1]), Z0 + h]), phi_side))
     for o in panels['PANEL_REAR']['openings']:
         vents.append((f"vent_{o['id'].lower()}", 'rear', ([X1 - h, m(o['y'][0]), m(o['z'][0])], [X1 + h, m(o['y'][1]), m(o['z'][1])]), o['porosity']))
 

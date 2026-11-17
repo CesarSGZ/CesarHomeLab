@@ -416,6 +416,27 @@ function addCaseFrame(root, kase, group) {
   }
 }
 
+// Ranura de extremos redondos en un rectángulo (x0..x1, y0..y1), con el eje largo en la dimensión mayor
+function roundSlot(x0, x1, y0, y1) {
+  const path = new THREE.Path();
+  const horizontal = x1 - x0 >= y1 - y0;
+  const r = (horizontal ? y1 - y0 : x1 - x0) / 2;
+  if (horizontal) {
+    const yc = (y0 + y1) / 2;
+    path.moveTo(x0 + r, y0); path.lineTo(x1 - r, y0);
+    path.absarc(x1 - r, yc, r, -Math.PI / 2, Math.PI / 2, false);
+    path.lineTo(x0 + r, y1);
+    path.absarc(x0 + r, yc, r, Math.PI / 2, Math.PI * 1.5, false);
+  } else {
+    const xc = (x0 + x1) / 2;
+    path.moveTo(x1, y0 + r); path.lineTo(x1, y1 - r);
+    path.absarc(xc, y1 - r, r, 0, Math.PI, false);
+    path.lineTo(x0, y0 + r);
+    path.absarc(xc, y0 + r, r, Math.PI, Math.PI * 2, false);
+  }
+  return path;
+}
+
 function addPanel(group, panel, kase) {
   if (panel.openings) return addRear(group, panel);
   const g = panel.grille;
@@ -442,10 +463,14 @@ function addPanel(group, panel, kase) {
     const r = panel.face === 'z+' ? (kase.top_edge_radius_mm || 0) : 0;
     const shape = new THREE.Shape();
     shape.moveTo(0, r); shape.lineTo(CASE.x, r); shape.lineTo(CASE.x, CASE.y - r); shape.lineTo(0, CASE.y - r); shape.lineTo(0, r);
-    g.rows_x.forEach((x, k) => {
-      const gap = k % 2 === 0 ? g.gap_y.even : g.gap_y.odd;
-      for (const [y0, y1] of [[g.slot_y[0], gap[0]], [gap[1], g.slot_y[1]]]) shape.holes.push(slotPath(x, y0, y1, g.slot_w));
-    });
+    if (g.slots) {
+      for (const s of g.slots) shape.holes.push(roundSlot(s.x[0], s.x[1], s.y[0], s.y[1]));
+    } else {
+      g.rows_x.forEach((x, k) => {
+        const gap = k % 2 === 0 ? g.gap_y.even : g.gap_y.odd;
+        for (const [y0, y1] of [[g.slot_y[0], gap[0]], [gap[1], g.slot_y[1]]]) shape.holes.push(slotPath(x, y0, y1, g.slot_w));
+      });
+    }
     mesh = new THREE.Mesh(new THREE.ShapeGeometry(shape, 4), material);
     mesh.rotation.x = Math.PI / 2;
     mesh.position.copy(P(0, 0, panel.face === 'z+' ? CASE.z + 0.5 : -0.5));

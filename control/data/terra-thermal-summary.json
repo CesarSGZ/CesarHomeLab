@@ -1,6 +1,6 @@
 {
   "schema_version": "1.4.0",
-  "generated_at": "2026-11-17T10:00:00+00:00",
+  "generated_at": "2026-11-17T12:00:00+00:00",
   "project": {
     "id": "terra-powerplant-lab",
     "title": "Terra Powerplant Lab",
@@ -467,7 +467,7 @@
         "box": {
           "min": [
             0,
-            68.4,
+            67.25,
             0
           ],
           "size": [
@@ -476,7 +476,7 @@
             198.0
           ]
         },
-        "basis": "Derived from the CPU side: 20.5 mm duct + 47 mm cooler + 6.5 mm socket/IHS + 1.6 mm board + 6.5 mm standoffs → spine 82.1 mm from the CPU panel. On the GPU side that leaves 10.7 mm between the card and the spine, where the riser runs.",
+        "basis": "Derived from the CPU side: 20.5 mm duct + 47 mm cooler + 6.5 mm socket/IHS + 1.6 mm board + 6.5 mm standoffs → spine 83.2 mm from the CPU panel. On the GPU side that leaves 9.5 mm between the card and the spine, where the riser runs.",
         "porosity": 0.5
       },
       {
@@ -492,7 +492,7 @@
           ],
           "size": [
             78,
-            9.15,
+            8.0,
             77.0
           ]
         },
@@ -527,7 +527,7 @@
           "min": [
             184.2,
             78.0,
-            54.5
+            33.5
           ],
           "size": [
             17,
@@ -556,7 +556,7 @@
           "min": [
             202.7,
             84.5,
-            74.5
+            30.1
           ],
           "size": [
             95.0,
@@ -564,7 +564,7 @@
             95.0
           ]
         },
-        "basis": "Fan centre on grille row 7.12 and 122.0 mm above the floor (matches the slot break). 47 mm + 20.5 mm duct = 67.5 (spec: 67).",
+        "basis": "Fan centre on grille row 7.12 and 77.6 mm above the floor (matches the slot break). 47 mm + 20.5 mm duct = 67.5 (spec: 67).",
         "heat_W": 107
       },
       {
@@ -577,7 +577,7 @@
           "centre": [
             250.2,
             124.5,
-            122.0
+            77.6
           ],
           "axis": [
             0,
@@ -594,7 +594,7 @@
           "min": [
             204.2,
             117.5,
-            76.0
+            31.6
           ],
           "size": [
             92,
@@ -613,7 +613,7 @@
           "min": [
             183.8,
             131.5,
-            73.15
+            28.75
           ],
           "size": [
             119.7,
@@ -625,7 +625,7 @@
           "type": "tube",
           "axis": "y",
           "centre_x": 250.2,
-          "centre_z": 122.0,
+          "centre_z": 77.6,
           "r_in": 44.75,
           "r_out": 46.35,
           "flange_r": 48.85,
@@ -706,7 +706,7 @@
         "certainty": "official",
         "fan": {
           "centre": [
-            65,
+            100,
             76.5,
             8.5
           ],
@@ -723,7 +723,7 @@
         },
         "box": {
           "min": [
-            5,
+            40,
             16.5,
             1
           ],
@@ -742,7 +742,7 @@
         "certainty": "official",
         "box": {
           "min": [
-            5,
+            40,
             16.5,
             16
           ],
@@ -756,7 +756,7 @@
           "type": "disc_grille",
           "axis": "z",
           "centre": [
-            65,
+            100,
             76.5,
             17.6
           ],
@@ -775,8 +775,8 @@
         "certainty": "official",
         "fan": {
           "centre": [
-            95,
-            50,
+            86,
+            70,
             190.0
           ],
           "axis": [
@@ -792,8 +792,8 @@
         },
         "box": {
           "min": [
-            49,
-            4,
+            40,
+            24,
             183.0
           ],
           "size": [
@@ -802,7 +802,7 @@
             14
           ]
         },
-        "basis": "92 × 92 × 14 mm, 29.7 CFM (official; model given by César). Flat against the underside of the top panel, no duct, on the GPU side at the front (GPU-side photo, 14 Nov; corrected by César on 16 Nov): it overhangs the top of the spine. Centre ~95 mm from the front and ~50 mm from the GPU panel, read from that photo."
+        "basis": "92 × 92 × 14 mm, 29.7 CFM (official; model given by César). Flat against the underside of the top panel, no duct, on the GPU side at the front (GPU-side photo, 14 Nov; corrected by César on 16 Nov): it overhangs the top of the spine. Centre ~86 mm from the front and ~70 mm from the GPU side (almost centred, over the spine), from the cable ties at its corners in the top photos of 17 Nov."
       },
       {
         "id": "FRONT_FRAME",
@@ -916,7 +916,7 @@
           "size": [
             150,
             73.6,
-            32
+            24
           ]
         },
         "basis": "Run along the floor on the board side. Porous volume.",
@@ -1117,7 +1117,7 @@
           ],
           [
             253,
-            67.4,
+            66.25,
             195
           ],
           [
@@ -1478,63 +1478,513 @@
         "id": "PANEL_BOTTOM",
         "label": "Floor",
         "face": "z-",
-        "certainty": "assumed",
+        "certainty": "photo",
         "grille": {
-          "rows_x": [
-            28.0,
-            36.05,
-            44.1,
-            52.15,
-            60.2,
-            68.25,
-            76.3,
-            84.35,
-            92.4,
-            100.45,
-            108.5,
-            116.55,
-            124.6,
-            132.65,
-            140.7,
-            148.75,
-            156.8,
-            164.85,
-            172.9,
-            180.95,
-            189.0,
-            197.05,
-            205.1,
-            213.15,
-            221.2,
-            229.25,
-            237.3,
-            245.35,
-            253.4,
-            261.45,
-            269.5,
-            277.55,
-            285.6,
-            293.65,
-            301.7,
-            309.75
+          "slots": [
+            {
+              "x": [
+                45,
+                185
+              ],
+              "y": [
+                21.5,
+                26.5
+              ]
+            },
+            {
+              "x": [
+                45,
+                185
+              ],
+              "y": [
+                32.0,
+                37.0
+              ]
+            },
+            {
+              "x": [
+                45,
+                185
+              ],
+              "y": [
+                42.5,
+                47.5
+              ]
+            },
+            {
+              "x": [
+                45,
+                185
+              ],
+              "y": [
+                53.0,
+                58.0
+              ]
+            },
+            {
+              "x": [
+                45,
+                185
+              ],
+              "y": [
+                63.5,
+                68.5
+              ]
+            },
+            {
+              "x": [
+                45,
+                185
+              ],
+              "y": [
+                74.0,
+                79.0
+              ]
+            },
+            {
+              "x": [
+                45,
+                185
+              ],
+              "y": [
+                84.5,
+                89.5
+              ]
+            },
+            {
+              "x": [
+                45,
+                185
+              ],
+              "y": [
+                95.0,
+                100.0
+              ]
+            },
+            {
+              "x": [
+                45,
+                185
+              ],
+              "y": [
+                105.5,
+                110.5
+              ]
+            },
+            {
+              "x": [
+                45,
+                185
+              ],
+              "y": [
+                116.0,
+                121.0
+              ]
+            },
+            {
+              "x": [
+                45,
+                185
+              ],
+              "y": [
+                126.5,
+                131.5
+              ]
+            },
+            {
+              "x": [
+                226,
+                250
+              ],
+              "y": [
+                17.8,
+                22.2
+              ]
+            },
+            {
+              "x": [
+                226,
+                250
+              ],
+              "y": [
+                27.2,
+                31.599999999999998
+              ]
+            },
+            {
+              "x": [
+                226,
+                250
+              ],
+              "y": [
+                36.599999999999994,
+                41.0
+              ]
+            },
+            {
+              "x": [
+                226,
+                250
+              ],
+              "y": [
+                46.0,
+                50.400000000000006
+              ]
+            },
+            {
+              "x": [
+                226,
+                250
+              ],
+              "y": [
+                55.4,
+                59.800000000000004
+              ]
+            },
+            {
+              "x": [
+                226,
+                250
+              ],
+              "y": [
+                64.8,
+                69.2
+              ]
+            },
+            {
+              "x": [
+                226,
+                250
+              ],
+              "y": [
+                74.2,
+                78.60000000000001
+              ]
+            },
+            {
+              "x": [
+                226,
+                250
+              ],
+              "y": [
+                83.6,
+                88.0
+              ]
+            },
+            {
+              "x": [
+                226,
+                250
+              ],
+              "y": [
+                93.0,
+                97.4
+              ]
+            },
+            {
+              "x": [
+                226,
+                250
+              ],
+              "y": [
+                102.4,
+                106.80000000000001
+              ]
+            },
+            {
+              "x": [
+                226,
+                250
+              ],
+              "y": [
+                111.8,
+                116.2
+              ]
+            },
+            {
+              "x": [
+                226,
+                250
+              ],
+              "y": [
+                121.2,
+                125.60000000000001
+              ]
+            },
+            {
+              "x": [
+                226,
+                250
+              ],
+              "y": [
+                130.60000000000002,
+                135.0
+              ]
+            },
+            {
+              "x": [
+                255,
+                279
+              ],
+              "y": [
+                17.8,
+                22.2
+              ]
+            },
+            {
+              "x": [
+                255,
+                279
+              ],
+              "y": [
+                27.2,
+                31.599999999999998
+              ]
+            },
+            {
+              "x": [
+                255,
+                279
+              ],
+              "y": [
+                36.599999999999994,
+                41.0
+              ]
+            },
+            {
+              "x": [
+                255,
+                279
+              ],
+              "y": [
+                46.0,
+                50.400000000000006
+              ]
+            },
+            {
+              "x": [
+                255,
+                279
+              ],
+              "y": [
+                55.4,
+                59.800000000000004
+              ]
+            },
+            {
+              "x": [
+                255,
+                279
+              ],
+              "y": [
+                64.8,
+                69.2
+              ]
+            },
+            {
+              "x": [
+                255,
+                279
+              ],
+              "y": [
+                74.2,
+                78.60000000000001
+              ]
+            },
+            {
+              "x": [
+                255,
+                279
+              ],
+              "y": [
+                83.6,
+                88.0
+              ]
+            },
+            {
+              "x": [
+                255,
+                279
+              ],
+              "y": [
+                93.0,
+                97.4
+              ]
+            },
+            {
+              "x": [
+                255,
+                279
+              ],
+              "y": [
+                102.4,
+                106.80000000000001
+              ]
+            },
+            {
+              "x": [
+                255,
+                279
+              ],
+              "y": [
+                111.8,
+                116.2
+              ]
+            },
+            {
+              "x": [
+                255,
+                279
+              ],
+              "y": [
+                121.2,
+                125.60000000000001
+              ]
+            },
+            {
+              "x": [
+                255,
+                279
+              ],
+              "y": [
+                130.60000000000002,
+                135.0
+              ]
+            },
+            {
+              "x": [
+                288,
+                318
+              ],
+              "y": [
+                17.8,
+                22.2
+              ]
+            },
+            {
+              "x": [
+                288,
+                318
+              ],
+              "y": [
+                27.2,
+                31.599999999999998
+              ]
+            },
+            {
+              "x": [
+                288,
+                318
+              ],
+              "y": [
+                36.599999999999994,
+                41.0
+              ]
+            },
+            {
+              "x": [
+                288,
+                318
+              ],
+              "y": [
+                46.0,
+                50.400000000000006
+              ]
+            },
+            {
+              "x": [
+                288,
+                318
+              ],
+              "y": [
+                55.4,
+                59.800000000000004
+              ]
+            },
+            {
+              "x": [
+                288,
+                318
+              ],
+              "y": [
+                64.8,
+                69.2
+              ]
+            },
+            {
+              "x": [
+                288,
+                318
+              ],
+              "y": [
+                74.2,
+                78.60000000000001
+              ]
+            },
+            {
+              "x": [
+                288,
+                318
+              ],
+              "y": [
+                83.6,
+                88.0
+              ]
+            },
+            {
+              "x": [
+                288,
+                318
+              ],
+              "y": [
+                93.0,
+                97.4
+              ]
+            },
+            {
+              "x": [
+                288,
+                318
+              ],
+              "y": [
+                102.4,
+                106.80000000000001
+              ]
+            },
+            {
+              "x": [
+                288,
+                318
+              ],
+              "y": [
+                111.8,
+                116.2
+              ]
+            },
+            {
+              "x": [
+                288,
+                318
+              ],
+              "y": [
+                121.2,
+                125.60000000000001
+              ]
+            },
+            {
+              "x": [
+                288,
+                318
+              ],
+              "y": [
+                130.60000000000002,
+                135.0
+              ]
+            }
           ],
-          "slot_w": 3.5,
-          "slot_y": [
-            20.8,
-            132.4
-          ],
-          "gap_y": {
-            "even": [
-              68.0,
-              72.5
-            ],
-            "odd": [
-              77.5,
-              83.0
-            ]
-          }
+          "slot_w": 5.0
         },
-        "basis": "Reviews describe the floor as fully ventilated with four small feet; drawn with the top-panel slot pattern until there is a photo of it. The bottom fan draws air in through it from the 20 mm gap above the desk."
+        "basis": "Black steel floor plate, recessed ~2 mm (photos of 17 Nov): long slots along the case over the 120 mm fan, then two columns and one column of short slots towards the rear. Positions read from angled photos (±10 mm). The bottom fan draws air in through it from the ~22 mm gap above the desk (measured by César)."
       }
     ],
     "flow_boundaries": [
@@ -1592,19 +2042,9 @@
     ],
     "open_questions": [
       {
-        "what": "Suelo de la caja por fuera",
-        "how": "una foto",
-        "why": "las ranuras están copiadas del panel de arriba"
-      },
-      {
-        "what": "Chapa de la columna central",
-        "how": "regla",
-        "why": "calculada a 81,6 mm del panel del procesador (10,6 mm libres detrás de la gráfica)"
-      },
-      {
-        "what": "Altura del centro del ventilador del procesador",
-        "how": "regla",
-        "why": "calculada a 122 mm del suelo de la caja"
+        "what": "Posición exacta del ventilador de abajo",
+        "how": "regla, desde el frontal hasta su centro",
+        "why": "estimada en ~100 mm desde una foto en ángulo (±15 mm)"
       },
       {
         "what": "Curva de los ventiladores de la gráfica",
@@ -1618,7 +2058,10 @@
       }
     ],
     "resolved": [
-      "«Sistema 1» es el ventilador de abajo (NF-A12x15): el CFD con esa hipótesis acierta mejor las seis temperaturas medidas (16 nov).",
+      "Ventilador del procesador: centro a 76,6 mm del suelo interior (César, 17 nov; antes calculado en 122).",
+      "Columna central: centro a 85 mm del exterior del panel del procesador (César, 17 nov).",
+      "Ventilador de arriba: centro a ~86 mm del frontal y ~70 mm del lado de la gráfica, por las bridas de sus esquinas (fotos del 17 nov).",
+      "Suelo: foto del 17 nov; hueco hasta la mesa ~22 mm (oficial: 20 mm de patas; la chapa del suelo está algo metida).«Sistema 1» es el ventilador de abajo (NF-A12x15): el CFD con esa hipótesis acierta mejor las seis temperaturas medidas (16 nov).",
       "Curvas de los Noctua: fichas oficiales (NF-A9x14 PWM 2.200 rpm, 50,5 m³/h, 1,64 mmH₂O; NF-A12x15 PWM 1.850 rpm, 94,2 m³/h, 1,53 mmH₂O).",
       "Fuente SF850: ventilador Corsair NR092P; a 230 V y ~425 W gira a ~1.410 rpm con un 94,1 % de rendimiento, unos 27 W de calor (informe de Cybenetics).",
       "Lista de ideas revisada con lo medido en S04-S07 (story.ideas_next), con el ventilador de abajo metiendo aire.",
@@ -2551,6 +2994,12 @@
         "kind": "page",
         "title": "El aire del CFD, animado en el modelo 3D",
         "detail": "En lugar de imágenes fijas, el visor 3D muestra unas 3.000 líneas de aire por caso (sin canales y con canales), coloreadas por temperatura y moviéndose a su velocidad real. Se puede girar y acercar."
+      },
+      {
+        "date": "2026-11-17",
+        "kind": "parts",
+        "title": "Medidas reales: el ventilador del procesador va mucho más abajo",
+        "detail": "César midió el centro del ventilador del procesador a 76,6 mm del suelo (estaba calculado a 122) y la columna a 85 mm del panel. Con las fotos del suelo y del techo se corrigen el suelo ventilado, el ventilador de arriba (centrado sobre la columna) y el de abajo (más atrás). Hueco hasta la mesa ~22 mm."
       }
     ],
     "next_steps": [
@@ -3218,6 +3667,11 @@
       ],
       "tuning": [
         {
+          "status": "next",
+          "es": "Repetir S04 y S07 (malla de 2 mm) con las medidas del 17 nov: ventilador del procesador 44 mm más abajo, ventilador de arriba centrado sobre la columna, ventilador de abajo más atrás y suelo real. El aire que se ve en el visor y la tabla son todavía del modelo anterior.",
+          "en": "Rerun S04 and S07 (2 mm mesh) with the 17 Nov measurements: CPU fan 44 mm lower, top fan centred over the spine, bottom fan further back and the real floor. The air in the viewer and the table still come from the previous model."
+        },
+        {
           "status": "done",
           "es": "Ventilador de arriba en su sitio real: pegado al techo, delante y en el lado de la gráfica.",
           "en": "Top fan in its real place: against the top panel, at the front, on the GPU side."
@@ -3256,11 +3710,6 @@
           "status": "todo",
           "es": "Paredes que pierden calor y aire exterior alrededor de la caja.",
           "en": "Walls that lose heat and outside air around the case."
-        },
-        {
-          "status": "ask",
-          "es": "Foto del suelo de la caja por fuera, y con regla: la chapa de la columna central y el centro del ventilador del procesador.",
-          "en": "Photo of the case floor from outside, and with a ruler: the spine plate and the CPU fan centre."
         }
       ]
     }
