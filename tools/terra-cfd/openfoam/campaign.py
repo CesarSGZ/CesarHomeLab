@@ -42,14 +42,15 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--cell', type=float, default=2.5)
     ap.add_argument('--ext', type=float, default=36)
-    ap.add_argument('--grille-k', type=float, default=0.6)
+    ap.add_argument('--grille-k', type=float, default=1.0)   # pérdida de Idelchik tal cual (sin factor de ajuste)
     ap.add_argument('--only', default='')
     ap.add_argument('--seeds', type=int, default=3500)
     ap.add_argument('--loops', type=int, default=5)
     a = ap.parse_args()
     only = set(filter(None, a.only.split(',')))
-    out = DATA / 'cfd-casos' / f'campana-ext-{a.cell:g}mm'
-    img = DATA / 'cfd-imagenes' / f'campana-ext-{a.cell:g}mm'
+    sub = f'campana-ext-{a.cell:g}mm' + ('' if a.grille_k == 1.0 else f'-K{a.grille_k:g}')   # cada pérdida de rejilla en su carpeta
+    out = DATA / 'cfd-casos' / sub
+    img = DATA / 'cfd-imagenes' / sub
     streams = REPO / 'control' / 'data' / 'cfd'
     streams.mkdir(parents=True, exist_ok=True)
     env = dict(os.environ, PYTHONIOENCODING='utf8')

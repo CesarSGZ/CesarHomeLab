@@ -13,7 +13,7 @@ import os
 from datetime import date
 from pathlib import Path
 
-from compare import MEAS, LABEL, load
+from compare import MEAS, LABEL, load, predict as predict_case
 
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parents[2]
@@ -39,15 +39,8 @@ OPENING = {  # zona de rejilla → textos
 
 
 def predict(fit, case, cfg):
-    """Temperatura de cada pieza: aire simulado + constante de S04 (escalada con el caudal) × vatios medidos."""
-    out = {}
-    for k in KEYS:
-        (t4, q4), (tc, qc) = fit[k], case[k]
-        r = (MEAS['S04'][k] - t4) / MEAS['S04'].get('P_' + k, 1.0)
-        if q4 and qc:
-            r *= (qc / q4) ** -0.7
-        out[k] = round(tc + r * MEAS[cfg].get('P_' + k, 1.0), 1)
-    return out
+    """Temperatura de cada pieza con las constantes de la S04 (compare.predict, memoria con su nodo de placa)."""
+    return {k: round(v, 1) for k, v in predict_case(fit, case, cfg).items()}
 
 
 def main():
@@ -73,7 +66,7 @@ def main():
             continue
         rows = [{'id': k, 'es': LABEL_ES[k], 'en': LABEL_EN[k], 'meas': MEAS[name][k], 'pred': pred[name][k],
                  'err': round(pred[name][k] - MEAS[name][k], 1)} for k in KEYS]
-        core = [r for r in rows if r['id'] != 'RAM']   # la memoria no cuenta: falta su conducción por la placa
+        core = rows
         validation.append({'case': name, 'kind': kind, 'es': CASE[name][1], 'en': CASE[name][2], 'rows': rows,
                            'max_err_C': max(abs(r['err']) for r in core),
                            'rms_C': round((sum(r['err'] ** 2 for r in core) / len(core)) ** 0.5, 2)})
