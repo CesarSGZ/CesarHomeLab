@@ -263,6 +263,13 @@ boundary
         sign = -1 if fid in FLIP else 1   # de serie ambos empujan hacia +z (abajo mete, arriba saca); FLIP los invierte
         fans.append((zname, fid, [0, 0, sign], r, th, cfg['rpm'][fid])); fan_sets.append(zname)
 
+    # Marco de los ventiladores de 92/120 mm: chapa sólida alrededor del rotor (sin él, el aire da la vuelta
+    # por el borde en lugar de atravesar la rejilla: el de abajo cogía aire de dentro y casi nada del suelo)
+    for fid, zname in (('CPU_FAN', 'cpuFan'), ('BOTTOM_FAN', 'bottomFan'), ('TOP_FAN', 'topFan')):
+        lo, hi = box_m(comps[fid]['box'])
+        solid_box(f'{zname}Frame', lo, hi)
+        actions.append(f'    {{ name {zname}Frame; type cellSet; action subtract; source cellToCell; sets ({zname}); }}')
+
     # Sólidos sencillos y zonas porosas del resto
     for cid in ('RISER', 'SLOT_BRACKET'):
         lo, hi = box_m(comps[cid]['box']); solid_box(cid.lower(), lo, hi)
