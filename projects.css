@@ -73,3 +73,6 @@
 .project-card,.project-body,.project-visual{min-width:0}
 .projects-intro,.project-plain,.project-body h3{overflow-wrap:anywhere}
 .project-visual video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#0b1317}
+/* Thermal Lab: el vídeo del CFD es cuadrado y con rótulos; se ve entero (sin recortar) sobre su mismo fondo */
+.project-thermal .project-visual video{object-fit:contain;padding:12px 0 44px}
+@media (max-width:980px){.project-thermal .project-visual{min-height:min(92vw,440px)}}

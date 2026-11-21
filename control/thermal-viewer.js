@@ -741,8 +741,9 @@ function addAirflow(flow, model) {
   }
 }
 
-// Mapa de color del aire: 19 °C azul oscuro → 60 °C rojo (como las imágenes del CFD)
-const T_STOPS = [[19, 0x3b7bd8], [26, 0x5fb0f0], [33, 0xa8dcf5], [40, 0xeef2f4], [47, 0xf6a46b], [54, 0xe0482b], [60, 0xa01528]];
+// Mapa de color del aire: 19 °C azul → 36 °C rojo (como el vídeo del CV). El aire de la caja no pasa de ~36 °C:
+// con la escala hasta 60 todo salía azul y no se veía dónde se calienta.
+const T_STOPS = [[19, 0x3b7bd8], [22, 0x5fb0f0], [25, 0xa8dcf5], [28, 0xeef2f4], [31, 0xf6a46b], [34, 0xe0482b], [37, 0xa01528]];
 function tempColor(t, out) {
   let i = 1;
   while (i < T_STOPS.length - 1 && t > T_STOPS[i][0]) i++;
@@ -800,7 +801,7 @@ function cfdLines(buffer, time) {
       void main(){
         float w = fract((vPhase - time) / 0.45);
         float pulse = smoothstep(0.0, 0.08, w) * (1.0 - smoothstep(0.08, 0.6, w));
-        gl_FragColor = vec4(vColor * (0.8 + 0.45 * pulse), 0.2 + 0.8 * pulse);
+        gl_FragColor = vec4(vColor * (0.8 + 0.45 * pulse), 0.07 + 0.93 * pulse);   // la línea casi no se ve: manda el pulso
       }`,
     transparent: true,
     depthWrite: false,

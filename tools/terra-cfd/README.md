@@ -41,3 +41,7 @@ pvbatch tools/terra-cfd/openfoam/render.py <caso> <salida> Datos\Terra\cfd-geome
 - Aire en el visor 3D: `pvbatch tools/terra-cfd/openfoam/export_streams.py <caso> control/data/cfd/s07-streams.bin`
   exporta ~3.000 líneas de corriente (binario compacto, coordenadas del modelo). El visor las anima con un shader
   (pulsos a la velocidad real del aire, color por temperatura). Después de tocar `thermal-viewer.js`, recompilar el bundle.
+
+`openfoam/render_story.py` hace el vídeo del CV: cámara fija de frente, líneas sembradas solo en los ventiladores
+y trazos que avanzan a la velocidad real del aire (a cámara lenta), coloreados de 19 a 36 °C. `export_streams.py`
+siembra igual para el visor (700 semillas, cada línea en el sentido del aire y sin las vueltas de fuera de la caja).
