@@ -3,10 +3,26 @@
   "summary_es": "Dos modelos que se apoyan: el CFD dice qué aire respira cada pieza en cada montaje, y una red térmica pequeña dice cuánto tarda cada una en calentarse y enfriarse. Se calibran solo con la S04 (sin canales, sus tres fases) y se juzgan en lo que nunca vieron: S05, S06 y S07, con la gráfica sola, el procesador solo y los dos a la vez. Del procesador se usa la temperatura de la base del chip, que no depende de cuántos núcleos cargue Windows.",
   "summary_en": "Two models that lean on each other: the CFD says which air each part breathes in each layout, and a small thermal network says how fast each one heats up and cools down. They are calibrated on S04 only (no ducts, its three phases) and judged on what they never saw: S05, S06 and S07, with the GPU alone, the CPU alone and both at once. For the CPU the model uses the chip base temperature, which does not depend on how many cores Windows loads.",
   "kpis": [
-    {"value": "1,5 °C", "es": "error típico en 51 comparaciones a ciegas (3 pruebas × 3 fases × 6 piezas)", "en": "typical error over 51 blind comparisons (3 tests × 3 phases × 6 parts)"},
-    {"value": "78 %", "es": "de esas comparaciones dentro de ±2 °C; la peor, 3,2 °C (la gráfica)", "en": "of them within ±2 °C; the worst is 3.2 °C (the GPU)"},
-    {"value": "0,9–1,2 °C", "es": "procesador segundo a segundo, 71 min a ciegas, en los montajes con canal", "en": "CPU second by second, 71 min blind, in the ducted builds"},
-    {"value": "2,05 °C/W", "es": "lo que sube cada núcleo por cada vatio propio: igual en las siete pruebas", "en": "how much each core rises per watt of its own: the same in all seven tests"}
+    {
+      "value": "1,5 °C",
+      "es": "error típico en 51 comparaciones a ciegas (3 pruebas × 3 fases × 6 piezas)",
+      "en": "typical error over 51 blind comparisons (3 tests × 3 phases × 6 parts)"
+    },
+    {
+      "value": "78 %",
+      "es": "de esas comparaciones dentro de ±2 °C; la peor, 3,2 °C (la gráfica)",
+      "en": "of them within ±2 °C; the worst is 3.2 °C (the GPU)"
+    },
+    {
+      "value": "0,9–1,2 °C",
+      "es": "procesador segundo a segundo, 71 min a ciegas, en los montajes con canal",
+      "en": "CPU second by second, 71 min blind, in the ducted builds"
+    },
+    {
+      "value": "2,05 °C/W",
+      "es": "lo que sube cada núcleo por cada vatio propio: igual en las siete pruebas",
+      "en": "how much each core rises per watt of its own: the same in all seven tests"
+    }
   ],
   "cfd_what_es": "OpenFOAM con el aire de fuera y flotación, malla de 2,5 mm. Encima, dos constantes físicas por pieza (una fija y otra que crece con la potencia) sacadas de las tres fases de la S04. Con el canal del procesador lleva dos más, comprobadas en cruz: sacadas de la S06 predicen la S07 y al revés.",
   "cfd_what_en": "OpenFOAM with the outside air and buoyancy, 2.5 mm mesh. On top, two physical constants per part (a fixed one and one that grows with power) taken from the three phases of S04. With the CPU duct it carries two more, cross-checked: taken from S06 they predict S07 and vice versa.",
@@ -29,19 +45,104 @@
   "dyn_note_es": "Línea gruesa: medido. Discontinua: el modelo, con los vatios y rpm medidos como única entrada. Procesador = base del chip (media de cada núcleo menos 2,05 °C por vatio suyo). La S04 ajusta; S05, S06 y S07 son a ciegas.",
   "dyn_note_en": "Thick line: measured. Dashed: the model, with the measured watts and fan speeds as its only input. CPU = chip base (each core minus 2.05 °C per watt of its own, averaged). S04 fits; S05, S06 and S07 are blind.",
   "budget": [
-    {"value": "±0,5 °C", "es": "la gráfica se lee en grados enteros (nvidia-smi)", "en": "the GPU reads in whole degrees (nvidia-smi)"},
-    {"value": "±0,5 °C", "es": "la temperatura de la habitación se apuntó a mano", "en": "the room temperature was noted by hand"},
-    {"value": "~0,5 °C", "es": "repetir la misma prueba (S02 frente a S03, base del chip)", "en": "repeating the same test (S02 vs S03, chip base)"},
-    {"value": "hasta 3 °C", "es": "la media de núcleos según cuántos cargue Windows (en la S07, 4 de 8): por eso se usa la base del chip", "en": "the core average depending on how many cores Windows loads (4 of 8 in S07): hence the chip base"}
+    {
+      "value": "±0,5 °C",
+      "es": "la gráfica se lee en grados enteros (nvidia-smi)",
+      "en": "the GPU reads in whole degrees (nvidia-smi)"
+    },
+    {
+      "value": "±0,5 °C",
+      "es": "la temperatura de la habitación se apuntó a mano",
+      "en": "the room temperature was noted by hand"
+    },
+    {
+      "value": "~0,5 °C",
+      "es": "repetir la misma prueba (S02 frente a S03, base del chip)",
+      "en": "repeating the same test (S02 vs S03, chip base)"
+    },
+    {
+      "value": "hasta 3 °C",
+      "es": "la media de núcleos según cuántos cargue Windows (en la S07, 4 de 8): por eso se usa la base del chip",
+      "en": "the core average depending on how many cores Windows loads (4 of 8 in S07): hence the chip base"
+    }
   ],
   "old_models": {
-    "MDL-GPU-PHY-02": {"decision": "SUPERSEDED", "plain_en": {"title": "GPU model (Aug)", "verdict": "Replaced", "tone": "old", "why": "Predicted a GPU test it had never seen, about 3 °C off. The CFD + dynamic model now does it for every layout and both chips."}},
-    "MDL-CPU-PHY-02": {"plain_en": {"title": "CPU model (Aug)", "verdict": "Replaced", "tone": "old", "why": "Ran too hot when the GPU also heated the shared air. The single-load phases of the November tests measured exactly that air, and the new model uses it."}},
-    "MDL-SYS-MIMO-02": {"plain_en": {"title": "CPU + GPU together (Aug)", "verdict": "Replaced", "tone": "old", "why": "Both loads rose together, so it could not tell cause from effect. The November tests load each chip on its own; the new dynamic model is built on them."}}
+    "MDL-GPU-PHY-02": {
+      "decision": "SUPERSEDED",
+      "plain_en": {
+        "title": "GPU model (Aug)",
+        "verdict": "Replaced",
+        "tone": "old",
+        "why": "Predicted a GPU test it had never seen, about 3 °C off. The CFD + dynamic model now does it for every layout and both chips."
+      }
+    },
+    "MDL-CPU-PHY-02": {
+      "plain_en": {
+        "title": "CPU model (Aug)",
+        "verdict": "Replaced",
+        "tone": "old",
+        "why": "Ran too hot when the GPU also heated the shared air. The single-load phases of the November tests measured exactly that air, and the new model uses it."
+      }
+    },
+    "MDL-SYS-MIMO-02": {
+      "plain_en": {
+        "title": "CPU + GPU together (Aug)",
+        "verdict": "Replaced",
+        "tone": "old",
+        "why": "Both loads rose together, so it could not tell cause from effect. The November tests load each chip on its own; the new dynamic model is built on them."
+      }
+    }
   },
-  "whatif_notes": {},
-  "reco_es": "",
-  "reco_en": "",
-  "whatif_note_es": "",
-  "whatif_note_en": ""
+  "whatif_notes": {
+    "top-in": {
+      "note_es": "Entra aire frío por arriba y la memoria baja 2,3 °C, pero ese aire empuja contra lo que expulsa la gráfica: su ventilador mueve un 6 % menos y ella sube 1,3 °C. El aire que cruza la caja cae de 50 a 19 m³/h.",
+      "note_en": "Cold air comes in at the top and the RAM drops 2.3 °C, but it pushes against the GPU exhaust: its fan moves 6 % less air and the GPU rises 1.3 °C. Air through the case falls from 50 to 19 m³/h."
+    },
+    "bottom-out": {
+      "note_es": "La gráfica gana medio grado, pero la placa (+0,9) y la memoria (+1,5) pierden: el de abajo es el que les trae aire fresco.",
+      "note_en": "The GPU gains half a degree, but the board (+0.9) and RAM (+1.5) lose: the bottom fan is the one feeding them fresh air."
+    },
+    "both-flipped": {
+      "note_es": "Los dos efectos se compensan: nada cambia más de 1 °C.",
+      "note_en": "The two effects cancel out: nothing moves by more than 1 °C."
+    },
+    "bottom-max": {
+      "note_es": "Más vueltas abajo no dan nada: la gráfica respira por su canal y la placa solo baja 0,3 °C.",
+      "note_en": "More speed at the bottom gives nothing: the GPU breathes through its duct and the board only drops 0.3 °C."
+    },
+    "bottom-slow": {
+      "note_es": "A 800 rpm ese ventilador suena unos 9 dB menos, pero la memoria sube 0,8 °C.",
+      "note_en": "At 800 rpm that fan is about 9 dB quieter, but the RAM rises 0.8 °C.",
+      "quieter": true
+    },
+    "top-slow": {
+      "note_es": "De 2.200 a 1.500 rpm: ninguna pieza sube más de 0,2 °C y ese ventilador suena unos 8 dB menos.",
+      "note_en": "From 2,200 to 1,500 rpm: no part rises more than 0.2 °C and that fan is about 8 dB quieter.",
+      "quieter": true
+    },
+    "bottom-off": {
+      "note_es": "Sin él, placa +0,9 °C y memoria +1,5 °C: es el único que les trae aire de fuera.",
+      "note_en": "Without it, board +0.9 °C and RAM +1.5 °C: it is the only fan bringing them outside air."
+    },
+    "bottom-out-max": {
+      "note_es": "Cruza mucho más aire (84 m³/h), pero ya ha pasado por la placa antes de llegar a la memoria: +1,4 °C.",
+      "note_en": "Much more air crosses the case (84 m³/h), but it has already passed the board before reaching the RAM: +1.4 °C."
+    },
+    "cpu-fan-max": {
+      "note_es": "Su ventilador de ~1.900 a 2.200 rpm (su máximo): 15 % más de aire, procesador −1,8 °C y la placa también, porque ese aire de fuera acaba sobre ella. Unos 3 dB más de ruido.",
+      "note_en": "Its fan from ~1,900 to 2,200 rpm (its maximum): 15 % more air, CPU −1.8 °C and the board too, because that outside air ends up over it. About 3 dB louder."
+    },
+    "cpu-push-pull": {
+      "note_es": "Otro NF-A9x14 tirando del disipador, a las mismas vueltas: el doble de presión, 22 % más de aire y −2,6 °C. Lo mejor para el procesador, si cabe en el canal.",
+      "note_en": "Another NF-A9x14 pulling through the cooler at the same speed: twice the pressure, 22 % more air and −2.6 °C. The best option for the CPU, if it fits in the duct."
+    },
+    "gpu-280w": {
+      "note_es": "20 W menos (−7 %): la gráfica baja 2,1 °C y su ventilador 80 rpm. El rendimiento que se pierde no está medido aquí.",
+      "note_en": "20 W less (−7 %): the GPU drops 2.1 °C and its fan 80 rpm. The performance cost is not measured here."
+    }
+  },
+  "reco_es": "Con los dos canales, la gráfica y el procesador ya respiran aire de fuera (19 °C a su entrada en todos los escenarios), así que los ventiladores de la caja solo cuidan la placa y la memoria. Dar la vuelta a alguno no compensa: lo que gana una pieza lo pierde otra. Lo que sí merece la pena: 1) bajar el de arriba a unos 1.500 rpm: mismo calor y menos ruido; 2) dejar el de abajo como está, metiendo aire: es el que enfría memoria y placa; 3) si se quiere enfriar el procesador, un segundo NF-A9x14 en su canal (−2,6 °C) o el suyo al máximo (−1,8 °C, más ruido).",
+  "reco_en": "With both ducts, the GPU and CPU already breathe outside air (19 °C at their inlet in every scenario), so the case fans only look after the board and RAM. Reversing any of them does not pay: what one part gains another loses. What is worth it: 1) slow the top fan to about 1,500 rpm: same heat, less noise; 2) leave the bottom fan as it is, as intake: it cools the RAM and board; 3) to cool the CPU, a second NF-A9x14 in its duct (−2.6 °C) or its own fan at full speed (−1.8 °C, louder).",
+  "whatif_note_es": "Todo sobre el montaje de hoy (S07, los dos canales), con la gráfica a 300 W y el procesador a 91,6 W. Cada tarjeta es un CFD completo; las temperaturas salen del modelo calibrado con la S04 y el ventilador de la gráfica busca solo su punto, como hace de verdad. Cuentan las diferencias: el error típico del modelo es 1,5 °C, pero al comparar dos montajes casi iguales casi todo se cancela. Los dB son la ley de los ventiladores (≈ 50 · log de la relación de vueltas), sin medir.",
+  "whatif_note_en": "Everything is on today's build (S07, both ducts), with the GPU at 300 W and the CPU at 91.6 W. Each card is a full CFD run; temperatures come from the model calibrated on S04, and the GPU fan finds its own speed, as it really does. What matters is the difference: the model's typical error is 1.5 °C, but comparing two almost identical builds cancels most of it. The dB figures come from the fan laws (≈ 50 · log of the speed ratio), not measured."
 }

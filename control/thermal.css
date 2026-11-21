@@ -545,6 +545,8 @@ html[data-theme=night] :is(.tl-plot-crop,.tl-curves img){filter:invert(.9) hue-r
 .tl-wi header strong{font-size:14px;line-height:1.3}
 .tl-wi.v-yes .tl-verdict{background:color-mix(in srgb,var(--tl-ok) 18%,transparent);color:var(--tl-ok)}
 .tl-wi.v-no .tl-verdict{background:color-mix(in srgb,var(--tl-hot) 18%,transparent);color:var(--tl-hot)}
+.tl-wi.v-quiet{border-color:color-mix(in srgb,var(--tl-cool) 45%,var(--tl-line))}
+.tl-wi.v-quiet .tl-verdict{background:color-mix(in srgb,var(--tl-cool) 16%,transparent);color:var(--tl-cool)}
 .tl-wi.base .tl-verdict{background:color-mix(in srgb,var(--tl-cool) 18%,transparent);color:var(--tl-cool)}
 .tl-wi ul{list-style:none;margin:0;padding:0;display:grid;gap:6px}
 .tl-wi li{display:grid;grid-template-columns:minmax(80px,1fr) minmax(60px,1fr) 64px;gap:8px;align-items:center;font-size:12px;color:var(--tl-muted)}

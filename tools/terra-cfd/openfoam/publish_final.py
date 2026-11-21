@@ -40,7 +40,10 @@ def verdict(r):
     """Regla fijada antes de mirar: merece la pena si gana ≥ 1 °C en gráfica o procesador (o baja ≥ 50 rpm la gráfica
     sin calentarla) y ninguna pieza empeora más de 1 °C; peor si algo empeora más de 1 °C sin ganancia así."""
     gains = r['d_gpu'] <= -1 or r['d_cpu'] <= -1 or (r['d_gpu_rpm'] <= -50 and r['d_gpu'] <= 0.2)
-    worse = max(r['d_gpu'], r['d_cpu'], r['d_vrm'], r['d_ram'], r['d_board']) > 1
+    worst = max(r['d_gpu'], r['d_cpu'], r['d_vrm'], r['d_ram'], r['d_board'])
+    worse = worst > 1
+    if r.get('quieter') and not gains and worst <= 0.5:      # baja vueltas de un ventilador de la caja sin calentar nada
+        return 'quiet'
     return 'yes' if gains and not worse else 'no' if worse and not gains else 'meh'
 
 
@@ -108,10 +111,10 @@ def main():
     if wi:
         notes = TEXT.get('whatif_notes', {})
         for r in wi['rows']:
+            r.update({k: v for k, v in notes.get(r['id'], {}).items()})
             if r['id'] != 's07':
                 r['verdict'] = verdict(r)
                 r['score'] = round((r['d_gpu'] + r['d_cpu'] + r['d_vrm'] + r['d_ram']) / 4 + r['d_gpu_rpm'] / 100, 2)
-            r.update({k: v for k, v in notes.get(r['id'], {}).items()})
             r.pop('fans_m3h', None)
         s['whatif'] = {'cell_mm': wi['cell_mm'], 'groups': GROUPS, 'rows': wi['rows'],
                        'recommendation_es': TEXT.get('reco_es', ''), 'recommendation_en': TEXT.get('reco_en', ''),

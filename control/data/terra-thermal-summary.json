@@ -1,6 +1,6 @@
 {
   "schema_version": "1.4.0",
-  "generated_at": "2026-11-21T12:00:00+00:00",
+  "generated_at": "2026-11-22T00:00:00+00:00",
   "project": {
     "id": "terra-powerplant-lab",
     "title": "Terra Powerplant Lab",
@@ -2919,7 +2919,7 @@
     }
   },
   "story": {
-    "updated": "2026-11-21",
+    "updated": "2026-11-22",
     "limits": {
       "cpu_C": 95,
       "cpu_basis": "temperatura máxima que AMD fija para el Ryzen 7 9800X3D"
@@ -3193,6 +3193,12 @@
         "kind": "page",
         "title": "El CFD acierta a ciegas y decide los ventiladores",
         "detail": "Siete casos en malla de 2,5 mm con el aire de fuera. Ajustado solo con la S04, acierta la S07 con 1,2 °C de error típico y la S05 y la S06, que nunca vio, con 1,5 y 1,4 °C, memoria incluida. Dar la vuelta a los ventiladores de caja no gana más de 1 °C: se quedan como están."
+      },
+      {
+        "date": "2026-11-22",
+        "kind": "page",
+        "title": "Modelo final y ¿y si…? de ventiladores",
+        "detail": "Las 12 fases de las cuatro pruebas simuladas y un modelo dinámico encima. Calibrado solo con la S04, predice a ciegas S05, S06 y S07 con 1,5 °C de error típico. Con él, escenarios de ventiladores: darles la vuelta no gana nada; el de arriba puede ir más lento gratis y un segundo ventilador en el canal del procesador lo baja 2,6 °C."
       }
     ],
     "next_steps": [
@@ -3281,15 +3287,39 @@
         "date": "2026-11-21"
       },
       {
-        "status": "next",
+        "status": "done",
         "date": "2026-11-22",
         "title": {
-          "es": "Afinar la gráfica sin canal",
-          "en": "Fix the GPU without its duct"
+          "es": "Modelo final: CFD + dinámico",
+          "en": "Final model: CFD + dynamic"
         },
         "detail": {
-          "es": "El CFD le mete 8-9 °C de más a la entrada frente a los 3-5 medidos. Mirar por dónde sale el aire de sus aletas en la criba rápida de 4 mm y, si mejora sin factores, repetirlo en 2,5 mm.",
-          "en": "The CFD gives it 8-9 °C extra at the inlet against the 3-5 measured. Check where its fin exhaust goes on the quick 4 mm screen and, if it improves with no fudge factors, repeat it at 2.5 mm."
+          "es": "Hecho el 22 nov: las 12 fases de las cuatro pruebas simuladas; calibrado con la S04, acierta las otras tres a ciegas (1,5 °C en régimen, 0,9-1,2 °C segundo a segundo en el procesador con canal). La gráfica sin canal sigue siendo lo más flojo (±3 °C): se acepta así, sin factores de ajuste.",
+          "en": "Done 22 Nov: the 12 phases of the four tests simulated; calibrated on S04, it predicts the other three blind (1.5 °C steady, 0.9-1.2 °C second by second for the ducted CPU). The GPU without its duct is still the weakest point (±3 °C): accepted as is, with no fudge factors."
+        }
+      },
+      {
+        "status": "done",
+        "date": "2026-11-22",
+        "title": {
+          "es": "¿Y si…? de ventiladores",
+          "en": "Fan what-ifs"
+        },
+        "detail": {
+          "es": "Escenarios sobre el montaje de hoy con el modelo final. Sentidos: ninguno compensa. Recomendado: el de arriba más lento y, para el procesador, un segundo ventilador en su canal.",
+          "en": "Scenarios on today's build with the final model. Directions: none pays off. Recommended: a slower top fan and, for the CPU, a second fan in its duct."
+        }
+      },
+      {
+        "status": "next",
+        "date": "2026-11-23",
+        "title": {
+          "es": "Probar en real el de arriba a 1.500 rpm",
+          "en": "Test the top fan at 1,500 rpm for real"
+        },
+        "detail": {
+          "es": "Una prueba como la S07 con solo ese cambio. El modelo dice que nada sube más de 0,2 °C: si se cumple, se queda así y el PC suena menos.",
+          "en": "A test like S07 with only that change. The model says nothing rises more than 0.2 °C: if it holds, it stays that way and the PC is quieter."
         }
       }
     ],
@@ -3351,24 +3381,24 @@
       {
         "tone": "info",
         "title": "Los vatios de la CPU engañan",
-        "detail": "A 87 °C el procesador da más o menos vatios según en cuántos núcleos reparta Windows la carga. Para comparar se usa la temperatura media de los núcleos: así las cuentas cuadran en todas las pruebas."
+        "detail": "A 87 °C el procesador da más o menos vatios según en cuántos núcleos reparta Windows la carga. Cada núcleo sube 2,05 °C por cada vatio suyo, igual en las siete pruebas; restándolo queda la base del chip, que es lo que usa el modelo final."
       },
       {
         "tone": "ok",
-        "title": "La gráfica es predecible",
-        "detail": "Un modelo de solo cuatro números acierta su temperatura con unos 3 °C de error.",
+        "title": "Un modelo que acierta a ciegas",
+        "detail": "Calibrado solo con la S04, el CFD más dos constantes por pieza acierta 51 comparaciones de pruebas que nunca vio con 1,5 °C de error típico; la gráfica es lo que más falla (hasta 3,2 °C).",
         "metric": "gpu_error"
       },
       {
-        "tone": "warn",
-        "title": "El aire de dentro es compartido",
-        "detail": "Cuando trabajan las dos a la vez, el procesador respira el aire que calienta la gráfica. Hace falta medir ese aire.",
+        "tone": "ok",
+        "title": "El aire compartido, medido",
+        "detail": "Las fases con una sola carga de las pruebas de noviembre midieron ese aire: el modelo final lo usa y predice cada chip solo y con el otro trabajando.",
         "metric": "shared_air"
       },
       {
         "tone": "info",
         "title": "Pocos grados, pero reales",
-        "detail": "Ningún cambio de ventiladores daba más de 2–3 °C en el modelo. Los canales los han dado de verdad; lo siguiente más rentable ya es software (curvas y voltajes), no comprar piezas.",
+        "detail": "Con los dos canales, los chips respiran de fuera y los ventiladores de la caja solo cuidan placa y memoria: darles la vuelta no gana nada. Lo que queda: el de arriba más lento (gratis, menos ruido) y, para el procesador, un segundo ventilador en su canal (−2,6 °C).",
         "metric": "best_saving"
       },
       {
@@ -3446,8 +3476,8 @@
       ]
     },
     "ab_tests": {
-      "note_es": "El procesador se para solo hacia 87 °C en su núcleo más caliente y la gráfica mueve su ventilador para quedarse hacia 78 °C. Por eso, para el procesador se compara cuánto calor saca su disipador por cada grado que sus núcleos (de media) están por encima de la habitación; los vatios a secas dependen de en cuántos núcleos reparte Windows la carga. Para la gráfica, que siempre gasta 300 W, se mira su temperatura y su ventilador.",
-      "note_en": "The CPU throttles itself when its hottest core reaches about 87 °C, and the GPU fan holds about 78 °C. So for the CPU the comparison is the heat its cooler removes per degree the cores (on average) sit above the room; raw watts depend on how many cores Windows spreads the load over. For the GPU, always at 300 W, it is its temperature and fan speed.",
+      "note_es": "El procesador se para solo hacia 87 °C en su núcleo más caliente y la gráfica mueve su ventilador para quedarse hacia 78 °C. Por eso, para el procesador se compara cuánto calor saca su disipador por cada grado que sus núcleos (de media) están por encima de la habitación; los vatios a secas dependen de en cuántos núcleos reparte Windows la carga. Para la gráfica, que siempre gasta 300 W, se mira su temperatura y su ventilador. Desde el 22 nov el modelo usa además la base del chip (cada núcleo menos 2,05 °C por vatio suyo), que no depende de cuántos núcleos cargue Windows: de la S04 a la S07 baja 7,7 °C (67,3 → 59,6 °C).",
+      "note_en": "The CPU throttles itself when its hottest core reaches about 87 °C, and the GPU fan holds about 78 °C. So for the CPU the comparison is the heat its cooler removes per degree the cores (on average) sit above the room; raw watts depend on how many cores Windows spreads the load over. For the GPU, always at 300 W, it is its temperature and fan speed. Since 22 Nov the model also uses the chip base (each core minus 2.05 °C per watt of its own), which does not depend on how many cores Windows loads: from S04 to S07 it drops 7.7 °C (67.3 → 59.6 °C).",
       "reference": "S04",
       "rows": [
         {
@@ -3550,32 +3580,52 @@
       "best": "S07"
     },
     "ideas_next": {
-      "updated": "2026-11-14",
-      "note_es": "Revisado con las pruebas S04–S07. Decisión del 15 nov: no se harán más ajustes; los dos canales se quedan y esta lista queda como referencia. Techo medido: quitar los paneles (S05) es lo máximo que puede dar cualquier cambio que solo abra más rejilla.",
-      "note_en": "Re-checked against tests S04–S07. Decision on 15 Nov: no more tweaks; both ducts stay and this list is kept for reference. Measured ceiling: taking the panels off (S05) is the most any change that only opens more grille can give.",
+      "updated": "2026-11-22",
+      "note_es": "Revisado con las pruebas S04–S07. Decisión del 15 nov: no se harán más ajustes; los dos canales se quedan y esta lista queda como referencia. Techo medido: quitar los paneles (S05) es lo máximo que puede dar cualquier cambio que solo abra más rejilla. 22 nov: el CFD con el modelo final los ha simulado todos sobre el montaje de hoy (sección «¿Y si…?»); las cifras de abajo son esas.",
+      "note_en": "Re-checked against tests S04–S07. Decision on 15 Nov: no more tweaks; both ducts stay and this list is kept for reference. Measured ceiling: taking the panels off (S05) is the most any change that only opens more grille can give. 22 Nov: the CFD with the final model has simulated all of them on today's build (the \"What if…?\" section); the figures below are those.",
       "items": [
+        {
+          "id": "Top fan",
+          "verdict": "try",
+          "title_es": "Ventilador de arriba más lento",
+          "title_en": "Slower top fan",
+          "expect_es": "Gratis: mismo calor y menos ruido.",
+          "expect_en": "Free: same heat, less noise.",
+          "why_es": "Con los dos canales, la gráfica y el procesador respiran de fuera y el de arriba apenas les toca. El CFD (22 nov) lo baja de 2.200 a 1.500 rpm y ninguna pieza sube más de 0,2 °C; ese ventilador suena unos 8 dB menos.",
+          "why_en": "With both ducts the GPU and CPU breathe outside air and the top fan barely touches them. The CFD (22 Nov) slows it from 2,200 to 1,500 rpm and no part rises more than 0.2 °C; that fan is about 8 dB quieter.",
+          "effort_es": "BIOS · 5 min · recomendado",
+          "effort_en": "BIOS · 5 min · recommended",
+          "effect": {
+            "gpu": [
+              0,
+              0.1
+            ],
+            "basis_es": "CFD + modelo final, arriba a 1.500 rpm.",
+            "basis_en": "CFD + final model, top fan at 1,500 rpm."
+          }
+        },
         {
           "id": "CPU fan curve",
           "verdict": "try",
           "title_es": "Curva del ventilador de la CPU más alegre",
           "title_en": "Faster CPU fan curve",
-          "expect_es": "Gratis y reversible, pero con poco margen: hasta un 25–30 % más de aire.",
-          "expect_en": "Free and reversible, but with little headroom: up to 25–30 % more air.",
-          "why_es": "El NF-A9x14 del disipador ya va a unas 1.940 rpm con carga y llega a 2.500. Ahora que respira aire de fuera, girar más rápido ayuda, pero ya está cerca de su tope.",
-          "why_en": "The cooler’s NF-A9x14 already runs at about 1,940 rpm under load and tops out at 2,500. Now that it breathes outside air spinning faster helps, but it is near its limit.",
+          "expect_es": "Gratis y reversible: −1,8 °C en el procesador a cambio de algo de ruido.",
+          "expect_en": "Free and reversible: −1.8 °C on the CPU for a bit more noise.",
+          "why_es": "El NF-A9x14 del disipador va a unas 1.900-1.950 rpm con carga en los montajes con canal y su máximo es 2.200. El CFD (22 nov) lo da a tope: procesador −1,8 °C, y la placa también, porque ese aire de fuera acaba sobre ella. Unos 3 dB más.",
+          "why_en": "The cooler's NF-A9x14 runs at about 1,900-1,950 rpm under load in the ducted builds and tops out at 2,200. The CFD (22 Nov) runs it flat out: CPU −1.8 °C, and the board too, because that outside air ends up over it. About 3 dB louder.",
           "effort_es": "BIOS · 10 min · probar con ruido · no previsto",
           "effort_en": "BIOS · 10 min · check the noise · not planned",
           "effect": {
             "gpu": [
-              -0.3,
+              0,
               0
             ],
             "cpu": [
-              5,
-              9
+              3.5,
+              4.6
             ],
-            "basis_es": "NF-A9x14 de 1.940 a 2.200 rpm: un 13 % más de aire.",
-            "basis_en": "NF-A9x14 from 1,940 to 2,200 rpm: 13 % more air."
+            "basis_es": "CFD + modelo final: base del chip −1,8 °C a igual potencia (91,6 W).",
+            "basis_en": "CFD + final model: chip base −1.8 °C at the same power (91.6 W)."
           }
         },
         {
@@ -3607,19 +3657,19 @@
           "verdict": "try",
           "title_es": "Gráfica a 270–280 W o con menos voltaje",
           "title_en": "GPU at 270–280 W or undervolted",
-          "expect_es": "Unos 3–4 °C menos o un ventilador más lento, perdiendo poco rendimiento (hay que medirlo).",
-          "expect_en": "About 3–4 °C less or a slower fan, losing little performance (to be measured).",
+          "expect_es": "Unos 2 °C menos y 80 rpm menos en su ventilador a 280 W; el rendimiento que se pierde hay que medirlo.",
+          "expect_en": "About 2 °C less and 80 rpm less on its fan at 280 W; the performance cost has to be measured.",
           "why_es": "La gráfica pone dos de cada tres vatios de la caja. Con 0,19 °C por vatio medidos, 20–30 W menos se notan más que cualquier cambio de ventiladores.",
           "why_en": "The GPU puts in two of every three watts in the case. At the measured 0.19 °C per watt, 20–30 W less beats any fan change.",
           "effort_es": "Software · 15 min · no previsto",
           "effort_en": "Software · 15 min · not planned",
           "effect": {
             "gpu": [
-              -5.7,
-              -3.8
+              -2.1,
+              -2.1
             ],
-            "basis_es": "20-30 W menos × 0,19 °C/W medidos.",
-            "basis_en": "20-30 W less × the measured 0.19 °C/W."
+            "basis_es": "CFD + modelo final a 280 W, con el ventilador de la gráfica buscando su punto (en vez de los 3,8 °C a rpm fijas).",
+            "basis_en": "CFD + final model at 280 W, with the GPU fan finding its own speed (instead of 3.8 °C at fixed rpm)."
           }
         },
         {
@@ -3629,41 +3679,41 @@
           "title_en": "More exhaust at the top",
           "expect_es": "Poco para la CPU y la gráfica (ya respiran de fuera); ayudaría a memoria, VRM, SSD y fuente.",
           "expect_en": "Little for CPU and GPU (they already breathe outside air); would help RAM, VRM, SSD and PSU.",
-          "why_es": "El CFD lo probó (21 nov): sacar aire también por abajo enfría la gráfica 0,8 °C pero calienta la placa 0,9 °C. El calor de la gráfica no se queda atrapado mientras lleve su canal.",
-          "why_en": "The CFD tried it (21 Nov): exhausting through the bottom too cools the GPU by 0.8 °C but warms the board by 0.9 °C. The GPU heat does not get trapped as long as it keeps its duct.",
+          "why_es": "El CFD lo probó (22 nov, con el ventilador de la gráfica buscando su punto): sacar aire por abajo enfría la gráfica 0,5 °C pero calienta la placa 0,9 y la memoria 1,5. El calor de la gráfica no se queda atrapado mientras lleve su canal.",
+          "why_en": "The CFD tried it (22 Nov, with the GPU fan finding its own speed): exhausting through the bottom cools the GPU by 0.5 °C but warms the board by 0.9 and the RAM by 1.5. The GPU heat does not get trapped as long as it keeps its duct.",
           "effort_es": "Descartado por el CFD",
           "effort_en": "Ruled out by the CFD",
           "effect": {
             "gpu": [
-              -0.8,
-              -0.8
+              -0.5,
+              -0.5
             ],
-            "basis_es": "CFD, el caso más cercano (abajo sacando aire, más extracción): gráfica −0,8 °C pero placa +0,9 °C.",
-            "basis_en": "CFD, closest case (bottom fan turned to exhaust, more extraction): GPU −0.8 °C but board +0.9 °C."
+            "basis_es": "CFD, abajo sacando aire: gráfica −0,5 °C, placa +0,9 °C, memoria +1,5 °C.",
+            "basis_en": "CFD, bottom fan exhausting: GPU −0.5 °C, board +0.9 °C, RAM +1.5 °C."
           }
         },
         {
           "id": "CFG-050",
-          "verdict": "maybe",
-          "title_es": "Segundo ventilador empujando en el canal de la CPU",
-          "title_en": "Second fan pushing into the CPU duct",
-          "expect_es": "Algo más que subir la curva del ventilador actual, con más ruido.",
-          "expect_en": "A little more than raising the current fan curve, with more noise.",
-          "why_es": "Haría “push-pull” en el canal ya sellado. Antes conviene agotar la curva del ventilador que ya está.",
-          "why_en": "It would make a push-pull in the sealed duct. Worth it only after the existing fan’s curve is used up.",
+          "verdict": "try",
+          "title_es": "Segundo ventilador en el canal de la CPU (push-pull)",
+          "title_en": "Second fan in the CPU duct (push-pull)",
+          "expect_es": "El que más enfría el procesador: −2,6 °C sin subir vueltas, si cabe en el canal.",
+          "expect_en": "The best for the CPU: −2.6 °C without more speed, if it fits in the duct.",
+          "why_es": "Dos NF-A9x14 en serie dan el doble de presión: el CFD (22 nov) le da al disipador un 22 % más de aire que con uno. Gana más que poner el actual a tope y sin su ruido.",
+          "why_en": "Two NF-A9x14 in series give twice the pressure: the CFD (22 Nov) gives the cooler 22 % more air than with one. It beats running the current fan flat out, without its noise.",
           "effort_es": "Imprimir soporte + ventilador",
           "effort_en": "Print a mount + buy a fan",
           "effect": {
             "gpu": [
-              -0.3,
+              0,
               0
             ],
             "cpu": [
-              5,
-              15
+              5.1,
+              6.8
             ],
-            "basis_es": "Empuja en el canal ya sellado.",
-            "basis_en": "Pushes into the already sealed duct."
+            "basis_es": "CFD + modelo final: base del chip −2,6 °C a igual potencia.",
+            "basis_en": "CFD + final model: chip base −2.6 °C at the same power."
           }
         },
         {
@@ -3693,17 +3743,17 @@
           "title_en": "More bottom intakes",
           "expect_es": "Casi nada para la CPU y la gráfica.",
           "expect_en": "Next to nothing for CPU and GPU.",
-          "why_es": "El CFD lo confirma (21 nov): con los dos ventiladores metiendo aire, la gráfica va 2,4 °C más caliente porque el aire caliente ya no tiene salida por arriba.",
-          "why_en": "The CFD confirms it (21 Nov): with both fans blowing in, the GPU runs 2.4 °C hotter because the hot air loses its way out at the top.",
+          "why_es": "El CFD lo confirma (22 nov): con los dos ventiladores metiendo aire, el de arriba empuja contra lo que expulsa la gráfica y ella sube 1,3 °C; solo gana la memoria.",
+          "why_en": "The CFD confirms it (22 Nov): with both fans as intake, the top one pushes against the GPU exhaust and the GPU rises 1.3 °C; only the RAM gains.",
           "effort_es": "Descartado por el CFD",
           "effort_en": "Ruled out by the CFD",
           "effect": {
             "gpu": [
-              2.4,
-              2.4
+              1.3,
+              1.3
             ],
-            "basis_es": "CFD, el caso más cercano (arriba metiendo aire, todo entrada): la gráfica va 2,4 °C más caliente.",
-            "basis_en": "CFD, closest case (top fan turned to intake, all intake): the GPU runs 2.4 °C hotter."
+            "basis_es": "CFD, arriba metiendo aire: gráfica +1,3 °C, memoria −2,3 °C.",
+            "basis_en": "CFD, top fan as intake: GPU +1.3 °C, RAM −2.3 °C."
           }
         },
         {
@@ -15529,6 +15579,359 @@
           }
         ]
       }
+    },
+    "whatif": {
+      "cell_mm": 2.5,
+      "groups": [
+        {
+          "id": "dir",
+          "es": "Sentido",
+          "en": "Direction"
+        },
+        {
+          "id": "speed",
+          "es": "Velocidad",
+          "en": "Speed"
+        },
+        {
+          "id": "cpu",
+          "es": "Procesador",
+          "en": "CPU"
+        },
+        {
+          "id": "gpu",
+          "es": "Gráfica",
+          "en": "GPU"
+        }
+      ],
+      "rows": [
+        {
+          "id": "s07",
+          "es": "Como está",
+          "en": "As built",
+          "group": "base",
+          "gpu_rpm": 1919,
+          "gpu": 74.68,
+          "cpu": 59.41,
+          "vrm": 63.02,
+          "chipset": 63.33,
+          "board": 52.14,
+          "ram": 52.91,
+          "gpu_inlet_C": 19.0,
+          "cpu_inlet_C": 19.0,
+          "through_m3h": 49.5,
+          "d_gpu": 0.0,
+          "d_cpu": 0.0,
+          "d_vrm": 0.0,
+          "d_chipset": 0.0,
+          "d_board": 0.0,
+          "d_ram": 0.0,
+          "d_gpu_rpm": 0
+        },
+        {
+          "id": "top-in",
+          "es": "Arriba metiendo aire",
+          "en": "Top fan as intake",
+          "group": "dir",
+          "gpu_rpm": 1971,
+          "gpu": 76.02,
+          "cpu": 59.56,
+          "vrm": 62.1,
+          "chipset": 62.41,
+          "board": 51.22,
+          "ram": 50.61,
+          "gpu_inlet_C": 19.0,
+          "cpu_inlet_C": 19.0,
+          "through_m3h": 18.8,
+          "d_gpu": 1.34,
+          "d_cpu": 0.15,
+          "d_vrm": -0.92,
+          "d_chipset": -0.92,
+          "d_board": -0.92,
+          "d_ram": -2.3,
+          "d_gpu_rpm": 52,
+          "note_es": "Entra aire frío por arriba y la memoria baja 2,3 °C, pero ese aire empuja contra lo que expulsa la gráfica: su ventilador mueve un 6 % menos y ella sube 1,3 °C. El aire que cruza la caja cae de 50 a 19 m³/h.",
+          "note_en": "Cold air comes in at the top and the RAM drops 2.3 °C, but it pushes against the GPU exhaust: its fan moves 6 % less air and the GPU rises 1.3 °C. Air through the case falls from 50 to 19 m³/h.",
+          "verdict": "no",
+          "score": 0.09
+        },
+        {
+          "id": "bottom-out",
+          "es": "Abajo sacando aire",
+          "en": "Bottom fan as exhaust",
+          "group": "dir",
+          "gpu_rpm": 1902,
+          "gpu": 74.23,
+          "cpu": 59.43,
+          "vrm": 63.96,
+          "chipset": 64.27,
+          "board": 53.08,
+          "ram": 54.42,
+          "gpu_inlet_C": 19.0,
+          "cpu_inlet_C": 19.0,
+          "through_m3h": 74.3,
+          "d_gpu": -0.45,
+          "d_cpu": 0.02,
+          "d_vrm": 0.94,
+          "d_chipset": 0.94,
+          "d_board": 0.94,
+          "d_ram": 1.51,
+          "d_gpu_rpm": -17,
+          "note_es": "La gráfica gana medio grado, pero la placa (+0,9) y la memoria (+1,5) pierden: el de abajo es el que les trae aire fresco.",
+          "note_en": "The GPU gains half a degree, but the board (+0.9) and RAM (+1.5) lose: the bottom fan is the one feeding them fresh air.",
+          "verdict": "no",
+          "score": 0.33
+        },
+        {
+          "id": "both-flipped",
+          "es": "Los dos al revés",
+          "en": "Both reversed",
+          "group": "dir",
+          "gpu_rpm": 1941,
+          "gpu": 75.25,
+          "cpu": 59.5,
+          "vrm": 62.44,
+          "chipset": 62.75,
+          "board": 51.56,
+          "ram": 51.55,
+          "gpu_inlet_C": 19.0,
+          "cpu_inlet_C": 19.0,
+          "through_m3h": 41.1,
+          "d_gpu": 0.57,
+          "d_cpu": 0.09,
+          "d_vrm": -0.58,
+          "d_chipset": -0.58,
+          "d_board": -0.58,
+          "d_ram": -1.36,
+          "d_gpu_rpm": 22,
+          "note_es": "Los dos efectos se compensan: nada cambia más de 1 °C.",
+          "note_en": "The two effects cancel out: nothing moves by more than 1 °C.",
+          "verdict": "meh",
+          "score": -0.1
+        },
+        {
+          "id": "bottom-max",
+          "es": "Abajo a tope (1850 rpm)",
+          "en": "Bottom fan at full speed (1850 rpm)",
+          "group": "speed",
+          "gpu_rpm": 1934,
+          "gpu": 75.07,
+          "cpu": 59.48,
+          "vrm": 62.68,
+          "chipset": 62.99,
+          "board": 51.8,
+          "ram": 52.71,
+          "gpu_inlet_C": 19.0,
+          "cpu_inlet_C": 19.0,
+          "through_m3h": 52.4,
+          "d_gpu": 0.39,
+          "d_cpu": 0.07,
+          "d_vrm": -0.34,
+          "d_chipset": -0.34,
+          "d_board": -0.34,
+          "d_ram": -0.2,
+          "d_gpu_rpm": 15,
+          "note_es": "Más vueltas abajo no dan nada: la gráfica respira por su canal y la placa solo baja 0,3 °C.",
+          "note_en": "More speed at the bottom gives nothing: the GPU breathes through its duct and the board only drops 0.3 °C.",
+          "verdict": "meh",
+          "score": 0.13
+        },
+        {
+          "id": "bottom-slow",
+          "es": "Abajo lento (800 rpm)",
+          "en": "Bottom fan slow (800 rpm)",
+          "group": "speed",
+          "gpu_rpm": 1915,
+          "gpu": 74.56,
+          "cpu": 59.46,
+          "vrm": 63.34,
+          "chipset": 63.65,
+          "board": 52.46,
+          "ram": 53.73,
+          "gpu_inlet_C": 19.0,
+          "cpu_inlet_C": 19.0,
+          "through_m3h": 50.4,
+          "d_gpu": -0.12,
+          "d_cpu": 0.05,
+          "d_vrm": 0.32,
+          "d_chipset": 0.32,
+          "d_board": 0.32,
+          "d_ram": 0.82,
+          "d_gpu_rpm": -4,
+          "note_es": "A 800 rpm ese ventilador suena unos 9 dB menos, pero la memoria sube 0,8 °C.",
+          "note_en": "At 800 rpm that fan is about 9 dB quieter, but the RAM rises 0.8 °C.",
+          "quieter": true,
+          "verdict": "meh",
+          "score": 0.23
+        },
+        {
+          "id": "top-slow",
+          "es": "Arriba más lento (1500 rpm)",
+          "en": "Top fan slower (1500 rpm)",
+          "group": "speed",
+          "gpu_rpm": 1924,
+          "gpu": 74.8,
+          "cpu": 59.49,
+          "vrm": 63.02,
+          "chipset": 63.33,
+          "board": 52.14,
+          "ram": 53.12,
+          "gpu_inlet_C": 19.0,
+          "cpu_inlet_C": 19.0,
+          "through_m3h": 44.5,
+          "d_gpu": 0.12,
+          "d_cpu": 0.08,
+          "d_vrm": 0.0,
+          "d_chipset": 0.0,
+          "d_board": 0.0,
+          "d_ram": 0.21,
+          "d_gpu_rpm": 5,
+          "note_es": "De 2.200 a 1.500 rpm: ninguna pieza sube más de 0,2 °C y ese ventilador suena unos 8 dB menos.",
+          "note_en": "From 2,200 to 1,500 rpm: no part rises more than 0.2 °C and that fan is about 8 dB quieter.",
+          "quieter": true,
+          "verdict": "quiet",
+          "score": 0.15
+        },
+        {
+          "id": "bottom-off",
+          "es": "Sin ventilador abajo (parado)",
+          "en": "Bottom fan stopped",
+          "group": "speed",
+          "gpu_rpm": 1909,
+          "gpu": 74.41,
+          "cpu": 59.46,
+          "vrm": 63.92,
+          "chipset": 64.24,
+          "board": 53.05,
+          "ram": 54.42,
+          "gpu_inlet_C": 19.0,
+          "cpu_inlet_C": 19.0,
+          "through_m3h": 58.7,
+          "d_gpu": -0.27,
+          "d_cpu": 0.05,
+          "d_vrm": 0.9,
+          "d_chipset": 0.91,
+          "d_board": 0.91,
+          "d_ram": 1.51,
+          "d_gpu_rpm": -10,
+          "note_es": "Sin él, placa +0,9 °C y memoria +1,5 °C: es el único que les trae aire de fuera.",
+          "note_en": "Without it, board +0.9 °C and RAM +1.5 °C: it is the only fan bringing them outside air.",
+          "verdict": "no",
+          "score": 0.45
+        },
+        {
+          "id": "bottom-out-max",
+          "es": "Abajo sacando aire y a tope",
+          "en": "Bottom fan exhausting at full speed",
+          "group": "dir",
+          "gpu_rpm": 1894,
+          "gpu": 74.02,
+          "cpu": 59.42,
+          "vrm": 63.84,
+          "chipset": 64.15,
+          "board": 52.96,
+          "ram": 54.3,
+          "gpu_inlet_C": 19.0,
+          "cpu_inlet_C": 19.0,
+          "through_m3h": 83.9,
+          "d_gpu": -0.66,
+          "d_cpu": 0.01,
+          "d_vrm": 0.82,
+          "d_chipset": 0.82,
+          "d_board": 0.82,
+          "d_ram": 1.39,
+          "d_gpu_rpm": -25,
+          "note_es": "Cruza mucho más aire (84 m³/h), pero ya ha pasado por la placa antes de llegar a la memoria: +1,4 °C.",
+          "note_en": "Much more air crosses the case (84 m³/h), but it has already passed the board before reaching the RAM: +1.4 °C.",
+          "verdict": "no",
+          "score": 0.14
+        },
+        {
+          "id": "cpu-fan-max",
+          "es": "Ventilador del procesador al 100 %",
+          "en": "CPU fan at 100%",
+          "group": "cpu",
+          "gpu_rpm": 1921,
+          "gpu": 74.73,
+          "cpu": 57.59,
+          "vrm": 61.22,
+          "chipset": 61.53,
+          "board": 50.35,
+          "ram": 51.14,
+          "gpu_inlet_C": 19.0,
+          "cpu_inlet_C": 19.0,
+          "through_m3h": 50.3,
+          "d_gpu": 0.05,
+          "d_cpu": -1.82,
+          "d_vrm": -1.8,
+          "d_chipset": -1.8,
+          "d_board": -1.79,
+          "d_ram": -1.77,
+          "d_gpu_rpm": 2,
+          "note_es": "Su ventilador de ~1.900 a 2.200 rpm (su máximo): 15 % más de aire, procesador −1,8 °C y la placa también, porque ese aire de fuera acaba sobre ella. Unos 3 dB más de ruido.",
+          "note_en": "Its fan from ~1,900 to 2,200 rpm (its maximum): 15 % more air, CPU −1.8 °C and the board too, because that outside air ends up over it. About 3 dB louder.",
+          "verdict": "yes",
+          "score": -1.31
+        },
+        {
+          "id": "cpu-push-pull",
+          "es": "Segundo ventilador en el canal del procesador",
+          "en": "Second fan in the CPU duct",
+          "group": "cpu",
+          "gpu_rpm": 1922,
+          "gpu": 74.74,
+          "cpu": 56.85,
+          "vrm": 60.47,
+          "chipset": 60.78,
+          "board": 49.59,
+          "ram": 50.33,
+          "gpu_inlet_C": 19.0,
+          "cpu_inlet_C": 19.0,
+          "through_m3h": 50.8,
+          "d_gpu": 0.06,
+          "d_cpu": -2.56,
+          "d_vrm": -2.55,
+          "d_chipset": -2.55,
+          "d_board": -2.55,
+          "d_ram": -2.58,
+          "d_gpu_rpm": 3,
+          "note_es": "Otro NF-A9x14 tirando del disipador, a las mismas vueltas: el doble de presión, 22 % más de aire y −2,6 °C. Lo mejor para el procesador, si cabe en el canal.",
+          "note_en": "Another NF-A9x14 pulling through the cooler at the same speed: twice the pressure, 22 % more air and −2.6 °C. The best option for the CPU, if it fits in the duct.",
+          "verdict": "yes",
+          "score": -1.88
+        },
+        {
+          "id": "gpu-280w",
+          "es": "Gráfica limitada a 280 W",
+          "en": "GPU capped at 280 W",
+          "group": "gpu",
+          "gpu_rpm": 1839,
+          "gpu": 72.6,
+          "cpu": 59.17,
+          "vrm": 62.76,
+          "chipset": 63.07,
+          "board": 51.88,
+          "ram": 52.64,
+          "gpu_inlet_C": 19.0,
+          "cpu_inlet_C": 19.0,
+          "through_m3h": 49.4,
+          "d_gpu": -2.08,
+          "d_cpu": -0.24,
+          "d_vrm": -0.26,
+          "d_chipset": -0.26,
+          "d_board": -0.26,
+          "d_ram": -0.27,
+          "d_gpu_rpm": -80,
+          "note_es": "20 W menos (−7 %): la gráfica baja 2,1 °C y su ventilador 80 rpm. El rendimiento que se pierde no está medido aquí.",
+          "note_en": "20 W less (−7 %): the GPU drops 2.1 °C and its fan 80 rpm. The performance cost is not measured here.",
+          "verdict": "yes",
+          "score": -1.51
+        }
+      ],
+      "recommendation_es": "Con los dos canales, la gráfica y el procesador ya respiran aire de fuera (19 °C a su entrada en todos los escenarios), así que los ventiladores de la caja solo cuidan la placa y la memoria. Dar la vuelta a alguno no compensa: lo que gana una pieza lo pierde otra. Lo que sí merece la pena: 1) bajar el de arriba a unos 1.500 rpm: mismo calor y menos ruido; 2) dejar el de abajo como está, metiendo aire: es el que enfría memoria y placa; 3) si se quiere enfriar el procesador, un segundo NF-A9x14 en su canal (−2,6 °C) o el suyo al máximo (−1,8 °C, más ruido).",
+      "recommendation_en": "With both ducts, the GPU and CPU already breathe outside air (19 °C at their inlet in every scenario), so the case fans only look after the board and RAM. Reversing any of them does not pay: what one part gains another loses. What is worth it: 1) slow the top fan to about 1,500 rpm: same heat, less noise; 2) leave the bottom fan as it is, as intake: it cools the RAM and board; 3) to cool the CPU, a second NF-A9x14 in its duct (−2.6 °C) or its own fan at full speed (−1.8 °C, louder).",
+      "note_es": "Todo sobre el montaje de hoy (S07, los dos canales), con la gráfica a 300 W y el procesador a 91,6 W. Cada tarjeta es un CFD completo; las temperaturas salen del modelo calibrado con la S04 y el ventilador de la gráfica busca solo su punto, como hace de verdad. Cuentan las diferencias: el error típico del modelo es 1,5 °C, pero al comparar dos montajes casi iguales casi todo se cancela. Los dB son la ley de los ventiladores (≈ 50 · log de la relación de vueltas), sin medir.",
+      "note_en": "Everything is on today's build (S07, both ducts), with the GPU at 300 W and the CPU at 91.6 W. Each card is a full CFD run; temperatures come from the model calibrated on S04, and the GPU fan finds its own speed, as it really does. What matters is the difference: the model's typical error is 1.5 °C, but comparing two almost identical builds cancels most of it. The dB figures come from the fan laws (≈ 50 · log of the speed ratio), not measured."
     }
   }
 }

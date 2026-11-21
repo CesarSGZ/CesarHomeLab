@@ -376,7 +376,7 @@
     const base=x.rows.find(r=>r.id==='s07');
     const groups=[['all',es?'Todos':'All'],...(x.groups||[]).map(g=>[g.id,L(g)])];
     const id=`wi-${uid}-${lang}`;
-    const verdict={yes:es?'Merece la pena':'Worth it',meh:es?'Casi igual':'About the same',no:es?'Peor':'Worse'};
+    const verdict={yes:es?'Merece la pena':'Worth it',quiet:es?'Igual y más silencioso':'Same, but quieter',meh:es?'Casi igual':'About the same',no:es?'Peor':'Worse'};
     const bar=(v,max)=>{const w=Math.min(50,Math.abs(v)/max*50);return `<span class="tl-wi-bar"><i></i><em class="${Math.abs(v)<max/12?'':v<0?'ok':'bad'}" style="${v<0?'right:50%':'left:50%'};width:${w.toFixed(1)}%"></em></span>`};
     const card=r=>{
       if(r.id==='s07')return `<article class="tl-wi base"><header><strong>${esc(L(r))}</strong><span class="tl-verdict">${es?'Referencia':'Reference'}</span></header>
@@ -396,7 +396,7 @@
       </article>`;
     };
     const rules=groups.map(([g],i)=>i?`.tl-whatif .f${i}:checked~.grid .tl-wi:not(.g-${g}):not(.base){display:none}`:'').join('')+groups.map(([g],i)=>`.tl-whatif .f${i}:checked~.tabs label.f${i}`).join(',')+'{background:var(--tl-cool);color:#06222c;border-color:var(--tl-cool)}';
-    const order={yes:0,meh:1,no:2};
+    const order={yes:0,quiet:1,meh:2,no:3};
     const rows=[...x.rows].sort((a,b)=>(a.id==='s07'?-1:b.id==='s07'?1:((order[a.verdict]??3)-(order[b.verdict]??3))||((a.score??0)-(b.score??0))));
     return `${(es?x.recommendation_es:x.recommendation_en)?`<div class="tl-wi-reco"><strong>${es?'Recomendación':'Recommendation'}</strong><p>${esc(es?x.recommendation_es:x.recommendation_en)}</p></div>`:''}
       <div class="tl-whatif"><style>${rules}</style>

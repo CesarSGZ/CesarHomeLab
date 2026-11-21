@@ -42,6 +42,13 @@ SCENARIOS = [
     ('cpu-fan-max', 'Ventilador del procesador al 100 %', 'CPU fan at 100%', 'cpu', ['--rpm', 'CPU_FAN=2200']),
     ('cpu-push-pull', 'Segundo ventilador en el canal del procesador', 'Second fan in the CPU duct', 'cpu', ['--fan-model', 'CPU_FAN=NF-A9x14-x2']),
     ('gpu-280w', 'Gráfica limitada a 280 W', 'GPU capped at 280 W', 'gpu', ['--heat', 'GPU=280']),
+    # segunda tanda, tras ver la primera: los ventiladores de la caja apenas tocan a los chips (respiran de fuera
+    # por sus canales), así que se mira cuánto se pueden bajar y qué da la mejor combinación
+    ('top-off', 'Sin ventilador arriba (parado)', 'Top fan stopped', 'speed', ['--rpm', 'TOP_FAN=1']),
+    ('quiet', 'Silencioso: arriba 1200 y abajo 900 rpm', 'Quiet: top 1200, bottom 900 rpm', 'speed',
+     ['--rpm', 'TOP_FAN=1200', '--rpm', 'BOTTOM_FAN=900']),
+    ('best', 'Segundo ventilador en el procesador y arriba a 1500', 'Second CPU fan and top at 1500', 'cpu',
+     ['--fan-model', 'CPU_FAN=NF-A9x14-x2', '--rpm', 'TOP_FAN=1500']),
 ]
 EXISTING = {'s07': 'S07', 'top-in': 'S07-top-in', 'bottom-out': 'S07-bottom-out', 'both-flipped': 'S07-both-flipped'}
 
