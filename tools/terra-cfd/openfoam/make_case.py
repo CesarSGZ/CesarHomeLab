@@ -50,12 +50,55 @@ CONFIGS = {
             'rpm': {'GPU_FAN': 2020, 'CPU_FAN': 1945, 'BOTTOM_FAN': 1270, 'TOP_FAN': 2200, 'PSU_FAN': 1410}},
 }
 
+SESSION_SETUP = {'S04': ([], False), 'S05': ([], True), 'S06': (['CPU_DUCT'], False), 'S07': (['GPU_DUCT', 'CPU_DUCT'], False)}
+STEADY_S = 180
+
+
+def phase_steady(sid, phase):
+    """Media de los últimos 180 s de una fase (gpu, cpu, combined, idle) en la tabla de 1 Hz (thermal-bench/wide.py)."""
+    import csv
+    folder = Path(os.environ['USERPROFILE']) / 'Desktop' / 'Claude' / 'Datos' / 'Terra' / 'sesiones' / sid
+    rows = [r for r in csv.DictReader(open(folder / 'wide_1hz.csv', encoding='utf-8')) if r['phase'] == phase]
+    end = max(int(r['t']) for r in rows)
+    rows = [r for r in rows if int(r['t']) > end - STEADY_S]
+
+    def mean(*cols):
+        v = [float(r[c]) for r in rows for c in cols if r[c] != '']
+        return sum(v) / len(v)
+    meta = json.loads((folder / 'session.json').read_text(encoding='utf-8'))
+    return {'GPU': mean('smi_t'), 'CPU': mean('cpu_core_mean'), 'CPU_BASE': mean('cpu_base'), 'P_CORE': mean('cpu_core_w'), 'RAM': mean('ram1', 'ram3'), 'VRM': mean('vrm_mos'),
+            'CHIPSET': mean('chipset'), 'BOARD': mean('board_sys1'), 'P_GPU': mean('smi_w'), 'P_CPU': mean('cpu_ppt'), 'P_SOC': mean('cpu_soc_w'),
+            'TCTL': mean('cpu_tctl'), 'rpm_gpu': mean('gpu_fan1_rpm'), 'rpm_cpu': mean('cpu_fan_rpm'),
+            'rpm_bottom': mean('sys1_fan_rpm'), 'ambient_C': meta['ambient_C']}
+
+
+def phase_config(name):
+    """Config de una fase medida, p. ej. 'S07_gpu' (solo gráfica cargada) o 'S04_cpu'.
+
+    Calor de la fuente y de la placa según la carga (los 27 W y 15 W de las configs de arriba son los de la carga
+    combinada): pérdidas de la fuente ≈ 6,3 % de la potencia en continua (~94 % de eficiencia, 80 PLUS Platinum a media carga),
+    placa = 6 W fijos (chipset, red, audio) + ~10 % de la potencia del procesador en los VRM. En la combinada da 27 W y 15 W.
+    Con los ventiladores de la gráfica parados (modo 0 rpm) se ponen a 1 rpm: sin empuje y sin dividir por cero."""
+    sid, phase = name.split('_', 1)
+    m = phase_steady(sid, {'comb': 'combined'}.get(phase, phase))
+    ducts, off = SESSION_SETUP[sid]
+    p_dc = m['P_GPU'] + m['P_CPU'] + 40
+    return {'ducts': ducts, 'ambient_C': m['ambient_C'], 'panels_off': off, 'measured': m,
+            'heat_W': {'GPU': round(m['P_GPU'], 1), 'CPU_COOLER': round(m['P_CPU'], 1), 'PSU': round(0.063 * p_dc, 1),
+                       'MOTHERBOARD': round(6 + 0.1 * m['P_CPU'], 1), 'RAM': 5},
+            'rpm': {'GPU_FAN': max(1.0, round(m['rpm_gpu'])), 'CPU_FAN': round(m['rpm_cpu']), 'BOTTOM_FAN': round(m['rpm_bottom']),
+                    'TOP_FAN': 2200, 'PSU_FAN': 1410}}
+
+
 # Curvas: (rpm máximas, caudal libre m3/h, presión estática máxima Pa) — fichas oficiales salvo donde se dice
 FAN_SPEC = {
     'NF-A9x14': (2200, 50.5, 16.1),      # Noctua NF-A9x14 PWM: 2200 rpm, 50.5 m3/h, 1.64 mmH2O
     'NF-A12x15': (1850, 94.2, 15.0),     # Noctua: 55.4 CFM, 1.53 mmH2O
     'GPU_90': (3300, 75.0, 45.0),        # ZOTAC no lo publica: estimado (90 mm de gráfica; el 56 % medido son ~1.955 rpm)
     'PSU_92': (3700, 60.0, 40.0),        # Corsair NR092P (92 mm, 0,22 A): curva estimada; rpm según Cybenetics
+    # dos NF-A9x14 en serie dentro del canal de la CPU (empujando y tirando): a igual caudal suman presión,
+    # el caudal libre casi no cambia (regla habitual para ventiladores iguales en serie)
+    'NF-A9x14-x2': (2200, 50.5, 32.2),
 }
 FAN_MODEL = {'GPU_FAN_1': 'GPU_90', 'GPU_FAN_2': 'GPU_90', 'GPU_FAN_3': 'GPU_90', 'CPU_FAN': 'NF-A9x14',
              'TOP_FAN': 'NF-A9x14', 'BOTTOM_FAN': 'NF-A12x15', 'PSU_FAN': 'PSU_92'}
@@ -576,7 +619,9 @@ relaxationFactors
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--cell', type=float, default=3.0)
-    ap.add_argument('--config', default='S07', choices=sorted(CONFIGS))
+    ap.add_argument('--config', default='S07', help=f'{", ".join(sorted(CONFIGS))} o una fase medida: S07_gpu, S04_cpu, S06_comb...')
+    ap.add_argument('--heat', action='append', default=[], help='PIEZA=W: cambia el calor de una pieza, p. ej. CPU_COOLER=0')
+    ap.add_argument('--fan-model', action='append', default=[], help='VENTILADOR=MODELO, p. ej. CPU_FAN=NF-A9x14-x2 (dos en serie)')
     ap.add_argument('--out', default=str(OUT_DEFAULT))
     ap.add_argument('--rpm', action='append', default=[], help='FAN=rpm, p. ej. TOP_FAN=1206 (cambia la velocidad supuesta)')
     ap.add_argument('--tag', default='', help='sufijo para el nombre del caso')
@@ -589,6 +634,14 @@ def main():
     ap.add_argument('--fan-spec', action='append', default=[], help='MODELO=rpm,q0,p0: cambia una curva estimada, p. ej. GPU_90=3300,60,30')
     ap.add_argument('--comp', action='append', default=[], help='ID.clave=valor: cambia un dato de una pieza, p. ej. SPINE.porosity=0.2')
     a = ap.parse_args()
+    if a.config not in CONFIGS:
+        CONFIGS[a.config] = phase_config(a.config)
+    for kv in a.heat:
+        k, v = kv.split('=')
+        CONFIGS[a.config]['heat_W'][k] = float(v)
+    for kv in a.fan_model:
+        k, v = kv.split('=')
+        FAN_MODEL[k] = v
     geo = json.loads(DATA.read_text(encoding='utf-8'))['geometry']
     for kv in a.fan_spec:
         k, v = kv.split('=')

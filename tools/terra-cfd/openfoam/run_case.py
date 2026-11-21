@@ -128,16 +128,48 @@ def solve(case, iters, np_):
     return end
 
 
+def warm_start(case, warm, state, np_):
+    """Arranque en caliente: copia los campos de la última iteración de un caso convergido con la misma malla
+    (misma configuración de canales y paneles, misma celda) y parte de sus saltos de presión en los ventiladores,
+    escalados con (rpm nuevas / rpm viejas)^2. Solo cambian los vatios y las rpm, así que converge en 1-2 vueltas."""
+    if (case / 'warm.json').exists():
+        return
+    if np_ > 1 and not (case / 'processor0').exists():
+        dp = case / 'system' / 'decomposeParDict'
+        dp.write_text(re.sub(r'numberOfSubdomains\s+\d+;', f'numberOfSubdomains {np_};', dp.read_text()))
+        foam(case, 'decomposePar', '-force')
+    t = None
+    for i in range(np_):
+        src, dst = warm / f'processor{i}', case / f'processor{i}'
+        for f in ('owner', 'faces'):          # misma malla y mismo reparto, o no vale
+            if (src / 'constant' / 'polyMesh' / f).stat().st_size != (dst / 'constant' / 'polyMesh' / f).stat().st_size:
+                sys.exit(f'arranque en caliente: la malla de {warm.name} no coincide ({f}, processor{i})')
+        t = max((p for p in src.iterdir() if p.is_dir() and re.fullmatch(r'[0-9.e+-]+', p.name) and p.name != '0'),
+                key=lambda p: float(p.name))
+        for fld in t.iterdir():
+            if fld.is_file():
+                shutil.copy2(fld, dst / '0' / fld.name)
+    old = json.loads((warm / 'fanState.json').read_text())['fans']
+    for zone, s in state['fans'].items():
+        o = old.get(zone)
+        if o and o.get('rpm'):
+            s['dp_Pa'] = o['dp_Pa'] * (s['rpm'] / o['rpm']) ** 2 if s['rpm'] > 5 else 0.0
+    (case / 'warm.json').write_text(json.dumps({'from': str(warm), 'time': t.name}))
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('case')
     ap.add_argument('--np', type=int, default=8)
     ap.add_argument('--loops', type=int, default=5)
     ap.add_argument('--iters', type=int, default=400)
+    ap.add_argument('--warm', help='caso ya convergido con la MISMA malla: se arranca desde su solución (mucho más rápido)')
     a = ap.parse_args()
     case = Path(a.case)
     mesh(case)
     state = json.loads((case / 'fanState.json').read_text())
+    if a.warm:
+        warm_start(case, Path(a.warm), state, a.np)
     history = []
     for loop in range(a.loops):
         write_fans(case, state)

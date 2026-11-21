@@ -1,0 +1,47 @@
+{
+  "updated": "2026-11-22",
+  "summary_es": "Dos modelos que se apoyan: el CFD dice qué aire respira cada pieza en cada montaje, y una red térmica pequeña dice cuánto tarda cada una en calentarse y enfriarse. Se calibran solo con la S04 (sin canales, sus tres fases) y se juzgan en lo que nunca vieron: S05, S06 y S07, con la gráfica sola, el procesador solo y los dos a la vez. Del procesador se usa la temperatura de la base del chip, que no depende de cuántos núcleos cargue Windows.",
+  "summary_en": "Two models that lean on each other: the CFD says which air each part breathes in each layout, and a small thermal network says how fast each one heats up and cools down. They are calibrated on S04 only (no ducts, its three phases) and judged on what they never saw: S05, S06 and S07, with the GPU alone, the CPU alone and both at once. For the CPU the model uses the chip base temperature, which does not depend on how many cores Windows loads.",
+  "kpis": [
+    {"value": "1,5 °C", "es": "error típico en 51 comparaciones a ciegas (3 pruebas × 3 fases × 6 piezas)", "en": "typical error over 51 blind comparisons (3 tests × 3 phases × 6 parts)"},
+    {"value": "78 %", "es": "de esas comparaciones dentro de ±2 °C; la peor, 3,2 °C (la gráfica)", "en": "of them within ±2 °C; the worst is 3.2 °C (the GPU)"},
+    {"value": "0,9–1,2 °C", "es": "procesador segundo a segundo, 71 min a ciegas, en los montajes con canal", "en": "CPU second by second, 71 min blind, in the ducted builds"},
+    {"value": "2,05 °C/W", "es": "lo que sube cada núcleo por cada vatio propio: igual en las siete pruebas", "en": "how much each core rises per watt of its own: the same in all seven tests"}
+  ],
+  "cfd_what_es": "OpenFOAM con el aire de fuera y flotación, malla de 2,5 mm. Encima, dos constantes físicas por pieza (una fija y otra que crece con la potencia) sacadas de las tres fases de la S04. Con el canal del procesador lleva dos más, comprobadas en cruz: sacadas de la S06 predicen la S07 y al revés.",
+  "cfd_what_en": "OpenFOAM with the outside air and buoyancy, 2.5 mm mesh. On top, two physical constants per part (a fixed one and one that grows with power) taken from the three phases of S04. With the CPU duct it carries two more, cross-checked: taken from S06 they predict S07 and vice versa.",
+  "dyn_what_es": "Siete temperaturas que evolucionan cada segundo: chip, aletas y placa de la gráfica, base del chip y disipador del procesador, y el aire que entra a cada uno, que sale del CFD para cada montaje. Entradas: vatios y rpm medidos. Ajustado con la sesión S04 completa.",
+  "dyn_what_en": "Seven temperatures that evolve every second: GPU die, fins and board, CPU chip base and heatsink, and the air reaching each, which comes from the CFD for each layout. Inputs: measured watts and fan speeds. Fitted on the full S04 session.",
+  "dyn_verdict_es": "Aceptado (procesador) · gráfica con reservas",
+  "dyn_verdict_en": "Accepted (CPU) · GPU with caveats",
+  "dyn_tone": "ok",
+  "dyn_why_es": "Predice a ciegas las sesiones enteras: el procesador con 0,9-1,2 °C en los montajes con canal y 2,1 °C en la S05; la gráfica con 1,1 °C en la S05 y 2,4-2,7 °C en la S06 y la S07, donde hereda el sesgo del CFD en régimen.",
+  "dyn_why_en": "Predicts whole sessions blind: the CPU within 0.9-1.2 °C in the ducted builds and 2.1 °C in S05; the GPU within 1.1 °C in S05 and 2.4-2.7 °C in S06 and S07, where it inherits the CFD steady-state bias.",
+  "dyn_verification": "Euler explícito con 4 subpasos por segundo; arranque desde lo medido en t = 0; constantes de tiempo positivas; las sesiones a ciegas nunca entran en el ajuste.",
+  "dyn_authority": "May predict how fast parts heat up and cool down in any layout the CFD has simulated; CPU trusted, GPU within ±3 °C.",
+  "dyn_decision": "ACCEPTED FOR PREDICTION",
+  "cfd_why_es": "Calibrado solo con la S04, acierta 51 comparaciones a ciegas con 1,5 °C de error típico y 3,2 °C como máximo.",
+  "cfd_why_en": "Calibrated on S04 alone, it gets 51 blind comparisons right within 1.5 °C typical and 3.2 °C at worst.",
+  "cfd_verification": "Cada fase del CFD arranca de la solución convergida de su montaje (misma malla); los ventiladores se iteran hasta su curva. Comprobado con más aire alrededor (100 mm, sin cambio) y con malla de 2 mm.",
+  "cfd_authority": "Trusted to rank layout and fan changes on this build; absolute GPU temperatures within about ±3 °C.",
+  "coupling_note_es": "Diferencia predicho − medido en °C (el número pequeño es lo medido). La S04 calibra; todo lo demás es a ciegas. La gráfica no sale en \"solo procesador\": con sus ventiladores parados no hay aire forzado que predecir. Con el canal del procesador el calor de la gráfica sigue llegando al lado de la placa (~3,5 °C) y el CFD no lo ve, ni con 100 mm de aire libre alrededor: lo más probable es que el canal impreso no selle del todo. Esa parte la ponen dos constantes, sacadas de la S06 para predecir la S07 y al revés.",
+  "coupling_note_en": "Predicted − measured in °C (the small number is the measurement). S04 calibrates; everything else is blind. The GPU is not shown for \"CPU only\": with its fans stopped there is no forced air to predict. With the CPU duct the GPU heat still reaches the board side (~3.5 °C) and the CFD does not see it, not even with 100 mm of free air around the case: most likely the printed duct does not seal completely. Two constants carry that part, taken from S06 to predict S07 and vice versa.",
+  "dyn_note_es": "Línea gruesa: medido. Discontinua: el modelo, con los vatios y rpm medidos como única entrada. Procesador = base del chip (media de cada núcleo menos 2,05 °C por vatio suyo). La S04 ajusta; S05, S06 y S07 son a ciegas.",
+  "dyn_note_en": "Thick line: measured. Dashed: the model, with the measured watts and fan speeds as its only input. CPU = chip base (each core minus 2.05 °C per watt of its own, averaged). S04 fits; S05, S06 and S07 are blind.",
+  "budget": [
+    {"value": "±0,5 °C", "es": "la gráfica se lee en grados enteros (nvidia-smi)", "en": "the GPU reads in whole degrees (nvidia-smi)"},
+    {"value": "±0,5 °C", "es": "la temperatura de la habitación se apuntó a mano", "en": "the room temperature was noted by hand"},
+    {"value": "~0,5 °C", "es": "repetir la misma prueba (S02 frente a S03, base del chip)", "en": "repeating the same test (S02 vs S03, chip base)"},
+    {"value": "hasta 3 °C", "es": "la media de núcleos según cuántos cargue Windows (en la S07, 4 de 8): por eso se usa la base del chip", "en": "the core average depending on how many cores Windows loads (4 of 8 in S07): hence the chip base"}
+  ],
+  "old_models": {
+    "MDL-GPU-PHY-02": {"decision": "SUPERSEDED", "plain_en": {"title": "GPU model (Aug)", "verdict": "Replaced", "tone": "old", "why": "Predicted a GPU test it had never seen, about 3 °C off. The CFD + dynamic model now does it for every layout and both chips."}},
+    "MDL-CPU-PHY-02": {"plain_en": {"title": "CPU model (Aug)", "verdict": "Replaced", "tone": "old", "why": "Ran too hot when the GPU also heated the shared air. The single-load phases of the November tests measured exactly that air, and the new model uses it."}},
+    "MDL-SYS-MIMO-02": {"plain_en": {"title": "CPU + GPU together (Aug)", "verdict": "Replaced", "tone": "old", "why": "Both loads rose together, so it could not tell cause from effect. The November tests load each chip on its own; the new dynamic model is built on them."}}
+  },
+  "whatif_notes": {},
+  "reco_es": "",
+  "reco_en": "",
+  "whatif_note_es": "",
+  "whatif_note_en": ""
+}

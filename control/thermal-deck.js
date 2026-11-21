@@ -309,6 +309,103 @@
     return html?`<div class="tl-cfdcampaign">${html}</div>`:'';
   }
 
+  // ---------- Modelo final: CFD + modelo dinámico, con sus pruebas a ciegas ----------
+  function traceSvg(tr,es){
+    const W=640,H=230,L=34,R=8,T=10,B=26,t1=tr.t_s[tr.t_s.length-1]||4260;
+    const lo=20,hi=90,x=t=>L+(t/t1)*(W-L-R),y=v=>T+(1-(v-lo)/(hi-lo))*(H-T-B);
+    const path=k=>tr[k].map((v,i)=>`${i?'L':'M'}${x(tr.t_s[i]).toFixed(1)} ${y(v).toFixed(1)}`).join('');
+    // franjas de carga (gráfica, procesador, las dos)
+    let bands='',cur=null,start=0;
+    const close=end=>{if(cur&&['gpu','cpu','combined'].includes(cur))bands+=`<rect class="b-${cur}" x="${x(start).toFixed(1)}" y="${T}" width="${(x(end)-x(start)).toFixed(1)}" height="${H-T-B}"></rect><text class="bl" x="${((x(start)+x(end))/2).toFixed(1)}" y="${T+12}">${cur==='gpu'?(es?'gráfica':'GPU'):cur==='cpu'?(es?'procesador':'CPU'):(es?'las dos':'both')}</text>`};
+    tr.phase.forEach((p,i)=>{if(p!==cur){close(tr.t_s[i]);cur=p;start=tr.t_s[i]}});close(t1);
+    const grid=[30,50,70,90].map(v=>`<line class="g" x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}"></line><text class="ax" x="${L-4}" y="${y(v)+3}">${v}</text>`).join('');
+    const ticks=[0,15,30,45,60,71].map(mn=>`<text class="ax" text-anchor="${mn===71?'end':mn===0?'start':'middle'}" x="${x(Math.min(mn*60,t1))}" y="${H-8}">${mn} min</text>`).join('');
+    return `<svg class="tl-trace" viewBox="0 0 ${W} ${H}" role="img" aria-label="${es?'Temperatura medida y predicha':'Measured and predicted temperature'}">${bands}${grid}${ticks}
+      <path class="m gpu" d="${path('gpu_meas')}"></path><path class="p gpu" d="${path('gpu_pred')}"></path>
+      <path class="m cpu" d="${path('cpu_meas')}"></path><path class="p cpu" d="${path('cpu_pred')}"></path></svg>`;
+  }
+  function finalModelHtml(x,lang='es',parts='all',uid='fm'){
+    if(!x)return '';
+    const es=lang==='es',L=o=>es?o.es:o.en;
+    const has=k=>parts==='all'||parts.includes(k);
+    const n=(v,d=1)=>Number(v).toLocaleString(es?'es-ES':'en-GB',{minimumFractionDigits:d,maximumFractionDigits:d});
+    const sg=v=>`${v>0?'+':v<0?'−':'±'}${n(Math.abs(v))}`;
+    const tone=e=>Math.abs(e)<=1.5?'ok':Math.abs(e)<=3?'warn':'bad';
+    let html='';
+    if(has('intro')){
+      html+=`<p class="tl-cfd-goal">${esc(es?x.summary_es:x.summary_en)}</p>`;
+      if(x.kpis?.length)html+=`<ul class="tl-cfdkpis solo">${x.kpis.map(k=>`<li><strong>${esc(k.value)}</strong><span>${esc(L(k))}</span></li>`).join('')}</ul>`;
+    }
+    if(has('models')&&x.models?.length){
+      html+=`<h4 class="tl-subhead">${es?'Los dos modelos y cómo se han comprobado':'The two models and how they were checked'}</h4><div class="tl-fm-models">${x.models.map(md=>`<article class="${esc(md.tone||'ok')}">
+        <header><strong>${esc(es?md.name_es:md.name_en)}</strong><b>${esc(es?md.verdict_es:md.verdict_en)}</b></header>
+        <p>${esc(es?md.what_es:md.what_en)}</p>
+        <ul>${(md.errors||[]).map(e=>`<li class="${tone(e.value_C)}"><span>${esc(L(e))}</span><b>${n(e.value_C)} °C</b></li>`).join('')}</ul>
+      </article>`).join('')}</div>`;
+    }
+    if(has('coupling')&&x.coupling?.rows?.length){
+      const c=x.coupling,keys=c.keys||['GPU','CPU','VRM','CHIPSET','BOARD','RAM'];
+      const lab={GPU:es?'Gráfica':'GPU',CPU:es?'Procesador':'CPU',VRM:'VRM',CHIPSET:'Chipset',BOARD:es?'Placa':'Board',RAM:es?'Memoria':'RAM'};
+      html+=`<h4 class="tl-subhead">${es?'Cada carga por separado: ¿cuánto calienta una pieza a la otra?':'Each load on its own: how much does one part heat the other?'}</h4>
+        <div class="tl-table-wrap"><table class="tl-fm-coupling"><thead><tr><th>${es?'Prueba y fase':'Test and phase'}</th>${keys.map(k=>`<th>${lab[k]}</th>`).join('')}</tr></thead><tbody>
+        ${c.rows.map(r=>{const by=Object.fromEntries(r.rows.map(q=>[q.id,q]));return `<tr class="${r.role==='calib'?'calib':''}"><th>${esc(L(r))}<small>${r.role==='calib'?(es?'calibra · ':'calibrates · '):''}${es?'gráfica':'GPU'} ${n(r.gpu_W,0)} W · ${es?'procesador':'CPU'} ${n(r.cpu_W,0)} W</small></th>${keys.map(k=>by[k]?`<td class="${tone(by[k].err)}" title="${es?'medido':'measured'} ${n(by[k].meas)} · ${es?'predicho':'predicted'} ${n(by[k].pred)}"><b>${sg(by[k].err)}</b><small>${n(by[k].meas)} °C</small></td>`:`<td class="na">—</td>`).join('')}</tr>`}).join('')}
+        </tbody></table></div>${(es?c.note_es:c.note_en)?`<p class="tl-note">${esc(es?c.note_es:c.note_en)}</p>`:''}`;
+    }
+    if(has('dynamic')&&x.dynamic?.sessions?.length){
+      const d=x.dynamic,id=`dyn-${uid}-${lang}`;
+      const radios=d.sessions.map((s,i)=>`<input type="radio" name="${id}" id="${id}-${i}" class="s${i}"${i===d.sessions.length-1?' checked':''}>`).join('');
+      const tabs=d.sessions.map((s,i)=>`<label for="${id}-${i}" class="s${i}">${esc(L(s))}<small>${s.role==='fit'?(es?'ajuste':'fit'):(es?'a ciegas':'blind')}</small></label>`).join('');
+      const stages=d.sessions.map((s,i)=>`<figure class="s${i}">${traceSvg(s.trace,es)}<figcaption><span class="k gpu">${es?'Gráfica':'GPU'}: ${n(s.gpu_rmse)} °C</span><span class="k cpu">${es?'Procesador':'CPU'}: ${n(s.cpu_rmse)} °C</span><span class="k leg"><i class="m"></i>${es?'medido':'measured'} <i class="p"></i>${es?'modelo':'model'}</span></figcaption></figure>`).join('');
+      const rules=d.sessions.map((s,i)=>`.tl-dyn .s${i}:checked~.stage figure.s${i}{display:block}.tl-dyn .s${i}:checked~.tabs label.s${i}{background:var(--tl-cool);color:#06222c;border-color:var(--tl-cool)}`).join('');
+      html+=`<h4 class="tl-subhead">${es?'El modelo dinámico, segundo a segundo (71 min por prueba)':'The dynamic model, second by second (71 min per test)'}</h4>
+        <div class="tl-dyn"><style>${rules}</style>${radios}<div class="tabs">${tabs}</div><div class="stage">${stages}</div></div>
+        ${(es?d.note_es:d.note_en)?`<p class="tl-note">${esc(es?d.note_es:d.note_en)}</p>`:''}`;
+    }
+    if(has('budget')&&x.budget?.length){
+      html+=`<h4 class="tl-subhead">${es?'¿Cuánto se puede fiar uno? De dónde sale el error':'How far can it be trusted? Where the error comes from'}</h4><ul class="tl-fm-budget">${x.budget.map(b=>`<li><b>${esc(b.value)}</b><span>${esc(L(b))}</span></li>`).join('')}</ul>`;
+    }
+    return html?`<div class="tl-fm">${html}</div>`:'';
+  }
+
+  // ---------- ¿Y si…? Escenarios sobre el montaje actual ----------
+  function whatifHtml(x,lang='es',uid='wi'){
+    if(!x?.rows?.length)return '';
+    const es=lang==='es',L=o=>es?o.es:o.en;
+    const n=(v,d=1)=>Number(v).toLocaleString(es?'es-ES':'en-GB',{minimumFractionDigits:d,maximumFractionDigits:d});
+    const sg=(v,d=1)=>Math.abs(v)<(d?0.05:0.5)?'=':`${v>0?'+':'−'}${n(Math.abs(v),d)}`;
+    const base=x.rows.find(r=>r.id==='s07');
+    const groups=[['all',es?'Todos':'All'],...(x.groups||[]).map(g=>[g.id,L(g)])];
+    const id=`wi-${uid}-${lang}`;
+    const verdict={yes:es?'Merece la pena':'Worth it',meh:es?'Casi igual':'About the same',no:es?'Peor':'Worse'};
+    const bar=(v,max)=>{const w=Math.min(50,Math.abs(v)/max*50);return `<span class="tl-wi-bar"><i></i><em class="${Math.abs(v)<max/12?'':v<0?'ok':'bad'}" style="${v<0?'right:50%':'left:50%'};width:${w.toFixed(1)}%"></em></span>`};
+    const card=r=>{
+      if(r.id==='s07')return `<article class="tl-wi base"><header><strong>${esc(L(r))}</strong><span class="tl-verdict">${es?'Referencia':'Reference'}</span></header>
+        <ul><li><span>${es?'Gráfica':'GPU'}</span><b>${n(r.gpu)} °C · ${n(r.gpu_rpm,0)} rpm</b></li><li><span>${es?'Procesador':'CPU'}</span><b>${n(r.cpu)} °C</b></li><li><span>${es?'Placa (VRM)':'Board (VRM)'}</span><b>${n(r.vrm)} °C</b></li><li><span>${es?'Memoria':'RAM'}</span><b>${n(r.ram)} °C</b></li></ul>
+        <small>${es?'Aire que cruza la caja':'Air through the case'} ${n(r.through_m3h,0)} m³/h</small></article>`;
+      return `<article class="tl-wi v-${esc(r.verdict)} g-${esc(r.group)}">
+        <header><strong>${esc(L(r))}</strong><span class="tl-verdict">${verdict[r.verdict]||''}</span></header>
+        <ul>
+          <li><span>${es?'Gráfica':'GPU'}</span>${bar(r.d_gpu,3)}<b>${sg(r.d_gpu)} °C</b></li>
+          <li><span>${es?'Su ventilador':'Its fan'}</span>${bar(r.d_gpu_rpm,120)}<b>${sg(r.d_gpu_rpm,0)} rpm</b></li>
+          <li><span>${es?'Procesador':'CPU'}</span>${bar(r.d_cpu,3)}<b>${sg(r.d_cpu)} °C</b></li>
+          <li><span>${es?'Placa (VRM)':'Board (VRM)'}</span>${bar(r.d_vrm,3)}<b>${sg(r.d_vrm)} °C</b></li>
+          <li><span>${es?'Memoria':'RAM'}</span>${bar(r.d_ram,3)}<b>${sg(r.d_ram)} °C</b></li>
+        </ul>
+        ${(es?r.note_es:r.note_en)?`<p>${esc(es?r.note_es:r.note_en)}</p>`:''}
+        <small>${es?'Aire que cruza la caja':'Air through the case'} ${n(r.through_m3h,0)} m³/h${base?` (${sg(r.through_m3h-base.through_m3h,0)})`:''}</small>
+      </article>`;
+    };
+    const rules=groups.map(([g],i)=>i?`.tl-whatif .f${i}:checked~.grid .tl-wi:not(.g-${g}):not(.base){display:none}`:'').join('')+groups.map(([g],i)=>`.tl-whatif .f${i}:checked~.tabs label.f${i}`).join(',')+'{background:var(--tl-cool);color:#06222c;border-color:var(--tl-cool)}';
+    const order={yes:0,meh:1,no:2};
+    const rows=[...x.rows].sort((a,b)=>(a.id==='s07'?-1:b.id==='s07'?1:((order[a.verdict]??3)-(order[b.verdict]??3))||((a.score??0)-(b.score??0))));
+    return `${(es?x.recommendation_es:x.recommendation_en)?`<div class="tl-wi-reco"><strong>${es?'Recomendación':'Recommendation'}</strong><p>${esc(es?x.recommendation_es:x.recommendation_en)}</p></div>`:''}
+      <div class="tl-whatif"><style>${rules}</style>
+      ${groups.map(([g],i)=>`<input type="radio" name="${id}" id="${id}-${i}" class="f${i}"${i===0?' checked':''}>`).join('')}
+      <div class="tabs">${groups.map(([g,lab],i)=>`<label for="${id}-${i}" class="f${i}">${esc(lab)}</label>`).join('')}</div>
+      <div class="grid">${rows.map(card).join('')}</div></div>
+      ${(es?x.note_es:x.note_en)?`<p class="tl-note">${esc(es?x.note_es:x.note_en)}</p>`:''}`;
+  }
+
   // ---------- Slides ----------
   function slides(m,data){
     const s=m.story;
@@ -504,6 +601,24 @@
         <p class="dk-kicker">Simulación del aire · con el aire de fuera</p>
         <h2 class="dk-h">¿Acierta, y qué pasa si giramos los ventiladores?</h2>
         ${cfdCampaignHtml(s.cfd_campaign,'es',['validation','layouts'])}`);
+      if(s.final_model){
+        add('modelofinal','El modelo final',`
+        <p class="dk-kicker">Simulación + medidas · el modelo final</p>
+        <h2 class="dk-h">Un modelo que acierta lo que no ha visto</h2>
+        ${finalModelHtml(s.final_model,'es',['intro','models'],'d')}`);
+        add('acoplamiento','Cada carga por separado',`
+        <p class="dk-kicker">Modelo final · gráfica y procesador por separado</p>
+        <h2 class="dk-h">¿Cuánto se calientan una a la otra?</h2>
+        ${finalModelHtml(s.final_model,'es',['coupling'],'d1')}`);
+        if(s.final_model.dynamic)add('dinamico','Segundo a segundo',`
+        <p class="dk-kicker">Modelo final · cómo se calienta y se enfría</p>
+        <h2 class="dk-h">71 minutos, segundo a segundo</h2>
+        ${finalModelHtml(s.final_model,'es',['dynamic','budget'],'d2')}`);
+      }
+      if(s.whatif)add('ysi','¿Y si…?',`
+        <p class="dk-kicker">Modelo final · qué cambiar</p>
+        <h2 class="dk-h">¿Y si cambiamos los ventiladores?</h2>
+        ${whatifHtml(s.whatif,'es','d')}`);
       add('cfdcheck','¿Acierta el CFD?',`
         <p class="dk-kicker">Simulación del aire · comprobación</p>
         <h2 class="dk-h">¿Se parece a lo medido?</h2>
@@ -677,6 +792,8 @@
     fill('tl-ideas-next',ideasNextHtml(m.story.ideas_next,'en'));
     fill('tl-cfd-plan',cfdPlanHtml(m.story.cfd_plan,'en'));
     fill('tl-cfd-status',cfdCampaignHtml(m.story.cfd_campaign,'en')+(m.story.cfd_campaign?.validation?.length?cfdStatusHtml({...m.story.cfd_status,flows:m.story.cfd_campaign.flows},'en',['intro','flows','assumptions','tuning']):cfdStatusHtml(m.story.cfd_status,'en')));
+    if(m.story.final_model){fill('tl-final-model',finalModelHtml(m.story.final_model,'en'));const b=document.getElementById('tl-final-block');if(b)b.hidden=false}
+    if(m.story.whatif){fill('tl-whatif',whatifHtml(m.story.whatif,'en','p'));const b=document.getElementById('tl-whatif-block');if(b)b.hidden=false}
     const updated=document.getElementById('tl-deck-updated');
     if(updated)updated.textContent=`Actualizada el ${dateEs(m.updated)} · ${items.length} diapositivas · ${m.current>=0?`fase ${m.current+1} de ${m.phases.length}`:''}`;
     const nextName=document.getElementById('tl-deck-next');
