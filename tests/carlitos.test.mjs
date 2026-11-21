@@ -102,3 +102,17 @@ test('Tonnage: what is logged per side (one leg, one arm, one dumbbell) is moved
   const s = summarize([['2026-11-10', 1, 'Hip thrust a una pierna', 'Glúteos', 1, 10, 20, '', 'app', 'x']], MARIA_COLUMNS, '2026-11-10');
   assert.equal(s.tonnage.week, 400);
 });
+test('Carlitos: two weeks without a part you train regularly and he feels it there; training it cures him', () => {
+  const legs = ['2026-10-01', '2026-10-08', '2026-10-15', '2026-10-22'].map(d => cesarRow(d, 100, 'Sentadilla · Barra Olímpica 20kg'));
+  const chest = ['2026-11-01', '2026-11-08', '2026-11-12'].map(d => cesarRow(d));
+  const log = { born: '2026-11-02', actions: [] };
+  const sick = carlitosState(acts([...legs, ...chest], []), log, '2026-11-16');
+  assert.deepEqual(sick.ailments.map(a => [a.who, a.part, a.bad]), [['cesar', 'piernas', true]]);
+  assert.ok(sick.ailments[0].text.includes('cojea'));
+  const cured = carlitosState(acts([...legs, ...chest, cesarRow('2026-11-16', 100, 'Sentadilla · Barra Olímpica 20kg')], []), log, '2026-11-16');
+  assert.equal(cured.ailments.length, 0);
+  assert.ok(cured.diary.some(d => /ha vuelto a entrenar pierna/.test(d.text)));
+  // María never trains chest in her routine: nobody is blamed for it.
+  assert.ok(!sick.ailments.some(a => a.who === 'maria'));
+  assert.equal(carlitosState(acts([], []), log, '2026-11-16').fever, true);
+});

@@ -124,17 +124,37 @@ export const STAGE_NAMES = { cachorro: 'Cachorro', joven: 'Joven', adulto: 'Adul
 const MILESTONES = [1, 5, 10, 25, 50, 100, 200, 300, 500, 750, 1000, 1500, 2000];
 
 // Rows of either app reduced to what Carlitos needs: per person and day, tonnage, sets, leg work and km walked.
+// ---------- His health is your training ----------
+// Each part of the body one of you trains regularly is a part of Carlitos. Two weeks without it and he feels it there;
+// three, and he is properly poorly. Training it again cures him at once. He never gets worse than poorly.
+export const PARTS = [
+  { id: 'piernas', name: 'pierna', test: /pierna|gl[uú]te|cu[aá]dri|femoral|isquio|gemel|sentadilla|hip thrust|\bleg\b|prensa|hacka|zancada|b[uú]lgara|abduct|aduct|step|squat|calf/i,
+    mild: 'cojea un poco de una pata trasera', bad: 'cojea de las dos patas traseras y no quiere pasear', icon: '🦵', cure: 'ya corre otra vez' },
+  { id: 'espalda', name: 'espalda', test: /espalda|dorsal|remo|jal[oó]n|row|pulldown|dominad|pull|peso muerto|deadlift|lumbar|hiperext/i,
+    mild: 'anda un poco encorvado', bad: 'tiene el lomo dolorido y anda como un señor mayor', icon: '🦴', cure: 'ya anda bien recto' },
+  { id: 'pecho', name: 'pecho', test: /pecho|chest|bench|press banca|aperturas|fly|fondos/i,
+    mild: 'no tiene fuerza para empujar la pelota', bad: 'ni siquiera puede empujar la puerta para recibiros', icon: '🎾', cure: 'ya empuja la pelota con el morro' },
+  { id: 'hombros', name: 'hombro', test: /hombro|delt|lateral|militar|overhead|face pull|front/i,
+    mild: 'no consigue levantar las orejas', bad: 'tiene las orejas por los suelos, literalmente', icon: '👂', cure: 'ya levanta las orejas' },
+  { id: 'brazos', name: 'brazo', test: /b[ií]ceps|tr[ií]ceps|curl(?! femoral)|french|pushdown|brazo/i,
+    mild: 'no puede dar bien la patita', bad: 'no puede dar la patita ni a cambio de una croqueta', icon: '🐾', cure: 'ya da la patita' },
+  { id: 'abdomen', name: 'abdomen', test: /abdomen|abs\b|abdominal|crunch|core|plancha|wood chopper|leg raise/i,
+    mild: 'tiene la barriguita floja', bad: 'tiene dolor de barriga', icon: '🫄', cure: 'ya tiene la barriga fuerte' }
+];
+const MILD = 14, BAD = 21;
+
 export function activity(rows, c) {
   const days = new Map();
   for (const r of rows || []) {
     const fecha = String(r[c.FECHA] || '');
     if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha) || NOT_A_SET.test(r[c.EJ] || '')) continue;
-    const d = days.get(fecha) || { kg: 0, sets: 0, legs: false, km: 0 };
+    const d = days.get(fecha) || { kg: 0, sets: 0, legs: false, km: 0, parts: new Set() };
     if (WALK.test(r[c.EJ] || '')) d.km += walkKm(r, c);
     else {
       d.sets++;
       d.kg += Math.max(0, (number(r[c.KG]) || 0) * (number(r[c.REPS]) || 0) * sidesOf(r[c.EJ]));
       if (LEG.test(`${r[c.EJ]} ${r[c.MUSC] || ''}`)) d.legs = true;
+      for (const part of PARTS) if (part.test.test(`${r[c.EJ]} ${r[c.MUSC] || ''}`)) d.parts.add(part.id);
     }
     days.set(fecha, d);
   }
@@ -156,6 +176,10 @@ export function carlitosState(acts, log, today) {
   for (const m of log.messages || []) notesByDay.set(m.d, (notesByDay.get(m.d) || 0) + 1);
   const visits = new Set((log.visits || []).map(v => v.fecha));
 
+  // When each one last trained each part, starting with what they did before he was born.
+  const lastPart = { cesar: {}, maria: {} };
+  for (const who of WHO) for (const [fecha, d] of acts[who]) if (fecha < born && d.parts) for (const id of d.parts) if (!lastPart[who][id] || fecha > lastPart[who][id]) lastPart[who][id] = fecha;
+  const gap = (a, b) => Math.round((Date.parse(`${b}T12:00:00Z`) - Date.parse(`${a}T12:00:00Z`)) / 864e5);
   for (let day = born; day <= today; day = shift(day, 1)) {
     const mon = monday(day), isMonday = day === mon, is = { cesar: acts.cesar.get(day), maria: acts.maria.get(day) };
     // A new week: was the last one looked after by both? And the event of the week that ends.
@@ -191,6 +215,11 @@ export function carlitosState(acts, log, today) {
           owned.add(season.gift);
           diary(day, '🎁', season.id === 'cumple' ? `¡Cumpleaños de Carlitos! ${NAMES[who]} ha entrenado y le ha regalado un gorro de fiesta.` : `${season.title}: ${NAMES[who]} ha entrenado y Carlitos estrena ${WARDROBE.find(x => x.id === season.gift).name.toLowerCase()}.`);
         }
+      }
+      for (const id of (trained(d) && d.parts) || []) {
+        const before = lastPart[who][id], part = PARTS.find(x => x.id === id);
+        if (before && gap(before, day) > MILD && regular(acts[who], id, day)) { love = Math.min(100, love + 5); diary(day, '🩹', `${NAMES[who]} ha vuelto a entrenar ${part.name} y Carlitos ${part.cure}. ¡Curado!`); }
+        lastPart[who][id] = day;
       }
       if (d && d.km >= 1) { hunger = Math.min(100, hunger + 8); xp += Math.min(10, Math.round(d.km * 2)); if (d.km >= 3) bones += 1; }
     }
@@ -246,10 +275,20 @@ export function carlitosState(acts, log, today) {
 
   const week = weekStats(acts, monday(today), today), ev = eventOf(today), [have, need, unit] = ev.goal({ ...week, average: averageTonnage(acts, monday(today)) });
   const worn = wornNow(log, owned);
-  const mood = (hunger + love) / 2 - (week.each.cesar && week.each.maria ? 0 : (new Date(`${today}T12:00:00Z`).getUTCDay() + 6) % 7 >= 4 ? 10 : 0);
+  const ailments = [];
+  for (const who of WHO) for (const part of PARTS) {
+    const last = lastPart[who][part.id];
+    if (!last || !regular(acts[who], part.id, today)) continue;
+    const days = gap(last, today);
+    if (days > MILD) ailments.push({ who, part: part.id, name: part.name, icon: part.icon, days, bad: days > BAD, text: days > BAD ? part.bad : part.mild });
+  }
+  ailments.sort((a, b) => b.days - a.days);
+  const idle = WHO.map(who => { const last = [...acts[who].keys()].filter(f => f <= today && trained(acts[who].get(f))).sort().pop(); return last ? gap(last, today) : 99; });
+  const fever = Math.min(...idle) >= 7;
+  const mood = (hunger + love) / 2 - ailments.reduce((t, a) => t + (a.bad ? 8 : 4), 0) - (fever ? 15 : 0) - (week.each.cesar && week.each.maria ? 0 : (new Date(`${today}T12:00:00Z`).getUTCDay() + 6) % 7 >= 4 ? 10 : 0);
   Object.assign(out, {
     level, stage: stageOf(level), stageName: STAGE_NAMES[stageOf(level)], progress: (xp - xpFor(level)) / (xpFor(level + 1) - xpFor(level)),
-    hunger: Math.round(hunger), love: Math.round(love), bones, mood: mood >= 75 ? 'feliz' : mood >= 50 ? 'contento' : mood >= 30 ? 'echa' : 'triste',
+    hunger: Math.round(hunger), love: Math.round(love), bones, ailments: ailments.slice(0, 6), fever, mood: mood >= 75 ? 'feliz' : mood >= 50 ? 'contento' : mood >= 30 ? 'echa' : 'triste',
     week: { cesar: week.each.cesar > 0, maria: week.each.maria > 0 }, streak, bestStreak: Math.max(best, streak),
     tonnage: Math.round(tonnage), golden: goldenDay(today), season: seasonOf(today, born),
     event: { id: ev.id, title: ev.title, text: ev.text, progress: Math.min(1, have / need), done: have >= need, left: Math.max(0, Math.ceil(need - have)), unit, toy: ev.toy && !owned.has(ev.toy) ? ev.toy : null },
@@ -263,6 +302,15 @@ export function carlitosState(acts, log, today) {
   });
   out.diary = out.diary.reverse().slice(0, 60);
   return out;
+}
+
+// A part counts for someone only if they train it regularly: three sessions in the 90 days before. Nobody is blamed for a
+// part their routine does not have.
+function regular(days, id, until) {
+  const from = shift(until, -90);
+  let n = 0;
+  for (const [fecha, d] of days) if (fecha >= from && fecha <= until && d.parts && d.parts.has(id) && ++n >= 3) return true;
+  return false;
 }
 
 function weekStats(acts, from, to) {
