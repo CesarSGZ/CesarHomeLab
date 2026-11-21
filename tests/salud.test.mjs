@@ -48,4 +48,6 @@ test('Dates as the iPhone may write them', async () => {
   const { isoDay } = await import('../functions/_lib/salud.js');
   assert.equal(isoDay('2026-11-20T00:00:00+01:00'), '2026-11-20'); assert.equal(isoDay('20 nov 2026, 0:00'), '2026-11-20');
   assert.equal(isoDay('5 de noviembre de 2026'), '2026-11-05'); assert.equal(isoDay('20/11/26'), '2026-11-20'); assert.equal(isoDay('ayer'), null);
+  assert.equal(isoDay('Nov 20, 2026 at 12:00 AM'), '2026-11-20'); assert.equal(isoDay('November 5, 2026'), '2026-11-05');
+  assert.equal(isoDay('20 Nov 2026 at 0:00'), '2026-11-20'); assert.equal(isoDay('11/20/26'), '2026-11-20'); assert.equal(isoDay('5/11/26'), '2026-11-05');
 });
