@@ -384,12 +384,28 @@ function renderThermalCfd(cfd,fans){
   document.getElementById('tl-cfd-note').textContent=`* PSU losses leave through its rear grille, which points up at the top panel. ${cfd.notes.join(' ')}`;
 }
 
+// Botones del aire del CFD en el visor: uno por caso de la campaña (si existe), con nombres cortos
+const CFD_SHORT={s04:'No ducts',s07:'As built',s05:'Panels off',s06:'CPU duct only','s07-top-in':'Top fan in','s07-bottom-out':'Bottom fan out','s07-both-flipped':'Both flipped'};
+function renderCfdViewerButtons(streams){
+  const bar=document.querySelector('.thermal-view-cfd');
+  if(!bar||!streams.length)return;
+  const order=['s07','s04','s05','s06','s07-top-in','s07-bottom-out','s07-both-flipped'];
+  const list=[...streams].sort((a,b)=>(order.indexOf(a)+1||99)-(order.indexOf(b)+1||99));
+  bar.querySelectorAll('[data-thermal-cfd]').forEach(button=>{if(button.dataset.thermalCfd!=='off')button.remove();});
+  const off=bar.querySelector('[data-thermal-cfd="off"]');
+  list.forEach(name=>{
+    const button=makeElement('button',null,CFD_SHORT[name]||name.toUpperCase());
+    button.type='button';button.dataset.thermalCfd=name;button.setAttribute('aria-pressed','false');
+    bar.insertBefore(button,off);
+  });
+}
+
 function renderCfdChecklist(items){
   const list=document.getElementById('tl-cfd-checklist');
   if(!list)return;
   list.replaceChildren(...items.map(item=>{
     const li=makeElement('li');
-    li.append(makeElement('strong',null,item.what),makeElement('small',null,item.how),makeElement('span',null,item.why));
+    li.append(makeElement('strong',null,item.what_en||item.what),makeElement('small',null,item.how_en||item.how),makeElement('span',null,item.why_en||item.why));
     return li;
   }));
   const count=document.getElementById('tl-cfd-checklist-count');
@@ -412,6 +428,7 @@ function renderThermalLab(data){
   renderThermalLedger(data.experimental_campaign||[]);
   if(data.cfd_inputs)renderThermalCfd(data.cfd_inputs,data.configuration.fans);
   renderCfdChecklist(data.geometry?.open_questions||[]);
+  renderCfdViewerButtons(data.story?.cfd_campaign?.streams||[]);
   window.ThermalDeck?.render(data);
 }
 

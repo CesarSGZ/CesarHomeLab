@@ -32,9 +32,9 @@ CASE = {  # nombre → (config medida, textos, sentido arriba / abajo)
     'S07-both-flipped': ('S07', 'Los dos al revés', 'Both flipped', 'in', 'out'),
 }
 OPENING = {  # zona de rejilla → textos
-    'grille_gpu': ('Panel de la gráfica', 'GPU-side panel'), 'grille_cpu': ('Panel del procesador', 'CPU-side panel'),
-    'grille_top': ('Techo', 'Top'), 'grille_floor': ('Suelo', 'Floor'), 'grille_rear_gap': ('Trasera', 'Rear'),
-    'grille_board_io': ('Trasera (placa)', 'Rear (board I/O)'), 'grille_gpu_bracket': ('Trasera (gráfica)', 'Rear (GPU bracket)'),
+    'vent_gpu': ('Panel de la gráfica', 'GPU-side panel'), 'vent_cpu': ('Panel del procesador', 'CPU-side panel'),
+    'vent_top': ('Techo', 'Top'), 'vent_floor': ('Suelo', 'Floor'), 'vent_rear_gap': ('Trasera', 'Rear'),
+    'vent_board_io': ('Trasera (placa)', 'Rear (board I/O)'), 'vent_gpu_bracket': ('Trasera (gráfica)', 'Rear (GPU bracket)'),
 }
 
 

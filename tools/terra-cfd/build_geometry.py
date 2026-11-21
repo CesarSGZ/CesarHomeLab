@@ -346,8 +346,12 @@ geometry = {
         "Forma real de cada cable: se modelan como volúmenes porosos.",
     ],
     "open_questions": [
-        {"what": "Curva de los ventiladores de la gráfica", "how": "estimada y ajustada", "why": "ZOTAC no la publica; curva de 90 mm típica a las 1.955 rpm medidas, validada con S04-S07"},
-        {"what": "Cuánto frenan cables, aletas y rejillas", "how": "ajustado con S04-S07", "why": "rejillas al 60 % de la pérdida teórica; el CFD acierta la S07 con menos de 1 °C"},
+        {"what": "Curva de los ventiladores de la gráfica", "how": "estimada", "why": "ZOTAC no la publica; curva de 90 mm típica a las rpm medidas",
+         "what_en": "GPU fan curve", "how_en": "estimated", "why_en": "ZOTAC does not publish it; a typical 90 mm curve at the measured rpm"},
+        {"what": "Flujo pasante de la gráfica", "how": "hipótesis", "why": "PCB corto y el ventilador del extremo soplando a través hacia la espina, como en casi todas las SFF; es lo único que hace cuadrar el aire del procesador en S04, S05, S06 y S07 a la vez",
+         "what_en": "GPU flow-through section", "how_en": "hypothesis", "why_en": "short PCB with the end fan blowing through towards the spine, as on most SFF cards; the only change that makes the air reaching the CPU match S04, S05, S06 and S07 at once"},
+        {"what": "Freno de cables y aletas", "how": "estimado", "why": "zonas porosas; las rejillas ya usan la fórmula de chapa perforada tal cual, sin factor de ajuste",
+         "what_en": "Drag of cables and fins", "how_en": "estimated", "why_en": "porous zones; the grilles now use the perforated-plate formula as is, with no tuning factor"},
     ],
     "resolved": [
         "Ventilador de abajo: centro a ~94,4 mm del frontal (César, 17 nov; medido a ojo).",

@@ -2043,13 +2043,27 @@
     "open_questions": [
       {
         "what": "Curva de los ventiladores de la gráfica",
-        "how": "estimada y ajustada",
-        "why": "ZOTAC no la publica; curva de 90 mm típica a las 1.955 rpm medidas, validada con S04-S07"
+        "how": "estimada",
+        "why": "ZOTAC no la publica; curva de 90 mm típica a las rpm medidas",
+        "what_en": "GPU fan curve",
+        "how_en": "estimated",
+        "why_en": "ZOTAC does not publish it; a typical 90 mm curve at the measured rpm"
       },
       {
-        "what": "Cuánto frenan cables, aletas y rejillas",
-        "how": "ajustado con S04-S07",
-        "why": "rejillas al 60 % de la pérdida teórica; el CFD acierta la S07 con menos de 1 °C"
+        "what": "Flujo pasante de la gráfica",
+        "how": "hipótesis",
+        "why": "PCB corto y el ventilador del extremo soplando a través hacia la espina, como en casi todas las SFF; es lo único que hace cuadrar el aire del procesador en S04, S05, S06 y S07 a la vez",
+        "what_en": "GPU flow-through section",
+        "how_en": "hypothesis",
+        "why_en": "short PCB with the end fan blowing through towards the spine, as on most SFF cards; the only change that makes the air reaching the CPU match S04, S05, S06 and S07 at once"
+      },
+      {
+        "what": "Freno de cables y aletas",
+        "how": "estimado",
+        "why": "zonas porosas; las rejillas ya usan la fórmula de chapa perforada tal cual, sin factor de ajuste",
+        "what_en": "Drag of cables and fins",
+        "how_en": "estimated",
+        "why_en": "porous zones; the grilles now use the perforated-plate formula as is, with no tuning factor"
       }
     ],
     "resolved": [
@@ -2752,7 +2766,7 @@
     }
   },
   "story": {
-    "updated": "2026-11-17",
+    "updated": "2026-11-21",
     "limits": {
       "cpu_C": 95,
       "cpu_basis": "temperatura máxima que AMD fija para el Ryzen 7 9800X3D"
@@ -3066,32 +3080,34 @@
           "en": "Run the CFD"
         },
         "detail": {
-          "es": "Caso base montado y validado: con malla de 2 mm predice la S07 con menos de 1 °C de error.",
-          "en": "Base case built and validated: on the 2 mm mesh it predicts S07 to within 1 °C."
+          "es": "Caso base montado y validado con la S04 y la S07.",
+          "en": "Base case built and validated against S04 and S07."
         },
         "date": "2026-11-16"
       },
       {
-        "status": "next",
+        "status": "done",
         "title": {
           "es": "CFD con las medidas nuevas y el aire de fuera",
           "en": "CFD with the new measurements and outside air"
         },
         "detail": {
-          "es": "Siete casos (~7,5 h con el PC libre): S04 y S07 para ajustar y comprobar, S05 y S06 a ciegas, y los ventiladores de caja dados la vuelta (arriba metiendo, abajo sacando, los dos).",
-          "en": "Seven cases (~7.5 h with the PC free): S04 and S07 to fit and check, S05 and S06 blind, and the case fans reversed (top as intake, bottom as exhaust, both)."
-        }
+          "es": "Hecho el 21 nov: siete casos en malla de 2,5 mm. Error típico 1,2 °C en la S07 y 1,5 / 1,4 °C a ciegas en S05 y S06, memoria incluida.",
+          "en": "Done 21 Nov: seven cases on a 2.5 mm mesh. Typical error 1.2 °C on S07 and 1.5 / 1.4 °C blind on S05 and S06, RAM included."
+        },
+        "date": "2026-11-21"
       },
       {
-        "status": "todo",
+        "status": "done",
         "title": {
           "es": "Decidir el sentido de los ventiladores de caja",
           "en": "Decide the case-fan directions"
         },
         "detail": {
-          "es": "Solo si el CFD da más de ~1 °C de mejora en alguna combinación se prueba en real; si no, se queda como está.",
-          "en": "Only if the CFD shows more than ~1 °C of gain for a combination is it tested for real; otherwise it stays as it is."
-        }
+          "es": "Decidido: ninguna combinación mejora más de ~1 °C (abajo sacando: gráfica −0,8 °C pero placa +0,9 °C; arriba metiendo: gráfica +2,4 °C). Se quedan como están, sin prueba real.",
+          "en": "Decided: no combination improves by more than ~1 °C (bottom exhausting: GPU −0.8 °C but board +0.9 °C; top as intake: GPU +2.4 °C). They stay as they are, no real test needed."
+        },
+        "date": "2026-11-21"
       }
     ],
     "cfd_gate": [
@@ -3117,18 +3133,18 @@
       },
       {
         "done": true,
-        "es": "El CFD predice la S07 con menos de 1 °C de error (gráfica, procesador y placa)",
-        "en": "The CFD predicts S07 within 1 °C (GPU, CPU and board)"
+        "es": "El CFD predice la S07 con 1,2 °C de error típico (seis piezas, memoria incluida)",
+        "en": "The CFD predicts S07 with a 1.2 °C typical error (six parts, RAM included)"
       },
       {
-        "done": false,
+        "done": true,
         "es": "Repetirlo con las medidas del 17 nov y el aire de fuera",
         "en": "Repeat it with the 17 Nov measurements and the outside air"
       },
       {
-        "done": false,
-        "es": "Acertar a ciegas pruebas que no vio: S05 (sin paneles) y S06 (solo canal CPU)",
-        "en": "Predict blind tests it never saw: S05 (panels off) and S06 (CPU duct only)"
+        "done": true,
+        "es": "Acierta a ciegas pruebas que no vio: S05 (sin paneles, 1,5 °C) y S06 (solo canal CPU, 1,4 °C)",
+        "en": "Predicts blind tests it never saw: S05 (panels off, 1.5 °C) and S06 (CPU duct only, 1.4 °C)"
       }
     ],
     "conclusions": [
@@ -3606,51 +3622,51 @@
           "status": "done",
           "title_es": "Validarlo con S04 y S07",
           "title_en": "Validate it on S04 and S07",
-          "detail_es": "Hecho: ajustado con la S04, predice la S07 con menos de 1 °C de error en gráfica, procesador y placa (malla de 2 mm). La memoria todavía no cuadra.",
-          "detail_en": "Done: tuned on S04, it predicts S07 to within 1 °C on GPU, CPU and board (2 mm mesh). RAM does not match yet."
+          "detail_es": "Hecho: ajustado con la S04, predice la S07 con 1,2 °C de error típico en las seis piezas, memoria incluida (malla de 2,5 mm con el aire de fuera).",
+          "detail_en": "Done: fitted on S04, it predicts S07 with a typical error of 1.2 °C across all six parts, RAM included (2.5 mm mesh with the outside air)."
         },
         {
-          "status": "next",
+          "status": "done",
           "title_es": "Aire de fuera y predicción a ciegas",
           "title_en": "Outside air and a blind prediction",
-          "detail_es": "Simular también el aire alrededor de la caja y la mesa, y predecir sin tocar nada las pruebas S05 (sin paneles) y S06 (solo canal CPU), que el modelo nunca usó.",
-          "detail_en": "Also simulate the air around the case and the desk, and predict, without retuning, tests S05 (panels off) and S06 (CPU duct only), which the model never used."
+          "detail_es": "Hecho el 21 nov: aire de fuera y hueco hasta la mesa incluidos. Sin tocar nada, acierta la S05 (sin paneles) con 1,5 °C de error típico y la S06 (solo canal CPU) con 1,4 °C.",
+          "detail_en": "Done 21 Nov: outside air and the gap to the desk included. Without touching anything it predicts S05 (panels off) with a typical error of 1.5 °C and S06 (CPU duct only) with 1.4 °C."
         },
         {
-          "status": "todo",
+          "status": "done",
           "title_es": "Usarlo para decidir",
           "title_en": "Use it to decide",
-          "detail_es": "Ver si el aire caliente de la gráfica se queda atrapado, y probar en virtual la extracción de arriba o un segundo ventilador antes de construir nada.",
-          "detail_en": "See whether the GPU’s hot air gets trapped, and try the top exhaust or a second fan virtually before building anything."
+          "detail_es": "Hecho: dar la vuelta a los ventiladores de caja no gana más de 1 °C en ninguna combinación, así que se quedan como están. El aire caliente de la gráfica solo se queda atrapado sin su canal.",
+          "detail_en": "Done: reversing the case fans gains no more than 1 °C in any combination, so they stay as they are. The GPU hot air only gets trapped without its duct."
         }
       ]
     },
     "cfd_status": {
-      "updated": "2026-11-16",
-      "version_es": "Versión 2 · malla de 2 mm (1,25 millones de celdas), flotación del aire caliente incluida, OpenFOAM v2512 · el aire se ve en el modelo 3D",
-      "version_en": "Version 2 · 2 mm mesh (1.25 million cells), buoyancy included, OpenFOAM v2512 · the air is shown in the 3D model",
-      "summary_es": "Simula S04 (sin canales) y S07 (los dos canales) con los vatios y rpm medidos. Ajustado con una sola prueba (S04), predice la S07 con menos de 1 °C de error en gráfica, procesador y placa. Con malla de 3 mm daba lo mismo (±2 °C): el resultado no depende del tamaño de celda.",
-      "summary_en": "Simulates S04 (no ducts) and S07 (both ducts) with the measured watts and fan speeds. Tuned on one test only (S04), it predicts S07 to within 1 °C on GPU, CPU and board. The 3 mm mesh gave the same (±2 °C): the result does not depend on cell size.",
+      "updated": "2026-11-21",
+      "version_es": "Versión 3 · malla de 2,5 mm (1,4 millones de celdas) con el aire de fuera de la caja y el hueco hasta la mesa, flotación incluida, OpenFOAM v2512 · el aire se ve en el modelo 3D",
+      "version_en": "Version 3 · 2.5 mm mesh (1.4 million cells) with the air outside the case and the gap to the desk, buoyancy included, OpenFOAM v2512 · the air is shown in the 3D model",
+      "summary_es": "Siete casos con los vatios y rpm medidos: las cuatro pruebas (S04, S05, S06 y S07) y tres formas de dar la vuelta a los ventiladores de caja. Ajustado con una sola prueba (S04), predice la S07 con 1,2 °C de error típico y dos pruebas que nunca vio (S05 y S06) con 1,5 y 1,4 °C, memoria incluida. Lo que más falla es la gráfica sin canal (hasta 3 °C): el CFD le devuelve demasiado de su propio aire caliente.",
+      "summary_en": "Seven cases with the measured watts and fan speeds: the four tests (S04, S05, S06 and S07) and three ways of reversing the case fans. Fitted on one test only (S04), it predicts S07 with a typical error of 1.2 °C and two tests it never saw (S05 and S06) with 1.5 and 1.4 °C, RAM included. The weakest point is the GPU without its duct (up to 3 °C): the CFD sends too much of its own hot exhaust back into it.",
       "kpis": [
         {
-          "value": "<1 °C",
-          "es": "error al predecir la S07 (gráfica, procesador y placa)",
-          "en": "error predicting S07 (GPU, CPU and board)"
+          "value": "1,2 °C",
+          "es": "error típico al predecir la S07 (seis piezas, memoria incluida)",
+          "en": "typical error predicting S07 (six parts, RAM included)"
         },
         {
-          "value": "34 → 24 °C",
+          "value": "1,5 / 1,4 °C",
+          "es": "error típico en dos pruebas que el modelo nunca vio (S05, S06)",
+          "en": "typical error on two tests the model never saw (S05, S06)"
+        },
+        {
+          "value": "29 → 19 °C",
           "es": "aire que llega al ventilador del procesador, sin y con canal",
           "en": "air reaching the CPU fan, without and with the duct"
         },
         {
-          "value": "25 → 19 °C",
-          "es": "aire que llega a los ventiladores de la gráfica",
-          "en": "air reaching the GPU fans"
-        },
-        {
-          "value": "≈73 m³/h",
-          "es": "aire que atraviesa la caja con los dos canales",
-          "en": "air through the case with both ducts"
+          "value": "27 → 19 °C",
+          "es": "aire que llega a los ventiladores de la gráfica, sin y con canal",
+          "en": "air reaching the GPU fans, without and with the duct"
         }
       ],
       "flows": {
@@ -3660,162 +3676,244 @@
             "en": "No ducts (S04)"
           },
           {
-            "es": "Con canales (S07)",
-            "en": "With ducts (S07)"
+            "es": "Como está: los dos canales (S07)",
+            "en": "As built: both ducts (S07)"
+          },
+          {
+            "es": "Sin paneles ni canales (S05)",
+            "en": "Panels off, no ducts (S05)"
+          },
+          {
+            "es": "Solo el canal del procesador (S06)",
+            "en": "CPU duct only (S06)"
+          },
+          {
+            "es": "Arriba metiendo aire",
+            "en": "Top fan as intake"
+          },
+          {
+            "es": "Abajo sacando aire",
+            "en": "Bottom fan as exhaust"
+          },
+          {
+            "es": "Los dos al revés",
+            "en": "Both flipped"
           }
         ],
         "rows": [
           {
-            "es": "Panel de la gráfica",
-            "en": "GPU-side panel",
-            "m3h": [
-              -33.2,
-              -40.5
-            ]
-          },
-          {
             "es": "Panel del procesador",
             "en": "CPU-side panel",
             "m3h": [
-              -15.9,
-              -19.8
+              -14.7,
+              -16.6,
+              0.0,
+              -17.5,
+              6.0,
+              -25.3,
+              -3.0
             ]
           },
           {
-            "es": "Suelo (ventilador de abajo)",
-            "en": "Floor (bottom fan)",
+            "es": "Suelo",
+            "en": "Floor",
             "m3h": [
-              -21.0,
-              -12.6
+              -7.2,
+              -3.2,
+              -7.1,
+              -5.5,
+              1.3,
+              31.2,
+              34.3
             ]
           },
           {
-            "es": "Techo (ventilador de arriba y ranuras)",
-            "en": "Top (top fan and slots)",
+            "es": "Panel de la gráfica",
+            "en": "GPU-side panel",
             "m3h": [
-              69.2,
-              69.9
+              -24.7,
+              -29.7,
+              0.0,
+              -24.5,
+              -11.3,
+              -49.0,
+              -27.6
+            ]
+          },
+          {
+            "es": "Trasera (gráfica)",
+            "en": "Rear (GPU bracket)",
+            "m3h": [
+              0.5,
+              1.8,
+              0.2,
+              0.5,
+              2.4,
+              1.1,
+              1.9
             ]
           },
           {
             "es": "Trasera",
             "en": "Rear",
             "m3h": [
-              0.8,
-              3.1
+              0.3,
+              1.0,
+              -0.3,
+              1.0,
+              1.6,
+              0.6,
+              1.2
+            ]
+          },
+          {
+            "es": "Techo",
+            "en": "Top",
+            "m3h": [
+              38.9,
+              39.4,
+              38.1,
+              38.8,
+              -7.5,
+              35.5,
+              -10.5
             ]
           }
         ],
-        "note_es": "Saldo neto por cada abertura: un panel puede meter aire por unas ranuras y sacarlo por otras.",
-        "note_en": "Net flow through each opening: a panel can take air in through some slots and let it out through others."
+        "note_es": "Saldo neto por cada abertura (negativo = entra). Un panel puede meter aire por unas ranuras y sacarlo por otras.",
+        "note_en": "Net flow through each opening (negative = in). A panel can take air in through some slots and let it out through others."
       },
       "checks": [
         {
           "es": "Gráfica en la S07",
           "en": "GPU in S07",
           "meas": "75,8 °C",
-          "sim": "76,6 °C",
+          "sim": "74,0 °C",
           "ok": true
         },
         {
-          "es": "Procesador en la S07 (media de núcleos)",
-          "en": "CPU in S07 (core average)",
+          "es": "Procesador (media de núcleos) en la S07",
+          "en": "CPU (core average) in S07",
           "meas": "72,4 °C",
-          "sim": "73,0 °C",
+          "sim": "73,3 °C",
           "ok": true
         },
         {
           "es": "VRM de la placa en la S07",
           "en": "Board VRM in S07",
           "meas": "60,7 °C",
-          "sim": "61,7 °C",
+          "sim": "62,4 °C",
           "ok": true
         },
         {
           "es": "Chipset en la S07",
           "en": "Chipset in S07",
           "meas": "62,8 °C",
-          "sim": "62,8 °C",
+          "sim": "63,5 °C",
           "ok": true
         },
         {
           "es": "Sensor de la placa en la S07",
           "en": "Board sensor in S07",
           "meas": "51,3 °C",
-          "sim": "51,0 °C",
+          "sim": "51,7 °C",
           "ok": true
         },
         {
           "es": "Memoria en la S07",
           "en": "RAM in S07",
           "meas": "53,4 °C",
-          "sim": "61,4 °C",
-          "ok": false
+          "sim": "54,5 °C",
+          "ok": true
         },
         {
           "es": "Ventilador de la fuente",
           "en": "PSU fan",
           "meas": "≈13,7 m³/h",
-          "sim": "13,7 m³/h",
-          "ok": true
-        },
-        {
-          "es": "Aire que entra = aire que sale (S07)",
-          "en": "Air in = air out (S07)",
-          "meas": "—",
-          "sim": "73 = 73 m³/h",
+          "sim": "13,4 m³/h",
           "ok": true
         }
       ],
-      "checks_note_es": "Cada pieza se ajusta con una constante sacada de la S04 y se predice la S07 sin tocar nada más. La memoria no cuadra: en el modelo su aire se calienta con los canales, pero en la realidad su chip también se enfría a través de la placa, y eso el CFD no lo tiene.",
-      "checks_note_en": "Each part gets one constant fitted on S04, then S07 is predicted without touching anything else. RAM does not match: in the model its air gets warmer with the ducts, but the real chip also cools through the board, which the CFD does not include.",
+      "checks_note_es": "Cada pieza lleva una constante sacada de la S04 y se predice la S07 sin tocar nada más. La memoria lleva un nodo sencillo: cede calor al aire y, sobre todo, a la placa por los contactos del zócalo.",
+      "checks_note_en": "Each part gets one constant fitted on S04, then S07 is predicted without touching anything else. RAM gets a simple node: it gives heat to the air and, mostly, to the board through the slot contacts.",
       "assumptions": [
         {
-          "what_es": "Ventiladores.",
-          "what_en": "Fans.",
-          "es": "Curvas oficiales de los Noctua (NF-A9x14 2.200 rpm, NF-A12x15 1.850 rpm); fuente a ~1.410 rpm según el informe de Cybenetics; la de la gráfica (ZOTAC no la publica) es estimada.",
-          "en": "Official Noctua curves (NF-A9x14 2,200 rpm, NF-A12x15 1,850 rpm); PSU at ~1,410 rpm from the Cybenetics report; the GPU curve (not published by ZOTAC) is estimated."
+          "what_es": "Aire de fuera y la mesa.",
+          "what_en": "Outside air and the desk.",
+          "es": "El dominio incluye 36 mm de aire alrededor de la caja y el hueco de 22 mm hasta la mesa: lo que sale por una rejilla puede volver a entrar por otra.",
+          "en": "The domain includes 36 mm of air around the case and the 22 mm gap to the desk: what leaves through one grille can come back in through another."
         },
         {
-          "what_es": "«Sistema 1» es el ventilador de abajo.",
-          "what_en": "\"System 1\" is the bottom fan.",
-          "es": "Con esa hipótesis el CFD acierta mejor las seis temperaturas medidas que con el de arriba. El de arriba se supone a tope (2.200 rpm): «Sistema 2» da una lectura imposible.",
-          "en": "With that hypothesis the CFD matches all six measured temperatures better than with the top fan. The top fan is assumed at full speed (2,200 rpm): \"System 2\" reads an impossible value."
+          "what_es": "Ventiladores con su marco.",
+          "what_en": "Fans with their frame.",
+          "es": "Curvas oficiales de los Noctua; fuente a ~1.410 rpm (Cybenetics); la de la gráfica es estimada. Cada ventilador lleva su marco sólido: sin él, el aire daba la vuelta por el borde.",
+          "en": "Official Noctua curves; PSU at ~1,410 rpm (Cybenetics); the GPU curve is estimated. Each fan has its solid frame: without it, air looped round the rim."
         },
         {
-          "what_es": "Rejillas de los paneles.",
-          "what_en": "Panel grilles.",
-          "es": "Frenan el 60 % de lo que da la fórmula de chapa perforada. Ajustado con S04 y S07, y coherente con la S05: quitar los paneles casi no cambió nada.",
-          "en": "They restrict 60 % of what the perforated-plate formula gives. Tuned on S04 and S07, and consistent with S05: removing the panels barely changed anything."
+          "what_es": "Rejillas sin factor de ajuste.",
+          "what_en": "Grilles with no tuning factor.",
+          "es": "Pérdida de chapa perforada (Idelchik) tal cual, con el área abierta medida. Probado al 25 %, 50 % y 200 %: la fórmula sin tocar es la que mejor acierta los cuatro casos.",
+          "en": "Perforated-plate loss (Idelchik) as is, with the measured open area. Tried at 25 %, 50 % and 200 %: the untouched formula fits all four cases best."
         },
         {
-          "what_es": "Disipadores.",
-          "what_en": "Heatsinks.",
-          "es": "Cada pieza tiene una constante ajustada en la S04 que cambia con el caudal elevado a −0,7 (lo típico en aletas).",
-          "en": "Each part has one constant fitted on S04 that scales with flow to the power −0.7 (typical for fins)."
+          "what_es": "Gráfica de flujo pasante.",
+          "what_en": "Flow-through GPU.",
+          "es": "El extremo delantero (100 mm) no tiene PCB y su ventilador sopla a través hacia la espina. Es una hipótesis (ZOTAC no publica el despiece), pero es lo único que hace cuadrar el aire del procesador en las cuatro pruebas.",
+          "en": "The front 100 mm has no PCB and its fan blows through towards the spine. A hypothesis (ZOTAC does not publish a teardown), but the only change that makes the CPU's air match all four tests."
         },
         {
-          "what_es": "Calor.",
-          "what_en": "Heat.",
-          "es": "Vatios medidos (gráfica 300 W, procesador 88-92 W), fuente 27 W (Cybenetics), placa 12 W y memoria 8 W estimados. Paredes que no dejan pasar calor.",
-          "en": "Measured watts (GPU 300 W, CPU 88-92 W), PSU 27 W (Cybenetics), board 12 W and RAM 8 W estimated. Walls do not conduct heat."
+          "what_es": "Memoria con conducción por la placa.",
+          "what_en": "RAM cooled through the board.",
+          "es": "Cada módulo cede ~70 % de su calor a la placa por los 288 contactos y ~30 % al aire, así que su temperatura sigue a la de la placa más que a la del aire.",
+          "en": "Each module sheds ~70 % of its heat into the board through its 288 contacts and ~30 % into the air, so it follows the board more than the air."
+        },
+        {
+          "what_es": "Una constante por pieza.",
+          "what_en": "One constant per part.",
+          "es": "Ajustada solo con la S04 (escala con el caudal a −0,7 en las aletas). Vatios medidos; fuente 27 W, placa 15 W y memoria 5 W estimados.",
+          "en": "Fitted on S04 only (scales with flow to the −0.7 on fins). Measured watts; PSU 27 W, board 15 W and RAM 5 W estimated."
         }
       ],
       "tuning": [
         {
           "status": "next",
-          "es": "Campaña con las medidas del 17 nov y el aire de fuera: 7 casos (~7,5 h). Espera a que el PC esté libre.",
-          "en": "Campaign with the 17 Nov measurements and outside air: 7 cases (~7.5 h). Waiting for the PC to be free."
+          "es": "Gráfica sin canal: el CFD le mete 8-9 °C de más a la entrada frente a los 3-5 medidos. Mirar por dónde sale de verdad el aire de sus aletas.",
+          "en": "GPU without its duct: the CFD gives it 8-9 °C extra at the inlet against the 3-5 measured. Look at where its fin exhaust really goes."
         },
         {
-          "status": "todo",
-          "es": "Comprobación a ciegas con S05 y S06 (la S08 sin paneles con canales no se puede: los canales van sujetos a los paneles).",
-          "en": "Blind check against S05 and S06 (S08, panels off with ducts, is not possible: the ducts are mounted on the panels)."
+          "status": "done",
+          "es": "Campaña con aire de fuera en malla de 2,5 mm: S04, S07, S05, S06 y los ventiladores de caja dados la vuelta (7 casos, 21 nov).",
+          "en": "Outside-air campaign on the 2.5 mm mesh: S04, S07, S05, S06 and the case fans reversed (7 cases, 21 Nov)."
         },
         {
-          "status": "todo",
-          "es": "Memoria: añadir el calor que se va por la placa.",
-          "en": "RAM: add the heat path through the board."
+          "status": "done",
+          "es": "Modelo cerrado: aire de la placa = media de la capa sobre la placa y la salida del disipador del procesador, que sopla justo encima; en el procesador solo el disipador (~0,20 de 0,58 K/W) depende del caudal.",
+          "en": "Model settled: board air = average of the layer over the board and the CPU cooler exhaust that blows right onto it; on the CPU only the heatsink (~0.20 of 0.58 K/W) depends on airflow."
+        },
+        {
+          "status": "done",
+          "es": "Gráfica de flujo pasante: sus 100 mm delanteros no tienen placa y el aire cruza hacia la espina. Solo con eso cuadra el aire del procesador en los cuatro casos.",
+          "en": "Flow-through GPU: its front 100 mm have no PCB and the air crosses towards the spine. Only with that does the CPU intake air match all four cases."
+        },
+        {
+          "status": "done",
+          "es": "Criba de hipótesis en malla de 4 mm con los cuatro casos medidos: espina, flujo pasante, curva de la gráfica, cables y pérdida de rejilla (20-21 nov).",
+          "en": "Hypothesis screening on a 4 mm mesh against all four measured cases: spine, flow-through, GPU fan curve, cables and grille loss (20-21 Nov)."
+        },
+        {
+          "status": "done",
+          "es": "Memoria con su camino de calor por la placa.",
+          "en": "RAM with its heat path through the board."
+        },
+        {
+          "status": "done",
+          "es": "Marcos de los ventiladores y rejillas con la fórmula sin factor de ajuste.",
+          "en": "Fan frames, and grilles with the formula and no tuning factor."
+        },
+        {
+          "status": "done",
+          "es": "Aire de fuera: 36 mm alrededor de la caja y el hueco hasta la mesa.",
+          "en": "Outside air: 36 mm round the case and the gap to the desk."
         },
         {
           "status": "done",
@@ -3846,6 +3944,406 @@
           "status": "done",
           "es": "El aire del CFD se ve en el visor 3D: unas 3.000 líneas animadas por caso, coloreadas por temperatura y moviéndose a la velocidad real del aire.",
           "en": "The CFD air is shown in the 3D viewer: about 3,000 animated lines per case, coloured by temperature and moving at the real air speed."
+        }
+      ]
+    },
+    "cfd_campaign": {
+      "date": "2026-11-21",
+      "cell_mm": 2.5,
+      "outside_air": true,
+      "validation": [
+        {
+          "case": "S07",
+          "kind": "predicted",
+          "es": "Como está: los dos canales (S07)",
+          "en": "As built: both ducts (S07)",
+          "rows": [
+            {
+              "id": "GPU",
+              "es": "Gráfica",
+              "en": "GPU",
+              "meas": 75.8,
+              "pred": 74.0,
+              "err": -1.8
+            },
+            {
+              "id": "CPU",
+              "es": "Procesador",
+              "en": "CPU (core average)",
+              "meas": 72.4,
+              "pred": 73.3,
+              "err": 0.9
+            },
+            {
+              "id": "VRM",
+              "es": "VRM",
+              "en": "Board VRM",
+              "meas": 60.7,
+              "pred": 62.4,
+              "err": 1.7
+            },
+            {
+              "id": "CHIPSET",
+              "es": "Chipset",
+              "en": "Chipset",
+              "meas": 62.8,
+              "pred": 63.5,
+              "err": 0.7
+            },
+            {
+              "id": "BOARD",
+              "es": "Placa",
+              "en": "Board sensor",
+              "meas": 51.3,
+              "pred": 51.7,
+              "err": 0.4
+            },
+            {
+              "id": "RAM",
+              "es": "Memoria",
+              "en": "RAM (SPD)",
+              "meas": 53.4,
+              "pred": 54.5,
+              "err": 1.1
+            }
+          ],
+          "max_err_C": 1.8,
+          "rms_C": 1.21
+        },
+        {
+          "case": "S05",
+          "kind": "blind",
+          "es": "Sin paneles ni canales (S05)",
+          "en": "Panels off, no ducts (S05)",
+          "rows": [
+            {
+              "id": "GPU",
+              "es": "Gráfica",
+              "en": "GPU",
+              "meas": 77.92,
+              "pred": 74.6,
+              "err": -3.3
+            },
+            {
+              "id": "CPU",
+              "es": "Procesador",
+              "en": "CPU (core average)",
+              "meas": 79.9,
+              "pred": 80.9,
+              "err": 1.0
+            },
+            {
+              "id": "VRM",
+              "es": "VRM",
+              "en": "Board VRM",
+              "meas": 66.9,
+              "pred": 66.0,
+              "err": -0.9
+            },
+            {
+              "id": "CHIPSET",
+              "es": "Chipset",
+              "en": "Chipset",
+              "meas": 66.5,
+              "pred": 67.1,
+              "err": 0.6
+            },
+            {
+              "id": "BOARD",
+              "es": "Placa",
+              "en": "Board sensor",
+              "meas": 54.8,
+              "pred": 55.3,
+              "err": 0.5
+            },
+            {
+              "id": "RAM",
+              "es": "Memoria",
+              "en": "RAM (SPD)",
+              "meas": 58.2,
+              "pred": 57.7,
+              "err": -0.5
+            }
+          ],
+          "max_err_C": 3.3,
+          "rms_C": 1.5
+        },
+        {
+          "case": "S06",
+          "kind": "blind",
+          "es": "Solo el canal del procesador (S06)",
+          "en": "CPU duct only (S06)",
+          "rows": [
+            {
+              "id": "GPU",
+              "es": "Gráfica",
+              "en": "GPU",
+              "meas": 77.86,
+              "pred": 80.0,
+              "err": 2.1
+            },
+            {
+              "id": "CPU",
+              "es": "Procesador",
+              "en": "CPU (core average)",
+              "meas": 78.81,
+              "pred": 80.6,
+              "err": 1.8
+            },
+            {
+              "id": "VRM",
+              "es": "VRM",
+              "en": "Board VRM",
+              "meas": 65.2,
+              "pred": 63.8,
+              "err": -1.4
+            },
+            {
+              "id": "CHIPSET",
+              "es": "Chipset",
+              "en": "Chipset",
+              "meas": 66.0,
+              "pred": 64.9,
+              "err": -1.1
+            },
+            {
+              "id": "BOARD",
+              "es": "Placa",
+              "en": "Board sensor",
+              "meas": 53.2,
+              "pred": 53.1,
+              "err": -0.1
+            },
+            {
+              "id": "RAM",
+              "es": "Memoria",
+              "en": "RAM (SPD)",
+              "meas": 57.2,
+              "pred": 56.2,
+              "err": -1.0
+            }
+          ],
+          "max_err_C": 2.1,
+          "rms_C": 1.4
+        }
+      ],
+      "layouts": [
+        {
+          "case": "s07",
+          "es": "Como está: los dos canales (S07)",
+          "en": "As built: both ducts (S07)",
+          "top": "out",
+          "bottom": "in",
+          "gpu": 74.0,
+          "cpu": 73.3,
+          "board": 51.7,
+          "d_gpu": 0.0,
+          "d_cpu": 0.0,
+          "d_board": 0.0,
+          "gpu_inlet_C": 19.0,
+          "cpu_inlet_C": 19.0,
+          "through_m3h": 50
+        },
+        {
+          "case": "s07-top-in",
+          "es": "Arriba metiendo aire",
+          "en": "Top fan as intake",
+          "top": "in",
+          "bottom": "in",
+          "gpu": 76.4,
+          "cpu": 73.4,
+          "board": 50.8,
+          "d_gpu": 2.4,
+          "d_cpu": 0.1,
+          "d_board": -0.9,
+          "gpu_inlet_C": 19.0,
+          "cpu_inlet_C": 19.0,
+          "through_m3h": 19
+        },
+        {
+          "case": "s07-bottom-out",
+          "es": "Abajo sacando aire",
+          "en": "Bottom fan as exhaust",
+          "top": "out",
+          "bottom": "out",
+          "gpu": 73.2,
+          "cpu": 73.3,
+          "board": 52.6,
+          "d_gpu": -0.8,
+          "d_cpu": 0.0,
+          "d_board": 0.9,
+          "gpu_inlet_C": 19.0,
+          "cpu_inlet_C": 19.0,
+          "through_m3h": 74
+        },
+        {
+          "case": "s07-both-flipped",
+          "es": "Los dos al revés",
+          "en": "Both flipped",
+          "top": "in",
+          "bottom": "out",
+          "gpu": 75.0,
+          "cpu": 73.3,
+          "board": 51.1,
+          "d_gpu": 1.0,
+          "d_cpu": 0.0,
+          "d_board": -0.6,
+          "gpu_inlet_C": 19.0,
+          "cpu_inlet_C": 19.0,
+          "through_m3h": 41
+        }
+      ],
+      "flows": {
+        "cases": [
+          {
+            "es": "Sin canales (S04)",
+            "en": "No ducts (S04)"
+          },
+          {
+            "es": "Como está: los dos canales (S07)",
+            "en": "As built: both ducts (S07)"
+          },
+          {
+            "es": "Sin paneles ni canales (S05)",
+            "en": "Panels off, no ducts (S05)"
+          },
+          {
+            "es": "Solo el canal del procesador (S06)",
+            "en": "CPU duct only (S06)"
+          },
+          {
+            "es": "Arriba metiendo aire",
+            "en": "Top fan as intake"
+          },
+          {
+            "es": "Abajo sacando aire",
+            "en": "Bottom fan as exhaust"
+          },
+          {
+            "es": "Los dos al revés",
+            "en": "Both flipped"
+          }
+        ],
+        "rows": [
+          {
+            "es": "Panel del procesador",
+            "en": "CPU-side panel",
+            "m3h": [
+              -14.7,
+              -16.6,
+              0.0,
+              -17.5,
+              6.0,
+              -25.3,
+              -3.0
+            ]
+          },
+          {
+            "es": "Suelo",
+            "en": "Floor",
+            "m3h": [
+              -7.2,
+              -3.2,
+              -7.1,
+              -5.5,
+              1.3,
+              31.2,
+              34.3
+            ]
+          },
+          {
+            "es": "Panel de la gráfica",
+            "en": "GPU-side panel",
+            "m3h": [
+              -24.7,
+              -29.7,
+              0.0,
+              -24.5,
+              -11.3,
+              -49.0,
+              -27.6
+            ]
+          },
+          {
+            "es": "Trasera (gráfica)",
+            "en": "Rear (GPU bracket)",
+            "m3h": [
+              0.5,
+              1.8,
+              0.2,
+              0.5,
+              2.4,
+              1.1,
+              1.9
+            ]
+          },
+          {
+            "es": "Trasera",
+            "en": "Rear",
+            "m3h": [
+              0.3,
+              1.0,
+              -0.3,
+              1.0,
+              1.6,
+              0.6,
+              1.2
+            ]
+          },
+          {
+            "es": "Techo",
+            "en": "Top",
+            "m3h": [
+              38.9,
+              39.4,
+              38.1,
+              38.8,
+              -7.5,
+              35.5,
+              -10.5
+            ]
+          }
+        ]
+      },
+      "streams": [
+        "s04",
+        "s07",
+        "s05",
+        "s06",
+        "s07-top-in",
+        "s07-bottom-out",
+        "s07-both-flipped"
+      ],
+      "layouts_note_es": "Ninguna combinación mejora de verdad lo que hay: dar la vuelta al de arriba calienta la gráfica 2,4 °C, y sacar aire por abajo enfría la gráfica 0,8 °C pero calienta la placa 0,9 °C. El procesador no se entera porque con su canal respira aire de la habitación.",
+      "layouts_note_en": "No combination really beats the current one: reversing the top fan warms the GPU by 2.4 °C, and exhausting through the bottom cools the GPU by 0.8 °C but warms the board by 0.9 °C. The CPU does not notice because its duct feeds it room air.",
+      "findings": [
+        {
+          "tone": "ok",
+          "title_es": "Los canales hacen el trabajo",
+          "title_en": "The ducts do the work",
+          "detail_es": "Con los dos canales, gráfica y procesador respiran aire de la habitación (19 °C) en vez de 27-29 °C. Eso son los 7 °C que bajó el procesador entre la S04 y la S07, y el modelo lo reproduce.",
+          "detail_en": "With both ducts, GPU and CPU breathe room air (19 °C) instead of 27-29 °C. That is the 7 °C the CPU dropped between S04 and S07, and the model reproduces it."
+        },
+        {
+          "tone": "ok",
+          "title_es": "Acierta sin retocar",
+          "title_en": "Right without retuning",
+          "detail_es": "Una constante por pieza sacada de la S04 y nada más: 1,2 °C de error típico en la S07 y 1,5 y 1,4 °C en S05 y S06, que nunca vio. Las rejillas van con la fórmula de placa perforada, sin factor.",
+          "detail_en": "One constant per part from S04 and nothing else: 1.2 °C typical error on S07 and 1.5 and 1.4 °C on S05 and S06, which it never saw. Grilles use the perforated-plate formula with no factor."
+        },
+        {
+          "tone": "ok",
+          "title_es": "Los ventiladores de caja, como están",
+          "title_en": "Case fans: leave them as they are",
+          "detail_es": "Se probaron las tres formas de darles la vuelta. Ninguna gana más de 1 °C en todo a la vez, así que no merece la pena ni probarlo en real.",
+          "detail_en": "All three ways of reversing them were simulated. None gains more than 1 °C on everything at once, so it is not worth even a real test."
+        },
+        {
+          "tone": "warn",
+          "title_es": "Punto flojo: la gráfica sin canal",
+          "title_en": "Weak spot: the GPU without its duct",
+          "detail_es": "Sin canal, el CFD hace que la gráfica vuelva a tragarse demasiado de su propio aire caliente por el hueco de 15 mm hasta el panel: hasta 3 °C de error. Con canal (como está montado) no pasa.",
+          "detail_en": "Without its duct the CFD makes the GPU swallow too much of its own hot exhaust through the 15 mm gap to the panel: up to 3 °C of error. With the duct (as built) this does not happen."
         }
       ]
     }
