@@ -48,6 +48,8 @@ export async function onRequest({ request, env }) {
     }
     const days = parseHealth(body);
     const next = mergeHealth(stored, days, madridToday());
+    // What the iPhone really sent, in short: the keys and the first lines of each, to check the format from here.
+    next.ultimoEnvio = { cuando: new Date().toISOString(), dias: Object.keys(days).length, muestra: Object.fromEntries(Object.entries(body || {}).slice(0, 20).map(([k, v]) => [k, typeof v === 'string' ? v.slice(0, 160) : JSON.stringify(v).slice(0, 160)])) };
     await save(env, next);
     return reply(request, { ok: true, dias: Object.keys(days).length });
   } catch (error) {
