@@ -267,13 +267,14 @@ function renderThermalRanking(screening,verdicts={},effects={},reference=null){
     }
     const effect=effects[idea.configuration_id];
     if(effect?.gpu){   // barra con el efecto revisado tras las pruebas, no el del modelo de agosto
-      const [elo,ehi]=effect.gpu;
+      const [elo,ehi]=effect.gpu.map(v=>Math.min(v,0));   // si calienta, la barra se queda en la línea de partida
       range.style.left=at(baselinePeak+elo);
-      range.style.width=`calc(${at(baselinePeak+ehi)} - ${at(baselinePeak+elo)})`;
+      range.style.width=`max(4px, calc(${at(baselinePeak+ehi)} - ${at(baselinePeak+elo)}))`;
     }
     if(effect?.basis_en)name.append(makeElement('p','tl-rank-why',effect.basis_en));
     const value=makeElement('div','tl-rank-value');
-    const gain=effect?.gpu?`${effect.gpu[0]===effect.gpu[1]?effect.gpu[0]:`${effect.gpu[0]} to ${effect.gpu[1]}`} °C`:`≈ −${Math.max(0,baselinePeak-idea.mid).toFixed(1)} °C`;
+    const sg=v=>v>0?`+${v}`:`${v}`;
+    const gain=effect?.gpu?`${effect.gpu[0]===effect.gpu[1]?sg(effect.gpu[0]):`${sg(effect.gpu[0])} to ${sg(effect.gpu[1])}`} °C`:`≈ −${Math.max(0,baselinePeak-idea.mid).toFixed(1)} °C`;
     value.append(
       makeElement('strong',null,`GPU ${gain}`),
       makeElement('small',null,reference?.gpu?`ducts gave ${reference.gpu} °C`:`${idea.gpu_peak_model_low_C.toFixed(1)}–${idea.gpu_peak_model_high_C.toFixed(1)} °C`)
