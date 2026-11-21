@@ -116,3 +116,12 @@ test('Carlitos: two weeks without a part you train regularly and he feels it the
   assert.ok(!sick.ailments.some(a => a.who === 'maria'));
   assert.equal(carlitosState(acts([], []), log, '2026-11-16').fever, true);
 });
+test('Rivalry: comparisons start when the log is complete; the duel needs four full weeks', () => {
+  const old = ['2026-06-01', '2026-08-01'].map(d => [d, 1, 'Bench Press', 'Pecho', 1, 8, 100, '', '', 'Excel', d]);
+  const app = ['2026-11-03', '2026-11-10'].map(d => cesarRow(d));
+  const s = summarize([...old, ...app], CESAR_COLUMNS, '2026-11-10');
+  assert.equal(s.tonnage.since, '2026-11-03'); assert.equal(s.tonnage.pace, null); assert.equal(s.tonnage.lastPace, null);
+  assert.equal(s.tonnage.daily['2026-06-01'], 800);
+  const full = summarize(['2026-09-01', '2026-10-06', '2026-10-13', '2026-10-20', '2026-10-27', '2026-11-03', '2026-11-10'].map(d => cesarRow(d)), CESAR_COLUMNS, '2026-11-10');
+  assert.equal(full.tonnage.pace, 800);
+});

@@ -71,8 +71,14 @@ export function summarize(rows, c, today) {
   const best = [...tonByDay].filter(([d]) => d >= week).sort((a, b) => b[1] - a[1])[0];
   const topExercise = [...top].sort((a, b) => b[1] - a[1])[0];
   const sessionsMonth = [...tonByDay.keys()].filter(d => d >= shift(today, -29)).length;
+  // Logged in full (every set, every session) only since the first row typed in the app: older imports may be just the
+  // days a target changed. The pace needs four full weeks before it; comparisons over longer windows start here.
+  const since = lifts.filter(r => r[c.ORIGEN] === 'app').reduce((a, r) => (!a || r[c.FECHA] < a ? r[c.FECHA] : a), null);
+  const fullBefore = start => Boolean(since) && monday(since) <= shift(start, -28);
+  const daily = {};
+  for (const [d, v] of tonByDay) if (d >= shift(today, -364)) daily[d] = Math.round(v);
   const tonnage = {
-    week: ton(week), pace: pace(week, weekday), lastWeek: ton(lastWeek, shift(week, -1)), lastPace: pace(lastWeek, 6),
+    week: ton(week), pace: fullBefore(week) ? pace(week, weekday) : null, lastWeek: ton(lastWeek, shift(week, -1)), lastPace: fullBefore(lastWeek) ? pace(lastWeek, 6) : null, since, daily,
     month: ton(shift(today, -29)), year: ton(shift(today, -364)), perSession: sessionsMonth ? Math.round(ton(shift(today, -29)) / sessionsMonth) : 0,
     best: best ? { fecha: best[0], kg: Math.round(best[1]) } : null, top: topExercise ? { ejercicio: topExercise[0], kg: Math.round(topExercise[1]) } : null
   };

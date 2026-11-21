@@ -93,6 +93,14 @@
   // Each one against their own pace of the four weeks before, up to the same weekday; null until there is something to compare.
   const vsSelf = (now, pace) => (pace > 0 && now > 0 ? Math.round((now / pace - 1) * 100) : null);
   const signed = p => `${p > 0 ? '+' : p < 0 ? '−' : ''}${Math.abs(p)} %`;
+  // Over a month or a year, only the days both of you logged in full: before that, an old log may hold only the days a
+  // target changed, and comparing it with a complete one would be unfair.
+  function fair(days) {
+    const M = S.me?.tonnage, H = S.rival?.tonnage, start = [new Date(Date.parse(`${today()}T12:00:00Z`) - (days - 1) * 864e5).toISOString().slice(0, 10), M?.since, H?.since].filter(Boolean).sort().pop();
+    const sum = daily => Object.entries(daily || {}).reduce((t, [d, v]) => (d >= start ? t + v : t), 0);
+    return { start, me: sum(M?.daily), her: sum(H?.daily), cut: start > new Date(Date.parse(`${today()}T12:00:00Z`) - (days - 1) * 864e5).toISOString().slice(0, 10) };
+  }
+  const fromText = w => (w.cut ? `Desde el ${shortDate(w.start)}, que lo apuntáis todo` : null);
   function duel() {
     const R = S.rival, M = S.me?.tonnage, H = R?.tonnage;
     if (!M || !H) return null;
@@ -115,8 +123,9 @@
       if (M.best && H.best) out.push(`Entreno más pesado de la semana: el tuyo, ${weight(M.best.kg)}; el suyo, ${weight(H.best.kg)}.`);
       if (H.top) out.push(`Lo que más ha cargado Marialópoda esta semana: ${H.top.ejercicio.toLowerCase()}, ${weight(H.top.kg)} en total.`);
       if (M.week + H.week >= 1000) out.push(`Entre los dos lleváis ${weight(M.week + H.week)} esta semana: lo que pesan ${N0((M.week + H.week) / 9)} perros salchicha.`);
-      if (M.month && H.month) out.push(`Último mes: tú ${weight(M.month)}, Marialópoda ${weight(H.month)}.`);
-      if (M.year && H.year) out.push(`En el último año habéis movido ${weight(M.year + H.year)} entre los dos. Ella, ${weight(H.year)}.`);
+      const month = fair(30), year = fair(365);
+      if (month.me && month.her) out.push(`${fromText(month) || 'Último mes'}: tú ${weight(month.me)}, Marialópoda ${weight(month.her)}.`);
+      if (year.cut ? year.start < month.start : year.me && year.her) out.push(`En el último año habéis movido ${weight(year.me + year.her)} entre los dos. Ella, ${weight(year.her)}.`);
     }
     const rec = R.records?.[0];
     if (rec) out.push(`Marialópoda se ha superado en ${rec.ejercicio.toLowerCase()}: ${rec.reps} × ${N(rec.kg)} kg, un ${N(rec.mejora)} % por encima de su mejor marca.`);
@@ -139,9 +148,10 @@
     showLayer(`<div class="tl-card plain tl-rivalry" role="dialog" aria-label="Pique con Marialópoda"><h3>Pique con Marialópoda</h3>
       <p class="tl-note">El duelo de la semana compara lo que mueve cada uno con su propia media de las cuatro semanas anteriores, hasta el mismo día de la semana. Gana quien más se supera, entrene los días que entrene.</p>
       <div class="tl-duelbox">${box('Tú', d.me, d.her)}${box('Marialópoda', d.her, d.me)}</div>
+      ${d.me === null || d.her === null ? `<p class="tl-note">El duelo empieza cuando los dos tengáis cuatro semanas enteras apuntadas en la app${[M.since, H.since].filter(Boolean).length ? `: a partir del ${shortDate(new Date(Date.parse(`${[M.since, H.since].filter(Boolean).sort().pop()}T12:00:00Z`) + 28 * 864e5).toISOString().slice(0, 10))}` : ''}.</p>` : ''}
       <table class="tl-rtable"><thead><tr><th></th><th>Tú</th><th>Ella</th></tr></thead><tbody>
         ${row('Esta semana', M.week, H.week)}${row('Semana pasada', M.lastWeek, H.lastWeek)}${row('Por entreno (mes)', M.perSession, H.perSession)}
-        ${row('Entreno más pesado', M.best?.kg || 0, H.best?.kg || 0)}${row('Último mes', M.month, H.month)}${row('Último año', M.year, H.year)}
+        ${row('Entreno más pesado', M.best?.kg || 0, H.best?.kg || 0)}${(() => { const m = fair(30), y = fair(365); return `${row(m.cut ? `Desde el ${shortDate(m.start)}` : 'Último mes', m.me, m.her)}${y.start < m.start ? row('Último año', y.me, y.her) : ''}`; })()}
         ${row('Marcas (2 sem.)', me.records?.length || 0, R.records?.length || 0, v => N0(v))}${row('Caminadora (sem.)', me.walkWeek || 0, R.walkWeek || 0, v => `${N(v)} km`)}${row('Semanas seguidas', me.streak || 0, R.streak || 0, v => N0(v))}
       </tbody></table>
       <button type="button" class="tl-link center" data-act="close">Cerrar</button></div>`);
