@@ -19,6 +19,16 @@ test('Shortcut payload and merging: a resent day replaces its fields; old days a
   const merged = mergeHealth(stored, days, '2026-11-21');
   assert.deepEqual(merged.dias, { '2026-11-21': { pasos: 9000, peso: 60, kcal: 1850 } });
   assert.deepEqual(merged.objetivo, { tipo: 'volumen', peso: 63 });
-  assert.deepEqual(cleanGoal({ tipo: 'definicion', peso: '58.24' }), { tipo: 'definicion', peso: 58.2 });
+  assert.deepEqual(cleanGoal({ tipo: 'definicion', peso: '58.24' }), { tipo: 'definicion', peso: 58.2, ritmo: null });
   assert.throws(() => cleanGoal({ tipo: 'comer' }), /objetivo/);
+});
+test('Her goal pace, profile and days marked in or out', async () => {
+  const { cleanProfile, markDay } = await import('../functions/_lib/salud.js');
+  assert.deepEqual(cleanGoal({ tipo: 'volumen', peso: 63, ritmo: '0.2' }), { tipo: 'volumen', peso: 63, ritmo: 0.2 });
+  assert.deepEqual(cleanProfile({ edad: '27', altura: 164.6 }), { edad: 27, altura: 165 });
+  assert.throws(() => cleanProfile({ altura: 20 }), /perfil/);
+  let s = markDay({ dias: {} }, '2026-11-20', 'fuera');
+  assert.deepEqual(s.marcas, { '2026-11-20': 'fuera' });
+  s = markDay(s, '2026-11-20', null); assert.deepEqual(s.marcas, {});
+  assert.throws(() => markDay(s, '20-11', 'fuera'), /dia/);
 });

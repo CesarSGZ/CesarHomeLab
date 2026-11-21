@@ -1,7 +1,7 @@
 // María's iPhone sends Apple Health here (Health Auto Export or a Shortcut), and her app reads it back. Same proof as the
 // rivalry: her own Sheet key in the x-pique header, which only her phone and this server know.
 import { madridToday } from '../_lib/rivalry.js';
-import { cleanGoal, mergeHealth, parseHealth } from '../_lib/salud.js';
+import { cleanGoal, cleanProfile, markDay, mergeHealth, parseHealth } from '../_lib/salud.js';
 
 const DATASET = 'maria-salud', MAX_BODY = 2_000_000;
 const ORIGINS = /^(https:\/\/cesarsgz\.github\.io|http:\/\/localhost:\d+)$/;
@@ -37,8 +37,12 @@ export async function onRequest({ request, env }) {
   let body;
   try { body = JSON.parse(text); } catch { return reply(request, { ok: false, error: 'bad_request' }, 400); }
   try {
-    if (body?.objetivo) {
-      const next = { ...(stored || { dias: {} }), objetivo: cleanGoal(body.objetivo) };
+    // From her app: goal, profile or a day marked in or out. From her iPhone: Health data.
+    if (body?.objetivo || body?.perfil || body?.marcar) {
+      let next = { ...(stored || { dias: {} }) };
+      if (body.objetivo) next.objetivo = cleanGoal(body.objetivo);
+      if (body.perfil) next.perfil = cleanProfile(body.perfil);
+      if (body.marcar) next = markDay(next, body.marcar.fecha, body.marcar.estado);
       await save(env, next);
       return reply(request, { ok: true, salud: next });
     }
@@ -47,6 +51,7 @@ export async function onRequest({ request, env }) {
     await save(env, next);
     return reply(request, { ok: true, dias: Object.keys(days).length });
   } catch (error) {
-    return reply(request, { ok: false, error: error?.message === 'objetivo' ? 'objetivo' : 'unavailable' }, error?.message === 'objetivo' ? 400 : 503);
+    const known = ['objetivo', 'perfil', 'dia'].includes(error?.message);
+    return reply(request, { ok: false, error: known ? error.message : 'unavailable' }, known ? 400 : 503);
   }
 }
