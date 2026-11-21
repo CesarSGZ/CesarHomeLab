@@ -5,7 +5,8 @@
     "/api/agent/*",
     "/api/runtime",
     "/api/pique",
-    "/api/carlitos"
+    "/api/carlitos",
+    "/api/salud"
   ],
   "exclude": []
 }
