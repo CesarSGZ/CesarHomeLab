@@ -10,16 +10,24 @@ const finite = v => (v === null || v === undefined || v === '' || !Number.isFini
 const LIMITS = { pasos: [0, 100000], kcal: [0, 10000], prot: [0, 600], carb: [0, 1500], grasa: [0, 600], peso: [25, 250] };
 const valid = (field, v) => v !== null && v >= LIMITS[field][0] && v <= LIMITS[field][1];
 
-// The date as ISO ("2026-11-20T00:00:00+01:00") or as the iPhone shows it in Spanish ("20 nov 2026, 0:00", "20/11/26").
+// The date as ISO ("2026-11-20T00:00:00+01:00") or as the iPhone shows it in Spanish ("20 nov 2026, 0:00", "20/11/26")
+// or in English ("Nov 20, 2026 at 12:00 AM", "20 Nov 2026", "11/20/26").
 const MONTHS = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+const MONTHS_EN = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+const monthOf = name => (MONTHS.includes(name) ? MONTHS.indexOf(name) : MONTHS_EN.indexOf(name)) + 1;
+const ymd = (y, m, d) => (m >= 1 && m <= 12 && d >= 1 && d <= 31 ? `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}` : null);
 export function isoDay(text) {
   const t = String(text || '').trim().toLowerCase();
   if (/^\d{4}-\d{2}-\d{2}/.test(t)) return t.slice(0, 10);
   let m = t.match(/^(\d{1,2}) (?:de )?([a-zñ]{3})[a-zñ.]* (?:de )?(\d{4})/);
-  if (m && MONTHS.includes(m[2])) return `${m[3]}-${String(MONTHS.indexOf(m[2]) + 1).padStart(2, '0')}-${m[1].padStart(2, '0')}`;
+  if (m && monthOf(m[2]) > 0) return ymd(m[3], monthOf(m[2]), +m[1]);
+  m = t.match(/^([a-z]{3})[a-z.]* (\d{1,2}),? (\d{4})/);
+  if (m && monthOf(m[1]) > 0) return ymd(m[3], monthOf(m[1]), +m[2]);
   m = t.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
-  if (m) return `${m[3].length === 2 ? `20${m[3]}` : m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`;
-  return null;
+  if (!m) return null;
+  // Day first, as in Spain, unless that cannot be (an American phone writes the month first: 11/20/26).
+  const y = m[3].length === 2 ? `20${m[3]}` : m[3], a = +m[1], b = +m[2];
+  return b > 12 ? ymd(y, a, b) : ymd(y, b, a);
 }
 const lines = v => (Array.isArray(v) ? v.map(String) : String(v ?? '').split(/\r?\n/)).map(x => x.trim()).filter(Boolean);
 // The iPhone writes numbers as the phone's language does: "60,4", "8.123", "1.234,5" or "8123". With a single kind of
