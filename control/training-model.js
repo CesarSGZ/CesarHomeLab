@@ -437,7 +437,8 @@ export function calibrations(rows, bodyWeight) {
   for (const e of list) {
     if (isFreeWeight(e.name)) { map.set(e.name, { factor: 1, reliability: 'alta' }); continue; }
     const s = standardFor(e.name), group = muscleOf(e.name);
-    const anchor = rate(bestLifts(rows, group, shiftDays(e.first, -182), shiftDays(e.first, -1), bodyWeight, map, patternOf(s.std)).filter(l => l.name !== e.name), bodyWeight);
+    // Only free weights of the same movement can calibrate a machine: another machine is no evidence.
+    const anchor = rate(bestLifts(rows, group, shiftDays(e.first, -182), shiftDays(e.first, -1), bodyWeight, map, patternOf(s.std)).filter(l => l.name !== e.name && l.reliability === 'alta'), bodyWeight);
     if (!anchor) { map.set(e.name, { factor: 1, reliability: 'baja', since: e.first }); continue; }
     const factor = clampFactor(valueAtPct(anchor.pct, standardAt(s.std, bodyWeight)) / (e.base * s.factor));
     map.set(e.name, { factor, reliability: e.sessions >= 2 ? 'media' : 'baja', provisional: e.sessions < 2, anchorPct: anchor.pct, since: e.first });
@@ -452,7 +453,7 @@ export function calibrations(rows, bodyWeight) {
     for (const [fecha, v] of e.dates) { const [y, mo] = fecha.split('-'), q = `${y}-${Math.floor((mo - 1) / 3)}`; quarters.set(q, { fecha, v: Math.max(quarters.get(q)?.v || 0, v) }); }
     for (const { fecha, v } of quarters.values()) {
       const others = bestLifts(rows, group, shiftDays(fecha, -60), shiftDays(fecha, 60), bodyWeight, map, patternOf(s.std)).filter(l => l.name !== e.name);
-      const trusted = others.filter(l => l.reliability !== 'baja'), level = rate(trusted.length ? trusted : others, bodyWeight);
+      const level = rate(others.filter(l => l.reliability === 'alta'), bodyWeight);
       if (level) ratios.push(valueAtPct(level.pct, marks) / (v * s.factor));
     }
     if (!ratios.length) continue;
@@ -478,15 +479,20 @@ function bestLifts(rows, group, from, to, bodyWeight = 85, cal = null, pattern =
   }
   return [...best.values()];
 }
-// The median of its lifts, free weights counting double: machine stacks differ between gyms, so one generous
-// or stingy machine must not decide the muscle.
+// Only what weighs the same in every gym decides where you stand: a barbell, dumbbells, your own body. Machines and cables
+// have Strength Level standards too, but their stacks differ between gyms, so on their own they are an estimate that
+// never claims more than MACHINE_CAP: a machine alone cannot tell you are stronger than 99 % of men.
+export const MACHINE_CAP = 75;
 const median = list => { const s = [...list].sort((a, b) => a - b), m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; };
+const capMachine = p => (p.reliability === 'alta' || p.pct <= MACHINE_CAP ? p : { ...p, pct: MACHINE_CAP, level: levelOf(MACHINE_CAP), capped: true });
 function rate(lifts, bodyWeight) {
   if (!lifts.length) return null;
-  const tests = lifts.map(l => ({ ...l, ...percentile(l.value, standardAt(l.std, bodyWeight)) })).sort((a, b) => b.pct - a.pct);
-  const pct = Math.round(median(tests.flatMap(t => (t.reliability === 'alta' ? [t.pct, t.pct] : [t.pct]))));
-  const reliability = tests.reduce((r, t) => (RANK[t.reliability || 'baja'] > RANK[r] ? t.reliability : r), 'baja');
-  return { pct, level: levelOf(pct), tests, reliability };
+  const tests = lifts.map(l => capMachine({ ...l, ...percentile(l.value, standardAt(l.std, bodyWeight)) })).sort((a, b) => b.pct - a.pct);
+  const free = tests.filter(t => t.reliability === 'alta');
+  // With free weights, only they count; without them, the machines' median as an estimate.
+  const pct = Math.round(median((free.length ? free : tests).map(t => t.pct)));
+  const reliability = free.length ? 'alta' : tests.reduce((r, t) => (RANK[t.reliability || 'baja'] > RANK[r] ? t.reliability : r), 'baja');
+  return { pct, level: levelOf(pct), tests, reliability, estimate: !free.length };
 }
 // The last 12 months; a muscle not trained in that time uses its last 12 months with data and says until when.
 export function strengthByMuscle(rows, bodyWeight, today) {
@@ -547,12 +553,13 @@ export function liftPercentile(name, value, bodyWeight, rows = null, today = nul
   const s = standardFor(name);
   if (!s || !value) return null;
   const raw = { ...percentile(value * s.factor, standardAt(s.std, bodyWeight)), std: s.std, reliability: isFreeWeight(name) ? 'alta' : 'baja' };
-  if (!rows || isFreeWeight(name)) return raw;
+  if (isFreeWeight(name)) return raw;
+  if (!rows) return capMachine(raw);
   const c = calibrations(rows, bodyWeight).get(name);
-  if (c && !c.provisional) return { ...percentile(value * s.factor * c.factor, standardAt(s.std, bodyWeight)), std: s.std, reliability: c.reliability, calibrated: c.factor !== 1 };
+  if (c && !c.provisional) return capMachine({ ...percentile(value * s.factor * c.factor, standardAt(s.std, bodyWeight)), std: s.std, reliability: c.reliability, calibrated: c.factor !== 1 });
   const group = muscleOf(name), day = today || rows.reduce((m, r) => (r[F.FECHA] > m ? r[F.FECHA] : m), '');
-  const level = group && rate(bestLifts(rows, group, shiftDays(day, -182), day, bodyWeight, null, patternOf(s.std)).filter(l => l.name !== name), bodyWeight);
-  return level ? { pct: level.pct, level: level.level, std: s.std, reliability: 'baja', provisional: true } : raw;
+  const level = group && rate(bestLifts(rows, group, shiftDays(day, -182), day, bodyWeight, null, patternOf(s.std)).filter(l => l.name !== name && l.reliability === 'alta'), bodyWeight);
+  return capMachine(level ? { pct: level.pct, level: level.level, std: s.std, reliability: 'baja', provisional: true } : raw);
 }
 // The best single lift of a muscle in a window, as a share of men beaten: the mark a new machine has to beat.
 export function bestOfMuscle(rows, group, bodyWeight, from, to) {
