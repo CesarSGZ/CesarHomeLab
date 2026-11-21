@@ -1,6 +1,6 @@
 {
   "schema_version": "1.4.0",
-  "generated_at": "2026-11-17T18:00:00+00:00",
+  "generated_at": "2026-11-21T12:00:00+00:00",
   "project": {
     "id": "terra-powerplant-lab",
     "title": "Terra Powerplant Lab",
@@ -2834,6 +2834,18 @@
           "es": "Siete casos simulados: acierta a ciegas con ~1,5 °C y decide que los ventiladores de caja se quedan como están.",
           "en": "Seven cases simulated: right to ~1.5 °C on blind tests, and it settles that the case fans stay as they are."
         }
+      },
+      {
+        "id": "use",
+        "status": "next",
+        "title": {
+          "es": "Usarlo",
+          "en": "Use it"
+        },
+        "detail": {
+          "es": "Probar en el ordenador los cambios antes de construirlos, empezando por el punto flojo: la gráfica sin canal.",
+          "en": "Try changes on the computer before building them, starting with the weak spot: the GPU without its duct."
+        }
       }
     ],
     "timeline": [
@@ -3114,6 +3126,18 @@
           "en": "Decided: no combination improves by more than ~1 °C (bottom exhausting: GPU −0.8 °C but board +0.9 °C; top as intake: GPU +2.4 °C). They stay as they are, no real test needed."
         },
         "date": "2026-11-21"
+      },
+      {
+        "status": "next",
+        "date": "2026-11-22",
+        "title": {
+          "es": "Afinar la gráfica sin canal",
+          "en": "Fix the GPU without its duct"
+        },
+        "detail": {
+          "es": "El CFD le mete 8-9 °C de más a la entrada frente a los 3-5 medidos. Mirar por dónde sale el aire de sus aletas en la criba rápida de 4 mm y, si mejora sin factores, repetirlo en 2,5 mm.",
+          "en": "The CFD gives it 8-9 °C extra at the inlet against the 3-5 measured. Check where its fin exhaust goes on the quick 4 mm screen and, if it improves with no fudge factors, repeat it at 2.5 mm."
+        }
       }
     ],
     "cfd_gate": [

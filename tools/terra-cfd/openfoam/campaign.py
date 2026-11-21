@@ -67,7 +67,7 @@ def main():
                 cmd += ['--panels-off'] if f == 'PANELS_OFF' else ['--flip', f]
             run(cmd, env=env)
             run([sys.executable, HERE / 'run_case.py', case, '--np', '8', '--loops', str(a.loops), '--iters', '500'], env=env)
-        run([PV, HERE / 'export_streams.py', case, streams / f'{name.lower()}-streams.bin', a.seeds], env=env)
+        run([PV, HERE / 'export_streams.py', case, streams / f'{name.lower()}-streams.bin', '700'], env=env)   # semillas en los ventiladores
         frames = img / name
         run([PV, HERE / 'render.py', case, frames, DATA / 'cfd-geometria', '--gif', f'--seeds={a.seeds}'], env=env)
         gif = img / f'{name}.gif'
@@ -77,12 +77,14 @@ def main():
         run([FFMPEG, '-y', '-loglevel', 'error', '-framerate', '24', '-i', frames / 'gif' / '%03d.png',
              '-vf', 'scale=1100:-2', '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-crf', '24', '-movflags', '+faststart',
              img / f'{name}.mp4'])                                    # la versión buena
-        if name == 'S07':   # vídeo de la tarjeta del CV (público, sin barra de color)
-            run([FFMPEG, '-y', '-loglevel', 'error', '-framerate', '20', '-i', frames / 'gif' / '%03d.png',
-                 '-vf', 'crop=960:660:40:20,scale=960:-2', '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-crf', '27', '-preset', 'slow',
+        if name == 'S07':   # vídeo de la tarjeta del CV: cámara fija, trazos que avanzan con el aire (render_story.py)
+            story = img / f'{name}-cv'
+            run([PV, HERE / 'render_story.py', case, story, DATA / 'cfd-geometria', '--frames=120'], env=env)
+            run([FFMPEG, '-y', '-loglevel', 'error', '-framerate', '24', '-i', story / '%03d.png',
+                 '-vf', 'scale=900:900:flags=lanczos', '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-crf', '21',
                  '-movflags', '+faststart', '-an', REPO / 'assets' / 'projects' / 'thermal-cfd.mp4'])
-            run([FFMPEG, '-y', '-loglevel', 'error', '-i', frames / 'gif' / '000.png', '-vf', 'crop=960:660:40:20',
-                 '-q:v', '4', REPO / 'assets' / 'projects' / 'thermal-cfd-poster.jpg'])
+            run([FFMPEG, '-y', '-loglevel', 'error', '-i', story / '060.png', '-vf', 'scale=900:900:flags=lanczos',
+                 '-q:v', '3', REPO / 'assets' / 'projects' / 'thermal-cfd-poster.jpg'])
         print('listo', name, json.load(open(case / 'results.json'))['vents_m3h'], flush=True)
     s04 = out / f'terra-S04-{a.cell:g}mm-S04'
     s07 = out / f'terra-S07-{a.cell:g}mm-S07'
