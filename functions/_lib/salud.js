@@ -10,6 +10,33 @@ const finite = v => (v === null || v === undefined || v === '' || !Number.isFini
 const LIMITS = { pasos: [0, 100000], kcal: [0, 10000], prot: [0, 600], carb: [0, 1500], grasa: [0, 600], peso: [25, 250] };
 const valid = (field, v) => v !== null && v >= LIMITS[field][0] && v <= LIMITS[field][1];
 
+// The date as ISO ("2026-11-20T00:00:00+01:00") or as the iPhone shows it in Spanish ("20 nov 2026, 0:00", "20/11/26").
+const MONTHS = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+export function isoDay(text) {
+  const t = String(text || '').trim().toLowerCase();
+  if (/^\d{4}-\d{2}-\d{2}/.test(t)) return t.slice(0, 10);
+  let m = t.match(/^(\d{1,2}) (?:de )?([a-zñ]{3})[a-zñ.]* (?:de )?(\d{4})/);
+  if (m && MONTHS.includes(m[2])) return `${m[3]}-${String(MONTHS.indexOf(m[2]) + 1).padStart(2, '0')}-${m[1].padStart(2, '0')}`;
+  m = t.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
+  if (m) return `${m[3].length === 2 ? `20${m[3]}` : m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`;
+  return null;
+}
+const lines = v => (Array.isArray(v) ? v.map(String) : String(v ?? '').split(/\r?\n/)).map(x => x.trim()).filter(Boolean);
+// The iPhone writes numbers as the phone's language does: "60,4", "8.123", "1.234,5" or "8123". With a single kind of
+// separator and three digits after it, it is a thousands separator (except for weight, which never has three decimals).
+export function spanishNumber(text, field) {
+  let t = String(text ?? '').replace(/[^\d.,-]/g, '');
+  if (!t) return null;
+  const dot = t.lastIndexOf('.'), comma = t.lastIndexOf(',');
+  if (dot >= 0 && comma >= 0) t = dot > comma ? t.replace(/,/g, '') : t.replace(/\./g, '').replace(',', '.');
+  else if (dot >= 0 || comma >= 0) {
+    const sep = dot >= 0 ? '.' : ',', parts = t.split(sep);
+    const thousands = field !== 'peso' && parts.length > 1 && parts.slice(1).every(x => x.length === 3);
+    t = thousands ? parts.join('') : parts.slice(0, -1).join('') + '.' + parts[parts.length - 1];
+  }
+  return finite(t);
+}
+
 function toUnit(field, qty, units = '') {
   const u = String(units).toLowerCase();
   if (field === 'kcal' && u === 'kj') return qty / 4.184;
@@ -39,8 +66,14 @@ export function parseHealth(body) {
         put(String(p.date || '').slice(0, 10), field, toUnit(field, qty, m.units));
       }
     }
+  } else if (FIELDS.some(f => body?.[`${f}_fechas`] !== undefined)) {
+    // The free Shortcut: for each field, the dates and the values as two lists, one per line (or JSON arrays).
+    for (const f of FIELDS) {
+      const dates = lines(body[`${f}_fechas`]), values = lines(body[`${f}_valores`]);
+      dates.forEach((d, i) => { const v = spanishNumber(values[i], f), day = isoDay(d); if (v !== null && day) put(day, f, v); });
+    }
   } else {
-    // Shortcut: one day or a list of days, with our own field names.
+    // A simple Shortcut: one day or a list of days, with our own field names.
     for (const d of Array.isArray(body?.dias) ? body.dias : [body]) {
       const day = String(d?.fecha || '').slice(0, 10);
       for (const f of FIELDS) { const v = finite(d?.[f]); if (v !== null) put(day, f, v); }
