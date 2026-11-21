@@ -61,8 +61,22 @@ export function mergeHealth(stored, incoming, today) {
 }
 
 const GOALS = new Set(['volumen', 'definicion', 'mantener']);
+// Her goal: the kind, the weight she wants to reach and how many kg a week (positive to gain, negative to lose).
 export function cleanGoal(goal) {
-  const tipo = GOALS.has(goal?.tipo) ? goal.tipo : null, peso = finite(goal?.peso);
+  const tipo = GOALS.has(goal?.tipo) ? goal.tipo : null, peso = finite(goal?.peso), ritmo = finite(goal?.ritmo);
   if (!tipo) throw new Error('objetivo');
-  return { tipo, peso: peso && peso >= 30 && peso <= 200 ? Math.round(peso * 10) / 10 : null };
+  return { tipo, peso: peso && peso >= 30 && peso <= 200 ? Math.round(peso * 10) / 10 : null, ritmo: ritmo !== null && Math.abs(ritmo) <= 1.5 ? Math.round(ritmo * 100) / 100 : null };
+}
+// What the formulas need besides her weight: age and height.
+export function cleanProfile(p) {
+  const edad = finite(p?.edad), altura = finite(p?.altura);
+  if ((edad !== null && (edad < 14 || edad > 99)) || (altura !== null && (altura < 120 || altura > 230))) throw new Error('perfil');
+  return { edad: edad === null ? null : Math.round(edad), altura: altura === null ? null : Math.round(altura) };
+}
+// A day she marks as incomplete (out) or as fine after all (in); null lets the app decide.
+export function markDay(stored, day, mark) {
+  if (!DAY.test(String(day)) || ![null, 'fuera', 'dentro'].includes(mark ?? null)) throw new Error('dia');
+  const marks = { ...(stored?.marcas || {}) };
+  if (mark) marks[day] = mark; else delete marks[day];
+  return { ...(stored || { dias: {} }), marcas: marks };
 }
