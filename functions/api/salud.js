@@ -38,6 +38,13 @@ export async function onRequest({ request, env }) {
   try { body = JSON.parse(text); } catch { return reply(request, { ok: false, error: 'bad_request' }, 400); }
   try {
     // From her app: goal, profile or a day marked in or out. From her iPhone: Health data.
+    // A day that should not be there at all (a test, a wrong import) is removed whole.
+    if (body?.borrarDia) {
+      const next = { ...(stored || { dias: {} }), dias: { ...((stored && stored.dias) || {}) } };
+      delete next.dias[String(body.borrarDia)];
+      await save(env, next);
+      return reply(request, { ok: true, dias: Object.keys(next.dias).length });
+    }
     if (body?.objetivo || body?.perfil || body?.marcar) {
       let next = { ...(stored || { dias: {} }) };
       if (body.objetivo) next.objetivo = cleanGoal(body.objetivo);
