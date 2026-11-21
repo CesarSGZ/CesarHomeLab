@@ -283,11 +283,11 @@
       const card=v=>`<article class="tl-val ${tone(v.max_err_C)}">
         <header><span class="tl-val-tag ${v.kind}">${v.kind==='blind'?(es?'A ciegas':'Blind'):(es?'Predicción':'Prediction')}</span><strong>${esc(L(v))}</strong></header>
         <p class="tl-val-big"><b>${num(v.max_err_C)} °C</b> ${es?'de error máximo':'max error'}</p>
-        <ul>${v.rows.map(r=>`<li class="${r.id==='RAM'?'muted':tone(r.err)}"><span>${esc(L(r))}</span><span class="tl-val-bar"><i style="left:50%"></i><em style="${r.err<0?`right:50%`:`left:50%`};width:${Math.min(50,Math.abs(r.err)/4*50).toFixed(1)}%"></em></span><b>${sgn(r.err)}</b></li>`).join('')}</ul>
+        <ul>${v.rows.map(r=>`<li class="${tone(r.err)}"><span>${esc(L(r))}</span><span class="tl-val-bar"><i style="left:50%"></i><em style="${r.err<0?`right:50%`:`left:50%`};width:${Math.min(50,Math.abs(r.err)/4*50).toFixed(1)}%"></em></span><b>${sgn(r.err)}</b></li>`).join('')}</ul>
       </article>`;
       html+=`<h4 class="tl-subhead">${es?'¿Acierta? Ajustado solo con la S04':'Does it match? Fitted on S04 only'}</h4>
         <div class="tl-vals">${x.validation.map(card).join('')}</div>
-        <p class="tl-note">${es?'Barra = error de la simulación frente a lo medido (escala ±4 °C). "A ciegas": pruebas medidas que el modelo nunca vio. La memoria va aparte: le falta el calor que se va por la placa.':'Bar = simulation error against the measurement (±4 °C scale). "Blind": measured tests the model never saw. RAM is set apart: its heat path through the board is missing.'}</p>`;
+        <p class="tl-note">${es?'Barra = error de la simulación frente a lo medido (escala ±4 °C). "A ciegas": pruebas medidas que el modelo nunca vio. La memoria lleva su camino de calor por la placa.':'Bar = simulation error against the measurement (±4 °C scale). "Blind": measured tests the model never saw. RAM includes its heat path through the board.'}</p>`;
     }
     if(has('layouts')&&x.layouts?.length){
       const arrow=(dir,pos)=>{const up=(pos==='top')===(dir==='out');return `<span class="tl-fan ${pos} ${dir}" title="${pos==='top'?(es?'arriba':'top'):(es?'abajo':'bottom')}: ${dir==='in'?(es?'mete':'intake'):(es?'saca':'exhaust')}">${up?'↑':'↓'}</span>`};

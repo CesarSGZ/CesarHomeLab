@@ -28,6 +28,9 @@ DATA = ROOT / 'control' / 'data' / 'terra-thermal-summary.json'
 OUT_DEFAULT = Path(os.environ['USERPROFILE']) / 'Desktop' / 'Claude' / 'Datos' / 'Terra' / 'cfd-casos'
 
 RHO, CP, NU = 1.16, 1005.0, 1.6e-5
+GPU_FT = 100.0    # mm de flujo pasante en la gráfica: PCB corto y el ventilador del extremo sopla a través hacia la espina.
+                  # Hipótesis (ZOTAC no publica el despiece; es lo habitual en las SFF): es lo único que hace que el aire que
+                  # llega al procesador cuadre en S04, S05, S06 y S07 a la vez (criba de 4 mm, 20-21 nov)
 PSU_F = 150.0     # freno interno de la fuente (Forchheimer, 1/m)
 
 # Condiciones de cada prueba medida (vatios y rpm de la ventana estable, carga combinada)
@@ -209,10 +212,17 @@ boundary
     g = comps['GPU']; glo, ghi = box_m(g['box'])
     fan_y1 = m(26.15)
     pcb_y0 = ghi[1] - m(7.75)
+    ft = m(GPU_FT)        # flujo pasante: PCB corto y el extremo lejos del soporte abierto (sale hacia la espina)
     zone_box('gpuFins', [glo[0], fan_y1, glo[2]], [ghi[0], pcb_y0, ghi[2]])
     porous.append(('gpuFins', 'gpuFins', (5e7, 2e3, 2e3), (8e3, 300, 300), 'y'))   # aletas: cuesta atravesarlas en x
     heat.append(('gpuFins', cfg['heat_W']['GPU']))
-    solid_box('gpuPcb', [glo[0], pcb_y0, glo[2]], ghi)
+    if ft > 0:
+        zone_box('gpuFlow', [glo[0], pcb_y0, glo[2] + m(8)], [glo[0] + ft, ghi[1], ghi[2] - m(8)])
+        porous.append(('gpuFlow', 'gpuFlow', (5e7, 2e3, 5e7), (8e3, 300, 8e3), 'y'))   # rejilla de la placa trasera
+    solid_box('gpuPcb', [glo[0] + ft, pcb_y0, glo[2]], ghi)
+    if ft > 0:   # marco de la placa trasera alrededor del hueco
+        solid_box('gpuPcbLo', [glo[0], pcb_y0, glo[2]], [glo[0] + ft, ghi[1], glo[2] + m(8)])
+        solid_box('gpuPcbHi', [glo[0], pcb_y0, ghi[2] - m(8)], [glo[0] + ft, ghi[1], ghi[2]])
     # carcasa entre ventiladores: sólida salvo los discos
     cellset('gpuShroud', boxsrc([glo[0], glo[1], glo[2]], [ghi[0], fan_y1, ghi[2]]))
     for i in (1, 2, 3):
@@ -575,15 +585,26 @@ def main():
     ap.add_argument('--ext', type=float, default=0.0, help='mm de aire alrededor de la caja (0 = solo interior)')
     ap.add_argument('--flip', action='append', default=[], help='TOP_FAN o BOTTOM_FAN: darle la vuelta (meter ↔ sacar aire)')
     ap.add_argument('--panels-off', action='store_true', help='sin paneles laterales (necesita --ext)')
+    ap.add_argument('--gpu-flowthrough', type=float, default=None, help='mm del extremo delantero de la gráfica sin PCB (flujo pasante)')
+    ap.add_argument('--fan-spec', action='append', default=[], help='MODELO=rpm,q0,p0: cambia una curva estimada, p. ej. GPU_90=3300,60,30')
+    ap.add_argument('--comp', action='append', default=[], help='ID.clave=valor: cambia un dato de una pieza, p. ej. SPINE.porosity=0.2')
     a = ap.parse_args()
     geo = json.loads(DATA.read_text(encoding='utf-8'))['geometry']
+    for kv in a.fan_spec:
+        k, v = kv.split('=')
+        FAN_SPEC[k] = tuple(float(x) for x in v.split(','))
+    for kv in a.comp:                       # para cribar hipótesis sin tocar la geometría publicada
+        key, v = kv.split('=')
+        cid, field = key.split('.')
+        next(c for c in geo['components'] if c['id'] == cid)[field] = float(v)
     if a.psu_f:
         global PSU_F
         PSU_F = a.psu_f
     for kv in a.rpm:
         k, v = kv.split('=')
         CONFIGS[a.config]['rpm'][k] = float(v)
-    global EXT, FLIP, PANELS_OFF
+    global EXT, FLIP, PANELS_OFF, GPU_FT
+    GPU_FT = GPU_FT if a.gpu_flowthrough is None else a.gpu_flowthrough
     EXT = a.ext
     FLIP = set(a.flip)
     PANELS_OFF = a.panels_off or CONFIGS[a.config].get('panels_off', False)

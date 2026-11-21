@@ -2,13 +2,14 @@
 
 Uso:  python compare.py <caso S04> <caso S07> [--json salida.json]
 
-Para cada pieza: T_pieza = T_aire_CFD + R · P. R se ajusta con la S04 y se usa tal cual en la S07; en la gráfica
-y el procesador R escala con el caudal de su ventilador elevado a −0,7 (aletas). El aire que se usa es el que
-llega al ventilador (gráfica, procesador). Para la placa (VRM, chipset, sensor) y la memoria se usa el aire que
-sale del disipador del procesador: el AXP90 es de flujo hacia abajo y su chorro barre el VRM, el zócalo y los
-módulos de memoria (a 2 mm del disipador), que es justo donde están los sensores. La media de toda la zona de la
-placa no sirve: incluye rincones muertos que el CFD con aire de fuera calienta igual con y sin canales, cuando lo
-medido baja 5-7 °C (S04 → S07), igual que la salida del disipador.
+Para cada pieza: T_pieza = T_aire_CFD + R · P. R se ajusta con la S04 y se usa tal cual en los demás casos.
+Solo la parte de R que está en las aletas depende del caudal (h ∝ Q^0,7):
+  - gráfica: casi todo es aleta (cámara de vapor grande), así que toda R escala con Q^−0,7;
+  - procesador: de ~0,58 K/W medidos, el disipador de perfil bajo (Thermalright AXP90-X47) pone ~0,20 K/W; el resto
+    es silicio → IHS → pasta, que no ve el aire. Solo esos 0,20 K/W escalan con el caudal.
+El aire que se usa es el que llega al ventilador (gráfica, procesador). Para VRM, chipset y sensor es la media entre
+la capa de aire sobre la placa y la salida del disipador del procesador, que sopla hacia abajo justo encima de esas
+piezas: la capa sola depende mucho de la malla y la salida sola se queda corta en los casos con más calor.
 
 Memoria: el CFD no lleva la conducción por la placa, así que se añade un nodo térmico sencillo. Cada módulo
 (Corsair Vengeance DDR5, 135 × 35 × 7 mm, disipador de aluminio) cede calor por dos caminos:
@@ -39,11 +40,12 @@ def load(case):
     z, f = r['zone_T_C'], r['fans']
     gpu_in = sum(z[k] for k in ('gpuFan1', 'gpuFan2', 'gpuFan3')) / 3
     gpu_q = sum(f[k]['Q_m3h'] for k in ('gpuFan1', 'gpuFan2', 'gpuFan3'))
-    exhaust = z['cpuFins']          # aire que baja del disipador sobre la placa y la memoria (ver arriba)
-    return {'GPU': (gpu_in, gpu_q), 'CPU': (z['cpuFan'], f['cpuFan']['Q_m3h']), 'RAM': (exhaust, None),
-            'VRM': (exhaust, None), 'CHIPSET': (exhaust, None), 'BOARD': (exhaust, None), 'raw': r}
+    board = 0.5 * z['boardAir'] + 0.5 * z['cpuFins']
+    return {'GPU': (gpu_in, gpu_q), 'CPU': (z['cpuFan'], f['cpuFan']['Q_m3h']), 'RAM': (z['ram'], None),
+            'VRM': (board, None), 'CHIPSET': (board, None), 'BOARD': (board, None), 'raw': r}
 
 
+R_FIN = {'GPU': None, 'CPU': 0.20}   # K/W de R que está en las aletas (None: toda); el resto no depende del aire
 W_RAM_BOARD = 0.70          # peso de la placa en la memoria (G_placa / (G_placa + G_aire)), ver arriba
 KEYS = ('GPU', 'CPU', 'VRM', 'CHIPSET', 'BOARD', 'RAM')
 
@@ -55,7 +57,8 @@ def predict(c4, cx, sid):
         (t4, q4), (tx, qx) = c4[k], cx[k]
         r = (MEAS['S04'][k] - t4) / MEAS['S04'].get('P_' + k, 1.0)
         if q4 and qx:
-            r *= (qx / q4) ** -0.7
+            fin = r if R_FIN.get(k) is None else min(R_FIN[k], r)
+            r += fin * ((qx / q4) ** -0.7 - 1)
         out[k] = tx + r * MEAS[sid].get('P_' + k, 1.0)
     w = W_RAM_BOARD
     t4, tx = c4['RAM'][0], cx['RAM'][0]

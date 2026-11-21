@@ -26,10 +26,10 @@ CASES = [
     ('S04', 'S04', ['BOTTOM_FAN=1361', 'TOP_FAN=2200'], []),          # ajuste
     ('S07', 'S07', ['BOTTOM_FAN=1206', 'TOP_FAN=2200'], []),          # predicción (y vídeo del CV)
     ('S05', 'S05', [], []),                                           # a ciegas: sin paneles (la S08 no se puede: los canales van en los paneles)
+    ('S06', 'S06', [], []),                                           # a ciegas: solo el canal de la CPU
     ('S07-top-in', 'S07', ['BOTTOM_FAN=1206', 'TOP_FAN=2200'], ['TOP_FAN']),
     ('S07-bottom-out', 'S07', ['BOTTOM_FAN=1206', 'TOP_FAN=2200'], ['BOTTOM_FAN']),
     ('S07-both-flipped', 'S07', ['BOTTOM_FAN=1206', 'TOP_FAN=2200'], ['TOP_FAN', 'BOTTOM_FAN']),
-    ('S06', 'S06', [], []),                                           # a ciegas: solo el canal de la CPU
 ]
 
 
