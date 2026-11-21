@@ -15,7 +15,7 @@ test('Health Auto Export: daily totals per field, units converted, weight averag
 test('Shortcut payload and merging: a resent day replaces its fields; old days are dropped', () => {
   const days = parseHealth({ fecha: '2026-11-21', pasos: 9000, kcal: 1850, peso: '' });
   assert.deepEqual(days, { '2026-11-21': { pasos: 9000, kcal: 1850 } });
-  const stored = { dias: { '2025-01-01': { pasos: 1 }, '2026-11-21': { pasos: 4000, peso: 60 } }, objetivo: { tipo: 'volumen', peso: 63 } };
+  const stored = { dias: { '2022-01-01': { pasos: 1 }, '2026-11-21': { pasos: 4000, peso: 60 } }, objetivo: { tipo: 'volumen', peso: 63 } };
   const merged = mergeHealth(stored, days, '2026-11-21');
   assert.deepEqual(merged.dias, { '2026-11-21': { pasos: 9000, peso: 60, kcal: 1850 } });
   assert.deepEqual(merged.objetivo, { tipo: 'volumen', peso: 63 });
