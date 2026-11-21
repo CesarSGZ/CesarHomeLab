@@ -84,11 +84,11 @@ export function parseHealth(body) {
   return days;
 }
 
-// A day sent again replaces the fields it brings (the app resends whole days), and only the last 400 days are kept.
+// A day sent again replaces the fields it brings (the app resends whole days), and only the last 1.500 days (about four years) are kept.
 export function mergeHealth(stored, incoming, today) {
   const days = { ...(stored?.dias || {}) };
   for (const [day, values] of Object.entries(incoming)) if (day <= today) days[day] = { ...(days[day] || {}), ...values };
-  const from = new Date(Date.parse(`${today}T12:00:00Z`) - 400 * 864e5).toISOString().slice(0, 10);
+  const from = new Date(Date.parse(`${today}T12:00:00Z`) - 1500 * 864e5).toISOString().slice(0, 10);
   for (const day of Object.keys(days)) if (day < from) delete days[day];
   return { ...(stored || {}), dias: days, recibido: new Date().toISOString() };
 }

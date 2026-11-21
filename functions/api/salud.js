@@ -3,7 +3,7 @@
 import { madridToday } from '../_lib/rivalry.js';
 import { cleanGoal, cleanProfile, markDay, mergeHealth, parseHealth } from '../_lib/salud.js';
 
-const DATASET = 'maria-salud', MAX_BODY = 2_000_000;
+const DATASET = 'maria-salud', MAX_BODY = 5_000_000;
 const ORIGINS = /^(https:\/\/cesarsgz\.github\.io|http:\/\/localhost:\d+)$/;
 const cors = request => {
   const origin = request.headers.get('origin') || '';
