@@ -2825,14 +2825,14 @@
       },
       {
         "id": "cfd",
-        "status": "next",
+        "status": "done",
         "title": {
           "es": "Simular el aire",
           "en": "CFD"
         },
         "detail": {
-          "es": "Simulación del flujo de aire cuando los datos sean fiables.",
-          "en": "Simulate the airflow once the inputs are trustworthy."
+          "es": "Siete casos simulados: acierta a ciegas con ~1,5 °C y decide que los ventiladores de caja se quedan como están.",
+          "en": "Seven cases simulated: right to ~1.5 °C on blind tests, and it settles that the case fans stay as they are."
         }
       }
     ],
@@ -3022,6 +3022,12 @@
         "kind": "page",
         "title": "La S08 no se hace; la prueba a ciegas será con S05 y S06",
         "detail": "Los canales van sujetos a los paneles, así que no se pueden quitar los paneles con los canales puestos. Para comprobar el CFD a ciegas se usan dos pruebas ya medidas que el modelo nunca vio: S05 (sin paneles) y S06 (solo canal del procesador)."
+      },
+      {
+        "date": "2026-11-21",
+        "kind": "page",
+        "title": "El CFD acierta a ciegas y decide los ventiladores",
+        "detail": "Siete casos en malla de 2,5 mm con el aire de fuera. Ajustado solo con la S04, acierta la S07 con 1,2 °C de error típico y la S05 y la S06, que nunca vio, con 1,5 y 1,4 °C, memoria incluida. Dar la vuelta a los ventiladores de caja no gana más de 1 °C: se quedan como están."
       }
     ],
     "next_steps": [
@@ -3441,22 +3447,22 @@
         },
         {
           "id": "CFG-020",
-          "verdict": "maybe",
+          "verdict": "skip",
           "title_es": "Más extracción por arriba",
           "title_en": "More exhaust at the top",
           "expect_es": "Poco para la CPU y la gráfica (ya respiran de fuera); ayudaría a memoria, VRM, SSD y fuente.",
           "expect_en": "Little for CPU and GPU (they already breathe outside air); would help RAM, VRM, SSD and PSU.",
-          "why_es": "Con los canales, el calor de la gráfica se queda dentro hasta que sale por arriba y por las ranuras libres. El CFD dirá si se acumula.",
-          "why_en": "With the ducts, the GPU heat stays inside until it leaves through the top and the free slots. The CFD will show whether it builds up.",
-          "effort_es": "Esperar al CFD",
-          "effort_en": "Wait for the CFD",
+          "why_es": "El CFD lo probó (21 nov): sacar aire también por abajo enfría la gráfica 0,8 °C pero calienta la placa 0,9 °C. El calor de la gráfica no se queda atrapado mientras lleve su canal.",
+          "why_en": "The CFD tried it (21 Nov): exhausting through the bottom too cools the GPU by 0.8 °C but warms the board by 0.9 °C. The GPU heat does not get trapped as long as it keeps its duct.",
+          "effort_es": "Descartado por el CFD",
+          "effort_en": "Ruled out by the CFD",
           "effect": {
             "gpu": [
-              -1.0,
-              0
+              -0.8,
+              -0.8
             ],
-            "basis_es": "La CPU y la gráfica ya cogen aire de fuera; el CFD lo afinará.",
-            "basis_en": "CPU and GPU already take outside air; the CFD will refine it."
+            "basis_es": "CFD, el caso más cercano (abajo sacando aire, más extracción): gráfica −0,8 °C pero placa +0,9 °C.",
+            "basis_en": "CFD, closest case (bottom fan turned to exhaust, more extraction): GPU −0.8 °C but board +0.9 °C."
           }
         },
         {
@@ -3510,17 +3516,17 @@
           "title_en": "More bottom intakes",
           "expect_es": "Casi nada para la CPU y la gráfica.",
           "expect_en": "Next to nothing for CPU and GPU.",
-          "why_es": "El de abajo ya mete aire y los dos grandes consumidores ya cogen el suyo de fuera por los canales.",
-          "why_en": "The bottom fan already blows in and both big heat sources already draw their own air from outside through the ducts.",
-          "effort_es": "—",
-          "effort_en": "—",
+          "why_es": "El CFD lo confirma (21 nov): con los dos ventiladores metiendo aire, la gráfica va 2,4 °C más caliente porque el aire caliente ya no tiene salida por arriba.",
+          "why_en": "The CFD confirms it (21 Nov): with both fans blowing in, the GPU runs 2.4 °C hotter because the hot air loses its way out at the top.",
+          "effort_es": "Descartado por el CFD",
+          "effort_en": "Ruled out by the CFD",
           "effect": {
             "gpu": [
-              -0.5,
-              0
+              2.4,
+              2.4
             ],
-            "basis_es": "Los dos grandes ya cogen su aire por los canales.",
-            "basis_en": "The two big parts already draw their air through the ducts."
+            "basis_es": "CFD, el caso más cercano (arriba metiendo aire, todo entrada): la gráfica va 2,4 °C más caliente.",
+            "basis_en": "CFD, closest case (top fan turned to intake, all intake): the GPU runs 2.4 °C hotter."
           }
         },
         {
