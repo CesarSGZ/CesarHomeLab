@@ -1,0 +1,52 @@
+// María's iPhone sends Apple Health here (Health Auto Export or a Shortcut), and her app reads it back. Same proof as the
+// rivalry: her own Sheet key in the x-pique header, which only her phone and this server know.
+import { madridToday } from '../_lib/rivalry.js';
+import { cleanGoal, mergeHealth, parseHealth } from '../_lib/salud.js';
+
+const DATASET = 'maria-salud', MAX_BODY = 2_000_000;
+const ORIGINS = /^(https:\/\/cesarsgz\.github\.io|http:\/\/localhost:\d+)$/;
+const cors = request => {
+  const origin = request.headers.get('origin') || '';
+  return ORIGINS.test(origin) ? { 'access-control-allow-origin': origin, 'access-control-allow-headers': 'x-pique, content-type', 'access-control-allow-methods': 'GET, POST', vary: 'origin' } : {};
+};
+const reply = (request, data, status = 200) => Response.json(data, { status, headers: { 'cache-control': 'no-store', ...cors(request) } });
+const sameKey = (a, b) => {
+  const x = new TextEncoder().encode(String(a)), y = new TextEncoder().encode(String(b));
+  let diff = x.length ^ y.length;
+  for (let i = 0; i < Math.max(x.length, y.length); i++) diff |= (x[i] || 0) ^ (y[i] || 0);
+  return diff === 0;
+};
+async function read(env, name) {
+  const row = await env.CONTROL_DB.prepare('SELECT payload FROM personal_datasets WHERE name = ?').bind(name).first();
+  return row ? JSON.parse(row.payload) : null;
+}
+async function save(env, data) {
+  await env.CONTROL_DB.prepare('INSERT INTO personal_datasets(name,payload,updated_at) VALUES(?,?,?) ON CONFLICT(name) DO UPDATE SET payload=excluded.payload,updated_at=excluded.updated_at')
+    .bind(DATASET, JSON.stringify(data), new Date().toISOString()).run();
+}
+
+export async function onRequest({ request, env }) {
+  if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors(request) });
+  if (!['GET', 'POST'].includes(request.method)) return reply(request, { ok: false, error: 'method_not_allowed' }, 405);
+  const maria = await read(env, 'maria-lab'), key = request.headers.get('x-pique') || new URL(request.url).searchParams.get('k') || '';
+  if (!maria?.sheet?.key || !key || !sameKey(key, maria.sheet.key)) return reply(request, { ok: false, error: 'not_authorised' }, 401);
+  const stored = await read(env, DATASET);
+  if (request.method === 'GET') return reply(request, { ok: true, salud: stored || { dias: {} } });
+  const text = await request.text();
+  if (text.length > MAX_BODY) return reply(request, { ok: false, error: 'too_large' }, 413);
+  let body;
+  try { body = JSON.parse(text); } catch { return reply(request, { ok: false, error: 'bad_request' }, 400); }
+  try {
+    if (body?.objetivo) {
+      const next = { ...(stored || { dias: {} }), objetivo: cleanGoal(body.objetivo) };
+      await save(env, next);
+      return reply(request, { ok: true, salud: next });
+    }
+    const days = parseHealth(body);
+    const next = mergeHealth(stored, days, madridToday());
+    await save(env, next);
+    return reply(request, { ok: true, dias: Object.keys(days).length });
+  } catch (error) {
+    return reply(request, { ok: false, error: error?.message === 'objetivo' ? 'objetivo' : 'unavailable' }, error?.message === 'objetivo' ? 400 : 503);
+  }
+}
