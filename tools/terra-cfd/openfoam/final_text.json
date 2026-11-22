@@ -129,20 +129,34 @@
       "note_en": "Much more air crosses the case (84 m³/h), but it has already passed the board before reaching the RAM: +1.4 °C."
     },
     "cpu-fan-max": {
-      "note_es": "Su ventilador de ~1.900 a 2.200 rpm (su máximo): 15 % más de aire, procesador −1,8 °C y la placa también, porque ese aire de fuera acaba sobre ella. Unos 3 dB más de ruido.",
-      "note_en": "Its fan from ~1,900 to 2,200 rpm (its maximum): 15 % more air, CPU −1.8 °C and the board too, because that outside air ends up over it. About 3 dB louder."
+      "note_es": "Su ventilador de ~1.900 a 2.200 rpm (su máximo): 15 % más de aire, procesador −1,8 °C y la placa también, porque ese aire de fuera acaba sobre ella. Unos 3 dB más de ruido. Si el disipador mejora con el aire más o menos de lo supuesto, la ganancia queda entre −1,2 y −2,2 °C.",
+      "note_en": "Its fan from ~1,900 to 2,200 rpm (its maximum): 15 % more air, CPU −1.8 °C and the board too, because that outside air ends up over it. About 3 dB louder. If the cooler improves with airflow more or less than assumed, the gain stays between −1.2 and −2.2 °C."
     },
     "cpu-push-pull": {
-      "note_es": "Otro NF-A9x14 tirando del disipador, a las mismas vueltas: el doble de presión, 22 % más de aire y −2,6 °C. Lo mejor para el procesador, si cabe en el canal.",
-      "note_en": "Another NF-A9x14 pulling through the cooler at the same speed: twice the pressure, 22 % more air and −2.6 °C. The best option for the CPU, if it fits in the duct."
+      "note_es": "Otro NF-A9x14 tirando del disipador, a las mismas vueltas: el doble de presión, 22 % más de aire y −2,6 °C. Lo mejor para el procesador, si cabe en el canal. Con otras leyes razonables del disipador, entre −1,8 y −3,0 °C: sigue mereciendo la pena.",
+      "note_en": "Another NF-A9x14 pulling through the cooler at the same speed: twice the pressure, 22 % more air and −2.6 °C. The best option for the CPU, if it fits in the duct. With other reasonable cooler laws, between −1.8 and −3.0 °C: still worth it."
     },
     "gpu-280w": {
       "note_es": "20 W menos (−7 %): la gráfica baja 2,1 °C y su ventilador 80 rpm. El rendimiento que se pierde no está medido aquí.",
       "note_en": "20 W less (−7 %): the GPU drops 2.1 °C and its fan 80 rpm. The performance cost is not measured here."
+    },
+    "top-off": {
+      "note_es": "Ni siquiera parado hace falta: ninguna pieza sube más de 0,3 °C y el paso de aire baja de 50 a 37 m³/h. El aire caliente sale igual por la rejilla de arriba, empujado por el de abajo y por lo que expulsa la gráfica: por ella siguen saliendo 28 m³/h.",
+      "note_en": "Not even needed when stopped: no part rises more than 0.3 °C and the through-flow drops from 50 to 37 m³/h. The hot air still leaves through the top grille, pushed by the bottom fan and the GPU exhaust: 28 m³/h still leave through it.",
+      "quieter": true
+    },
+    "quiet": {
+      "note_es": "Arriba a 1.200 (unos 13 dB menos) y abajo a 900 (unos 6 dB menos): procesador y gráfica igual, pero la memoria sube 0,8 °C. Es el de abajo el que la enfría: mejor bajar solo el de arriba.",
+      "note_en": "Top at 1,200 (about 13 dB quieter) and bottom at 900 (about 6 dB quieter): CPU and GPU unchanged, but the RAM rises 0.8 °C. The bottom fan is what cools it: better to slow only the top one.",
+      "quieter": true
+    },
+    "best": {
+      "note_es": "Las dos cosas juntas se suman sin estorbarse: procesador −2,5 °C, placa −2,6 °C y el de arriba unos 8 dB más bajo. Es la combinación que se recomienda.",
+      "note_en": "Both changes together add up without getting in each other's way: CPU −2.5 °C, board −2.6 °C and the top fan about 8 dB quieter. This is the recommended combination."
     }
   },
-  "reco_es": "Con los dos canales, la gráfica y el procesador ya respiran aire de fuera (19 °C a su entrada en todos los escenarios), así que los ventiladores de la caja solo cuidan la placa y la memoria. Dar la vuelta a alguno no compensa: lo que gana una pieza lo pierde otra. Lo que sí merece la pena: 1) bajar el de arriba a unos 1.500 rpm: mismo calor y menos ruido; 2) dejar el de abajo como está, metiendo aire: es el que enfría memoria y placa; 3) si se quiere enfriar el procesador, un segundo NF-A9x14 en su canal (−2,6 °C) o el suyo al máximo (−1,8 °C, más ruido).",
-  "reco_en": "With both ducts, the GPU and CPU already breathe outside air (19 °C at their inlet in every scenario), so the case fans only look after the board and RAM. Reversing any of them does not pay: what one part gains another loses. What is worth it: 1) slow the top fan to about 1,500 rpm: same heat, less noise; 2) leave the bottom fan as it is, as intake: it cools the RAM and board; 3) to cool the CPU, a second NF-A9x14 in its duct (−2.6 °C) or its own fan at full speed (−1.8 °C, louder).",
+  "reco_es": "Con los dos canales, la gráfica y el procesador ya respiran aire de fuera (19 °C a su entrada en todos los escenarios), así que los ventiladores de la caja solo cuidan la placa y la memoria. Dar la vuelta a alguno no compensa: lo que gana una pieza lo pierde otra. Lo que sí merece la pena: 1) bajar el de arriba a unos 1.500 rpm: mismo calor y menos ruido (el CFD dice que incluso parado nada sube más de 0,3 °C, pero conviene probarlo en real antes de ir tan lejos); 2) dejar el de abajo como está, metiendo aire: es el que enfría memoria y placa, y bajarlo ya la calienta; 3) si se quiere enfriar el procesador, un segundo NF-A9x14 en su canal (−2,6 °C) o el suyo al máximo (−1,8 °C, más ruido). Lo primero y lo tercero juntos se suman: −2,5 °C en el procesador y menos ruido.",
+  "reco_en": "With both ducts, the GPU and CPU already breathe outside air (19 °C at their inlet in every scenario), so the case fans only look after the board and RAM. Reversing any of them does not pay: what one part gains another loses. What is worth it: 1) slow the top fan to about 1,500 rpm: same heat, less noise (the CFD says that even stopped nothing rises more than 0.3 °C, but test it for real before going that far); 2) leave the bottom fan as it is, as intake: it cools the RAM and board, and slowing it already warms them; 3) to cool the CPU, a second NF-A9x14 in its duct (−2.6 °C) or its own fan at full speed (−1.8 °C, louder). The first and third together add up: −2.5 °C on the CPU and less noise.",
   "whatif_note_es": "Todo sobre el montaje de hoy (S07, los dos canales), con la gráfica a 300 W y el procesador a 91,6 W. Cada tarjeta es un CFD completo; las temperaturas salen del modelo calibrado con la S04 y el ventilador de la gráfica busca solo su punto, como hace de verdad. Cuentan las diferencias: el error típico del modelo es 1,5 °C, pero al comparar dos montajes casi iguales casi todo se cancela. Los dB son la ley de los ventiladores (≈ 50 · log de la relación de vueltas), sin medir.",
   "whatif_note_en": "Everything is on today's build (S07, both ducts), with the GPU at 300 W and the CPU at 91.6 W. Each card is a full CFD run; temperatures come from the model calibrated on S04, and the GPU fan finds its own speed, as it really does. What matters is the difference: the model's typical error is 1.5 °C, but comparing two almost identical builds cancels most of it. The dB figures come from the fan laws (≈ 50 · log of the speed ratio), not measured."
 }

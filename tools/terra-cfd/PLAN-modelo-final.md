@@ -62,3 +62,16 @@ B1 lanzado → mientras corre, A1–A3 → B2 (cribas de una en una) → B3/B4 s
 - S07 solo gráfica: gráfica −2,1 (igual que combinada), procesador +2,9 (potencia del SoC no calienta núcleos), VRM +4,6.
 - Protocolo nuevo (`model4.py`): calibrar con las 3 fases de la S04 (2 constantes por pieza: fija + ∝ potencia; procesador con núcleos frente a SoC), y S05, S06, S07 completas a ciegas.
 - Hipótesis descartada: aire detrás de la gráfica (`probe_zones.py`) no explica la S06.
+- Hipótesis descartada: aire de fuera que vuelve a entrar (`room.py`, 4 mm, EXT 36 frente a 100 mm): la entrada del procesador no cambia (19,4-19,5 °C).
+- Canal del procesador: dos constantes (λ, μ) para todo el lado de la placa, cruzadas S06 ↔ S07; final con las dos (`final_eval.py` → `regimen.json`).
+- Resultado en régimen: 51 comparaciones a ciegas, rms 1,47 °C, máx 3,2 °C, 78 % dentro de ±2 °C (calibración S04: 0,58).
+- Dinámico ajustado con la S04 (`dinamico.json`): gráfica 0,93 / 1,10 / 2,69 / 2,40 °C y procesador 1,06 / 2,13 / 0,87 / 1,20 °C (S04 / S05 / S06 / S07).
+
+## Diario (22 nov)
+- Escenarios (12) terminados a las 00:45. Con los dos canales la gráfica y el procesador respiran a 19,0 °C en todos: los ventiladores de caja solo tocan placa y memoria.
+  Veredictos (regla fijada antes): merece la pena push-pull (−2,6), ventilador del procesador a tope (−1,8) y gráfica a 280 W (−2,1); ningún cambio de sentido.
+  Añadido el veredicto «igual y más silencioso» (baja vueltas de un ventilador de caja y nada sube más de 0,5 °C): arriba a 1.500 rpm (≤ +0,2 °C, ~8 dB menos).
+- Segunda tanda en cola tras la malla: arriba parado, silencioso (1.200 / 900) y la mejor combinación (push-pull + arriba 1.500).
+- Malla de 2 mm: la cadena del 21 falló (argumentos de `screen.py` después del nombre); relanzada a las 00:46, 2,83 M celdas, ~2,5 s por iteración.
+- Gráfica: ¿se arregla eligiendo qué ventiladores definen su aire de entrada? Media simple 2,38 °C a ciegas, ponderada por caudal 2,12, solo ventiladores 1+2 1,32.
+  Pero el 1 está sobre el tramo sin placa (flujo pasante, x 30-130 mm) y el chip queda bajo los ventiladores 2-3, que dan 3,45: el «mejor» no tiene base física → descartado. Se queda la media simple; la gráfica sigue en ±3 °C.
