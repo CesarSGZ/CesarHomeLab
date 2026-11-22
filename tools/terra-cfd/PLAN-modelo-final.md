@@ -75,3 +75,10 @@ B1 lanzado → mientras corre, A1–A3 → B2 (cribas de una en una) → B3/B4 s
 - Malla de 2 mm: la cadena del 21 falló (argumentos de `screen.py` después del nombre); relanzada a las 00:46, 2,83 M celdas, ~2,5 s por iteración.
 - Gráfica: ¿se arregla eligiendo qué ventiladores definen su aire de entrada? Media simple 2,38 °C a ciegas, ponderada por caudal 2,12, solo ventiladores 1+2 1,32.
   Pero el 1 está sobre el tramo sin placa (flujo pasante, x 30-130 mm) y el chip queda bajo los ventiladores 2-3, que dan 3,45: el «mejor» no tiene base física → descartado. Se queda la media simple; la gráfica sigue en ±3 °C.
+- Malla de 2 mm terminada a las 02:34 (S04 y S07). Con canales, el aire de entrada de los chips es idéntico (19,0 °C) y sus caudales cambian < 4 %;
+  sin canal (S04) la entrada del procesador sube 2,1 °C; placa y memoria se mueven 1-2,5 °C. El ventilador de arriba da un 20 % menos de caudal
+  (más contrapresión, 7,9 frente a 5,7 Pa), pero lo que sale por la rejilla de arriba es casi igual (43 frente a 39 m³/h).
+- Segunda tanda (03:39): arriba parado ≤ +0,25 °C (por la rejilla siguen saliendo 28 m³/h); silencioso: memoria +0,8 °C (el de abajo es el que la enfría);
+  push-pull + arriba a 1.500: procesador −2,5 °C, se suman.
+- ¿Y si…? repetidos con 2 mm (05:32, mismo modelo): arriba a 1.500 +0,11/+0,07/+0,07 °C (gráfica/procesador/memoria) frente a +0,12/+0,08/+0,20;
+  push-pull −2,83 frente a −2,55 °C en el procesador. Las diferencias no dependen de la malla (≤ 0,3 °C) → la recomendación se mantiene.
