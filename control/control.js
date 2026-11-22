@@ -156,23 +156,33 @@ function renderThermalLoads(headline,board){
 
 function renderThermalScores(models){
   const scores=document.getElementById('tl-scores');
-  const order=['MDL-GPU-PHY-02','MDL-CPU-PHY-02','MDL-SYS-MIMO-02','MDL-GPU-EMP-02'];
-  const sorted=[...models].sort((a,b)=>order.indexOf(a.id)-order.indexOf(b.id));
+  const order=['MDL-CFD-STEADY-03','MDL-SYS-DYN-03','MDL-GPU-PHY-02','MDL-CPU-PHY-02','MDL-SYS-MIMO-02','MDL-GPU-EMP-02'];
+  const rank=id=>{const i=order.indexOf(id);return i<0?order.length:i};
+  const sorted=[...models].sort((a,b)=>rank(a.id)-rank(b.id));
   scores.replaceChildren(...sorted.map(model=>{
-    const note=thermalModelNotes[model.id]||{title:model.name,verdict:model.decision,tone:'old',why:model.authority};
+    const plain=model.plain_en;
+    const note=plain?{title:plain.title,verdict:plain.verdict,tone:plain.tone,why:plain.why}:(thermalModelNotes[model.id]||{title:model.name,verdict:model.decision,tone:'old',why:model.authority});
     const card=makeElement('article',`tl-score ${note.tone}`);
     const head=makeElement('header');
     head.append(makeElement('strong',null,note.title),makeElement('b',null,note.verdict));
     card.append(head);
-    const fits=[].concat(model.validation_fit_pct);
-    const errors=[].concat(model.validation_rmse_C);
-    fits.forEach((fit,index)=>{
-      const prefix=fits.length>1?`${index?'GPU':'CPU'} · `:'';
-      card.append(
-        thermalBar(`${prefix}shape match`,fit,100,`${fit.toFixed(0)}%`),
-        thermalBar(`${prefix}typical error`,errors[index],10,`${errors[index].toFixed(1)} °C`)
-      );
-    });
+    if(model.score_rows?.length){
+      // modelos nuevos: una fila por prueba a ciegas; el CFD en régimen no tiene "forma" que comparar
+      model.score_rows.forEach(row=>{
+        if(row.fit_pct!=null)card.append(thermalBar(`${row.label_en} · shape match`,row.fit_pct,100,`${row.fit_pct.toFixed(0)}%`));
+        card.append(thermalBar(`${row.label_en} · typical error`,row.rmse_C,10,`${row.rmse_C.toFixed(1)} °C`));
+      });
+    }else{
+      const fits=[].concat(model.validation_fit_pct);
+      const errors=[].concat(model.validation_rmse_C);
+      fits.forEach((fit,index)=>{
+        const prefix=fits.length>1?`${index?'GPU':'CPU'} · `:'';
+        card.append(
+          thermalBar(`${prefix}shape match`,fit,100,`${fit.toFixed(0)}%`),
+          thermalBar(`${prefix}typical error`,errors[index],10,`${errors[index].toFixed(1)} °C`)
+        );
+      });
+    }
     card.append(makeElement('p',null,note.why));
     if(model.validation_plot&&model.id!=='MDL-GPU-PHY-02'){
       const more=makeElement('details','tl-curves');

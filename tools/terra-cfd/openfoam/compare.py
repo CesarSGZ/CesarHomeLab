@@ -25,11 +25,11 @@ from pathlib import Path
 
 # Medido en la ventana estable de la fase combinada (analyze.py y HWiNFO)
 MEAS = {
-    'S04': {'GPU': 78.89, 'CPU': 79.75, 'RAM': 59.1, 'VRM': 67.5, 'CHIPSET': 68.6, 'BOARD': 56.8, 'P_GPU': 300, 'P_CPU': 87.7},
-    'S07': {'GPU': 75.80, 'CPU': 72.40, 'RAM': 53.4, 'VRM': 60.7, 'CHIPSET': 62.8, 'BOARD': 51.3, 'P_GPU': 300, 'P_CPU': 91.6},
+    'S04': {'GPU': 78.89, 'CPU': 79.75, 'RAM': 59.1, 'VRM': 67.5, 'CHIPSET': 68.6, 'BOARD': 56.8, 'P_GPU': 300, 'P_CPU': 87.7, 'P_SOC': 13.76},
+    'S07': {'GPU': 75.80, 'CPU': 72.40, 'RAM': 53.4, 'VRM': 60.7, 'CHIPSET': 62.8, 'BOARD': 51.3, 'P_GPU': 300, 'P_CPU': 91.6, 'P_SOC': 13.61},
     # a ciegas (measured.py): S05 a 20,5 °C de ambiente
-    'S05': {'GPU': 77.92, 'CPU': 79.90, 'RAM': 58.2, 'VRM': 66.9, 'CHIPSET': 66.5, 'BOARD': 54.8, 'P_GPU': 300, 'P_CPU': 94.2},
-    'S06': {'GPU': 77.86, 'CPU': 78.81, 'RAM': 57.2, 'VRM': 65.2, 'CHIPSET': 66.0, 'BOARD': 53.2, 'P_GPU': 300, 'P_CPU': 104.6},
+    'S05': {'GPU': 77.92, 'CPU': 79.90, 'RAM': 58.2, 'VRM': 66.9, 'CHIPSET': 66.5, 'BOARD': 54.8, 'P_GPU': 300, 'P_CPU': 94.2, 'P_SOC': 13.91},
+    'S06': {'GPU': 77.86, 'CPU': 78.81, 'RAM': 57.2, 'VRM': 65.2, 'CHIPSET': 66.0, 'BOARD': 53.2, 'P_GPU': 300, 'P_CPU': 104.6, 'P_SOC': 14.13},
 }
 LABEL = {'GPU': 'Gráfica', 'CPU': 'Procesador (media de núcleos)', 'RAM': 'Memoria (SPD)', 'VRM': 'VRM de la placa',
          'CHIPSET': 'Chipset', 'BOARD': 'Sensor de la placa'}
@@ -50,16 +50,29 @@ W_RAM_BOARD = 0.70          # peso de la placa en la memoria (G_placa / (G_placa
 KEYS = ('GPU', 'CPU', 'VRM', 'CHIPSET', 'BOARD', 'RAM')
 
 
+CPU_SPLIT = True  # potencia de núcleos frente a SoC (ver predict)
+POWER_OF = {}    # p. ej. {'VRM': 'P_CPU'}: el salto sobre el aire escala con esa potencia en vez de ser fijo
+
+
 def predict(c4, cx, sid):
     """Temperatura de cada pieza en el caso cx (medido o no; sid da los vatios) con las constantes de la S04."""
     out = {}
     for k in KEYS[:-1]:
         (t4, q4), (tx, qx) = c4[k], cx[k]
-        r = (MEAS['S04'][k] - t4) / MEAS['S04'].get('P_' + k, 1.0)
+        pk = POWER_OF.get(k, 'P_' + k)
+        r = (MEAS['S04'][k] - t4) / MEAS['S04'].get(pk, 1.0)
         if q4 and qx:
             fin = r if R_FIN.get(k) is None else min(R_FIN[k], r)
             r += fin * ((qx / q4) ** -0.7 - 1)
-        out[k] = tx + r * MEAS[sid].get('P_' + k, 1.0)
+        out[k] = tx + r * MEAS[sid].get(pk, 1.0)
+        if k == 'CPU' and CPU_SPLIT:
+            # núcleos: el disipador (R_FIN, escala con el caudal) ve toda la potencia; el salto silicio → disipador
+            # solo la de los núcleos (PPT − SoC). El SoC/IOD está en otro chip y apenas calienta los núcleos.
+            m4, mx = MEAS['S04'], MEAS[sid]
+            fin4 = R_FIN['CPU']
+            r_die = (m4['CPU'] - t4 - fin4 * m4['P_CPU']) / (m4['P_CPU'] - m4['P_SOC'])
+            fin = fin4 * ((qx / q4) ** -0.7 if q4 and qx else 1.0)
+            out[k] = tx + fin * mx['P_CPU'] + r_die * (mx['P_CPU'] - mx['P_SOC'])
     w = W_RAM_BOARD
     t4, tx = c4['RAM'][0], cx['RAM'][0]
     c = MEAS['S04']['RAM'] - w * MEAS['S04']['BOARD'] - (1 - w) * t4

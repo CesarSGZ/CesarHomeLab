@@ -27,7 +27,7 @@
   <link rel="stylesheet" href="backtest.css?v=20261012n">
   <link rel="stylesheet" href="/theme.css?v=20261001contrast">
   <link rel="stylesheet" href="flight-control.css?v=20261014agent">
-  <link rel="stylesheet" href="thermal.css?v=20261117h">
+  <link rel="stylesheet" href="thermal.css?v=20261122final">
   <link rel="stylesheet" href="thermal-deck.css?v=20261117d">
 </head>
 <body class="access-pending" data-workspace>
@@ -398,8 +398,18 @@
         <div id="tl-cfd-plan"><p class="tl-loading">Loading…</p></div>
       </section>
 
+      <section class="tl-block" aria-labelledby="tl-final-title" id="tl-final-block" hidden>
+        <header class="tl-block-head"><span>09</span><div><h3 id="tl-final-title">The final model</h3><p>The air CFD gives the air each part breathes; a small dynamic heat network gives how fast each part heats up and cools down. Both are judged only on tests they never saw.</p></div></header>
+        <div id="tl-final-model"></div>
+      </section>
+
+      <section class="tl-block" aria-labelledby="tl-whatif-title" id="tl-whatif-block" hidden>
+        <header class="tl-block-head"><span>10</span><div><h3 id="tl-whatif-title">What if…?</h3><p>Every change simulated on the current build (both ducts), with the GPU fan reacting as it really does: cooler air means a cooler card and a slower, quieter fan.</p></div></header>
+        <div id="tl-whatif" class="tl-whatif-box"></div>
+      </section>
+
       <section class="tl-block" aria-labelledby="tl-next-title">
-        <header class="tl-block-head"><span>09</span><div><h3 id="tl-next-title">Next steps</h3><p>From a validated GPU model to a proven hardware change, then CFD.</p></div></header>
+        <header class="tl-block-head"><span>11</span><div><h3 id="tl-next-title">Next steps</h3><p>From a validated GPU model to a proven hardware change, then CFD.</p></div></header>
         <div class="tl-next">
           <ol class="tl-roadmap" id="tl-roadmap">
             <li class="done"><b>✓</b><div><strong>Close the unknowns</strong><p>Done 31 Oct: every part identified and the key gaps derived. Still estimated: cable bundle, top-fan position, panel open area, PSU exhaust direction.</p></div></li>
@@ -457,8 +467,8 @@
   <script src="training.js?v=20261122justo"></script>
   <script type="module" src="backtest.js?v=20261114a"></script>
   <script src="github-galaxy.js?v=20261110mapa"></script>
-  <script src="thermal-deck.js?v=20261121cfd2"></script>
-  <script src="control.js?v=20261121cfd3"></script>
+  <script src="thermal-deck.js?v=20261122final"></script>
+  <script src="control.js?v=20261122final"></script>
   <script src="servercesar.js?v=20261020wake" defer></script>
   <script src="flight-control.js?v=20261014ar" defer></script>
   <script src="thermal-viewer.bundle.js?v=20261121cfd"></script>
