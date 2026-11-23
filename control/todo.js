@@ -295,8 +295,8 @@
     } else if (S.modal === 'import') {
       const p = S.preview;
       inner = `<h2>Traer tus tareas de Microsoft To Do</h2>
-        <ol class="todo-how"><li>En el PC donde tienes To Do, descarga <a href="/control/todo-export.ps1" download>todo-export.ps1</a>.</li>
-          <li>Clic derecho → <b>Ejecutar con PowerShell</b> y entra con tu cuenta de Microsoft (solo lectura).</li>
+        <ol class="todo-how"><li>En el PC donde tienes To Do, descarga <a href="/control/todo-export.cmd" download>todo-export.cmd</a>.</li>
+          <li>Ábrelo con <b>doble clic</b>. Si Windows avisa, pulsa «Más información» → «Ejecutar de todas formas». Entra con tu cuenta de Microsoft (solo lectura).</li>
           <li>Elige aquí <code>Escritorio\\Claude\\Datos\\microsoft-todo.json</code>.</li></ol>
         <label class="todo-drop">${icon('upload')}<span>Elegir o soltar el archivo</span><input type="file" id="td-file" accept=".json,.txt,.md,application/json,text/plain"></label>
         <details class="todo-paste"><summary>O pega una lista en texto</summary><textarea id="td-f-paste" rows="7" placeholder="# Compra\n- leche\n- [x] pan\n\n# Ideas regalos\n- Libro para mamá"></textarea><button type="button" class="todo-btn" data-act="parse-paste">Leer el texto</button></details>
