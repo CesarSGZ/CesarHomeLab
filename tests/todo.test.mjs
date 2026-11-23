@@ -171,3 +171,14 @@ test('the Tareas app installs on its own and comes back after signing in', async
   const mc = JSON.parse(readFileSync(new URL('../control/manifest.webmanifest', import.meta.url), 'utf8'));
   assert.equal(mc.shortcuts[0].url, '/control/tareas/');
 });
+
+test('the To Do export opens with a double click and keeps its window open', async () => {
+  const {readFileSync, existsSync} = await import('node:fs');
+  const cmd = readFileSync(new URL('../control/todo-export.cmd', import.meta.url), 'utf8');
+  assert.ok(cmd.startsWith('<# :'), 'batch/PowerShell hybrid header');
+  assert.ok(!/[^\r]\n/.test(cmd), 'Windows line endings');
+  assert.match(cmd, /-ExecutionPolicy Bypass/); assert.match(cmd, /\r\npause\r\n/); assert.match(cmd, /catch \{/);
+  assert.ok(!/[^\x00-\x7F]/.test(cmd), 'plain ASCII for the Windows console');
+  assert.ok(!existsSync(new URL('../control/todo-export.ps1', import.meta.url)));
+  assert.match(readFileSync(new URL('../control/todo.js', import.meta.url), 'utf8'), /href="\/control\/todo-export\.cmd" download/);
+});
