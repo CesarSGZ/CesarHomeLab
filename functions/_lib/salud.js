@@ -108,7 +108,9 @@ export function cleanGoal(goal) {
   const tipo = GOALS.has(goal?.tipo) ? goal.tipo : null, peso = finite(goal?.peso), ritmo = finite(goal?.ritmo), kcal = finite(goal?.kcal);
   if (!tipo) throw new Error('objetivo');
   return { tipo, peso: peso && peso >= 30 && peso <= 200 ? Math.round(peso * 10) / 10 : null, ritmo: ritmo !== null && Math.abs(ritmo) <= 1.5 ? Math.round(ritmo * 100) / 100 : null,
-    kcal: kcal !== null && kcal >= 800 && kcal <= 5000 ? Math.round(kcal) : null };
+    kcal: kcal !== null && kcal >= 800 && kcal <= 5000 ? Math.round(kcal) : null,
+    // The day this phase (bulk, cut…) started, to show what changed since then.
+    desde: DAY.test(String(goal?.desde || '')) ? String(goal.desde) : null };
 }
 // What the formulas need besides her weight: age and height.
 export function cleanProfile(p) {
