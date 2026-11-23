@@ -1,0 +1,22 @@
+{
+  "id": "/control/tareas/",
+  "name": "Tareas",
+  "short_name": "Tareas",
+  "description": "Tus listas, Mi día y fechas límite. Parte de Mission Control.",
+  "start_url": "/control/tareas/",
+  "scope": "/control/tareas/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "lang": "es",
+  "background_color": "#1b1a19",
+  "theme_color": "#1b1a19",
+  "icons": [
+    { "src": "/assets/tareas-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/assets/tareas-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/assets/tareas-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Mi día", "url": "/control/tareas/#myday", "icons": [{ "src": "/assets/tareas-192.png", "sizes": "192x192" }] },
+    { "name": "Planeado", "short_name": "Fechas", "url": "/control/tareas/#planned", "icons": [{ "src": "/assets/tareas-192.png", "sizes": "192x192" }] }
+  ]
+}
