@@ -102,11 +102,13 @@ export function mergeHealth(stored, incoming, today) {
 }
 
 const GOALS = new Set(['volumen', 'definicion', 'mantener']);
-// Her goal: the kind, the weight she wants to reach and how many kg a week (positive to gain, negative to lose).
+// Her goal: the kind, the weight she wants to reach, how many kg a week (positive to gain, negative to lose) and the daily
+// calories she aims for (the one she has in MyFitnessPal; her phone does not send it).
 export function cleanGoal(goal) {
-  const tipo = GOALS.has(goal?.tipo) ? goal.tipo : null, peso = finite(goal?.peso), ritmo = finite(goal?.ritmo);
+  const tipo = GOALS.has(goal?.tipo) ? goal.tipo : null, peso = finite(goal?.peso), ritmo = finite(goal?.ritmo), kcal = finite(goal?.kcal);
   if (!tipo) throw new Error('objetivo');
-  return { tipo, peso: peso && peso >= 30 && peso <= 200 ? Math.round(peso * 10) / 10 : null, ritmo: ritmo !== null && Math.abs(ritmo) <= 1.5 ? Math.round(ritmo * 100) / 100 : null };
+  return { tipo, peso: peso && peso >= 30 && peso <= 200 ? Math.round(peso * 10) / 10 : null, ritmo: ritmo !== null && Math.abs(ritmo) <= 1.5 ? Math.round(ritmo * 100) / 100 : null,
+    kcal: kcal !== null && kcal >= 800 && kcal <= 5000 ? Math.round(kcal) : null };
 }
 // What the formulas need besides her weight: age and height.
 export function cleanProfile(p) {
