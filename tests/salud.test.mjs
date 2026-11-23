@@ -19,12 +19,13 @@ test('Shortcut payload and merging: a resent day replaces its fields; old days a
   const merged = mergeHealth(stored, days, '2026-11-21');
   assert.deepEqual(merged.dias, { '2026-11-21': { pasos: 9000, peso: 60, kcal: 1850 } });
   assert.deepEqual(merged.objetivo, { tipo: 'volumen', peso: 63 });
-  assert.deepEqual(cleanGoal({ tipo: 'definicion', peso: '58.24' }), { tipo: 'definicion', peso: 58.2, ritmo: null, kcal: null });
+  assert.deepEqual(cleanGoal({ tipo: 'definicion', peso: '58.24' }), { tipo: 'definicion', peso: 58.2, ritmo: null, kcal: null, desde: null });
   assert.throws(() => cleanGoal({ tipo: 'comer' }), /objetivo/);
 });
 test('Her goal pace, profile and days marked in or out', async () => {
   const { cleanProfile, markDay } = await import('../functions/_lib/salud.js');
-  assert.deepEqual(cleanGoal({ tipo: 'volumen', peso: 63, ritmo: '0.2' }), { tipo: 'volumen', peso: 63, ritmo: 0.2, kcal: null });
+  assert.deepEqual(cleanGoal({ tipo: 'volumen', peso: 63, ritmo: '0.2' }), { tipo: 'volumen', peso: 63, ritmo: 0.2, kcal: null, desde: null });
+  assert.equal(cleanGoal({ tipo: 'definicion', desde: '2026-11-23' }).desde, '2026-11-23'); assert.equal(cleanGoal({ tipo: 'definicion', desde: 'ayer' }).desde, null);
   assert.equal(cleanGoal({ tipo: 'volumen', kcal: '1900' }).kcal, 1900); assert.equal(cleanGoal({ tipo: 'volumen', kcal: 300 }).kcal, null);
   assert.deepEqual(cleanProfile({ edad: '27', altura: 164.6 }), { edad: 27, altura: 165 });
   assert.throws(() => cleanProfile({ altura: 20 }), /perfil/);
