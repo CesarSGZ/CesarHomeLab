@@ -21,3 +21,23 @@ el relato, de la sección `story`. Cada vez que cambie algo del Thermal Lab (pru
 3. Sube `story.updated` y `generated_at`. Una idea o modelo nuevo necesita su `plain_es`.
 4. `node --test tests/thermal-story.test.mjs` comprueba que no falte nada.
 5. El modelo 3D sale de `tools/terra-cfd/build_geometry.py` (no edites `geometry` a mano). Si cambias `control/thermal-viewer.js`, recompila `thermal-viewer.bundle.js` (ver `tools/terra-cfd/README.md`) y sube el `?v=` en `control/index.html`.
+
+## Tareas: Claude puede leer y cambiar las listas de César
+
+Tareas (`/control/#todo` y la app `/control/tareas/`) sustituye a Microsoft To Do. Tiene Hoy, Fechas, Rutinas
+(cosas diarias con racha), Proyectos (checklists con secciones, como la mudanza a Ingolstadt), Listas e Ideas.
+El modelo y todas las operaciones están en `control/todo-model.js` (`applyOps`); la página y la API usan el mismo.
+
+Cuando César pida algo sobre sus tareas («añade…», «marca… como hecho», «crea una checklist para…»):
+
+1. Necesitas su llave (empieza por `tareas_`). La crea él en Tareas → Desde Claude → «Que Claude lo actualice».
+   Pídela con `request_credential` para el host `cesar-solla.pages.dev` (cabecera `Authorization: Bearer`);
+   nunca en el chat.
+2. Leer: `curl -s https://cesar-solla.pages.dev/api/tareas` devuelve `summary` (texto con ids) y las listas.
+3. Crear o actualizar una checklist: `POST /api/tareas` con `{"text": "# 🇩🇪 Nombre\n## Sección\n- [ ] tarea 15/01/2027\n- [x] hecha"}`.
+   Si la lista ya existe (mismo nombre), solo añade lo nuevo y marca lo que venga con `[x]`.
+4. Cualquier otro cambio: `POST /api/tareas` con `{"ops": [...]}`, por ejemplo
+   `{"op":"task.put","list":"<id lista>","task":{...tarea completa con su id...}}`,
+   `{"op":"habit.log","id":"<id rutina>","date":"YYYY-MM-DD","done":true}`, `{"op":"task.delete","id":"..."}`.
+   Para editar una tarea, léela primero y manda la tarea entera con el cambio.
+5. Cuenta a César qué has cambiado. `node --test tests/todo.test.mjs` cubre el modelo y la API.

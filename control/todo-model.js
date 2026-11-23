@@ -8,12 +8,15 @@ const DATE = /^\d{4}-\d{2}-\d{2}$/, STAMP = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/, I
 export const emptyDoc = () => ({ v: 1, lists: [{ id: 'tareas', name: 'Tareas', kind: 'tasks', tasks: [] }] });
 // A list is either things to do (with dates) or a box of ideas (gifts, plans, films...), shown as cards.
 // 'check' is a reusable checklist (the shopping list): ticked items stay visible to untick them next time.
-export const KINDS = ['tasks', 'ideas', 'check'];
+// 'project' is a one-off checklist with sections and a progress bar (a move, a trip); 'routine' holds the
+// things done every day or on some weekdays (a pill, training), which start fresh each day.
+export const KINDS = ['tasks', 'ideas', 'check', 'project', 'routine'];
+export const ROUTINES = 'rutinas';
 const CHECK_NAMES = /lista de la compra|^\W*compra\b|\bsuper(mercado)?\b|mercadona|mercado|checklist|maleta|equipaje/i;
 const IDEA_NAMES = /idea|regal|plan(es)?\b|viaje|escapada|pel[ií]cula|pelis|cine|serie|libro|leer|restaurante|comprar alg[uú]n d[ií]a|capricho|wish|deseo|cumple|navidad|reyes|m[uú]sica|juego|disfra|receta|sitios|lugares|visitar|interesante|curios|contenido|meme|aburri/i;
 // To Do shows a leading emoji in a list's name as its icon: "🎂 Ideas cumpleaños".
 export function splitEmoji(name) {
-  const m = String(name || '').match(/^(\p{Extended_Pictographic}(?:\uFE0F|\u200D\p{Extended_Pictographic}|\p{Emoji_Modifier})*)\s*(.*)$/u);
+  const m = String(name || '').match(/^(\p{Regional_Indicator}{2}|\p{Extended_Pictographic}(?:\uFE0F|\u200D\p{Extended_Pictographic}|\p{Emoji_Modifier})*)\s*(.*)$/u);
   return m && m[2] ? { emoji: m[1], name: m[2] } : { emoji: '', name: String(name || '') };
 }
 export function guessKind(name) {
@@ -26,6 +29,13 @@ const kindOf = k => (KINDS.includes(k) ? k : 'tasks');
 export const newId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 
 const str = (v, max) => String(v ?? '').slice(0, max);
+const TIME = /^([01]\d|2[0-3]):[0-5]\d$/;
+export function normHabit(h) {
+  if (!h || typeof h !== 'object') return null;
+  const days = [...new Set((Array.isArray(h.days) ? h.days : []).map(Number).filter(d => Number.isInteger(d) && d >= 0 && d <= 6))].sort();
+  return { days: days.length === 7 ? [] : days, time: oneOf(h.time, TIME) };
+}
+const normLog = log => [...new Set((Array.isArray(log) ? log : []).filter(d => typeof d === 'string' && DATE.test(d)))].sort().slice(-400);
 const oneOf = (v, re) => (typeof v === 'string' && re.test(v) ? v : '');
 
 // Anything that reaches a list goes through here: unknown fields are dropped, lengths are capped.
@@ -45,6 +55,9 @@ export function normTask(t = {}) {
     steps: (Array.isArray(t.steps) ? t.steps : []).slice(0, MAX_STEPS).map(s => ({ id: oneOf(s?.id, ID) || newId(), title: str(s?.title, 400).trim(), done: s?.done === true })).filter(s => s.title),
     created: str(t.created, 40) || new Date().toISOString(),
     completed: t.done === true ? str(t.completed, 40) : '',
+    section: str(t.section, 80).trim(),
+    habit: normHabit(t.habit),
+    log: normLog(t.log),
   };
 }
 
@@ -74,13 +87,21 @@ export function applyOps(input, ops) {
       else {
         if (at) at.list.tasks.splice(at.i, 1);
         else if (countTasks(doc) >= MAX_TASKS) throw new Error('too_many_tasks');
-        target.tasks.unshift(task); // new tasks go on top, as in To Do
+        // New tasks go on top, as in To Do; checklists, projects and routines keep their written order.
+        if (op.end || ['project', 'routine', 'check'].includes(target.kind)) target.tasks.push(task); else target.tasks.unshift(task);
       }
+    } else if (op?.op === 'habit.log') {
+      // Ticking a routine only touches that day, so the phone and the PC never undo each other.
+      const at = findTask(doc, op.id);
+      if (!at || !DATE.test(op.date || '')) continue;
+      const task = at.list.tasks[at.i], log = new Set(task.log || []);
+      if (op.done) log.add(op.date); else log.delete(op.date);
+      task.log = normLog([...log]);
     } else if (op?.op === 'task.delete') {
       const at = findTask(doc, op.id);
       if (at) at.list.tasks.splice(at.i, 1);
     } else if (op?.op === 'import') {
-      importLists(doc, op.lists);
+      importLists(doc, op.lists, op.update === true);
     } else throw new Error('invalid_op');
   }
   return doc;
@@ -88,7 +109,8 @@ export function applyOps(input, ops) {
 
 // An import adds to what is there: a list with the same name is reused, and a task already imported
 // (same id) is not added twice, so running the same import again changes nothing.
-function importLists(doc, lists) {
+// With update (a checklist pasted again, or sent by Claude), items already there take the new ticks and dates.
+function importLists(doc, lists, update = false) {
   if (!Array.isArray(lists)) throw new Error('invalid_import');
   for (const incoming of lists) {
     const name = str(incoming?.name, 120).trim() || 'Importada';
@@ -99,7 +121,15 @@ function importLists(doc, lists) {
       doc.lists.push(list);
     }
     const seen = new Set();
-    const fresh = (Array.isArray(incoming.tasks) ? incoming.tasks : []).map(normTask).filter(t => !findTask(doc, t.id) && !seen.has(t.id) && seen.add(t.id));
+    const incomingTasks = (Array.isArray(incoming.tasks) ? incoming.tasks : []).map(normTask);
+    if (update) for (const t of incomingTasks) {
+      const at = findTask(doc, t.id);
+      if (!at) continue;
+      const old = at.list.tasks[at.i];
+      if (t.done && !old.done) Object.assign(old, { done: true, completed: new Date().toISOString() });
+      if (t.due) old.due = t.due;
+    }
+    const fresh = incomingTasks.filter(t => !findTask(doc, t.id) && !seen.has(t.id) && seen.add(t.id));
     if (countTasks(doc) + fresh.length > MAX_TASKS) throw new Error('too_many_tasks');
     list.tasks.push(...fresh);
   }
@@ -139,11 +169,11 @@ export function dueBucket(due, today) {
 // The smart lists: Mi día, Importante, Planeado and Todas. Idea lists only enter them with a date or a star.
 export const SMART = { myday: 'Mi día', important: 'Importante', planned: 'Planeado', all: 'Todas' };
 export function tasksFor(doc, view, today, query = '') {
-  const rows = doc.lists.flatMap(list => list.tasks.map(task => ({ task, list })));
+  const rows = doc.lists.filter(l => l.kind !== 'routine' || !SMART[view]).flatMap(list => list.tasks.map(task => ({ task, list })));
   if (view === 'myday') return rows.filter(r => r.task.myDay === today || (!r.task.done && r.task.due && r.task.due <= today));
   if (view === 'important') return rows.filter(r => r.task.important);
   if (view === 'planned') return rows.filter(r => r.task.due).sort((a, b) => a.task.due.localeCompare(b.task.due));
-  if (view === 'all') return rows.filter(r => r.list.kind !== 'ideas');
+  if (view === 'all') return rows.filter(r => !['ideas', 'routine'].includes(r.list.kind));
   if (view === 'search') {
     const q = normal(query);
     return q ? rows.filter(r => normal(r.task.title + ' ' + r.task.note + ' ' + r.task.steps.map(s => s.title).join(' ')).includes(q)) : [];
@@ -158,6 +188,46 @@ export function counts(doc, today) {
 }
 // The next deadlines still open, soonest (and overdue) first.
 export const upcoming = (doc, today, n = 5) => tasksFor(doc, 'planned', today).filter(r => !r.task.done).slice(0, n);
+// ---------- Routines ----------
+export const weekday = date => new Date(date + 'T12:00:00Z').getUTCDay();
+export const habitDue = (task, date) => !task.habit || !task.habit.days.length || task.habit.days.includes(weekday(date));
+export const doneOn = (task, date) => (task.log || []).includes(date);
+// Days in a row it was done, counting only the days it was due; today does not break it until the day is over.
+export function streak(task, today) {
+  let d = habitDue(task, today) && !doneOn(task, today) ? addDays(today, -1) : today, n = 0;
+  for (let i = 0; i < 400; i++, d = addDays(d, -1)) {
+    if (!habitDue(task, d)) continue;
+    if (!doneOn(task, d)) break;
+    n++;
+  }
+  return n;
+}
+export const routineRows = doc => doc.lists.filter(l => l.kind === 'routine').flatMap(list => list.tasks.map(task => ({ task, list })))
+  .sort((a, b) => (a.task.habit?.time || '99').localeCompare(b.task.habit?.time || '99'));
+export const routinesToday = (doc, today) => routineRows(doc).filter(r => habitDue(r.task, today));
+export function habitHistory(task, today, n = 28) {
+  return Array.from({ length: n }, (_, i) => { const date = addDays(today, i - n + 1); return { date, due: habitDue(task, date), done: doneOn(task, date) }; });
+}
+const DAY_LETTERS = ['D', 'L', 'M', 'X', 'J', 'V', 'S'];
+export function scheduleText(habit) {
+  const days = habit?.days || [];
+  const when = !days.length ? 'Cada día' : days.join() === '1,2,3,4,5' ? 'Entre semana' : days.join() === '0,6' ? 'Fines de semana' : [1, 2, 3, 4, 5, 6, 0].filter(d => days.includes(d)).map(d => DAY_LETTERS[d]).join(' ');
+  return habit?.time ? `${when} · ${habit.time}` : when;
+}
+
+// ---------- Projects ----------
+export const progress = list => ({ done: list.tasks.filter(t => t.done).length, total: list.tasks.length });
+export function sections(list) {
+  const out = [];
+  for (const task of list.tasks) {
+    const name = task.section || '';
+    let g = out.find(x => x.name === name);
+    if (!g) out.push(g = { name, tasks: [] });
+    g.tasks.push(task);
+  }
+  return out;
+}
+
 export const daysUntil = (date, today) => Math.round((Date.parse(date + 'T12:00:00Z') - Date.parse(today + 'T12:00:00Z')) / 864e5);
 
 // "Pagar la luz mañana", "Cita médico el viernes", "Entregar 30/11": the date is taken out of the title.
@@ -175,10 +245,10 @@ export function parseQuick(text, today) {
     || at(/\s+(la\s+)?(proxima|siguiente)\s+semana$/, addDays(today, 7))
     || ((m = plain.match(/\s+(el\s+|al\s+|este\s+|para\s+el\s+)?(domingo|lunes|martes|miercoles|jueves|viernes|sabado)$/))
       && at(/\s+(el\s+|al\s+|este\s+|para\s+el\s+)?(domingo|lunes|martes|miercoles|jueves|viernes|sabado)$/, addDays(today, ((WEEKDAY_NAMES.indexOf(m[2]) - new Date(today + 'T12:00:00Z').getUTCDay() + 7) % 7) || 7)))
-    || ((m = plain.match(/\s+(el\s+|para\s+el\s+)?(\d{1,2})[/.-](\d{1,2})(?:[/.-](\d{2,4}))?$/))
-      && at(/\s+(el\s+|para\s+el\s+)?(\d{1,2})[/.-](\d{1,2})(?:[/.-](\d{2,4}))?$/, valid(m[4] ? `${m[4].length === 2 ? '20' + m[4] : m[4]}-${m[3].padStart(2, '0')}-${m[2].padStart(2, '0')}` : year(+m[2], +m[3]))))
-    || ((m = plain.match(/\s+(el\s+|para\s+el\s+)?(\d{1,2})\s+de\s+(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)$/))
-      && at(/\s+(el\s+|para\s+el\s+)?(\d{1,2})\s+de\s+(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)$/, valid(year(+m[2], MONTH_NAMES.indexOf(m[3]) + 1))))
+    || ((m = plain.match(/\s+(el\s+|para\s+el\s+|antes\s+del\s+|hasta\s+el\s+)?(\d{1,2})[/.-](\d{1,2})(?:[/.-](\d{2,4}))?$/))
+      && at(/\s+(el\s+|para\s+el\s+|antes\s+del\s+|hasta\s+el\s+)?(\d{1,2})[/.-](\d{1,2})(?:[/.-](\d{2,4}))?$/, valid(m[4] ? `${m[4].length === 2 ? '20' + m[4] : m[4]}-${m[3].padStart(2, '0')}-${m[2].padStart(2, '0')}` : year(+m[2], +m[3]))))
+    || ((m = plain.match(/\s+(el\s+|para\s+el\s+|antes\s+del\s+|hasta\s+el\s+)?(\d{1,2})\s+de\s+(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)$/))
+      && at(/\s+(el\s+|para\s+el\s+|antes\s+del\s+|hasta\s+el\s+)?(\d{1,2})\s+de\s+(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)$/, valid(year(+m[2], MONTH_NAMES.indexOf(m[3]) + 1))))
     || { title: raw, due: '' };
 }
 
@@ -207,6 +277,7 @@ export function fromGraph(data) {
   const lists = Array.isArray(data?.lists) ? data.lists : Array.isArray(data?.value) ? data.value : null;
   if (!lists) throw new Error('not_todo_export');
   return lists.map(list => ({
+    id: 'ms-' + shortHash(String(list.id || list.displayName || '')),
     name: LIST_NAMES[list.wellknownListName] || list.displayName || 'Lista',
     kind: guessKind(list.displayName),
     tasks: (Array.isArray(list.tasks) ? list.tasks : []).map(t => {
@@ -230,29 +301,36 @@ export function fromGraph(data) {
   }));
 }
 
-// A pasted list: "# Lista" (or "Lista:") starts a list, "- [x] tarea" is done, an indented line is a step.
-export function fromText(text) {
-  const lists = []; let list = null, task = null;
-  for (const raw of String(text || '').split(/\r?\n/)) {
+// A pasted list: "# Lista" starts a list, "## Sección" groups what follows (then it is a project), "- [x] tarea"
+// is done, an indented line is a step, and a date at the end ("antes del 15/01") becomes the deadline.
+// Without any "# " heading, "## Lista" or "Lista:" start lists, as before.
+export function fromText(text, today = '') {
+  const lines = String(text || '').split(/\r?\n/), hasLists = lines.some(l => /^\s*#\s+\S/.test(l));
+  const lists = []; let list = null, task = null, section = '';
+  const open = name => { list = { name, tasks: [], sectioned: false }; lists.push(list); task = null; section = ''; };
+  for (const raw of lines) {
     if (!raw.trim()) continue;
-    const head = raw.match(/^\s*#+\s*(.+)$/) || raw.match(/^([^\s\-*•].*):\s*$/);
-    if (head) { list = { name: head[1].trim(), tasks: [] }; lists.push(list); task = null; continue; }
-    const m = raw.match(/^(\s*)(?:[-*•]|\d+[.)])?\s*(?:\[( |x|X)\])?\s*(.+)$/);
+    const h1 = raw.match(/^\s*#\s+(.+)$/), hn = raw.match(/^\s*#{2,}\s*(.+)$/) || raw.match(/^\s*\*\*(.+?)\*\*:?\s*$/), colon = raw.match(/^([^\s\-*•#].*):\s*$/);
+    if (h1 && hasLists) { open(h1[1].trim()); continue; }
+    if (hasLists && (hn || colon)) { if (!list) open('Checklist'); section = (hn || colon)[1].trim(); list.sectioned = true; task = null; continue; }
+    if (!hasLists && (h1 || hn || colon)) { open((h1 || hn || colon)[1].trim()); continue; }
+    const m = raw.match(/^(\s*)(?:[-*•+]|\d+[.)])?\s*(?:\[( |x|X|✓)\])?\s*(.+)$/);
     if (!m) continue;
-    const item = { title: m[3].trim(), done: (m[2] || '').toLowerCase() === 'x' };
-    if (m[1].length >= 2 && task) { task.steps.push(item); continue; }
-    if (!list) { list = { name: 'Tareas', tasks: [] }; lists.push(list); }
-    task = { id: 'tx-' + shortHash(list.name + '\n' + item.title), ...item, steps: [] };
+    const done = /[xX✓]/.test(m[2] || ''), parsed = today ? parseQuick(m[3].trim(), today) : { title: m[3].trim(), due: '' };
+    if (m[1].length >= 2 && task) { task.steps.push({ title: m[3].trim(), done }); continue; }
+    if (!list) open('Tareas');
+    task = { id: 'tx-' + shortHash(list.name + '\n' + section + '\n' + parsed.title), title: parsed.title, due: parsed.due, done, section, steps: [] };
     list.tasks.push(task);
   }
-  return lists.map(l => ({ name: l.name, kind: guessKind(l.name), tasks: l.tasks.map(normTask) }));
+  // Ids come from the names, so the phone and the server name a new list the same way.
+  return lists.map(l => ({ id: 'tx-' + shortHash(l.name.toLowerCase()), name: l.name, kind: l.sectioned ? 'project' : guessKind(l.name), tasks: l.tasks.map(normTask) }));
 }
 
 // Reads whatever was dropped or pasted: the export script's JSON or plain text.
-export function parseImport(text) {
+export function parseImport(text, today = '') {
   const clean = String(text || '').replace(/^﻿/, '').trim();
   if (clean.startsWith('{') || clean.startsWith('[')) return fromGraph(JSON.parse(clean));
-  return fromText(clean);
+  return fromText(clean, today);
 }
 export function importSummary(lists) {
   const tasks = lists.flatMap(l => l.tasks);

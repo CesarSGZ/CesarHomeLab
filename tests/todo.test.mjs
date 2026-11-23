@@ -51,12 +51,14 @@ test('importing twice changes nothing, and same-named lists are merged', () => {
 });
 
 test('pasted text: headings make lists, [x] is done, indented lines are steps', () => {
-  const lists = fromText('# Compra\n- leche\n- [x] pan\n\nCasa:\n- Llamar al fontanero\n  - pedir presupuesto\n1. Pintar');
+  const lists = fromText('# Compra\n- leche\n- [x] pan\n\n# Casa\n- Llamar al fontanero\n  - pedir presupuesto\n1. Pintar');
   assert.deepEqual(lists.map(l => [l.name, l.tasks.map(t => [t.title, t.done, t.steps.length])]), [
     ['Compra', [['leche', false, 0], ['pan', true, 0]]],
     ['Casa', [['Llamar al fontanero', false, 1], ['Pintar', false, 0]]],
   ]);
   assert.equal(fromText('sin lista').at(0).name, 'Tareas');
+  // Without "# " headings, "Lista:" still starts a list.
+  assert.deepEqual(fromText('Casa:\n- Pintar\nCoche:\n- ITV').map(l => l.name), ['Casa', 'Coche']);
 });
 
 test('ops: add, move between lists, delete; bad ops change nothing', () => {
@@ -99,13 +101,14 @@ test('smart lists: Mi día includes what is due, Planeado sorts by date', () => 
   assert.deepEqual(['2026-11-20', t, '2026-11-24', '2026-11-29', '2027-01-01'].map(d => dueBucket(d, t)), ['overdue', 'today', 'tomorrow', 'week', 'later']);
 });
 
-// A tiny D1 stand-in with the conditional update the API relies on.
+// A tiny D1 stand-in with the conditional update, the upsert and the delete the API relies on.
 function fakeEnv() {
   const rows = new Map();
   return {rows, CONTROL_DB: {prepare(sql) { return {bind(...a) { return {
     first: async () => rows.get(a[0]) ? {payload: rows.get(a[0]).payload, updated_at: rows.get(a[0]).updated_at} : null,
     run: async () => {
-      if (sql.startsWith('INSERT')) { if (rows.has(a[0])) return {meta: {changes: 0}}; rows.set(a[0], {payload: a[1], updated_at: a[2]}); return {meta: {changes: 1}}; }
+      if (sql.startsWith('DELETE')) { rows.delete(a[0]); return {meta: {changes: 1}}; }
+      if (sql.startsWith('INSERT')) { if (rows.has(a[0]) && !/ON CONFLICT/.test(sql)) return {meta: {changes: 0}}; rows.set(a[0], {payload: a[1], updated_at: a[2]}); return {meta: {changes: 1}}; }
       const row = rows.get(a[2]); if (!row || row.updated_at !== a[3]) return {meta: {changes: 0}};
       rows.set(a[2], {payload: a[0], updated_at: a[1]}); return {meta: {changes: 1}};
     }}; }}; }}};
@@ -181,4 +184,80 @@ test('the To Do export opens with a double click and keeps its window open', asy
   assert.ok(!/[^\x00-\x7F]/.test(cmd), 'plain ASCII for the Windows console');
   assert.ok(!existsSync(new URL('../control/todo-export.ps1', import.meta.url)));
   assert.match(readFileSync(new URL('../control/todo.js', import.meta.url), 'utf8'), /href="\/control\/todo-export\.cmd" download/);
+});
+
+test('a checklist written by Claude becomes a project with sections and deadlines', async () => {
+  const {sections, progress, splitEmoji} = await import('../control/todo-model.js');
+  const text = '# 🇩🇪 Mudanza a Ingolstadt\n## Papeles\n- [x] Contrato firmado\n- Anmeldung antes del 15/01\n## Casa\n- Buscar piso\n  - WG-Gesucht\n- Contratar internet 20 de diciembre';
+  const [list] = fromText(text, '2026-11-23');
+  assert.equal(list.kind, 'project');
+  assert.deepEqual(splitEmoji(list.name), {emoji: '🇩🇪', name: 'Mudanza a Ingolstadt'});
+  const doc = applyOps(emptyDoc(), [{op: 'import', lists: [list]}]);
+  const project = doc.lists[1];
+  assert.deepEqual(sections(project).map(s => [s.name, s.tasks.map(t => t.title)]), [['Papeles', ['Contrato firmado', 'Anmeldung']], ['Casa', ['Buscar piso', 'Contratar internet']]]);
+  assert.equal(project.tasks[1].due, '2027-01-15');
+  assert.deepEqual(progress(project), {done: 1, total: 4});
+  // New items go to the end of a project, not on top.
+  const more = applyOps(doc, [{op: 'task.put', list: project.id, task: {id: 'z', title: 'Llaves', section: 'Casa'}}]);
+  assert.equal(more.lists[1].tasks.at(-1).id, 'z');
+  // Updating the same checklist again from Claude adds only what is new.
+  const again = applyOps(more, [{op: 'import', lists: fromText(text + '\n- Seguro de hogar', '2026-11-23')}]);
+  assert.equal(again.lists[1].tasks.length, 6);
+});
+
+test('routines start fresh every day and keep a streak', async () => {
+  const {streak, routinesToday, habitHistory, scheduleText, habitDue} = await import('../control/todo-model.js');
+  let doc = applyOps(emptyDoc(), [
+    {op: 'list.add', id: 'rutinas', name: 'Rutinas', kind: 'routine'},
+    {op: 'task.put', list: 'rutinas', task: {id: 'gym', title: '🏋️ Entrenar', habit: {days: [1, 3, 5], time: '19:00'}}},
+    {op: 'task.put', list: 'rutinas', task: {id: 'pill', title: '💊 Pastilla', habit: {days: [], time: '09:00'}}},
+  ]);
+  const t = '2026-11-25'; // Wednesday
+  assert.deepEqual(routinesToday(doc, t).map(r => r.task.id), ['pill', 'gym']); // by time
+  assert.ok(!habitDue(doc.lists[1].tasks[0], '2026-11-24')); // no training on Tuesday
+  doc = applyOps(doc, ['2026-11-23', '2026-11-25'].map(date => ({op: 'habit.log', id: 'gym', date, done: true})));
+  doc = applyOps(doc, [{op: 'habit.log', id: 'pill', date: '2026-11-24', done: true}, {op: 'habit.log', id: 'pill', date: '2026-11-24', done: true}]);
+  const [gym, pill] = doc.lists[1].tasks;
+  assert.equal(streak(gym, t), 2); // Monday and Wednesday; Tuesday was not due
+  assert.equal(streak(pill, t), 1); // today not done yet does not break it
+  assert.deepEqual(pill.log, ['2026-11-24']);
+  doc = applyOps(doc, [{op: 'habit.log', id: 'pill', date: '2026-11-24', done: false}]);
+  assert.deepEqual(doc.lists[1].tasks[1].log, []);
+  assert.equal(habitHistory(gym, t, 7).filter(d => d.done).length, 2);
+  assert.equal(scheduleText({days: [1, 2, 3, 4, 5], time: '08:00'}), 'Entre semana · 08:00');
+  // Routines stay out of Mi día, Todas and the counts of the smart lists.
+  assert.equal(tasksFor(doc, 'all', t).length, 0);
+});
+
+test('a list made by an import gets the same id on the phone and on the server', () => {
+  const lists = fromText('# Viaje\n- Pasaporte', '2026-11-23');
+  const a = applyOps(emptyDoc(), [{op: 'import', lists}]), b = applyOps(emptyDoc(), [{op: 'import', lists: JSON.parse(JSON.stringify(lists))}]);
+  assert.equal(a.lists[1].id, b.lists[1].id);
+  assert.equal(fromGraph(graphExport)[0].id, fromGraph(graphExport)[0].id);
+});
+
+test("Claude's door: only with the key, reads a summary and updates a checklist by text", async () => {
+  const {onRequest: claudeDoor, summary} = await import('../functions/api/tareas.js');
+  const {onRequest: page} = await import('../functions/control/api/todo/status.js');
+  const env = fakeEnv();
+  const ask = (body, key) => claudeDoor({request: new Request('https://x/api/tareas', {method: body ? 'POST' : 'GET', headers: key ? {authorization: 'Bearer ' + key} : {}, ...(body ? {body: JSON.stringify(body)} : {})}), env});
+  assert.equal((await ask(null, 'tareas_nope')).status, 401);
+  const made = await (await page({request: post({action: 'agent-key'}), env, data: owner})).json();
+  assert.match(made.key, /^tareas_[\w-]{40,}$/);
+  assert.ok(!env.rows.get('todo-agent').payload.includes(made.key), 'only the hash is stored');
+  let r = await ask({text: '# Mudanza\n## Papeles\n- [ ] Anmeldung\n- [ ] Banco'}, made.key);
+  assert.equal(r.status, 200);
+  r = await ask({text: '# Mudanza\n## Papeles\n- [x] Anmeldung\n- [ ] Banco\n## Casa\n- [ ] Piso'}, made.key);
+  const out = await r.json();
+  assert.match(out.summary, /# Mudanza {2}\[project, id tx-\w+, 1\/3\]/);
+  assert.match(out.summary, /- \[x\] Anmeldung/);
+  const read = await (await ask(null, made.key)).json();
+  assert.equal(read.lists.find(l => l.name === 'Mudanza').tasks.length, 3);
+  // A new key retires the old one; revoking closes the door.
+  const second = await (await page({request: post({action: 'agent-key'}), env, data: owner})).json();
+  assert.equal((await ask(null, made.key)).status, 401);
+  assert.equal((await ask(null, second.key)).status, 200);
+  await page({request: post({action: 'agent-revoke'}), env, data: owner});
+  assert.equal((await ask(null, second.key)).status, 401);
+  assert.equal(typeof summary, 'function');
 });
