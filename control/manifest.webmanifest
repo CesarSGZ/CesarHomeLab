@@ -7,7 +7,36 @@
   "background_color": "#071015",
   "theme_color": "#071015",
   "icons": [
-    { "src": "/assets/mission-control-180.png", "sizes": "180x180", "type": "image/png" },
-    { "src": "/assets/mission-control-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+    {
+      "src": "/assets/mission-control-180.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    },
+    {
+      "src": "/assets/mission-control-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Tareas",
+      "url": "/control/tareas/",
+      "icons": [
+        {
+          "src": "/assets/tareas-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Gastos",
+      "url": "/control/#finance"
+    },
+    {
+      "name": "Training",
+      "url": "/control/#training"
+    }
   ]
 }

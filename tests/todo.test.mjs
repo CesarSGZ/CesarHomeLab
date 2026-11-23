@@ -130,3 +130,44 @@ test('API: only the owner, CSRF on writes, and changes are stored', async () => 
   assert.equal((await onRequest({request: post({ops: [{op: 'nope'}]}), env, data: owner})).status, 400);
   assert.equal(JSON.parse(env.rows.get('todo').payload).lists.length, 2);
 });
+
+test('quick dates are read from the end of the title', async () => {
+  const {parseQuick} = await import('../control/todo-model.js');
+  const t = '2026-11-23'; // a Monday
+  assert.deepEqual(parseQuick('Pagar la luz mañana', t), {title: 'Pagar la luz', due: '2026-11-24'});
+  assert.deepEqual(parseQuick('Cita médico el viernes', t), {title: 'Cita médico', due: '2026-11-27'});
+  assert.deepEqual(parseQuick('Gimnasio lunes', t), {title: 'Gimnasio', due: '2026-11-30'}); // today is Monday: the next one
+  assert.deepEqual(parseQuick('Entregar informe 30/11', t), {title: 'Entregar informe', due: '2026-11-30'});
+  assert.deepEqual(parseQuick('Cumple mamá 5 de enero', t), {title: 'Cumple mamá', due: '2027-01-05'});
+  assert.deepEqual(parseQuick('Revisar 31/02', t), {title: 'Revisar 31/02', due: ''});
+  assert.deepEqual(parseQuick('Comprar pan', t), {title: 'Comprar pan', due: ''});
+});
+
+test('list kinds: ideas as cards, the shopping list as a checklist, emoji icons', async () => {
+  const {guessKind, splitEmoji, upcoming, daysUntil} = await import('../control/todo-model.js');
+  assert.deepEqual(['🛒 Lista de la Compra', 'Compras Caprichosas', '🎂 Ideas cumpleaños', 'Pelis Cine', 'Disfraces', 'Viajes', 'Coche', 'Progreso personal'].map(guessKind),
+    ['check', 'ideas', 'ideas', 'ideas', 'ideas', 'ideas', 'tasks', 'tasks']);
+  assert.deepEqual(splitEmoji('🎂 Ideas cumpleaños'), {emoji: '🎂', name: 'Ideas cumpleaños'});
+  assert.deepEqual(splitEmoji('Coche'), {emoji: '', name: 'Coche'});
+  let doc = applyOps(emptyDoc(), [{op: 'list.add', id: 'regalos', name: 'Regalos', kind: 'ideas'}, {op: 'list.kind', id: 'tareas', kind: 'check'}, {op: 'list.kind', id: 'tareas', kind: 'nope'}]);
+  assert.deepEqual(doc.lists.map(l => l.kind), ['tasks', 'ideas']);
+  doc = applyOps(doc, [{op: 'task.put', list: 'regalos', task: {id: 'g', title: 'Libro'}}, {op: 'task.put', list: 'tareas', task: {id: 'x', title: 'ITV', due: '2026-11-25'}}]);
+  assert.deepEqual(tasksFor(doc, 'all', '2026-11-23').map(r => r.task.id), ['x']); // ideas stay out of Todas
+  assert.deepEqual(tasksFor(doc, 'search', '2026-11-23', 'LIBRO').map(r => r.task.id), ['g']);
+  assert.equal(upcoming(doc, '2026-11-23')[0].task.id, 'x');
+  assert.equal(daysUntil('2026-11-25', '2026-11-23'), 2);
+  // Older copies without a kind read as task lists.
+  assert.equal(applyOps({v: 1, lists: [{id: 'a', name: 'A', tasks: []}]}, []).lists[0].kind, 'tasks');
+});
+
+test('the Tareas app installs on its own and comes back after signing in', async () => {
+  const {readFileSync} = await import('node:fs');
+  const manifest = JSON.parse(readFileSync(new URL('../control/tareas/manifest.webmanifest', import.meta.url), 'utf8'));
+  assert.equal(manifest.start_url, '/control/tareas/'); assert.equal(manifest.scope, '/control/tareas/'); assert.equal(manifest.display, 'standalone');
+  for (const icon of manifest.icons) assert.ok(readFileSync(new URL('..' + icon.src, import.meta.url)).length > 1000, icon.src);
+  const middleware = readFileSync(new URL('../functions/control/_middleware.js', import.meta.url), 'utf8');
+  assert.match(middleware, /"\/control\/tareas\/manifest\.webmanifest"/); assert.match(middleware, /app=tareas/);
+  assert.match(readFileSync(new URL('../control/login.js', import.meta.url), 'utf8'), /'\/control\/tareas\/'/);
+  const mc = JSON.parse(readFileSync(new URL('../control/manifest.webmanifest', import.meta.url), 'utf8'));
+  assert.equal(mc.shortcuts[0].url, '/control/tareas/');
+});

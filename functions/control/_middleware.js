@@ -12,6 +12,9 @@ const PUBLIC_PATHS = new Set([
   "/control/api/auth/login",
   // The home-screen icon: the phone reads them without the session cookie.
   "/control/manifest.webmanifest",
+  // The Tareas app: its manifest and offline worker are read before (or without) a session.
+  "/control/tareas/manifest.webmanifest",
+  "/control/tareas/sw.js",
 ]);
 
 export async function onRequest(context) {
@@ -40,7 +43,9 @@ export async function onRequest(context) {
     if (isApi) {
       return json({ ok: false, error: "not_authenticated" }, { status: 401 });
     }
-    return Response.redirect(`${url.origin}/control/login${inviteQuery}`, 302);
+    // The Tareas app comes back to itself after signing in.
+    const appQuery = url.pathname.startsWith("/control/tareas") ? "?app=tareas" : inviteQuery;
+    return Response.redirect(`${url.origin}/control/login${appQuery}`, 302);
   }
 
   if (

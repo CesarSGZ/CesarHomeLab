@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>Tareas</title>
+  <script src="/theme.js?v=20261007night"></script>
+  <meta name="theme-color" content="#1b1a19">
+  <meta name="robots" content="noindex,nofollow">
+  <link rel="manifest" href="/control/tareas/manifest.webmanifest">
+  <link rel="icon" href="/assets/tareas-192.png">
+  <link rel="apple-touch-icon" href="/assets/tareas-180.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Tareas">
+  <link rel="stylesheet" href="/control/todo.css?v=20261123b">
+  <style>
+    html,body{margin:0;height:100%;background:#1b1a19}
+    html[data-theme=day],html[data-theme=day] body{background:#faf9f8}
+    .todo{--todo-h:100dvh;border:0;border-radius:0;min-height:0}
+    #todo-app>p{margin:40vh 0 0;text-align:center;font:15px system-ui,sans-serif;color:#a19f9d}
+  </style>
+</head>
+<body>
+  <div id="todo-app"><p>Cargando tus listas…</p></div>
+  <script src="/control/todo.js?v=20261123b"></script>
+  <script>
+    (async () => {
+      try {
+        const r = await fetch('/control/api/session', { credentials: 'same-origin', headers: { accept: 'application/json' } });
+        if (r.status === 401) { location.replace('/control/login?app=tareas'); return; }
+        const session = await r.json();
+        if (!session.ok || !session.access?.capabilities?.includes('todo:read')) { location.replace('/control/'); return; }
+        window.TodoLab.initialise(session.csrfToken, { standalone: true });
+      } catch {
+        // Offline: the lists last seen on this phone still open, and changes wait until there is signal.
+        window.TodoLab.initialise('', { standalone: true });
+      }
+      if ('serviceWorker' in navigator) navigator.serviceWorker.register('/control/tareas/sw.js', { scope: '/control/tareas/' }).catch(() => {});
+    })();
+  </script>
+</body>
+</html>

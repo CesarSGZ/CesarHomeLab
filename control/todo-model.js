@@ -5,7 +5,24 @@ export const MAX_LISTS = 200, MAX_TASKS = 10_000, MAX_STEPS = 100;
 export const REPEATS = ['day', 'week', 'month', 'year'];
 const DATE = /^\d{4}-\d{2}-\d{2}$/, STAMP = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/, ID = /^[\w-]{1,64}$/;
 
-export const emptyDoc = () => ({ v: 1, lists: [{ id: 'tareas', name: 'Tareas', tasks: [] }] });
+export const emptyDoc = () => ({ v: 1, lists: [{ id: 'tareas', name: 'Tareas', kind: 'tasks', tasks: [] }] });
+// A list is either things to do (with dates) or a box of ideas (gifts, plans, films...), shown as cards.
+// 'check' is a reusable checklist (the shopping list): ticked items stay visible to untick them next time.
+export const KINDS = ['tasks', 'ideas', 'check'];
+const CHECK_NAMES = /lista de la compra|^\W*compra\b|\bsuper(mercado)?\b|mercadona|mercado|checklist|maleta|equipaje/i;
+const IDEA_NAMES = /idea|regal|plan(es)?\b|viaje|escapada|pel[ií]cula|pelis|cine|serie|libro|leer|restaurante|comprar alg[uú]n d[ií]a|capricho|wish|deseo|cumple|navidad|reyes|m[uú]sica|juego|disfra|receta|sitios|lugares|visitar|interesante|curios|contenido|meme|aburri/i;
+// To Do shows a leading emoji in a list's name as its icon: "🎂 Ideas cumpleaños".
+export function splitEmoji(name) {
+  const m = String(name || '').match(/^(\p{Extended_Pictographic}(?:\uFE0F|\u200D\p{Extended_Pictographic}|\p{Emoji_Modifier})*)\s*(.*)$/u);
+  return m && m[2] ? { emoji: m[1], name: m[2] } : { emoji: '', name: String(name || '') };
+}
+export function guessKind(name) {
+  const n = String(name || '');
+  if (/capricho/i.test(n)) return 'ideas';
+  if (CHECK_NAMES.test(n)) return 'check';
+  return IDEA_NAMES.test(n) ? 'ideas' : 'tasks';
+}
+const kindOf = k => (KINDS.includes(k) ? k : 'tasks');
 export const newId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 
 const str = (v, max) => String(v ?? '').slice(0, max);
@@ -37,14 +54,18 @@ const findTask = (doc, id) => { for (const list of doc.lists) { const i = list.t
 // Applies a batch of changes. Throws on anything malformed so a bad batch changes nothing.
 export function applyOps(input, ops) {
   const doc = structuredClone(input?.lists?.length ? input : emptyDoc());
+  for (const list of doc.lists) list.kind = kindOf(list.kind);
   for (const op of ops) {
     if (op?.op === 'list.add') {
       if (!ID.test(op.id || '') || doc.lists.some(l => l.id === op.id)) continue; // a replayed add is harmless
       if (doc.lists.length >= MAX_LISTS) throw new Error('too_many_lists');
-      doc.lists.push({ id: op.id, name: str(op.name, 120).trim() || 'Lista', tasks: [] });
+      doc.lists.push({ id: op.id, name: str(op.name, 120).trim() || 'Lista', kind: kindOf(op.kind), tasks: [] });
     } else if (op?.op === 'list.rename') {
       const list = doc.lists.find(l => l.id === op.id);
       if (list) list.name = str(op.name, 120).trim() || list.name;
+    } else if (op?.op === 'list.kind') {
+      const list = doc.lists.find(l => l.id === op.id);
+      if (list) list.kind = kindOf(op.kind);
     } else if (op?.op === 'list.delete') {
       if (doc.lists.length > 1) doc.lists = doc.lists.filter(l => l.id !== op.id);
     } else if (op?.op === 'task.put') {
@@ -74,7 +95,7 @@ function importLists(doc, lists) {
     let list = doc.lists.find(l => l.name.toLowerCase() === name.toLowerCase());
     if (!list) {
       if (doc.lists.length >= MAX_LISTS) throw new Error('too_many_lists');
-      list = { id: oneOf(incoming.id, ID) && !doc.lists.some(l => l.id === incoming.id) ? incoming.id : newId(), name, tasks: [] };
+      list = { id: oneOf(incoming.id, ID) && !doc.lists.some(l => l.id === incoming.id) ? incoming.id : newId(), name, kind: KINDS.includes(incoming.kind) ? incoming.kind : guessKind(name), tasks: [] };
       doc.lists.push(list);
     }
     const seen = new Set();
@@ -115,20 +136,50 @@ export function dueBucket(due, today) {
   return 'later';
 }
 
-// The smart lists: Mi día, Importante, Planeado and Todas.
+// The smart lists: Mi día, Importante, Planeado and Todas. Idea lists only enter them with a date or a star.
 export const SMART = { myday: 'Mi día', important: 'Importante', planned: 'Planeado', all: 'Todas' };
-export function tasksFor(doc, view, today) {
+export function tasksFor(doc, view, today, query = '') {
   const rows = doc.lists.flatMap(list => list.tasks.map(task => ({ task, list })));
   if (view === 'myday') return rows.filter(r => r.task.myDay === today || (!r.task.done && r.task.due && r.task.due <= today));
   if (view === 'important') return rows.filter(r => r.task.important);
   if (view === 'planned') return rows.filter(r => r.task.due).sort((a, b) => a.task.due.localeCompare(b.task.due));
-  if (view === 'all') return rows;
+  if (view === 'all') return rows.filter(r => r.list.kind !== 'ideas');
+  if (view === 'search') {
+    const q = normal(query);
+    return q ? rows.filter(r => normal(r.task.title + ' ' + r.task.note + ' ' + r.task.steps.map(s => s.title).join(' ')).includes(q)) : [];
+  }
   return rows.filter(r => r.list.id === view);
 }
+const normal = s => String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
 export function counts(doc, today) {
   const out = {};
   for (const view of [...Object.keys(SMART), ...doc.lists.map(l => l.id)]) out[view] = tasksFor(doc, view, today).filter(r => !r.task.done).length;
   return out;
+}
+// The next deadlines still open, soonest (and overdue) first.
+export const upcoming = (doc, today, n = 5) => tasksFor(doc, 'planned', today).filter(r => !r.task.done).slice(0, n);
+export const daysUntil = (date, today) => Math.round((Date.parse(date + 'T12:00:00Z') - Date.parse(today + 'T12:00:00Z')) / 864e5);
+
+// "Pagar la luz mañana", "Cita médico el viernes", "Entregar 30/11": the date is taken out of the title.
+const WEEKDAY_NAMES = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
+const MONTH_NAMES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+export function parseQuick(text, today) {
+  const raw = String(text || '').trim(), plain = normal(raw);
+  const at = (re, due) => { const m = plain.match(re); return m && due ? { title: raw.slice(0, m.index).trim().replace(/[,;:-]+$/, '').trim() || raw, due } : null; };
+  const year = (d, m) => { let y = +today.slice(0, 4); const iso = `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`; return iso < today ? `${y + 1}${iso.slice(4)}` : iso; };
+  const valid = iso => (iso && !Number.isNaN(Date.parse(iso + 'T12:00:00Z')) && new Date(iso + 'T12:00:00Z').toISOString().slice(0, 10) === iso ? iso : null);
+  let m;
+  return at(/\s+(para\s+)?hoy$/, today)
+    || at(/\s+(para\s+)?pasado\s+manana$/, addDays(today, 2))
+    || at(/\s+(para\s+)?manana$/, addDays(today, 1))
+    || at(/\s+(la\s+)?(proxima|siguiente)\s+semana$/, addDays(today, 7))
+    || ((m = plain.match(/\s+(el\s+|al\s+|este\s+|para\s+el\s+)?(domingo|lunes|martes|miercoles|jueves|viernes|sabado)$/))
+      && at(/\s+(el\s+|al\s+|este\s+|para\s+el\s+)?(domingo|lunes|martes|miercoles|jueves|viernes|sabado)$/, addDays(today, ((WEEKDAY_NAMES.indexOf(m[2]) - new Date(today + 'T12:00:00Z').getUTCDay() + 7) % 7) || 7)))
+    || ((m = plain.match(/\s+(el\s+|para\s+el\s+)?(\d{1,2})[/.-](\d{1,2})(?:[/.-](\d{2,4}))?$/))
+      && at(/\s+(el\s+|para\s+el\s+)?(\d{1,2})[/.-](\d{1,2})(?:[/.-](\d{2,4}))?$/, valid(m[4] ? `${m[4].length === 2 ? '20' + m[4] : m[4]}-${m[3].padStart(2, '0')}-${m[2].padStart(2, '0')}` : year(+m[2], +m[3]))))
+    || ((m = plain.match(/\s+(el\s+|para\s+el\s+)?(\d{1,2})\s+de\s+(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)$/))
+      && at(/\s+(el\s+|para\s+el\s+)?(\d{1,2})\s+de\s+(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)$/, valid(year(+m[2], MONTH_NAMES.indexOf(m[3]) + 1))))
+    || { title: raw, due: '' };
 }
 
 // ---------- Import from Microsoft To Do ----------
@@ -157,6 +208,7 @@ export function fromGraph(data) {
   if (!lists) throw new Error('not_todo_export');
   return lists.map(list => ({
     name: LIST_NAMES[list.wellknownListName] || list.displayName || 'Lista',
+    kind: guessKind(list.displayName),
     tasks: (Array.isArray(list.tasks) ? list.tasks : []).map(t => {
       const pattern = t.recurrence?.pattern, every = GRAPH_REPEAT[pattern?.type];
       const note = [t.body?.contentType === 'html' ? stripHtml(t.body.content) : String(t.body?.content || '').trim(), (t.categories || []).length ? 'Categorías: ' + t.categories.join(', ') : '']
@@ -193,7 +245,7 @@ export function fromText(text) {
     task = { id: 'tx-' + shortHash(list.name + '\n' + item.title), ...item, steps: [] };
     list.tasks.push(task);
   }
-  return lists.map(l => ({ name: l.name, tasks: l.tasks.map(normTask) }));
+  return lists.map(l => ({ name: l.name, kind: guessKind(l.name), tasks: l.tasks.map(normTask) }));
 }
 
 // Reads whatever was dropped or pasted: the export script's JSON or plain text.

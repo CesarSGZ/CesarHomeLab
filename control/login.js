@@ -4,7 +4,7 @@ const loginFeedback=document.getElementById('login-feedback');
 const changeFeedback=document.getElementById('change-feedback');
 let csrfToken='';
 const invitationCode=new URLSearchParams(location.search).get('room')||'';
-const loginDestination=/^[A-Z2-9]{6}$/.test(invitationCode)?`/control/?room=${invitationCode}#doors`:'/control/';
+const loginDestination=/^[A-Z2-9]{6}$/.test(invitationCode)?`/control/?room=${invitationCode}#doors`:new URLSearchParams(location.search).get('app')==='tareas'?'/control/tareas/':'/control/';
 function setBusy(form,busy){form.querySelector('button').disabled=busy}
 function showChange(){loginForm.hidden=true;changeForm.hidden=false;changeForm.elements.password.focus()}
 async function checkExistingSession(){try{const response=await fetch('/control/api/session',{headers:{accept:'application/json'},credentials:'same-origin'});if(!response.ok)return;const data=await response.json();csrfToken=data.csrfToken||'';if(data.user?.mustChangePassword)showChange();else location.replace(loginDestination)}catch{}}
