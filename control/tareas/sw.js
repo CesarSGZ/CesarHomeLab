@@ -1,7 +1,7 @@
 // Tareas offline: the app shell is kept so the icon opens without signal; the lists themselves come from the
 // copy todo.js keeps on the phone, and changes wait in its queue. API calls are never cached here.
-const CACHE = 'tareas-v20261123c';
-const SHELL = ['/control/tareas/', '/control/todo.js?v=20261123c', '/control/todo.css?v=20261123b', '/control/todo-model.js?v=20261123b', '/theme.js?v=20261007night'];
+const CACHE = 'tareas-v20261124a';
+const SHELL = ['/control/tareas/', '/control/todo.js?v=20261124a', '/control/todo.css?v=20261124a', '/control/todo-model.js?v=20261124a', '/theme.js?v=20261007night'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).catch(() => {}).then(() => self.skipWaiting())); });
 self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(k => k.startsWith('tareas-') && k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim())); });
 self.addEventListener('fetch', e => {
