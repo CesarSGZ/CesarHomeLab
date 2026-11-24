@@ -43,3 +43,13 @@ Cuando César pida algo sobre sus tareas («añade…», «marca… como hecho»
    `{"op":"habit.log","id":"<id rutina>","date":"YYYY-MM-DD","done":true}`, `{"op":"task.delete","id":"..."}`.
    Para editar una tarea, léela primero y manda la tarea entera con el cambio.
 5. Cuenta a César qué has cambiado. `node --test tests/todo.test.mjs` cubre el modelo y la API.
+
+## Mudanza: el plan del traslado a Ingolstadt
+
+Sección `/control/#mudanza` (`control/mudanza.js`, `mudanza.css`, `mudanza-model.js`; API `functions/control/api/mudanza/status.js`).
+El repo es público: **el plan nunca va en el código**. Vive en D1 (`personal_datasets` 'mudanza': `{plan, ticks}`) y se carga
+desde la propia sección con «Actualizar el plan» (fichero `mudanza-plan.json`). Ese JSON lo genera
+`Claude\Documentos\Relocation Ingolstadt\mudanza-plan.py`: para cambiar el plan, edita los `ITEMS` de ese script, ejecútalo
+y pide a César que lo cargue. Lo que él marca (`ticks`) se guarda aparte y sobrevive a un plan nuevo; usa ids estables.
+Cada tarea: `id`, `section`, `title`, `due`, `approx` (fecha aproximada, sale con ≈), `deadline` (plazo de verdad, se pone en
+rojo al pasar), `state` (done, doing, wait, todo, optional), `who`, `how`, `doneOn`. `node --test tests/mudanza.test.mjs`.

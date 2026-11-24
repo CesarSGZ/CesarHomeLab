@@ -24,6 +24,7 @@
   <link rel="stylesheet" href="training.css?v=20261124focus">
 <link rel="stylesheet" href="finance.css?v=20261112hora">
 <link rel="stylesheet" href="todo.css?v=20261124c">
+<link rel="stylesheet" href="mudanza.css?v=20261124a">
   <link rel="stylesheet" href="doors.css?v=20261031a">
   <link rel="stylesheet" href="backtest.css?v=20261012n">
   <link rel="stylesheet" href="/theme.css?v=20261124where">
@@ -44,6 +45,7 @@
     <nav aria-label="Control panel sections">
       <button class="nav-item active" data-view="overview"><span>01</span>Home</button>
       <button class="nav-item" data-view="todo"><span>09</span>Tareas</button>
+      <button class="nav-item" data-view="mudanza"><span>10</span>Mudanza</button>
       <button class="nav-item" data-view="infrastructure"><span>02</span><b id="infrastructure-nav-label">Servers</b></button>
       <button class="nav-item" data-view="github"><span>03</span>GitHub Galaxy</button>
       <button class="nav-item" data-view="thermal"><span>04</span>Thermal Lab</button>
@@ -465,6 +467,9 @@
     <section class="view todo-view" id="todo" data-title="Tareas" data-code="09" lang="es">
       <div id="todo-app"><p class="eyebrow"><span></span> TAREAS</p><h2>Cargando tus listas.</h2></div>
     </section>
+    <section class="view mudanza-view" id="mudanza" data-title="Mudanza" data-code="10" lang="es">
+      <div id="mudanza-app" aria-live="polite"><p class="eyebrow"><span></span> MUDANZA</p><h2>Cargando tu plan.</h2></div>
+    </section>
     <section class="view training-view finance-view" id="finance" data-title="Gastos" data-code="06" lang="es">
       <div id="finance-app" aria-live="polite"><p class="eyebrow"><span></span> GASTOS</p><h2>Leyendo tus cuentas.</h2></div>
     </section>
@@ -478,12 +483,13 @@
   <script src="doors.js?v=20261031a"></script>
   <script src="finance.js?v=20261112hora"></script>
   <script src="todo.js?v=20261124d"></script>
+  <script src="mudanza.js?v=20261124a"></script>
   <script src="carlitos.js?v=20261121salud"></script>
   <script src="training.js?v=20261122justo"></script>
   <script type="module" src="backtest.js?v=20261114a"></script>
   <script src="github-galaxy.js?v=20261110mapa"></script>
   <script src="thermal-deck.js?v=20261122final"></script>
-  <script src="control.js?v=20261123todo"></script>
+  <script src="control.js?v=20261124mudanza"></script>
   <script src="servercesar.js?v=20261020wake" defer></script>
   <script src="flight-control.js?v=20261014ar" defer></script>
   <script src="thermal-viewer.bundle.js?v=20261121cfd"></script>
