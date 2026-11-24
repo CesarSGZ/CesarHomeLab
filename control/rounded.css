@@ -9,3 +9,12 @@
 :where([data-workspace]) :where(img,video,canvas,svg[class*=chart],iframe){border-radius:var(--mc-r-s)}
 /* Tables keep their lines inside the rounded box. */
 :where([data-workspace]) :where(table){border-collapse:separate;border-spacing:0}
+
+/* Nothing collides on short laptop screens or phones. */
+/* The menu scrolls instead of squashing its last items into the footer. */
+.sidebar nav{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:none;margin-bottom:12px}
+.sidebar nav::-webkit-scrollbar{display:none}
+@media (max-height:860px) and (min-width:901px){.system-label{margin:26px 10px 22px}.system-label strong{font-size:22px}.sidebar nav{gap:4px}.nav-item{padding-top:10px;padding-bottom:10px}}
+/* Big headings never touch the panel under them. */
+.bt-hero{margin-bottom:24px}
+.bt-hero h2{line-height:1.08;padding-bottom:.04em}
