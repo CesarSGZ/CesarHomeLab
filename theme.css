@@ -33,7 +33,7 @@ html[data-theme=day] [data-workspace] .session b{background:#e3edf5;border-color
 html[data-theme=day] [data-workspace] :is(.module,.server-card,.security-card,.thermal-panel,.chart-card,.setting-card,.agent-card,.auth-panel,.galaxy-inspector,.galaxy-system-card,.galaxy-source-panel,.galaxy-file-list,.galaxy-guide){background:#f9fbfd;border-color:#bdcedc;color:#1c3145;box-shadow:0 8px 32px #29496708}
 html[data-theme=day] [data-workspace] .status-strip{background:#e1ebf3;color:#526a80}
 html[data-theme=day] [data-workspace] :is(.module-action,.galaxy-journeys button,.galaxy-syncbar button,.galaxy-neighbours button){background:#e8f0f6;border-color:#a8c0d4;color:#2c526d}
-html[data-theme=day] [data-workspace] :is(input,select,textarea){background:#fff;border-color:#c5d5e1;color:#193d55}
+:where(html[data-theme=day] [data-workspace]) :where(input:not([type=checkbox]):not([type=radio]):not([type=range]),select,textarea){background:#fff;border-color:#c5d5e1;color:#193d55}
 html[data-theme=day] [data-workspace] .module-action:hover{background:#d8e8f3;color:#143d58}
 html[data-theme=day] [data-workspace] .theme-toggle{background:#e1eaf2;color:#315c78;border-color:#a4bbce}
 html[data-theme=day] [data-workspace] :is(.galaxy-map,.galaxy-map-nodes,.thermal-3d-shell){--ink:#edf3f8;--muted:#a0b2c5;--line:#aec8e02e;--cyan:#86d7ef;--acid:#d6eb91;--blue:#8abce8;--violet:#bfa7e3;color:#edf3f8;color-scheme:dark}
@@ -92,7 +92,8 @@ html[data-theme=night] [data-workspace] :is(.sidebar,.topbar){background:#1d252a
 html[data-theme=night] [data-workspace] :is(.module,.server-card,.security-card,.thermal-panel,.chart-card,.setting-card,.agent-card,.auth-panel,.galaxy-inspector,.galaxy-system-card,.galaxy-source-panel,.galaxy-file-list,.galaxy-guide){background:#28343d;border-color:#526572;color:#edf0f2}
 html[data-theme=night] [data-workspace] :is(.nav-item.active,.module-action,.galaxy-journeys button,.galaxy-syncbar button,.galaxy-neighbours button){background:#303d47;color:#e0e9ef;border-color:#607482}
 /* Fields: a quiet glass well instead of the old grey slab. */
-html[data-theme=night] [data-workspace] :is(input,select,textarea){background:rgba(255,255,255,.045);color:#eef3f6;border-color:rgba(255,255,255,.14)}
-html[data-theme=night] [data-workspace] :is(input,select,textarea):focus{border-color:#52d9ff;background:rgba(82,217,255,.06)}
-html[data-theme=night] [data-workspace] select option{background:#1d252a;color:#eef3f6}
+/* Zero specificity (:where): a field a module styles itself (Training's big kilo box, Tareas' bar) keeps its own look. */
+:where(html[data-theme=night] [data-workspace]) :where(input:not([type=checkbox]):not([type=radio]):not([type=range]),select,textarea){background:rgba(255,255,255,.045);color:#eef3f6;border-color:rgba(255,255,255,.14)}
+:where(html[data-theme=night] [data-workspace]) :where(input,select,textarea):focus{border-color:#52d9ff}
+:where(html[data-theme=night] [data-workspace]) :where(select option){background:#1d252a;color:#eef3f6}
 html[data-theme=night] .training-view{--training-bg:#28343d;--training-soft:#33434f;--training-ink:#edf0f2;--training-muted:#becbd5;--training-line:#536876}

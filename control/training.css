@@ -45,6 +45,10 @@ html[data-theme=day] .training-view{--tl-accent:#567b23;--tl-accent-ink:#fff;--t
 .tl-input{padding:8px;border-radius:12px;background:var(--tl-soft);text-align:center}
 .tl-input label{display:block;font-size:13px;color:var(--tl-muted)}
 .tl-input input{width:100%;border:0;background:none;text-align:center;font:500 38px/1.15 'DM Mono',monospace;padding:0}
+/* The big number is the field: focus lights the whole box instead of an outline that spills onto the label and the buttons. */
+.training-view .tl-input input{border:0;background:none;border-radius:8px}
+.training-view .tl-input input:focus-visible{outline:none}
+.training-view .tl-input:focus-within{box-shadow:inset 0 0 0 2px var(--tl-accent)}
 .tl-input div{display:grid;grid-template-columns:1fr 1fr;gap:6px}
 .training-view .tl-input div button{height:46px;border-radius:9px;background:var(--tl-softer);font-size:22px;font-weight:700}
 .training-view .tl-input div button:active{background:var(--tl-accent);color:var(--tl-accent-ink)}
