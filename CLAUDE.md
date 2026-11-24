@@ -24,8 +24,10 @@ el relato, de la sección `story`. Cada vez que cambie algo del Thermal Lab (pru
 
 ## Tareas: Claude puede leer y cambiar las listas de César
 
-Tareas (`/control/#todo` y la app `/control/tareas/`) sustituye a Microsoft To Do. Tiene Hoy, Fechas, Rutinas
-(cosas diarias con racha), Proyectos (checklists con secciones, como la mudanza a Ingolstadt), Listas e Ideas.
+Tareas (`/control/#todo` y la app `/control/tareas/`) sustituye a Microsoft To Do, con el estilo de Mission Control.
+Tres pestañas: Hoy (rutinas, lo que toca, próximos 14 días, proyectos), Listas (tareas, compra, ideas y proyectos:
+checklists con secciones, como la mudanza a Ingolstadt) y Rutinas (cosas diarias con racha). Una sola barra añade
+todo: una fecha al final la pone en el calendario y `#lista` la manda a esa lista. Los pasos se abren en la fila.
 El modelo y todas las operaciones están en `control/todo-model.js` (`applyOps`); la página y la API usan el mismo.
 
 Cuando César pida algo sobre sus tareas («añade…», «marca… como hecho», «crea una checklist para…»):
