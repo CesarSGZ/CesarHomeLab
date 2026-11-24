@@ -100,6 +100,13 @@ export function applyOps(input, ops) {
     } else if (op?.op === 'task.delete') {
       const at = findTask(doc, op.id);
       if (at) at.list.tasks.splice(at.i, 1);
+    } else if (op?.op === 'seed') {
+      // A list prepared by Claude, added once: if César deletes it later it does not come back.
+      if (!ID.test(op.id || '')) throw new Error('invalid_seed');
+      doc.seeds = Array.isArray(doc.seeds) ? doc.seeds : [];
+      if (doc.seeds.includes(op.id)) continue;
+      importLists(doc, op.lists);
+      doc.seeds.push(op.id);
     } else if (op?.op === 'import') {
       importLists(doc, op.lists, op.update === true);
     } else throw new Error('invalid_op');
@@ -114,7 +121,9 @@ function importLists(doc, lists, update = false) {
   if (!Array.isArray(lists)) throw new Error('invalid_import');
   for (const incoming of lists) {
     const name = str(incoming?.name, 120).trim() || 'Importada';
-    let list = doc.lists.find(l => l.name.toLowerCase() === name.toLowerCase());
+    // "Mudanza a Ingolstadt" finds "🇩🇪 Mudanza a Ingolstadt": the emoji is decoration.
+    const key = n => normal(splitEmoji(n).name);
+    let list = doc.lists.find(l => l.name.toLowerCase() === name.toLowerCase()) || doc.lists.find(l => key(l.name) === key(name));
     if (!list) {
       if (doc.lists.length >= MAX_LISTS) throw new Error('too_many_lists');
       list = { id: oneOf(incoming.id, ID) && !doc.lists.some(l => l.id === incoming.id) ? incoming.id : newId(), name, kind: KINDS.includes(incoming.kind) ? incoming.kind : guessKind(name), tasks: [] };
@@ -123,7 +132,9 @@ function importLists(doc, lists, update = false) {
     const seen = new Set();
     const incomingTasks = (Array.isArray(incoming.tasks) ? incoming.tasks : []).map(normTask);
     if (update) for (const t of incomingTasks) {
-      const at = findTask(doc, t.id);
+      // The same item pasted again keeps its place: found by id, or by its title within this list.
+      let at = findTask(doc, t.id);
+      if (!at) { const i = list.tasks.findIndex(x => normal(x.title) === normal(t.title)); if (i >= 0) { at = { list, i }; t.id = list.tasks[i].id; } }
       if (!at) continue;
       const old = at.list.tasks[at.i];
       if (t.done && !old.done) Object.assign(old, { done: true, completed: new Date().toISOString() });

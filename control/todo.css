@@ -2,11 +2,12 @@
    One column (max 880px), three tabs, one add bar, sheets for editing. html[data-theme=day] gives a light version. */
 #todo-app{container-type:inline-size;container-name:tk}
 .tk{
-  --bg:#071015;--panel:#0b171c;--panel2:#10212a;--ink:#eef3ec;--muted:#879791;--line:rgba(238,243,236,.12);--line2:rgba(238,243,236,.22);
+  --bg:#15191c;--panel:#1f272d;--panel2:#28333b;--ink:#eef3f6;--muted:#93a3ad;--line:rgba(255,255,255,.09);--line2:rgba(255,255,255,.16);--field:rgba(255,255,255,.045);
+  --r:14px;--r-s:10px;
   --cyan:#52d9ff;--acid:#c9ff3d;--violet:#a98be0;--hot:#ff8a5c;--late:#ff6b6b;--ok:#5ce1a5;
   position:relative;max-width:880px;margin:0 auto;color:var(--ink);font:15px/1.45 Manrope,system-ui,-apple-system,'Segoe UI',sans-serif;letter-spacing:0;text-align:left
 }
-html[data-theme=day] .tk{--bg:#f2f6f8;--panel:#fff;--panel2:#e8eff3;--ink:#13232d;--muted:#5d707a;--line:rgba(19,35,45,.12);--line2:rgba(19,35,45,.24);--cyan:#0b7fa3;--acid:#4d7a00;--violet:#6b4fb3;--hot:#c2501f;--late:#c62828;--ok:#1f8a5b}
+html[data-theme=day] .tk{--field:#fff;--bg:#eef3f6;--panel:#fff;--panel2:#e8eff3;--ink:#13232d;--muted:#5d707a;--line:rgba(19,35,45,.12);--line2:rgba(19,35,45,.24);--cyan:#0b7fa3;--acid:#4d7a00;--violet:#6b4fb3;--hot:#c2501f;--late:#c62828;--ok:#1f8a5b}
 .tk,.tk *{box-sizing:border-box}
 .tk [hidden]{display:none!important}
 .tk button,.tk input,.tk select,.tk textarea{font:inherit;color:inherit;letter-spacing:0}
@@ -306,3 +307,31 @@ html[data-theme=day] .tk{--bg:#f2f6f8;--panel:#fff;--panel2:#e8eff3;--ink:#13232
 .view.todo-view{padding-top:40px}
 @media(max-width:900px){.view.todo-view{padding:24px 16px 60px}}
 @media (prefers-reduced-motion:reduce){.tk *{animation:none!important;transition:none!important}}
+
+/* ===== Rounded and softer: same radius scale as the rest of Mission Control ===== */
+.tk .tk-icon,.tk .tk-chip,.tk .tk-btn,.tk .tk-back,.tk .tk-more,.tk .tk-steps-btn,.tk .tk-pill,.tk .tk-go,.tk .tk-toggle,.tk-field,.tk-seg,.tk .tk-seg button,.tk-key,.tk-preview,.tk-notes,.tk-drop,.tk-quiet,.tk-invite,.tk-empty,.tk-status,.tk-target select{border-radius:var(--r-s)}
+.tk-add{border-radius:var(--r);background:var(--field);border-color:var(--line2);padding-right:6px}
+.tk .tk-go{border-radius:calc(var(--r) - 5px)}
+.tk-card,.tk .tk-card,.tk-project,.tk .tk-project,.tk-idea,.tk-routine,.tk-sheet,.tk-kinds span,.tk-stats,.tk-menu{border-radius:var(--r)}
+.tk .tk-card::before{left:14px;border-radius:0 0 3px 3px}
+.tk .tk-check::before{border-radius:7px}
+.tk .tk-check.small::before{border-radius:5px}
+.tk-heat i,.tk-heat button{border-radius:4px}
+.tk-meter span,.tk-meter i,.tk-bar-mini,.tk-bar-mini i,.tk-progress span,.tk-progress span i{border-radius:99px}
+.tk .tk-tabs button b{border-radius:99px;padding:1px 7px}
+.tk .tk-tabs button[aria-selected=true]::after{border-radius:2px}
+/* Rows sit in one soft card instead of bare lines. */
+.tk-rows{border:1px solid var(--line);border-radius:var(--r);background:var(--panel);overflow:hidden}
+.tk-row:last-child{border-bottom:0}
+.tk-log{border:1px solid var(--line);border-radius:var(--r);background:var(--panel);overflow:hidden}
+.tk-log .tk-rows{border:0;border-radius:0;background:none}
+.tk-substeps{border-left-color:color-mix(in srgb,var(--cyan) 60%,transparent)}
+/* Sheet on the phone: a proper bottom sheet with a handle. */
+@container tk (max-width:620px){.tk-sheet{border-radius:22px 22px 0 0}.tk-sheet::before{content:'';display:block;width:42px;height:4px;margin:-6px auto 12px;border-radius:99px;background:var(--line2)}}
+/* Inside Mission Control: the headings keep this app's look, and the add bar does not hide under the top bar. */
+[data-workspace] .tk h1{font-family:Manrope,system-ui,sans-serif;font-stretch:normal}
+[data-workspace] .tk .tk-sec h2,[data-workspace] .tk .tk-sub{font:500 11px 'DM Mono',monospace;letter-spacing:.16em;font-stretch:normal}
+[data-workspace] .tk .tk-sheet h2{font-family:Manrope,system-ui,sans-serif;font-stretch:normal;letter-spacing:-.02em}
+[data-workspace] .tk-bar{position:static;background:none;backdrop-filter:none}
+html [data-workspace] .tk.tk.tk :is(input,select,textarea){background:transparent;border-color:transparent}
+html [data-workspace] .tk.tk.tk :is(.tk-notes,.tk-sheet form>input,#tk-f-claude){background:var(--bg);border-color:var(--line2)}

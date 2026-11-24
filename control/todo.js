@@ -71,7 +71,8 @@
     if (!out.ok) { const e = new Error(out.error || 'unavailable'); e.status = r.status; throw e; }
     return out;
   }
-  const docOf = out => ({ v: out.v, lists: out.lists });
+  const docOf = out => ({ v: out.v, lists: out.lists, seeds: out.seeds || [] });
+  let seeds = [];
   let flushing = false;
   async function flush() {
     if (flushing || !S.queue.length) return paintStatus();
@@ -92,7 +93,7 @@
     if (!S.doc) return;
     try {
       if (!root) {
-        app.innerHTML = '<div class="tk" id="tk"><header class="tk-head" id="tk-head"></header><div class="tk-bar" id="tk-bar"></div><main class="tk-body" id="tk-body"></main><div class="tk-sheet-wrap" id="tk-sheet" hidden></div></div>';
+        app.innerHTML = '<div class="tk" id="tk"><header class="tk-head" id="tk-head"></header><div class="tk-bar" id="tk-bar"></div><div class="tk-body" id="tk-body"></div><div class="tk-sheet-wrap" id="tk-sheet" hidden></div></div>';
         root = document.getElementById('tk');
       }
       const doc = view(), t = t0();
@@ -507,14 +508,20 @@
   document.addEventListener('visibilitychange', () => { if (!document.hidden && S.doc) refresh(); });
 
   async function refresh() {
-    try { const out = await call('GET'); S.doc = docOf(out); S.agent = out.agent || null; write('cache', S.doc); S.error = ''; }
+    try {
+      const out = await call('GET'); S.doc = docOf(out); S.agent = out.agent || null; write('cache', S.doc); S.error = '';
+      // Lists Claude prepared (control/todo-seeds.js) are added once.
+      const missing = seeds.filter(x => !(out.seeds || []).includes(x.id) && !S.queue.some(op => op.op === 'seed' && op.id === x.id));
+      if (missing.length) S.queue.push(...missing.map(x => ({ op: 'seed', id: x.id, lists: x.lists })));
+    }
     catch { if (!S.doc) S.error = 'No se pudo leer tus tareas ahora mismo.'; }
     paint(); flush();
   }
 
   window.TodoLab = { async initialise(token, options = {}) {
     csrf = token; standalone = !!options.standalone;
-    model = await import('/control/todo-model.js?v=20261124b');
+    model = await import('/control/todo-model.js?v=20261124d');
+    try { seeds = (await import('/control/todo-seeds.js?v=20261124d')).SEEDS; } catch { seeds = []; }
     // /control/tareas/#rutinas (the icon's long-press shortcuts) opens that tab.
     const wanted = decodeURIComponent(location.hash.slice(1));
     if (standalone) { S.tab = ['hoy', 'listas', 'rutinas'].includes(wanted) ? wanted : 'hoy'; S.list = ''; }

@@ -1,0 +1,11 @@
+/* Mission Control, rounded. One radius scale for every interface, loaded last.
+   Zero specificity (:where) on purpose: anything that already sets its own radius (a circle, a pill) keeps it;
+   everything that was square gets soft corners. */
+:root{--mc-r-s:10px;--mc-r-m:14px;--mc-r-l:20px}
+:where([data-workspace]) :where(button,input,select,textarea,kbd,.module-action,.nav-item,.tl-chip,.tl-tabs,.tl-tabs button,.chip,.badge,.tag,summary){border-radius:var(--mc-r-s)}
+:where([data-workspace]) :where(.module,article,details,dialog,figure,table,fieldset,.tl-focus,.tl-card,.tl-kpis article,.tl-chart-box,.fin-add,.fin-cats li,
+  [class*=card],[class*=panel],[class*=tile],[class*=box],[class*=sheet],[class*=modal],[class*=drawer],[class*=popover],[class*=toast],[class*=summary],[class*=strip],[class*=palette],[class*=inspector]){border-radius:var(--mc-r-m)}
+:where([data-workspace]) :where(.module){border-radius:var(--mc-r-l)}
+:where([data-workspace]) :where(img,video,canvas,svg[class*=chart],iframe){border-radius:var(--mc-r-s)}
+/* Tables keep their lines inside the rounded box. */
+:where([data-workspace]) :where(table){border-collapse:separate;border-spacing:0}
