@@ -53,3 +53,32 @@ desde la propia sección con «Actualizar el plan» (fichero `mudanza-plan.json`
 y pide a César que lo cargue. Lo que él marca (`ticks`) se guarda aparte y sobrevive a un plan nuevo; usa ids estables.
 Cada tarea: `id`, `section`, `title`, `due`, `approx` (fecha aproximada, sale con ≈), `deadline` (plazo de verdad, se pone en
 rojo al pasar), `state` (done, doing, wait, todo, optional), `who`, `how`, `doneOn`. `node --test tests/mudanza.test.mjs`.
+
+## Empleo: la búsqueda de trabajo de María
+
+Empleo (`/control/#empleo`) sigue la búsqueda de trabajo de María: RRHH / Talent Acquisition cerca de Múnich e
+Ingolstadt, en puestos donde no se pida alemán. Cuatro pestañas: Ofertas (con nota de encaje del 0 al 100 y sus
+motivos), Candidaturas (fase, follow-ups), Resultados (tasas por versión de CV, canal, mensaje, ubicación del CV,
+antigüedad de la oferta, día y hora) y Ajustes (versiones del CV, robot y llave). El modelo y todas las operaciones
+están en `control/empleo-model.js` (`applyOps`, `scoreOffer`, `stats`); la página, la API y el robot usan el mismo.
+
+- **Robot** (`scripts/empleo-buscar.mjs`, `.github/workflows/empleo-buscar.yml`): 4 veces al día entre semana lee la
+  Agencia de Empleo alemana (`pc/v6/jobs` y `pc/v4/jobdetails`) y Arbeitnow, puntúa con `scoreOffer` y sube lo que
+  pasa de 35. Usa el secreto `EMPLEO_KEY`. Sin la llave, `node scripts/empleo-buscar.mjs` solo enseña lo que subiría.
+- **LinkedIn no se lee con el robot.** Cuando César pida buscar ofertas, búscalas tú (búsqueda web) y añádelas.
+- César aplica a mano. Claude no envía candidaturas ni usa la cuenta de LinkedIn de María.
+
+Cuando César pida algo de Empleo («busca ofertas», «hazme la carta para…», «apunta que apliqué a…»):
+
+1. Necesitas la llave (empieza por `empleo_`). La crea él en Empleo → Ajustes. Pídela con `request_credential`
+   para el host `cesar-solla.pages.dev` (cabecera `Authorization: Bearer`); nunca en el chat.
+2. Leer: `GET https://cesar-solla.pages.dev/api/empleo` devuelve `summary` (ofertas nuevas de mejor a peor con id,
+   candidaturas abiertas, follow-ups y lo que funciona) y todo el documento (`offers`, `apps`, `cvs`, `runs`).
+3. Añadir ofertas que encuentres: `POST /api/empleo` con
+   `{"ops":[{"op":"offers.add","offers":[{"source":"claude","ext":"<url>","title":"…","company":"…","location":"…","url":"…","posted":"YYYY-MM-DD","score":80,"reasons":["Selección / TA","Oferta en inglés"],"lang":"en","track":"A","note":"por qué encaja"}]}]}`.
+   Puntúa como `scoreOffer` (puedes importarlo y pasarle título y descripción).
+4. Carta de presentación o notas para una oferta: `{"op":"offer.put","offer":{"id":"<id>","letter":"Dear …","note":"…","cv":"CV-B"}}`.
+   Cartas en inglés y cortas. El repo es público: el CV y la situación de María no van aquí; pídeselos a César.
+5. Registrar una candidatura: `{"op":"app.put","app":{"company":"…","title":"…","date":"YYYY-MM-DD","time":"HH:MM","offer":"<id oferta>","channel":"Web empresa","cv":"CV-A","location":"madrid","daysPosted":2,"lang":"en","message":true}}`;
+   cambiar de fase: `{"op":"app.put","app":{"id":"<id>","phase":"interview"}}` (fases en `PHASES`).
+6. Cuenta a César qué has cambiado. `node --test tests/empleo.test.mjs` cubre el modelo, el robot y la API.

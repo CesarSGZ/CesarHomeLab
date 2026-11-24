@@ -1,0 +1,40 @@
+name: Empleo · buscar ofertas
+
+# Busca ofertas de RRHH / Talent Acquisition para María cerca de Múnich e Ingolstadt y las sube a
+# Mission Control (/control/#empleo). Cuatro veces al día entre semana y una el fin de semana.
+# La llave es el secreto EMPLEO_KEY (se crea en Empleo → Ajustes → «Llave para Claude y el robot»).
+on:
+  schedule:
+    - cron: '15 6,10,14,18 * * 1-5'
+    - cron: '15 9 * * 0,6'
+  workflow_dispatch:
+    inputs:
+      dias:
+        description: 'Días hacia atrás en la Agencia de Empleo (30 la primera vez)'
+        default: '7'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: empleo-buscar
+  cancel-in-progress: false
+
+jobs:
+  buscar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Buscar y subir ofertas
+        env:
+          EMPLEO_KEY: ${{ secrets.EMPLEO_KEY }}
+          EMPLEO_DIAS: ${{ inputs.dias || '7' }}
+        run: |
+          if [ -z "$EMPLEO_KEY" ]; then echo "Falta el secreto EMPLEO_KEY"; exit 1; fi
+          node scripts/empleo-buscar.mjs

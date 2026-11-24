@@ -479,6 +479,7 @@ async function initialiseControl(){
 if(hasCapability('finance:read'))window.FinanceLab?.initialise(csrfToken);
   if(hasCapability('todo:read'))window.TodoLab?.initialise(csrfToken);
   if(hasCapability('mudanza:read'))window.MudanzaLab?.initialise(csrfToken);
+  if(hasCapability('empleo:read'))window.EmpleoLab?.initialise(csrfToken);
   if(hasCapability('servercesar:read')){window.ServerCesarPending={csrf:csrfToken,canWake:hasCapability('servercesar:wake')};window.ServerCesar?.initialise(csrfToken,hasCapability('servercesar:wake'))}
   if(hasCapability('backtest:read')){window.BacktestLabPending=csrfToken;window.BacktestLab?.initialise(csrfToken)}
   if(hasCapability('thermal:read'))await loadThermalLab();
