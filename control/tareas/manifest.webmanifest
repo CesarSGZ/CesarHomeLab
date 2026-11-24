@@ -8,15 +8,57 @@
   "display": "standalone",
   "orientation": "portrait",
   "lang": "es",
-  "background_color": "#1b1a19",
-  "theme_color": "#1b1a19",
+  "background_color": "#071015",
+  "theme_color": "#071015",
   "icons": [
-    { "src": "/assets/tareas-192.png", "sizes": "192x192", "type": "image/png" },
-    { "src": "/assets/tareas-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
-    { "src": "/assets/tareas-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+    {
+      "src": "/assets/tareas-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/assets/tareas-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/assets/tareas-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
   ],
   "shortcuts": [
-    { "name": "Mi día", "url": "/control/tareas/#myday", "icons": [{ "src": "/assets/tareas-192.png", "sizes": "192x192" }] },
-    { "name": "Planeado", "short_name": "Fechas", "url": "/control/tareas/#planned", "icons": [{ "src": "/assets/tareas-192.png", "sizes": "192x192" }] }
+    {
+      "name": "Hoy",
+      "url": "/control/tareas/#hoy",
+      "icons": [
+        {
+          "src": "/assets/tareas-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Listas",
+      "url": "/control/tareas/#listas",
+      "icons": [
+        {
+          "src": "/assets/tareas-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Rutinas",
+      "url": "/control/tareas/#rutinas",
+      "icons": [
+        {
+          "src": "/assets/tareas-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    }
   ]
 }
