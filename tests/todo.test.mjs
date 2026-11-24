@@ -261,3 +261,31 @@ test("Claude's door: only with the key, reads a summary and updates a checklist 
   assert.equal((await ask(null, second.key)).status, 401);
   assert.equal(typeof summary, 'function');
 });
+
+test('lists prepared by Claude are added once and stay deleted if removed', async () => {
+  const {SEEDS} = await import('../control/todo-seeds.js');
+  const seed = SEEDS.find(x => x.id === 'ingolstadt-2026-11');
+  let doc = applyOps(emptyDoc(), [{op: 'seed', id: seed.id, lists: seed.lists}]);
+  const list = doc.lists.find(l => l.id === 'ingolstadt');
+  assert.equal(list.kind, 'project');
+  assert.ok(list.tasks.length >= 15);
+  assert.ok(list.tasks.every(t => t.section), 'every item has a section');
+  assert.equal(list.tasks.find(t => t.id === 'ing-anmeldung').due, '2027-01-15');
+  assert.deepEqual(applyOps(doc, [{op: 'seed', id: seed.id, lists: seed.lists}]), doc);
+  doc = applyOps(doc, [{op: 'list.delete', id: 'ingolstadt'}, {op: 'seed', id: seed.id, lists: seed.lists}]);
+  assert.ok(!doc.lists.some(l => l.id === 'ingolstadt'));
+});
+
+test('pasting the Ingolstadt checklist from a chat updates the prepared list instead of duplicating it', async () => {
+  const {SEEDS} = await import('../control/todo-seeds.js');
+  const seed = SEEDS[0];
+  let doc = applyOps(emptyDoc(), [{op: 'seed', id: seed.id, lists: seed.lists}]);
+  const before = doc.lists.find(l => l.id === 'ingolstadt').tasks.length;
+  const pasted = fromText('# Mudanza a Ingolstadt\n## Papeles en Alemania\n- [x] Contrato alemán con Airbus firmado\n- [ ] Pedir cita para la Anmeldung 10/12', '2026-11-24');
+  doc = applyOps(doc, [{op: 'import', update: true, lists: pasted.map(l => ({...l, kind: 'project'}))}]);
+  const list = doc.lists.find(l => l.id === 'ingolstadt');
+  assert.equal(doc.lists.filter(l => /Ingolstadt/.test(l.name)).length, 1);
+  assert.equal(list.tasks.length, before + 1);
+  assert.equal(list.tasks.find(t => t.id === 'ing-contract').done, true);
+  assert.equal(list.tasks.at(-1).section, 'Papeles en Alemania');
+});
