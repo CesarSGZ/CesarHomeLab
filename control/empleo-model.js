@@ -16,9 +16,11 @@ export const TRACKS = {
 };
 export const CHANNELS = ['LinkedIn Easy Apply', 'LinkedIn → web empresa', 'Web empresa', 'StepStone', 'Indeed', 'Agencia de Empleo', 'Arbeitnow', 'englishjobs.de', 'Referido', 'Me contactó un recruiter', 'Otro'];
 export const LOCATIONS = { madrid: 'Madrid (relocating)', munich: 'Munich / Ingolstadt' };
-// How far an application got. Everything after 'rejected' counts as an interview, even if it ended in a no.
+// How far an application got. Everything after 'ghosted' counts as an interview, even if it ended in a no.
+// 'ghosted' is set by the robot: more than a month with no answer and nobody touched it.
 export const PHASES = {
   sent: 'Enviada',
+  ghosted: 'Sin respuesta (+1 mes)',
   rejected: 'Rechazo sin entrevista',
   screen: 'Llamada de recruiter',
   interview: 'Entrevista',
@@ -90,6 +92,7 @@ export function normApp(a) {
     open: a.open !== false,
     replyDate: oneOf(a.replyDate, DATE),
     followed: oneOf(a.followed, DATE),
+    touched: oneOf(a.touched, DATE),
     notes: str(a.notes, 4000),
   };
 }
@@ -97,9 +100,14 @@ export function normApp(a) {
 const normCv = c => {
   const id = str(c?.id, 20);
   if (!id) throw new Error('invalid_cv');
-  return { id, date: oneOf(c.date, DATE), what: str(c.what, 300) };
+  // The file itself lives in its own row (empleo-cv:<id>); the document keeps only what it is.
+  const f = c.file && typeof c.file === 'object' ? c.file : null;
+  const file = f && str(f.name, 120) ? { name: str(f.name, 120), type: str(f.type, 100), size: int(f.size, 0, 5e6) ?? 0, uploaded: str(f.uploaded, 30) } : null;
+  return { id, date: oneOf(c.date, DATE), what: str(c.what, 300), ...(file ? { file } : {}) };
 };
-const sameOffer = (a, b) => (a.ext && b.ext && a.source === b.source && a.ext === b.ext) || (a.url && b.url && a.url === b.url);
+// Same source id, or the same link when one has no id (one added by hand or by Claude). Two robot offers can share a link
+// (a company's general careers page) and still be different jobs.
+const sameOffer = (a, b) => (a.ext && b.ext ? a.source === b.source && a.ext === b.ext : !!a.url && a.url === b.url);
 
 // The robot runs several times a day and sends everything it sees: an offer already known keeps what was done
 // with it (saved, discarded, notes, letter) and only its facts are refreshed.
@@ -144,7 +152,8 @@ export function applyOps(doc, ops) {
       }
       case 'app.delete': d.apps = d.apps.filter(a => a.id !== op.id); break;
       case 'cv.put': {
-        const c = normCv(op.cv), i = d.cvs.findIndex(x => x.id === c.id);
+        const i = d.cvs.findIndex(x => x.id === op.cv?.id);
+        const c = normCv(i < 0 ? op.cv : { ...d.cvs[i], ...op.cv });
         if (i < 0) d.cvs.push(c); else d.cvs[i] = c;
         break;
       }
@@ -164,11 +173,11 @@ export function applyOps(doc, ops) {
 
 // ---------- Reading an offer: does it fit María? ----------
 // Rules, not magic: each point has a reason shown on the card, so a wrong score is easy to spot and fix.
-const HR_TITLE = /\b(talent|recruit|recruiting|recruiter|sourcer|talent sourcing|active sourcing|hiring|people (operations|partner|specialist|&|and)|hr\b|human resources|personal(referent|sachbearbeiter|wesen|berater|management|abteilung|recruit)|employer branding|onboarding|payroll|nómina|nominas|candidate)/i;
+const HR_TITLE = /\b(talent (acquisition|partner|manag|lead|specialist|sourc|attraction|scout|advisor|consultant)|recruit|recruiting|recruiter|sourcer|talent sourcing|active sourcing|hiring|people (operations|partner|specialist|&|and)|hr\b|human resources|personal(referent|sachbearbeiter|wesen|berater|management|abteilung|recruit)|employer branding|onboarding|payroll|nómina|nominas|candidate)/i;
 const TA_TITLE = /\b(talent acquisition|recruit|sourcer|talent sourcing|active sourcing|hiring|employer branding|early careers|university relations|campus)/i;
 const HR_GEN_TITLE = /\b(hr generalist|people operations|people partner|hr business partner|hrbp|hr specialist|hr manager|hr operations|hr coordinator|hr consultant|people specialist|onboarding)/i;
 const DE_HR_TITLE = /\b(personal(referent|sachbearbeiter|wesen|berater)|lohn|gehalt|entgelt)/i;
-const OUT_TITLE = /\b(praktik|praktikum|intern(ship)?\b|werkstudent|working student|ausbildung|azubi|trainee|minijob|thesis|abschlussarbeit|volunteer)/i;
+const OUT_TITLE = /\b(talent pool|praktik|praktikum|intern(ship)?\b|werkstudent|working student|ausbildung|azubi|trainee|minijob|thesis|abschlussarbeit|volunteer)/i;
 const SENIOR_TITLE = /\b(head of|director|vp\b|vice president|chief|leiter|leitung|teamlead|team lead)/i;
 const AGENCY = /\b(personalberatung|personaldienstleist|personalvermittlung|zeitarbeit|arbeitnehmerüberlassung|recruitment agency|staffing|headhunt|executive search|hays|randstad|adecco|manpower|michael page|robert walters|gi group)/i;
 const PAYROLL_ES = /\b(payroll|nómina|nominas|compensation)\b[\s\S]{0,80}\b(spain|spanish|iberia|españa)|\b(spain|spanish|iberia|españa)\b[\s\S]{0,80}\b(payroll|nómina|nominas)/i;
@@ -214,7 +223,7 @@ export function scoreOffer(o) {
 }
 
 // ---------- Results: what is working ----------
-export const isReply = a => a.phase !== 'sent';
+export const isReply = a => a.phase !== 'sent' && a.phase !== 'ghosted';
 export const isInterview = a => INTERVIEW.has(a.phase);
 export const daysBetween = (a, b) => Math.round((Date.parse(b + 'T12:00:00Z') - Date.parse(a + 'T12:00:00Z')) / 864e5);
 const WEEKDAYS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
@@ -226,14 +235,20 @@ export const hourBand = time => {
 };
 export const weekday = date => (date ? WEEKDAYS[new Date(date + 'T12:00:00Z').getUTCDay()] : '');
 
-// Follow-up after 7 days without an answer; after 21 it is given up (but still counted).
+// Follow-up after 7 days without an answer (once). More than a month since it was sent, last touched or followed up,
+// still without an answer: it is given up ('lost'), and the robot closes it as 'ghosted'.
+export const GIVE_UP_DAYS = 30;
 export function followUp(a, today) {
   if (!a.open || a.phase !== 'sent' || !a.date) return '';
-  // Once the follow-up message is sent, it waits 14 more days before giving up.
-  if (a.followed) return daysBetween(a.followed, today) >= 14 ? 'lost' : '';
-  const n = daysBetween(a.date, today);
-  return n >= 21 ? 'lost' : n >= 7 ? 'follow' : '';
+  const last = [a.date, a.touched, a.followed].filter(Boolean).sort().at(-1);
+  if (daysBetween(last, today) > GIVE_UP_DAYS) return 'lost';
+  return !a.followed && daysBetween(a.date, today) >= 7 ? 'follow' : '';
 }
+export const closeGhosted = (doc, today) => (doc.apps || []).filter(a => followUp(a, today) === 'lost')
+  .map(a => ({ op: 'app.put', app: { id: a.id, phase: 'ghosted', open: false } }));
+
+// Only offers María can take: written in English (or unknown) and not asking for German.
+export const fits = o => o.lang !== 'de' && o.german !== 'required';
 
 export const DIMENSIONS = [
   { key: 'cv', label: 'Versión de CV', value: a => a.cv },

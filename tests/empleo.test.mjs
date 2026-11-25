@@ -1,10 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {applyOps, emptyDoc, scoreOffer, language, stats, followUp, summary, insights, groupBy, DIMENSIONS} from '../control/empleo-model.js';
+import {applyOps, emptyDoc, scoreOffer, language, stats, followUp, summary, insights, groupBy, DIMENSIONS, closeGhosted, fits, isReply} from '../control/empleo-model.js';
 import {onRequest as page} from '../functions/control/api/empleo/status.js';
 import {onRequest as door} from '../functions/api/empleo.js';
 import {accessForUser} from '../functions/_lib/auth.js';
-import {fromBA, fromArbeitnow} from '../scripts/empleo-buscar.mjs';
+import {fromBA, fromArbeitnow, stillFits} from '../scripts/empleo-buscar.mjs';
 
 // A tiny D1 stand-in with the conditional update, the upsert and the delete the stores rely on.
 function fakeEnv() {
@@ -73,14 +73,28 @@ test('offers: the robot sends them again and again, what was done with them stay
   assert.equal(applyOps(doc, [{op: 'offer.put', offer: {id, url: 'javascript:alert(1)'}}]).offers.find(o => o.id === id).url, '');
 });
 
-test('follow-ups after a week, given up after three; a sent follow-up waits two more weeks', () => {
+test('follow-up after a week; more than a month untouched and unanswered closes it as «sin respuesta»', () => {
   const a = {open: true, phase: 'sent', date: '2026-11-01'};
   assert.equal(followUp(a, '2026-11-05'), '');
   assert.equal(followUp(a, '2026-11-08'), 'follow');
-  assert.equal(followUp(a, '2026-11-22'), 'lost');
-  assert.equal(followUp({...a, followed: '2026-11-09'}, '2026-11-15'), '');
-  assert.equal(followUp({...a, followed: '2026-11-09'}, '2026-11-23'), 'lost');
-  assert.equal(followUp({...a, phase: 'screen'}, '2026-11-20'), '');
+  assert.equal(followUp({...a, followed: '2026-11-09'}, '2026-11-15'), '', 'one follow-up is enough');
+  assert.equal(followUp(a, '2026-12-01'), 'follow', 'day 30 is still waiting');
+  assert.equal(followUp(a, '2026-12-02'), 'lost');
+  assert.equal(followUp({...a, touched: '2026-11-20'}, '2026-12-02'), 'follow', 'touched recently: not yet');
+  assert.equal(followUp({...a, followed: '2026-11-09'}, '2026-12-10'), 'lost');
+  assert.equal(followUp({...a, phase: 'screen'}, '2027-01-20'), '', 'only applications still waiting');
+  let doc = applyOps(emptyDoc(), [
+    {op: 'app.put', app: {id: 'old', company: 'A', date: '2026-10-01'}},
+    {op: 'app.put', app: {id: 'kept', company: 'B', date: '2026-10-01', touched: '2026-11-20'}},
+    {op: 'app.put', app: {id: 'new', company: 'C', date: '2026-11-20'}},
+  ]);
+  const ops = closeGhosted(doc, '2026-11-25');
+  assert.deepEqual(ops.map(o => o.app.id), ['old']);
+  doc = applyOps(doc, ops);
+  const old = doc.apps.find(a => a.id === 'old');
+  assert.deepEqual([old.phase, old.open, old.touched], ['ghosted', false, ''], 'the robot does not count as touching it');
+  assert.equal(isReply(old), false);
+  assert.equal(stats(doc, '2026-11-25').replies, 0);
 });
 
 test('results: rates by what was tried, and a sentence only when there is enough data', () => {
@@ -122,4 +136,67 @@ test('API: only the owner, CSRF on writes; the door needs its own key', async ()
   await page({request: post({action: 'agent-revoke'}), env, data: owner});
   assert.equal((await ask(null, key)).status, 401);
   assert.ok(!env.rows.has('todo'), 'Empleo never touches Tareas');
+});
+
+test('after the first real run: no talent pools, no remote jobs abroad, and shared careers links stay separate offers', () => {
+  const now = new Date('2026-11-25T08:00:00Z');
+  assert.equal(scoreOffer({title: 'Senior UI/ UX Artist Freelance Talent Pool (2027)', description: EN_TA}), null);
+  assert.equal(scoreOffer({title: 'Senior Rendering Engineer - Talent Network'}), null);
+  const job = {slug: 'x', title: 'Talent Acquisition Partner', company_name: 'A', remote: true, url: 'https://www.arbeitnow.com/jobs/x', description: EN_TA};
+  assert.equal(fromArbeitnow({...job, location: 'Netherlands'}, now), null);
+  // Only the Munich area and around Ingolstadt, remote or not.
+  assert.equal(fromArbeitnow({...job, location: 'Remote job'}, now), null);
+  assert.equal(fromArbeitnow({...job, location: 'Berlin'}, now), null);
+  assert.ok(fromArbeitnow({...job, location: 'Munich'}, now));
+  assert.ok(fromArbeitnow({...job, location: 'Ingolstadt'}, now));
+  const careers = 'https://jobs.korian.de/';
+  const doc = applyOps(emptyDoc(), [{op: 'offers.add', offers: [
+    {source: 'ba', ext: 'n', title: 'Regional Recruiting Manager Nord', url: careers},
+    {source: 'ba', ext: 'w', title: 'Regional Recruiting Manager West', url: careers},
+  ]}]);
+  assert.equal(doc.offers.length, 2);
+  // Without an id (added by hand), the same link is the same offer.
+  const link = 'https://www.linkedin.com/jobs/view/1';
+  assert.equal(applyOps(emptyDoc(), [{op: 'offers.add', offers: [{source: 'manual', title: 'Recruiter', url: link}, {source: 'claude', title: 'Recruiter', url: link}]}]).offers.length, 1);
+});
+
+test('nothing that asks for German or is written in German; old ones are cleaned up', () => {
+  const now = new Date('2026-11-25T08:00:00Z');
+  assert.equal(fits({lang: 'en', german: 'plus'}), true);
+  assert.equal(fits({lang: 'de'}), false);
+  assert.equal(fits({lang: 'en', german: 'required'}), false);
+  const item = {refnr: 'r1', stellenangebotsTitel: 'Recruiter (m/w/d)', firma: 'X', stellenlokationen: [{adresse: {ort: 'München'}}]};
+  assert.equal(fromBA(item, {stellenangebotsBeschreibung: 'Wir suchen dich für unser Team und die Personalabteilung mit einer tollen Kultur und der besten Zukunft.'}, now), null);
+  assert.equal(fromBA({...item, stellenangebotsTitel: 'People Operations Specialist'}, {stellenangebotsBeschreibung: DE_REQ}, now), null);
+  assert.ok(fromBA({...item, stellenangebotsTitel: 'Talent Acquisition Partner'}, {stellenangebotsBeschreibung: EN_TA}, now));
+  assert.equal(stillFits({source: 'ba', title: 'Recruiter', lang: 'de'}), false);
+  assert.equal(stillFits({source: 'arbeitnow', title: 'Recruiter', lang: 'en', location: 'Remote job'}), false);
+  assert.equal(stillFits({source: 'ba', title: 'Recruiter', lang: 'en'}), true);
+  assert.equal(stillFits({source: 'claude', title: 'Lo que sea', lang: 'de'}), true, 'what Claude or César added is never removed');
+});
+
+test('each CV version keeps its file: upload, download, replace and delete', async () => {
+  const env = fakeEnv();
+  const pdf = Buffer.from('%PDF-1.4 cv de prueba').toString('base64');
+  let r = await page({request: post({action: 'cv-upload', id: 'CV-A', name: 'CV María.pdf', type: 'application/pdf', data: pdf}), env, data: owner});
+  assert.equal(r.status, 200);
+  const cv = (await r.json()).cvs.find(c => c.id === 'CV-A');
+  assert.equal(cv.what, 'Versión base en inglés', 'uploading keeps the description');
+  assert.deepEqual([cv.file.name, cv.file.size, cv.file.type], ['CV María.pdf', 21, 'application/pdf']);
+  assert.ok(!env.rows.get('empleo').payload.includes(pdf), 'the file is not inside the document');
+  const down = await page({request: new Request('https://x/control/api/empleo/status?cv=CV-A'), env, data: owner});
+  assert.equal(down.headers.get('content-type'), 'application/pdf');
+  assert.match(down.headers.get('content-disposition'), /attachment; filename\*=UTF-8''CV%20Mar%C3%ADa\.pdf/);
+  assert.equal(Buffer.from(await down.arrayBuffer()).toString(), '%PDF-1.4 cv de prueba');
+  // Editing the description keeps the file.
+  r = await page({request: post({ops: [{op: 'cv.put', cv: {id: 'CV-A', what: 'Base'}}]}), env, data: owner});
+  assert.equal((await r.json()).cvs[0].file.name, 'CV María.pdf');
+  assert.equal((await page({request: post({action: 'cv-upload', id: 'CV-A', name: 'x.exe', type: 'application/x-msdownload', data: pdf}), env, data: owner})).status, 400);
+  assert.equal((await page({request: post({action: 'cv-upload', id: '../x', name: 'a.pdf', type: 'application/pdf', data: pdf}), env, data: owner})).status, 400);
+  const big = Buffer.alloc(1_300_001).toString('base64');
+  assert.equal((await page({request: post({action: 'cv-upload', id: 'CV-A', name: 'a.pdf', type: 'application/pdf', data: big}), env, data: owner})).status, 413);
+  assert.equal((await page({request: new Request('https://x/?cv=CV-A'), env, data: {session: {user: {username: 'supersanti86'}}}})).status, 403);
+  await page({request: post({ops: [{op: 'cv.delete', id: 'CV-A'}]}), env, data: owner});
+  assert.ok(!env.rows.has('empleo-cv:CV-A'));
+  assert.equal((await page({request: new Request('https://x/?cv=CV-A'), env, data: owner})).status, 404);
 });

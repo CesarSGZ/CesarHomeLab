@@ -7,7 +7,7 @@
 //   node scripts/empleo-buscar.mjs            (prueba en local; EMPLEO_DIAS=30 mira un mes atrás)
 //   EMPLEO_KEY=empleo_... node scripts/empleo-buscar.mjs
 import { fileURLToPath } from 'node:url';
-import { scoreOffer } from '../control/empleo-model.js';
+import { scoreOffer, fits, closeGhosted } from '../control/empleo-model.js';
 
 const SITE = process.env.EMPLEO_SITE || 'https://cesar-solla.pages.dev';
 const BA = 'https://rest.arbeitsagentur.de/jobboerse/jobsuche-service';
@@ -16,6 +16,8 @@ export const QUERIES = ['Talent Acquisition', 'Recruiter', 'Recruiting', 'HR Gen
 export const PLACES = [{ wo: 'München', umkreis: 40 }, { wo: 'Ingolstadt', umkreis: 35 }];
 export const NEAR = /m(ü|u|ue)nchen|munich|ingolstadt|garching|unterschlei(ß|ss)heim|ottobrunn|taufkirchen|neubiberg|freising|erding|manching|pfaffenhofen|eching|ismaning|aschheim|feldkirchen|planegg|martinsried|gr(ä|a)felfing|starnberg|dachau|f(ü|u)rstenfeldbruck|bavaria|bayern/i;
 export const MIN_SCORE = 35;
+// For offers already uploaded: the robot's own ones are checked again with today's rules.
+export const stillFits = o => !['ba', 'arbeitnow'].includes(o.source) || (!!scoreOffer({ title: o.title }) && fits(o) && (o.source !== 'arbeitnow' || NEAR.test(o.location || '')));
 const MAX_DETAILS = 90;
 
 const clean = html => String(html || '').replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&#39;|&apos;/g, "'").replace(/&quot;/g, '"').replace(/\*\*/g, '').replace(/\s+/g, ' ').trim();
@@ -34,19 +36,20 @@ export function fromBA(item, detail = {}, now = new Date()) {
   };
   if (!base.ext || !base.title) return null;
   const s = scoreOffer({ ...base, description });
-  return s && s.score >= MIN_SCORE ? { ...base, ...s, snippet: description.slice(0, 500) } : null;
+  return s && s.score >= MIN_SCORE && fits(s) ? { ...base, ...s, snippet: description.slice(0, 500) } : null;
 }
 
 // An Arbeitnow job as an Empleo offer, or null if it is not near Munich/Ingolstadt (or remote) or does not fit.
 export function fromArbeitnow(job, now = new Date()) {
-  if (!job?.slug || !(NEAR.test(job.location || '') || job.remote)) return null;
+  // Only in the Munich area or around Ingolstadt (remote or not).
+  if (!job?.slug || !NEAR.test(job.location || '')) return null;
   const description = clean(job.description);
   const base = {
     source: 'arbeitnow', ext: job.slug, title: clean(job.title), company: clean(job.company_name), location: clean(job.location),
     url: job.url, posted: job.created_at ? new Date(job.created_at * 1000).toISOString().slice(0, 10) : '', remote: !!job.remote, found: now.toISOString(),
   };
   const s = scoreOffer({ ...base, description });
-  return s && s.score >= MIN_SCORE ? { ...base, ...s, snippet: description.slice(0, 500) } : null;
+  return s && s.score >= MIN_SCORE && fits(s) ? { ...base, ...s, snippet: description.slice(0, 500) } : null;
 }
 
 async function getJson(url, headers = {}) {
@@ -103,8 +106,17 @@ async function api(method, body) {
 export async function main() {
   const live = !!process.env.EMPLEO_KEY;
   const known = new Set();
-  if (live) for (const o of (await api('GET')).offers || []) known.add(`${o.source}:${o.ext}`);
   const at = new Date().toISOString(), ops = [], found = [];
+  const doc = live ? await api('GET') : { offers: [], apps: [] };
+  for (const o of doc.offers || []) {
+    // A new robot offer that no longer passes the rules (they got stricter) is removed, not kept forever.
+    if (o.status === 'new' && !stillFits(o)) { ops.push({ op: 'offer.delete', id: o.id }); continue; }
+    known.add(`${o.source}:${o.ext}`);
+  }
+  if (ops.length) console.log(`Quitadas ${ops.length} ofertas que ya no encajan`);
+  // Applications with no answer for more than a month, untouched, are closed as «sin respuesta».
+  const ghosted = closeGhosted(doc, new Date().toISOString().slice(0, 10));
+  if (ghosted.length) { ops.push(...ghosted); console.log(`Cerradas ${ghosted.length} candidaturas sin respuesta en un mes`); }
   for (const [source, run] of [['ba', searchBA], ['arbeitnow', searchArbeitnow]]) {
     try {
       const { seen, offers } = await run(known);

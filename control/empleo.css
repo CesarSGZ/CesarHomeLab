@@ -172,8 +172,23 @@ html .em.em .em-field :is(input,select,textarea):focus{border-color:var(--cyan)}
   .em-two,.em-grid{grid-template-columns:1fr}
   .em-bar{grid-template-columns:110px minmax(0,1fr) 30px}
   .em-cv{grid-template-columns:52px minmax(0,1fr) auto}
-  .em-cv small{display:none}
+  .em-cv>small{display:none}
   .em-sheet-wrap{align-items:flex-end;padding:0}
   .em-sheet{width:100%;max-height:92dvh;border-radius:22px 22px 0 0;padding-bottom:calc(18px + env(safe-area-inset-bottom))}
 }
 @media (prefers-reduced-motion:reduce){.em *{animation:none!important;transition:none!important}}
+
+/* Sheets are moved to <body> (control/empleo.js explains why): same tokens, full-screen backdrop. */
+.em.em-portal{max-width:none;margin:0}
+@media(max-width:640px){
+  .em-portal .em-grid{grid-template-columns:1fr}
+  .em-portal .em-sheet-wrap{align-items:flex-end;padding:0}
+  .em-portal .em-sheet{width:100%;max-height:92dvh;border-radius:22px 22px 0 0;padding-bottom:calc(18px + env(safe-area-inset-bottom))}
+}
+/* CV versions with their file. */
+.em-cv span{display:grid;gap:1px;min-width:0}
+.em-file{font:500 11px 'DM Mono',monospace;color:var(--ok);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.em-file.none{color:var(--muted)}
+.em-cv-acts{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:2px 12px}
+.em a.em-link{display:inline-flex;align-items:center;text-decoration:none}
+@container em (max-width:640px){.em-cv{grid-template-columns:52px minmax(0,1fr)}.em-cv-acts{grid-column:1/-1;justify-content:flex-start}}
