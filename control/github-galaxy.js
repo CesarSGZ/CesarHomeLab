@@ -3,7 +3,7 @@
   let initialisation;
   window.GitHubGalaxy = { initialise: () => initialisation ||= start() };
   async function start() {
-    const { ZONES, NODES, KINDS, PROCESSES, neighboursOf, activeFiles, REPOSITORY, BRANCH } = await import('./galaxy-model.js?v=20261110mapa');
+    const { ZONES, NODES, KINDS, PROCESSES, neighboursOf, activeFiles, REPOSITORY, BRANCH } = await import('./galaxy-model.js?v=20261125empleo');
     const byId = id => document.getElementById(id), view = byId('github');
     const reduced = matchMedia('(prefers-reduced-motion: reduce)'), compact = matchMedia('(max-width: 900px)');
     const E = value => String(value ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
