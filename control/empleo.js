@@ -55,11 +55,18 @@
 
   // ---------- Frame ----------
   let root;
+  // Sheets live in <body>: #empleo-app is a size container, and inside one "position: fixed" is not fixed to the
+  // screen (on a phone the form ended up below the visible page, behind the dark backdrop).
+  const portal = document.createElement('div');
+  portal.className = 'em em-portal';
+  portal.innerHTML = '<div class="em-sheet-wrap" id="em-sheet" hidden></div>';
+  document.body.append(portal);
+  const on = (type, fn) => [app, portal].forEach(el => el.addEventListener(type, fn));
   function paint() {
     if (!S.doc) return;
     try {
       if (!root) {
-        app.innerHTML = '<div class="em" id="em"><header class="em-head" id="em-head"></header><div class="em-body" id="em-body"></div><div class="em-sheet-wrap" id="em-sheet" hidden></div><p class="em-status" id="em-status" role="status"></p></div>';
+        app.innerHTML = '<div class="em" id="em"><header class="em-head" id="em-head"></header><div class="em-body" id="em-body"></div><p class="em-status" id="em-status" role="status"></p></div>';
         root = document.getElementById('em');
       }
       const t = today(), st = model.stats(S.doc, t);
@@ -143,13 +150,13 @@
         <div class="em-chips"><button data-act="app-filter" data-id="open" aria-pressed="${S.appFilter === 'open'}">En marcha</button><button data-act="app-filter" data-id="all" aria-pressed="${S.appFilter === 'all'}">Todas <b>${S.doc.apps.length}</b></button></div>
         <div class="em-actions"><button class="em-btn" data-act="new-app">+ Candidatura</button></div>
       </div>
-      ${follow.length ? `<div class="em-alert"><b>Toca follow-up (${follow.length})</b><p>Una semana sin respuesta: un mensaje corto al recruiter por LinkedIn reactiva muchas.</p><ul>${follow.map(a => `<li><button class="em-link" data-act="edit-app" data-id="${a.id}">${E(a.company)} · ${E(a.title)}</button><small>${ago(a.date)}</small><button class="em-link" data-act="followed" data-id="${a.id}">Hecho</button></li>`).join('')}</ul></div>` : ''}
+      ${follow.length ? `<div class="em-alert"><b>Toca follow-up (${follow.length})</b><p>Una semana sin respuesta: un mensaje corto al recruiter por LinkedIn reactiva muchas. Si en un mes nadie la toca ni contestan, se cierra sola como «Sin respuesta».</p><ul>${follow.map(a => `<li><button class="em-link" data-act="edit-app" data-id="${a.id}">${E(a.company)} · ${E(a.title)}</button><small>${ago(a.date)}</small><button class="em-link" data-act="followed" data-id="${a.id}">Hecho</button></li>`).join('')}</ul></div>` : ''}
       ${apps.length ? `<div class="em-apps">${apps.map(a => {
         const f = model.followUp(a, t);
         return `<article class="em-app ${model.isInterview(a) ? 'win' : ''} ${a.open ? '' : 'closed'}">
           <button class="em-app-main" data-act="edit-app" data-id="${a.id}">
             <strong>${E(a.company)}</strong><span>${E(a.title)}</span>
-            <small>${short(a.date)}${a.time ? ` ${a.time}` : ''}${a.cv ? ` · ${E(a.cv)}` : ''}${a.channel ? ` · ${E(a.channel)}` : ''}${a.message ? ' · con mensaje' : ''}${f === 'follow' ? ' · <b class="hot">follow-up</b>' : f === 'lost' ? ' · sin respuesta' : ''}</small>
+            <small>${short(a.date)}${a.time ? ` ${a.time}` : ''}${a.cv ? ` · ${E(a.cv)}` : ''}${a.channel ? ` · ${E(a.channel)}` : ''}${a.message ? ' · con mensaje' : ''}${f === 'follow' ? ' · <b class="hot">follow-up</b>' : f === 'lost' ? ' · más de un mes sin respuesta' : ''}</small>
           </button>
           ${phaseSelect(a)}
         </article>`;
@@ -180,7 +187,7 @@
     const name = { ba: 'Agencia de Empleo alemana', arbeitnow: 'Arbeitnow (en inglés)' };
     return `<section class="em-panel"><h2>Versiones del CV</h2>
         <p class="em-hint">Cada vez que cambies el CV, crea una versión nueva y apunta qué cambia. Al registrar una candidatura eliges con cuál fue.</p>
-        <div class="em-cvs">${S.doc.cvs.map(c => `<div class="em-cv"><b>${E(c.id)}</b><span>${E(c.what) || '—'}</span><small>${short(c.date)}</small><button class="em-link" data-act="edit-cv" data-id="${E(c.id)}">Editar</button></div>`).join('')}</div>
+        <div class="em-cvs">${S.doc.cvs.map(c => `<div class="em-cv"><b>${E(c.id)}</b><span>${E(c.what) || '—'}${c.file ? `<small class="em-file">${E(c.file.name)} · ${Math.max(1, Math.round(c.file.size / 1024))} KB</small>` : '<small class="em-file none">Sin fichero</small>'}</span><small>${short(c.date)}</small><div class="em-cv-acts">${c.file ? `<a class="em-link" href="${API}?cv=${encodeURIComponent(c.id)}" download>Descargar</a>` : ''}<button class="em-link" data-act="pick-cv" data-id="${E(c.id)}">${c.file ? 'Cambiar' : 'Subir'}</button><button class="em-link" data-act="edit-cv" data-id="${E(c.id)}">Editar</button></div></div>`).join('')}</div><input type="file" id="em-cv-file" accept=".pdf,.doc,.docx,application/pdf" hidden>
         <button class="em-btn" data-act="new-cv">+ Versión</button></section>
       <section class="em-panel"><h2>Robot de ofertas</h2>
         <p class="em-hint">Busca en la Agencia de Empleo alemana y en Arbeitnow cuatro veces al día entre semana (sobre las 7:15, 11:15, 15:15 y 19:15) y una el fin de semana. LinkedIn no deja leer sus ofertas a un robot: esas las busca Claude cuando se lo pidas.</p>
@@ -200,7 +207,7 @@
   const select = (name, options, value, blank = '—') => `<select name="${name}"><option value="">${blank}</option>${options.map(([k, v]) => `<option value="${E(k)}"${value === k ? ' selected' : ''}>${E(v)}</option>`).join('')}</select>`;
   function paintSheet(t) {
     const wrap = document.getElementById('em-sheet');
-    if (!S.sheet) { wrap.hidden = true; wrap.innerHTML = ''; return; }
+    if (!S.sheet || !app.closest('.view.active')) { wrap.hidden = true; wrap.innerHTML = ''; return; }
     if (!wrap.hidden && wrap.contains(document.activeElement)) return;
     wrap.hidden = false;
     const s = S.sheet;
@@ -231,7 +238,8 @@
     } else if (s.kind === 'cv') {
       wrap.innerHTML = `<form class="em-sheet" data-form="cv"><h2>${s.isNew ? 'Nueva versión del CV' : 'Versión ' + E(s.cv.id)}</h2>
         <div class="em-grid">${field('Código', input('id', s.cv.id, s.isNew ? 'required' : 'readonly'))}${field('Fecha', input('date', s.cv.date || t, 'type="date"'))}
-        ${field('Qué cambia respecto a la anterior', `<textarea name="what" rows="3">${E(s.cv.what)}</textarea>`, 'wide')}</div>
+        ${field('Qué cambia respecto a la anterior', `<textarea name="what" rows="3">${E(s.cv.what)}</textarea>`, 'wide')}
+        ${field(s.cv.file ? `Fichero (ahora: ${E(s.cv.file.name)})` : 'Fichero del CV (PDF o Word)', '<input type="file" name="file" accept=".pdf,.doc,.docx,application/pdf">', 'wide')}</div>
         <div class="em-sheet-acts"><button type="submit" class="em-btn primary">Guardar</button><button type="button" class="em-link" data-act="close">Cancelar</button>${s.isNew ? '' : `<button type="button" class="em-link danger" data-act="delete-cv" data-id="${E(s.cv.id)}">Borrar</button>`}</div></form>`;
     }
     wrap.querySelector('input,select,textarea')?.focus({ preventScroll: true });
@@ -250,11 +258,25 @@
     const last = read('last', {});
     return { id: model.newId(), offer: '', date: today(), time: nowTime(), company: '', title: '', url: '', track: last.track || '', channel: last.channel || '', cv: last.cv || S.doc.cvs.at(-1)?.id || '', location: last.location || 'madrid', daysPosted: null, lang: '', message: false, contact: '', phase: 'sent', open: true, replyDate: '', notes: '' };
   }
+  // A CV file goes up on its own (base64 in JSON); the server keeps it in its own row.
+  const TYPES = { pdf: 'application/pdf', doc: 'application/msword', docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' };
+  async function uploadCv(id, file) {
+    const type = TYPES[(file.name.split('.').pop() || '').toLowerCase()] || file.type;
+    if (!Object.values(TYPES).includes(type)) { S.error = 'Solo PDF o Word.'; return paint(); }
+    if (file.size > 1_300_000) { S.error = 'El fichero pasa de 1,3 MB: expórtalo más ligero.'; return paint(); }
+    S.flash = 'Subiendo ' + file.name + '…'; paint();
+    try {
+      const data = await new Promise((ok, ko) => { const r = new FileReader(); r.onload = () => ok(String(r.result).split(',')[1]); r.onerror = ko; r.readAsDataURL(file); });
+      S.doc = docOf(await call('POST', { action: 'cv-upload', id, name: file.name, type, data }));
+      S.error = ''; S.flash = file.name + ' guardado en ' + id + '.';
+    } catch (e) { S.error = 'No se pudo subir el CV (' + e.message + ').'; }
+    paint();
+  }
   const findApp = id => S.doc.apps.find(a => a.id === id);
   const findOffer = id => S.doc.offers.find(o => o.id === id);
 
   // ---------- Events ----------
-  app.addEventListener('click', async event => {
+  on('click', async event => {
     const b = event.target.closest('[data-act]');
     if (!b || b.tagName === 'SELECT') return;
     const { act, id } = b.dataset;
@@ -273,6 +295,7 @@
     else if (act === 'edit-cv') { const c = S.doc.cvs.find(c => c.id === id); if (c) S.sheet = { kind: 'cv', isNew: false, cv: c }; }
     else if (act === 'delete-cv') { if (confirm('¿Borrar esta versión? Las candidaturas que la usan la conservan.')) { S.sheet = null; return send({ op: 'cv.delete', id }); } return; }
     else if (act === 'close') S.sheet = null;
+    else if (act === 'pick-cv') { const input = document.getElementById('em-cv-file'); input.dataset.id = id; input.value = ''; input.click(); return; }
     else if (act === 'copy-letter') { const o = findOffer(id); try { await navigator.clipboard.writeText(o.letter); S.flash = 'Carta copiada.'; } catch { S.flash = 'No se pudo copiar.'; } }
     else if (act === 'make-key') {
       if (S.agent && !confirm('La llave anterior dejará de funcionar (también en GitHub). ¿Seguir?')) return;
@@ -282,19 +305,20 @@
     else if (act === 'copy-key') { try { await navigator.clipboard.writeText(S.newKey); S.flash = 'Llave copiada.'; } catch { S.flash = 'No se pudo copiar.'; } }
     paint();
   });
-  app.addEventListener('change', event => {
+  on('change', event => {
     const el = event.target;
+    if (el.id === 'em-cv-file' && el.files?.[0]) return uploadCv(el.dataset.id, el.files[0]);
     if (el.dataset.act === 'phase') {
       const a = findApp(el.dataset.id);
       if (!a) return;
       const change = { id: a.id, phase: el.value };
       if (el.value !== 'sent' && !a.replyDate) change.replyDate = today();
       if (el.value === 'rejected') change.open = false;
-      send({ op: 'app.put', app: change });
+      send({ op: 'app.put', app: { ...change, touched: today() } });
     }
   });
-  app.addEventListener('input', event => { if (event.target.id === 'em-q') { S.query = event.target.value; const pos = event.target.selectionStart; document.getElementById('em-body').innerHTML = paintOffers(today()); const q = document.getElementById('em-q'); q.focus(); q.setSelectionRange(pos, pos); } });
-  app.addEventListener('submit', event => {
+  on('input', event => { if (event.target.id === 'em-q') { S.query = event.target.value; const pos = event.target.selectionStart; document.getElementById('em-body').innerHTML = paintOffers(today()); const q = document.getElementById('em-q'); q.focus(); q.setSelectionRange(pos, pos); } });
+  on('submit', event => {
     event.preventDefault();
     const form = event.target, f = new FormData(form), get = k => String(f.get(k) ?? '').trim();
     if (form.dataset.form === 'app') {
@@ -302,19 +326,20 @@
       if (a.phase !== 'sent' && !a.replyDate) a.replyDate = today();
       write('last', { track: a.track, channel: a.channel, cv: a.cv, location: a.location });
       S.sheet = null;
-      send({ op: 'app.put', app: a });
+      send({ op: 'app.put', app: { ...a, touched: today() } });
     } else if (form.dataset.form === 'offer') {
       const base = { source: 'manual', title: get('title'), company: get('company'), location: get('location'), url: get('url'), posted: get('posted'), found: new Date().toISOString() };
       const s = model.scoreOffer({ ...base, description: get('description') }) || { score: 20, reasons: ['No parece de RRHH'], lang: '', german: '', spanish: false, track: '' };
       S.sheet = null; S.filter = 'new';
       send({ op: 'offer.put', offer: { ...base, ...s, id: model.newId(), snippet: get('description').slice(0, 500) } });
     } else if (form.dataset.form === 'cv') {
+      const file = f.get('file'), id = get('id');
       S.sheet = null;
-      send({ op: 'cv.put', cv: { id: get('id'), date: get('date'), what: get('what') } });
+      send({ op: 'cv.put', cv: { id, date: get('date'), what: get('what') } }).then(() => { if (file && file.size) uploadCv(id, file); });
     }
   });
   addEventListener('keydown', event => { if (event.key === 'Escape' && S.sheet) { S.sheet = null; paint(); } });
-  app.addEventListener('mousedown', event => { if (event.target.id === 'em-sheet') { S.sheet = null; paint(); } });
+  on('mousedown', event => { if (event.target.id === 'em-sheet') { S.sheet = null; paint(); } });
 
   // Mission Control's home card.
   function paintSummary(st) {
@@ -326,7 +351,7 @@
 
   window.EmpleoLab = { async initialise(token) {
     csrf = token;
-    model = await import('/control/empleo-model.js?v=20261125b');
+    model = await import('/control/empleo-model.js?v=20261125c');
     if (!['ofertas', 'candidaturas', 'resultados', 'ajustes'].includes(S.tab)) S.tab = 'ofertas';
     await refresh();
     if (!S.doc) { S.doc = model.emptyDoc(); paint(); }

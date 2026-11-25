@@ -64,7 +64,13 @@ están en `control/empleo-model.js` (`applyOps`, `scoreOffer`, `stats`); la pág
 
 - **Robot** (`scripts/empleo-buscar.mjs`, `.github/workflows/empleo-buscar.yml`): 4 veces al día entre semana lee la
   Agencia de Empleo alemana (`pc/v6/jobs` y `pc/v4/jobdetails`) y Arbeitnow, puntúa con `scoreOffer` y sube lo que
-  pasa de 35. Usa el secreto `EMPLEO_KEY`. Sin la llave, `node scripts/empleo-buscar.mjs` solo enseña lo que subiría.
+  pasa de 35 **y cumple `fits`**: solo área de Múnich e Ingolstadt, nada escrito en alemán ni que pida alemán
+  (lo pidió César). En cada pasada borra las ofertas nuevas suyas que ya no pasen las reglas (`stillFits`) y cierra
+  como `ghosted` («Sin respuesta (+1 mes)») las candidaturas enviadas que llevan más de un mes sin respuesta ni
+  cambios (`closeGhosted`; cualquier cambio desde la página pone `touched`). Usa el secreto `EMPLEO_KEY`. Sin la
+  llave, `node scripts/empleo-buscar.mjs` solo enseña lo que subiría.
+- **CVs**: cada versión guarda su fichero (PDF o Word, hasta 1,3 MB) en su propia fila de D1 (`empleo-cv:<id>`), nunca
+  en el repo. La página lo sube con `{"action":"cv-upload",...}` y lo descarga con `GET /control/api/empleo/status?cv=<id>`.
 - **LinkedIn no se lee con el robot.** Cuando César pida buscar ofertas, búscalas tú (búsqueda web) y añádelas.
 - César aplica a mano. Claude no envía candidaturas ni usa la cuenta de LinkedIn de María.
 
