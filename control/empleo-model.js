@@ -99,7 +99,9 @@ const normCv = c => {
   if (!id) throw new Error('invalid_cv');
   return { id, date: oneOf(c.date, DATE), what: str(c.what, 300) };
 };
-const sameOffer = (a, b) => (a.ext && b.ext && a.source === b.source && a.ext === b.ext) || (a.url && b.url && a.url === b.url);
+// Same source id, or the same link when one has no id (one added by hand or by Claude). Two robot offers can share a link
+// (a company's general careers page) and still be different jobs.
+const sameOffer = (a, b) => (a.ext && b.ext ? a.source === b.source && a.ext === b.ext : !!a.url && a.url === b.url);
 
 // The robot runs several times a day and sends everything it sees: an offer already known keeps what was done
 // with it (saved, discarded, notes, letter) and only its facts are refreshed.
@@ -164,11 +166,11 @@ export function applyOps(doc, ops) {
 
 // ---------- Reading an offer: does it fit María? ----------
 // Rules, not magic: each point has a reason shown on the card, so a wrong score is easy to spot and fix.
-const HR_TITLE = /\b(talent|recruit|recruiting|recruiter|sourcer|talent sourcing|active sourcing|hiring|people (operations|partner|specialist|&|and)|hr\b|human resources|personal(referent|sachbearbeiter|wesen|berater|management|abteilung|recruit)|employer branding|onboarding|payroll|nómina|nominas|candidate)/i;
+const HR_TITLE = /\b(talent (acquisition|partner|manag|lead|specialist|sourc|attraction|scout|advisor|consultant)|recruit|recruiting|recruiter|sourcer|talent sourcing|active sourcing|hiring|people (operations|partner|specialist|&|and)|hr\b|human resources|personal(referent|sachbearbeiter|wesen|berater|management|abteilung|recruit)|employer branding|onboarding|payroll|nómina|nominas|candidate)/i;
 const TA_TITLE = /\b(talent acquisition|recruit|sourcer|talent sourcing|active sourcing|hiring|employer branding|early careers|university relations|campus)/i;
 const HR_GEN_TITLE = /\b(hr generalist|people operations|people partner|hr business partner|hrbp|hr specialist|hr manager|hr operations|hr coordinator|hr consultant|people specialist|onboarding)/i;
 const DE_HR_TITLE = /\b(personal(referent|sachbearbeiter|wesen|berater)|lohn|gehalt|entgelt)/i;
-const OUT_TITLE = /\b(praktik|praktikum|intern(ship)?\b|werkstudent|working student|ausbildung|azubi|trainee|minijob|thesis|abschlussarbeit|volunteer)/i;
+const OUT_TITLE = /\b(talent pool|praktik|praktikum|intern(ship)?\b|werkstudent|working student|ausbildung|azubi|trainee|minijob|thesis|abschlussarbeit|volunteer)/i;
 const SENIOR_TITLE = /\b(head of|director|vp\b|vice president|chief|leiter|leitung|teamlead|team lead)/i;
 const AGENCY = /\b(personalberatung|personaldienstleist|personalvermittlung|zeitarbeit|arbeitnehmerüberlassung|recruitment agency|staffing|headhunt|executive search|hays|randstad|adecco|manpower|michael page|robert walters|gi group)/i;
 const PAYROLL_ES = /\b(payroll|nómina|nominas|compensation)\b[\s\S]{0,80}\b(spain|spanish|iberia|españa)|\b(spain|spanish|iberia|españa)\b[\s\S]{0,80}\b(payroll|nómina|nominas)/i;

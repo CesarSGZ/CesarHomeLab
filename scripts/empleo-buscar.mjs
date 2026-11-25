@@ -15,6 +15,7 @@ const BA_HEADERS = { 'X-API-Key': 'jobboerse-jobsuche', 'User-Agent': 'Mozilla/5
 export const QUERIES = ['Talent Acquisition', 'Recruiter', 'Recruiting', 'HR Generalist', 'People Operations', 'HR Business Partner', 'Human Resources'];
 export const PLACES = [{ wo: 'München', umkreis: 40 }, { wo: 'Ingolstadt', umkreis: 35 }];
 export const NEAR = /m(ü|u|ue)nchen|munich|ingolstadt|garching|unterschlei(ß|ss)heim|ottobrunn|taufkirchen|neubiberg|freising|erding|manching|pfaffenhofen|eching|ismaning|aschheim|feldkirchen|planegg|martinsried|gr(ä|a)felfing|starnberg|dachau|f(ü|u)rstenfeldbruck|bavaria|bayern/i;
+export const GERMANY_OR_ANYWHERE = /germany|deutschland|^\s*remote(\s+job)?\s*$|europe|emea|dach/i;
 export const MIN_SCORE = 35;
 const MAX_DETAILS = 90;
 
@@ -39,7 +40,8 @@ export function fromBA(item, detail = {}, now = new Date()) {
 
 // An Arbeitnow job as an Empleo offer, or null if it is not near Munich/Ingolstadt (or remote) or does not fit.
 export function fromArbeitnow(job, now = new Date()) {
-  if (!job?.slug || !(NEAR.test(job.location || '') || job.remote)) return null;
+  // Near Munich/Ingolstadt, or remote from Germany (a remote job in another country is not for her).
+  if (!job?.slug || !(NEAR.test(job.location || '') || (job.remote && GERMANY_OR_ANYWHERE.test(job.location || 'remote')))) return null;
   const description = clean(job.description);
   const base = {
     source: 'arbeitnow', ext: job.slug, title: clean(job.title), company: clean(job.company_name), location: clean(job.location),
@@ -103,8 +105,13 @@ async function api(method, body) {
 export async function main() {
   const live = !!process.env.EMPLEO_KEY;
   const known = new Set();
-  if (live) for (const o of (await api('GET')).offers || []) known.add(`${o.source}:${o.ext}`);
   const at = new Date().toISOString(), ops = [], found = [];
+  if (live) for (const o of (await api('GET')).offers || []) {
+    // A new robot offer whose title no longer passes the rules (they got stricter) is removed, not kept forever.
+    if (o.status === 'new' && ['ba', 'arbeitnow'].includes(o.source) && !scoreOffer({ title: o.title })) { ops.push({ op: 'offer.delete', id: o.id }); continue; }
+    known.add(`${o.source}:${o.ext}`);
+  }
+  if (ops.length) console.log(`Quitadas ${ops.length} ofertas que ya no encajan`);
   for (const [source, run] of [['ba', searchBA], ['arbeitnow', searchArbeitnow]]) {
     try {
       const { seen, offers } = await run(known);

@@ -123,3 +123,22 @@ test('API: only the owner, CSRF on writes; the door needs its own key', async ()
   assert.equal((await ask(null, key)).status, 401);
   assert.ok(!env.rows.has('todo'), 'Empleo never touches Tareas');
 });
+
+test('after the first real run: no talent pools, no remote jobs abroad, and shared careers links stay separate offers', () => {
+  const now = new Date('2026-11-25T08:00:00Z');
+  assert.equal(scoreOffer({title: 'Senior UI/ UX Artist Freelance Talent Pool (2027)', description: EN_TA}), null);
+  assert.equal(scoreOffer({title: 'Senior Rendering Engineer - Talent Network'}), null);
+  const job = {slug: 'x', title: 'Talent Acquisition Partner', company_name: 'A', remote: true, url: 'https://www.arbeitnow.com/jobs/x', description: EN_TA};
+  assert.equal(fromArbeitnow({...job, location: 'Netherlands'}, now), null);
+  assert.ok(fromArbeitnow({...job, location: 'Remote job'}, now));
+  assert.ok(fromArbeitnow({...job, location: 'Germany'}, now));
+  const careers = 'https://jobs.korian.de/';
+  const doc = applyOps(emptyDoc(), [{op: 'offers.add', offers: [
+    {source: 'ba', ext: 'n', title: 'Regional Recruiting Manager Nord', url: careers},
+    {source: 'ba', ext: 'w', title: 'Regional Recruiting Manager West', url: careers},
+  ]}]);
+  assert.equal(doc.offers.length, 2);
+  // Without an id (added by hand), the same link is the same offer.
+  const link = 'https://www.linkedin.com/jobs/view/1';
+  assert.equal(applyOps(emptyDoc(), [{op: 'offers.add', offers: [{source: 'manual', title: 'Recruiter', url: link}, {source: 'claude', title: 'Recruiter', url: link}]}]).offers.length, 1);
+});
