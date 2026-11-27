@@ -65,6 +65,26 @@ export function progress(plan, ticks) {
   return { done: counted.filter(i => isDone(i, ticks)).length, total: counted.length };
 }
 
+// Progress split at the milestones: 1 January of the start year (when it falls before the start) and the start day.
+// Each phase counts the items due before its cut; items due later, or with no date, go to the last phase.
+export function phases(plan, ticks) {
+  const counted = plan.items.filter(i => stateOf(i, ticks) !== 'optional' || isDone(i, ticks));
+  const cuts = [];
+  if (plan.start) {
+    const ny = plan.start.slice(0, 4) + '-01-01';
+    if (ny < plan.start) cuts.push(ny);
+    cuts.push(plan.start);
+  }
+  const out = cuts.map(until => ({ until, done: 0, total: 0 })).concat([{ until: null, done: 0, total: 0 }]);
+  for (const i of counted) {
+    const k = i.due ? cuts.findIndex(c => i.due < c) : -1;
+    const ph = out[k < 0 ? out.length - 1 : k];
+    ph.total++;
+    if (isDone(i, ticks)) ph.done++;
+  }
+  return out.filter(ph => ph.total);
+}
+
 // Hard deadlines still open, soonest first (overdue included).
 export const deadlines = (plan, ticks) => plan.items.filter(i => i.deadline && i.due && !isDone(i, ticks)).sort((a, b) => a.due.localeCompare(b.due));
 

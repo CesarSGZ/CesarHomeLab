@@ -65,7 +65,7 @@
         <button type="button" class="mz-btn primary" data-act="import">Cargar el plan</button></div></div>`;
       return;
     }
-    const p = S.plan, t = today(), prog = model.progress(p, S.ticks), pct = prog.total ? Math.round(prog.done / prog.total * 100) : 0;
+    const p = S.plan, t = today(), prog = model.progress(p, S.ticks), phs = model.phases(p, S.ticks), pct = prog.total ? Math.round(prog.done / prog.total * 100) : 0;
     const left = p.start ? model.daysUntil(p.start, t) : null;
     const lines = model.deadlines(p, S.ticks), next = model.soon(p, S.ticks, t, 14).filter(i => !i.deadline);
     const groups = (S.view === 'mes' ? model.byMonth(p) : model.bySection(p)).map(g => ({ ...g, shown: visible(g.items) })).filter(g => g.shown.length);
@@ -75,7 +75,9 @@
         <div><p class="mz-eyebrow"><span></span> MUDANZA${p.updated ? ` · ACTUALIZADO ${E(short(p.updated).toUpperCase())}` : ''}</p><h1>${E(p.title)}</h1></div>
         <div class="mz-count">${left !== null ? `<b>${left > 0 ? left : 0}</b><small>${left > 0 ? 'días para empezar' : 'ya empezaste'}${p.startLabel ? '<br>' + E(p.startLabel) : ''}</small>` : ''}</div>
       </header>
-      <div class="mz-progress"><span><i style="width:${pct}%"></i></span><b>${pct}%</b><small>${prog.done}/${prog.total} hecho${late ? ` · <em>${late} plazo${late > 1 ? 's' : ''} vencido${late > 1 ? 's' : ''}</em>` : ''}</small></div>
+      <div class="mz-progress"><span class="mz-phases">${phs.map(ph => `<span style="flex:${ph.total}" title="${E(phaseName(ph))}: ${ph.done}/${ph.total}"><i style="width:${ph.total ? Math.round(ph.done / ph.total * 100) : 0}%"></i></span>`).join('')}</span><b>${pct}%</b>
+        <ol class="mz-legend">${phs.map(ph => `<li style="flex:${ph.total}"><strong>${E(phaseName(ph))}</strong> ${ph.done}/${ph.total} · ${Math.round(ph.done / ph.total * 100)}%</li>`).join('')}</ol>
+        <small>${prog.done}/${prog.total} hecho${late ? ` · <em>${late} plazo${late > 1 ? 's' : ''} vencido${late > 1 ? 's' : ''}</em>` : ''}</small></div>
       ${S.error ? `<p class="mz-err">${E(S.error)}</p>` : ''}
       ${p.status ? `<section class="mz-card mz-status"><h2>Estado actual</h2><p>${E(p.status).replace(/\n/g, '<br>')}</p>${p.facts.length ? `<dl class="mz-facts">${p.facts.map(f => `<div><dt>${E(f.label)}</dt><dd>${E(f.value)}</dd></div>`).join('')}</dl>` : ''}</section>` : ''}
       <div class="mz-two">
@@ -90,6 +92,10 @@
       ${p.money.length ? `<section class="mz-card"><h2>Dinero</h2><dl class="mz-facts">${p.money.map(f => `<div><dt>${E(f.label)}</dt><dd>${E(f.value)}</dd></div>`).join('')}</dl></section>` : ''}
       <footer class="mz-foot"><button type="button" class="mz-btn" data-act="import">Actualizar el plan</button><small>Lo que marcas se guarda aparte: cargar un plan nuevo no lo borra.</small></footer>
     </div>`;
+  }
+  function phaseName(ph) {
+    if (!ph.until) return 'Después';
+    return 'Antes del ' + new Date(ph.until + 'T00:00:00Z').toLocaleDateString('es-ES', { day: 'numeric', month: 'short', timeZone: 'UTC' }).replace('.', '');
   }
   function paintImport() {
     const pv = S.preview;
@@ -146,7 +152,7 @@
 
   window.MudanzaLab = { async initialise(token) {
     csrf = token;
-    model = await import('/control/mudanza-model.js?v=20261124a');
+    model = await import('/control/mudanza-model.js?v=20261127a');
     S.view = read('view', 'mes'); S.filter = read('filter', 'open');
     const cached = read('cache', null);
     if (cached?.plan) { S.plan = cached.plan; S.ticks = cached.ticks || {}; paint(); }
