@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {normPlan, stateOf, isDone, applyTick, progress, deadlines, soon, byMonth, bySection} from '../control/mudanza-model.js';
+import {normPlan, stateOf, isDone, applyTick, progress, phases, deadlines, soon, byMonth, bySection} from '../control/mudanza-model.js';
 import {onRequest} from '../functions/control/api/mudanza/status.js';
 import {accessForUser} from '../functions/_lib/auth.js';
 
@@ -85,4 +85,14 @@ test('API: only the owner, CSRF on writes, the plan is private and ticks survive
   assert.equal(out.plan.title, 'Versión 2');
   assert.equal(out.ticks.c.done, true);
   assert.equal((await onRequest({request: post({action: 'borrar'}), env, data: owner})).status, 400);
+});
+
+test('progress splits at 1 January and the start day; undated and later items go last', () => {
+  const p = normPlan(sample);
+  const ph = phases(p, {});
+  assert.deepEqual(ph.map(x => x.until), ['2027-01-01', '2027-02-01']);
+  assert.deepEqual(ph.map(x => [x.done, x.total]), [[1, 3], [0, 1]], 'optional item d is skipped');
+  const late = normPlan({...sample, items: [...sample.items, {id: 'g', title: 'Anmeldung', due: '2027-02-10'}, {id: 'h', title: 'Sin fecha'}]});
+  assert.deepEqual(phases(late, {}).map(x => [x.until, x.total]), [['2027-01-01', 3], ['2027-02-01', 1], [null, 2]]);
+  assert.deepEqual(phases(normPlan({...sample, start: ''}), {}).map(x => x.until), [null]);
 });
