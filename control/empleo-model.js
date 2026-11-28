@@ -183,7 +183,7 @@ const AGENCY = /\b(personalberatung|personaldienstleist|personalvermittlung|zeit
 const PAYROLL_ES = /\b(payroll|nómina|nominas|compensation)\b[\s\S]{0,80}\b(spain|spanish|iberia|españa)|\b(spain|spanish|iberia|españa)\b[\s\S]{0,80}\b(payroll|nómina|nominas)/i;
 const HRTECH = /\b(personio|factorial|deel|remote\.com|hibob|workday|sap successfactors|implementation consultant|customer success)/i;
 const GERMAN_REQUIRED = /\b(fluent|fluency in|excellent|very good|business[- ]fluent|native|proficient|professional|strong)\b[^.\n]{0,25}\bgerman\b|\bgerman\b[^.\n]{0,20}\b(c1|c2|fluent|native|mandatory|required|is a must|is essential)|\bgerman (and|&) english\b[^.\n]{0,45}\b(fluent|required|excellent|very good|proficient|native|business)|\benglish (and|&) german\b[^.\n]{0,45}\b(fluent|required|excellent|very good|proficient|native|business)|(sehr gute|verhandlungssicher|fließend|fliessend|exzellent)[^.\n]{0,30}deutsch|deutsch[^.\n]{0,25}(verhandlungssicher|fließend|fliessend|c1|c2|muttersprach)/i;
-const GERMAN_PLUS = /\bgerman\b[^.\n]{0,30}\b(plus|advantage|nice to have|beneficial|desirable|bonus)|deutsch(kenntnisse)?[^.\n]{0,30}(von vorteil|wünschenswert|ein plus)/i;
+const GERMAN_PLUS = /\bgerman\b[^.\n]{0,40}\b(plus|advantage|nice to have|beneficial|desirable|bonus|not mandatory|not required|preferred)|deutsch(kenntnisse)?[^.\n]{0,30}(von vorteil|wünschenswert|ein plus)/i;
 const SPANISH = /\b(spanish|spanisch|español|espanol|castellano)\b/i;
 const TECH = /\b(engineer(ing|s)?|technical|tech recruit|it recruit|aerospace|aviation|automotive|defen[cs]e|semiconductor|ingenieur)/i;
 const EN_WORDS = /\b(the|and|you|your|with|our|for|will|we|are|team|experience|skills)\b/gi;
@@ -209,8 +209,10 @@ export function scoreOffer(o) {
   if (lang === 'en') { score += 22; reasons.push('Oferta en inglés'); }
   else if (lang === 'de') { score -= 25; reasons.push('Oferta en alemán'); }
   let german = '';
-  if (GERMAN_REQUIRED.test(text)) { german = 'required'; score -= 30; reasons.push('Pide alemán'); }
-  else if (GERMAN_PLUS.test(text)) { german = 'plus'; score -= 3; reasons.push('Alemán: un plus'); }
+  // Sentence by sentence: «Business fluent English, German is a plus» is a plus, not a requirement.
+  const sentences = text.split(/[.;\n]/);
+  if (sentences.some(s => GERMAN_REQUIRED.test(s) && !GERMAN_PLUS.test(s))) { german = 'required'; score -= 30; reasons.push('Pide alemán'); }
+  else if (sentences.some(s => GERMAN_PLUS.test(s))) { german = 'plus'; score -= 3; reasons.push('Alemán: un plus'); }
   else if (o.description) german = 'none';
   const spanish = SPANISH.test(text);
   if (spanish) { score += 15; reasons.push('Valora español'); }
