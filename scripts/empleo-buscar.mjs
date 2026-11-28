@@ -80,6 +80,14 @@ async function searchBA(known) {
   return { seen: items.size, offers };
 }
 
+// An agency offer already uploaded, scored again with its full text. If it cannot be read, it is kept.
+async function stillFitsBA(o) {
+  try {
+    const detail = await getJson(`${BA}/pc/v4/jobdetails/${Buffer.from(o.ext).toString('base64')}`, BA_HEADERS);
+    return !!fromBA({ refnr: o.ext, stellenangebotsTitel: o.title, firma: o.company, datumErsteVeroeffentlichung: o.posted, homeofficemoeglich: o.remote }, detail);
+  } catch { return true; }
+}
+
 async function searchArbeitnow(known) {
   const offers = [];
   let seen = 0;
@@ -110,7 +118,8 @@ export async function main() {
   const doc = live ? await api('GET') : { offers: [], apps: [] };
   for (const o of doc.offers || []) {
     // A new robot offer that no longer passes the rules (they got stricter) is removed, not kept forever.
-    if (o.status === 'new' && !stillFits(o)) { ops.push({ op: 'offer.delete', id: o.id }); continue; }
+    // Agency offers are read again in full: what disqualifies one may be beyond the stored snippet.
+    if (o.status === 'new' && (!stillFits(o) || (o.source === 'ba' && !(await stillFitsBA(o))))) { ops.push({ op: 'offer.delete', id: o.id }); continue; }
     known.add(`${o.source}:${o.ext}`);
   }
   if (ops.length) console.log(`Quitadas ${ops.length} ofertas que ya no encajan`);
