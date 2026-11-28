@@ -207,3 +207,10 @@ test('German asked for after the language name still counts («German and Englis
   }
   assert.notEqual(scoreOffer({title: 'Recruiter', description: 'Our team works in English. German and English speakers welcome.'}).german, 'required');
 });
+
+test('German as a plus is not German required, even next to «fluent English»', () => {
+  for (const text of ['Business fluent English, german is a plus', 'Fluent English and professionnal proficiency (B2) German is highly desirable', 'Fluent English; B2 German is highly desirable but not mandatory']) {
+    assert.equal(scoreOffer({title: 'HR Business Partner', description: `We work in English with you and our team. ${text}.`}).german, 'plus', text);
+  }
+  assert.equal(scoreOffer({title: 'HR Business Partner', description: 'We work in English with you and our team. Fluent German (mandatory). Italian is a plus.'}).german, 'required');
+});
