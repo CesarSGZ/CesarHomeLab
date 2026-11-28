@@ -200,3 +200,10 @@ test('each CV version keeps its file: upload, download, replace and delete', asy
   assert.ok(!env.rows.has('empleo-cv:CV-A'));
   assert.equal((await page({request: new Request('https://x/?cv=CV-A'), env, data: owner})).status, 404);
 });
+
+test('German asked for after the language name still counts («German and English … are excellent»)', () => {
+  for (const text of ['Your German and English language skills are excellent, both spoken and written.', 'English and German at a business level are required.', 'Full professional English and German']) {
+    assert.equal(scoreOffer({title: 'Associate, Recruiting', description: `We are an international team. ${text}`}).german, 'required', text);
+  }
+  assert.notEqual(scoreOffer({title: 'Recruiter', description: 'Our team works in English. German and English speakers welcome.'}).german, 'required');
+});
