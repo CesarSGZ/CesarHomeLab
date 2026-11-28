@@ -351,7 +351,7 @@
 
   window.EmpleoLab = { async initialise(token) {
     csrf = token;
-    model = await import('/control/empleo-model.js?v=20261125c');
+    model = await import('/control/empleo-model.js?v=20261128a');
     if (!['ofertas', 'candidaturas', 'resultados', 'ajustes'].includes(S.tab)) S.tab = 'ofertas';
     await refresh();
     if (!S.doc) { S.doc = model.emptyDoc(); paint(); }
