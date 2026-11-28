@@ -12,7 +12,7 @@ import { scoreOffer, fits, closeGhosted } from '../control/empleo-model.js';
 const SITE = process.env.EMPLEO_SITE || 'https://cesar-solla.pages.dev';
 const BA = 'https://rest.arbeitsagentur.de/jobboerse/jobsuche-service';
 const BA_HEADERS = { 'X-API-Key': 'jobboerse-jobsuche', 'User-Agent': 'Mozilla/5.0 (Empleo robot)' };
-export const QUERIES = ['Talent Acquisition', 'Recruiter', 'Recruiting', 'HR Generalist', 'People Operations', 'HR Business Partner', 'Human Resources'];
+export const QUERIES = ['HR Business Partner', 'HR Generalist', 'HR Manager', 'People Partner', 'People Operations', 'People & Culture', 'Human Resources', 'Talent Acquisition', 'Recruiter'];
 export const PLACES = [{ wo: 'München', umkreis: 40 }, { wo: 'Ingolstadt', umkreis: 35 }];
 export const NEAR = /m(ü|u|ue)nchen|munich|ingolstadt|garching|unterschlei(ß|ss)heim|ottobrunn|taufkirchen|neubiberg|freising|erding|manching|pfaffenhofen|eching|ismaning|aschheim|feldkirchen|planegg|martinsried|gr(ä|a)felfing|starnberg|dachau|f(ü|u)rstenfeldbruck|bavaria|bayern/i;
 export const MIN_SCORE = 35;

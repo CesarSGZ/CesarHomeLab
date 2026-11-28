@@ -200,8 +200,9 @@ export function scoreOffer(o) {
   const title = String(o.title || ''), text = `${title}\n${o.description || ''}`, reasons = [];
   if (OUT_TITLE.test(title) || !HR_TITLE.test(title)) return null;
   let score = 0;
-  if (TA_TITLE.test(title)) { score += 45; reasons.push('Selección / TA'); }
-  else if (HR_GEN_TITLE.test(title)) { score += 32; reasons.push('HR generalista'); }
+  // HRBP and general HR management come first: it is what she enjoys most (pure recruiting the least).
+  if (HR_GEN_TITLE.test(title)) { score += 48; reasons.push('HRBP / gestión de RRHH'); }
+  else if (TA_TITLE.test(title)) { score += 42; reasons.push('Selección / TA'); }
   else if (DE_HR_TITLE.test(title)) { score += 8; reasons.push('Puesto de RRHH alemán'); }
   else { score += 22; reasons.push('RRHH'); }
   const lang = o.lang || language(o.description ? o.description : title);
